@@ -955,33 +955,34 @@ export function Dashboard({ expenses, categories, incomeCategories, userName, cu
   return (
     <div className="min-h-screen" style={{ backgroundColor: '#F5F5F7' }}>
       {view === 'overview' ? (
-        /* Title row: tab title on the left, period selector on the right.
-           The greeting sits below the title and fades out after 2s. */
         <div className="px-6 pt-1 pb-3">
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <h1 style={{ color: '#1C1C1E', fontSize: '28px', fontWeight: '600', letterSpacing: '-0.5px' }}>
-                Dashboard
-              </h1>
-              {/* Personalized greeting — visible for 2s on each app launch, then collapses */}
-              <div
-                style={{
-                  overflow: 'hidden',
-                  maxHeight: showGreeting ? '24px' : 0,
-                  opacity: showGreeting ? 1 : 0,
-                  transition: 'opacity 0.3s ease-out, max-height 0.4s ease-out 0.1s'
-                }}
-              >
-                <p style={{ color: '#8E8E93', fontSize: '14px', marginTop: '4px' }}>{greeting}</p>
-              </div>
-            </div>
+          {/* Personalized greeting — sits at the very top, visible for 2s on
+              each app launch, then collapses */}
+          <div
+            style={{
+              overflow: 'hidden',
+              maxHeight: showGreeting ? '22px' : 0,
+              opacity: showGreeting ? 1 : 0,
+              transition: 'opacity 0.3s ease-out, max-height 0.4s ease-out 0.1s'
+            }}
+          >
+            <p style={{ color: '#8E8E93', fontSize: '14px', marginBottom: '2px' }}>{greeting}</p>
+          </div>
+
+          {/* Title row: tab title on the left, period selector on the right */}
+          <div className="flex items-center justify-between gap-3">
+            <h1 style={{ color: '#1C1C1E', fontSize: '28px', fontWeight: '600', letterSpacing: '-0.5px' }}>
+              Dashboard
+            </h1>
 
             {/* Period selector — a native <select> styled like the Activity tab
-                filters, with a label. Kept on the light background because the
-                same control flashes black on tap when placed on the dark card. */}
-            <div className="flex items-center gap-1.5 flex-shrink-0" style={{ marginTop: '6px' }}>
+                filters, with a label and a chevron hint. Kept on the light
+                background because the same control flashes black on tap when
+                placed on the dark card. */}
+            <div className="flex items-center gap-1.5 flex-shrink-0">
               <span style={{ color: '#8E8E93', fontSize: '13px', fontWeight: '500' }}>Period</span>
               <div
+                className="relative"
                 style={{
                   WebkitTapHighlightColor: 'rgba(255, 255, 255, 0)',
                   isolation: 'isolate',
@@ -998,7 +999,7 @@ export function Dashboard({ expenses, categories, incomeCategories, userName, cu
                     setSelectedYear(current.year);
                     setExpandedCategory(null);
                   }}
-                  className="px-2.5 py-1 rounded-md text-xs text-neutral-600 border border-neutral-200"
+                  className="pl-2.5 pr-7 py-1 rounded-md text-xs text-neutral-600 border border-neutral-200"
                   style={{
                     WebkitTapHighlightColor: 'rgba(255, 255, 255, 0)',
                     WebkitAppearance: 'none',
@@ -1007,6 +1008,12 @@ export function Dashboard({ expenses, categories, incomeCategories, userName, cu
                     WebkitUserSelect: 'none',
                     touchAction: 'manipulation',
                     backgroundColor: '#FAFAFA',
+                    // Chevron drawn as the select's own background so it always
+                    // paints (an overlay element gets hidden by the native
+                    // control's compositing layer)
+                    backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%238E8E93' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E\")",
+                    backgroundRepeat: 'no-repeat',
+                    backgroundPosition: 'right 8px center',
                     transform: 'translateZ(0)',
                     willChange: 'background-color'
                   }}
