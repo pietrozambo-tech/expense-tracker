@@ -146,8 +146,7 @@ export function Categories({
             {sortedCategories.map((category) => {
               const Icon = getCategoryIcon(category.icon);
               const isExpanded = expandedCategories.has(category.id);
-              const hasSubcategories = (category.subcategories?.length || 0) > 0;
-              
+
               return (
                 <div key={category.id} className="rounded-xl overflow-hidden" style={{ 
                   backgroundColor: '#FFFFFF',
@@ -161,7 +160,7 @@ export function Categories({
                           <Icon className={`w-4 h-4 ${category.color}`} />
                         </div>
                         <button
-                          onClick={() => hasSubcategories && toggleCategoryExpansion(category.id)}
+                          onClick={() => toggleCategoryExpansion(category.id)}
                           className="flex-1 text-left"
                         >
                           <div style={{ color: '#1C1C1E', fontWeight: '500', fontSize: '15px' }}>{category.name}</div>
@@ -169,12 +168,10 @@ export function Categories({
                             <span style={{ color: '#8E8E93', fontSize: '11px' }}>
                               {category.subcategories?.length || 0} subcategories
                             </span>
-                            {hasSubcategories && (
-                              isExpanded ? (
-                                <ChevronDown className="w-3 h-3" style={{ color: '#8E8E93' }} />
-                              ) : (
-                                <ChevronRight className="w-3 h-3" style={{ color: '#8E8E93' }} />
-                              )
+                            {isExpanded ? (
+                              <ChevronDown className="w-3 h-3" style={{ color: '#8E8E93' }} />
+                            ) : (
+                              <ChevronRight className="w-3 h-3" style={{ color: '#8E8E93' }} />
                             )}
                           </div>
                         </button>
