@@ -342,12 +342,23 @@ export function Settings({
       {/* Settings List */}
       <div className="px-6">
         <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
-          <button 
+          <button
             onClick={() => setShowNameEditor(true)}
             className="w-full flex items-center gap-3 px-5 py-4 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
             style={{ borderBottom: '1px solid #F2F2F7' }}
           >
-            <UserCircle className="w-5 h-5" style={{ color: '#8E8E93' }} strokeWidth={2} />
+            {userName ? (
+              <div
+                className="w-7 h-7 -ml-1 rounded-full flex items-center justify-center flex-shrink-0"
+                style={{ backgroundColor: '#1C1C1E' }}
+              >
+                <span style={{ color: '#FFFFFF', fontSize: '13px', fontWeight: 600 }}>
+                  {userName.trim().charAt(0).toUpperCase()}
+                </span>
+              </div>
+            ) : (
+              <UserCircle className="w-5 h-5" style={{ color: '#8E8E93' }} strokeWidth={2} />
+            )}
             <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '16px' }}>Profile</span>
             <span style={{ color: '#8E8E93', fontSize: '15px' }}>{userName}</span>
             <ChevronRight className="w-5 h-5" style={{ color: '#C7C7CC' }} />

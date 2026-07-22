@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { ChevronRight, ArrowUpDown, TrendingUp, TrendingDown, Minus, Calendar, Receipt, ChevronLeft, ChevronDown, X, Clock } from 'lucide-react';
 import { TrendCategoryBreakdown } from './TrendCategoryBreakdown';
 import React from 'react';
@@ -192,64 +192,6 @@ export function Dashboard({ expenses, categories, incomeCategories, userName, cu
   };
   
   const [trendYearFilter, setTrendYearFilter] = useState<number>(getMostRecentYearWithData()); // Year filter for Trend tab
-
-  // Greeting collapse state
-  const [showGreeting, setShowGreeting] = useState(() => {
-    // Check if greeting was already shown in this session
-    const hasShown = sessionStorage.getItem('greetingShown');
-    return !hasShown;
-  });
-  const [greetingHeight, setGreetingHeight] = useState<number | null>(null);
-  const greetingRef = useRef<HTMLDivElement>(null);
-  const hasCollapsedRef = useRef(false);
-
-  // Auto-collapse greeting after 2 seconds and handle user interactions
-  useEffect(() => {
-    // Don't run if greeting shouldn't show
-    if (!showGreeting && sessionStorage.getItem('greetingShown')) {
-      return;
-    }
-
-    // Measure the greeting height
-    if (greetingRef.current && greetingHeight === null) {
-      setGreetingHeight(greetingRef.current.offsetHeight);
-    }
-
-    const collapseGreeting = () => {
-      if (!hasCollapsedRef.current) {
-        hasCollapsedRef.current = true;
-        setShowGreeting(false);
-        // Mark greeting as shown for this session
-        sessionStorage.setItem('greetingShown', 'true');
-      }
-    };
-
-    // Auto-collapse after 2 seconds
-    const timer = setTimeout(() => {
-      collapseGreeting();
-    }, 2000);
-
-    // Collapse on scroll
-    const handleScroll = () => {
-      collapseGreeting();
-    };
-
-    // Collapse on touch/interaction
-    const handleTouch = () => {
-      collapseGreeting();
-    };
-
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    window.addEventListener('touchstart', handleTouch, { passive: true });
-    window.addEventListener('mousedown', handleTouch);
-
-    return () => {
-      clearTimeout(timer);
-      window.removeEventListener('scroll', handleScroll);
-      window.removeEventListener('touchstart', handleTouch);
-      window.removeEventListener('mousedown', handleTouch);
-    };
-  }, [greetingHeight, showGreeting]);
 
   // Reset recurrence layer when switching transaction type or time period
   useEffect(() => {
@@ -949,18 +891,7 @@ export function Dashboard({ expenses, categories, incomeCategories, userName, cu
   return (
     <div className="min-h-screen" style={{ backgroundColor: '#F5F5F7' }}>
       {/* Personalized Greeting */}
-      <div 
-        ref={greetingRef}
-        style={{ 
-          overflow: 'hidden',
-          height: showGreeting ? (greetingHeight || 'auto') : 0,
-          opacity: showGreeting ? 1 : 0,
-          transition: showGreeting 
-            ? 'none' 
-            : 'opacity 0.3s ease-out, height 0.4s ease-out 0.2s',
-          pointerEvents: showGreeting ? 'auto' : 'none'
-        }}
-      >
+      <div>
         <div className="px-6 pt-0 pb-6">
           <h1 style={{ 
             color: '#1C1C1E', 
@@ -1299,6 +1230,8 @@ export function Dashboard({ expenses, categories, incomeCategories, userName, cu
           {transactionType === 'expense' && (() => {
             const cumulativeData = getCumulativeData();
             if (cumulativeData.length === 0) return null;
+            // Hide the chart entirely when the period has no spending yet
+            if (!cumulativeData.some(d => (d.cumulative ?? 0) > 0)) return null;
             
             const maxValue = Math.max(...cumulativeData.map(d => d.cumulative));
 

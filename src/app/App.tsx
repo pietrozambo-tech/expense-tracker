@@ -561,21 +561,23 @@ export default function App() {
         
         {/* Bottom Navigation Bar - Only show when NOT in Add mode AND no modals are open */}
         {currentTab !== 'add' && !isModalOpen && (
-          <div 
-            className="fixed bottom-0 left-0 right-0 z-40 pointer-events-none" 
+          <div
+            className="fixed bottom-0 left-0 right-0 z-40 pointer-events-none"
             style={{
               background: 'rgba(28, 28, 30, 0.85)',
               backdropFilter: 'blur(20px)',
               WebkitBackdropFilter: 'blur(20px)',
-              paddingBottom: 'max(6px, env(safe-area-inset-bottom))',
-              paddingTop: '12px',
+              // Keep labels above the home indicator without stacking the full
+              // inset under them — matches native tab bar height on iPhone
+              paddingBottom: 'max(6px, calc(env(safe-area-inset-bottom) - 10px))',
+              paddingTop: '8px',
               borderTopLeftRadius: '12px',
               borderTopRightRadius: '12px',
               boxShadow: '0 -2px 10px rgba(0, 0, 0, 0.1)'
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="w-full max-w-[430px] mx-auto grid grid-cols-5 items-center px-6" style={{ paddingBottom: '6px' }}>
+            <div className="w-full max-w-[430px] mx-auto grid grid-cols-5 items-center px-6">
               <button 
                 onClick={() => setCurrentTab('dashboard')} 
                 className="flex flex-col items-center gap-1 transition-all pointer-events-auto justify-self-center"
@@ -608,15 +610,16 @@ export default function App() {
                   Expenses
                 </span>
               </button>
-              <button 
+              <button
                 onClick={() => {
                   setCurrentTab('add');
                   setSelectedTransactionCurrency(userCurrency); // Initialize with user's default currency
-                }} 
-                className="flex flex-col items-center gap-0.5 pointer-events-auto justify-self-center"
+                }}
+                aria-label="Add transaction"
+                className="flex flex-col items-center pointer-events-auto justify-self-center"
               >
-                <div 
-                  className="w-12 h-12 rounded-full flex items-center justify-center transition-transform active:scale-95"
+                <div
+                  className="w-11 h-11 rounded-full flex items-center justify-center transition-transform active:scale-95"
                   style={{
                     backgroundColor: '#FFFFFF',
                     boxShadow: '0 4px 16px rgba(255, 255, 255, 0.3)'
@@ -624,7 +627,6 @@ export default function App() {
                 >
                   <Plus size={24} style={{ color: '#1C1C1E' }} strokeWidth={2.5} />
                 </div>
-                <span className="text-[9px] font-medium mt-1" style={{ color: '#8E8E93' }}>Add</span>
               </button>
               <button 
                 onClick={() => setCurrentTab('income')} 
