@@ -28,7 +28,7 @@ export function PeriodTypeModal({
       
       {/* Modal */}
       <div 
-        className="relative w-full bg-white rounded-t-3xl shadow-xl max-w-[430px] mx-auto animate-slide-up"
+        className="relative w-full bg-white rounded-t-3xl shadow-xl max-w-[430px] mx-auto"
         onClick={(e) => e.stopPropagation()}
         style={{ maxHeight: '85vh' }}
       >

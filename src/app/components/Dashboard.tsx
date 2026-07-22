@@ -6,7 +6,6 @@ import { formatAmount, formatCompactAmount, formatSummaryAmount, formatAmountLis
 import { getCategoryIcon } from './categoryIcons';
 import { CategoryFilterModal } from './CategoryFilterModal';
 import { SubcategoryFilterModal } from './SubcategoryFilterModal';
-import { PeriodTypeModal } from './PeriodTypeModal';
 
 import { ActivityDayGroup } from './ActivityDayGroup';
 
@@ -66,7 +65,6 @@ interface DashboardProps {
 export function Dashboard({ expenses, categories, incomeCategories, userName, currency, onEditExpense, onDeleteExpense, view = 'overview', onShowOverview, initialPeriod }: DashboardProps) {
   const viewType: ViewType = view === 'trend' ? 'trend' : 'current-month';
   const [timePeriodType, setTimePeriodType] = useState<TimePeriodType>('month');
-  const [showPeriodMenu, setShowPeriodMenu] = useState(false); // custom period-type dropdown
   // Measure the cumulative chart's real pixel width so its SVG renders 1:1
   // (no aspect-ratio stretching that would deform the line dot / axis text).
   const chartBoxRef = useRef<HTMLDivElement | null>(null);
@@ -1028,17 +1026,45 @@ export function Dashboard({ expenses, categories, incomeCategories, userName, cu
                     </button>
                   </div>
 
-                  {/* Right: Period type trigger — opens the shared bottom-sheet modal
-                      (a plain dropdown here gets clipped by the card's overflow) */}
-                  <div className="flex-shrink-0">
-                    <button
-                      onClick={() => setShowPeriodMenu(true)}
-                      className="flex items-center gap-1 text-xs rounded-lg pl-2.5 pr-2 py-1.5 font-medium"
-                      style={{ color: '#1C1C1E', backgroundColor: 'rgba(255,255,255,0.92)', WebkitTapHighlightColor: 'transparent' }}
+                  {/* Right: Period type selector — a native <select> styled exactly
+                      like the year/month toggles in the Activity tab (FilterBar) */}
+                  <div
+                    className="flex-shrink-0"
+                    style={{
+                      WebkitTapHighlightColor: 'rgba(255, 255, 255, 0)',
+                      isolation: 'isolate',
+                      transform: 'translateZ(0)'
+                    }}
+                  >
+                    <select
+                      value={timePeriodType}
+                      onChange={(e) => {
+                        setTimePeriodType(e.target.value as TimePeriodType);
+                        const current = getCurrentPeriod();
+                        setSelectedMonth(current.month);
+                        setSelectedQuarter(current.quarter);
+                        setSelectedYear(current.year);
+                        setExpandedCategory(null);
+                      }}
+                      className="px-2.5 py-1 rounded-md text-xs border"
+                      style={{
+                        WebkitTapHighlightColor: 'rgba(255, 255, 255, 0)',
+                        WebkitAppearance: 'none',
+                        appearance: 'none',
+                        userSelect: 'none',
+                        WebkitUserSelect: 'none',
+                        touchAction: 'manipulation',
+                        color: '#1C1C1E',
+                        backgroundColor: '#FAFAFA',
+                        borderColor: '#E5E5EA',
+                        transform: 'translateZ(0)',
+                        willChange: 'background-color'
+                      }}
                     >
-                      {timePeriodType === 'month' ? 'Month' : timePeriodType === 'quarter' ? 'Quarter' : 'Year'}
-                      <ChevronDown className="w-3.5 h-3.5" style={{ color: '#3C3C43' }} strokeWidth={2.5} />
-                    </button>
+                      <option value="month">Month</option>
+                      <option value="quarter">Quarter</option>
+                      <option value="year">Year</option>
+                    </select>
                   </div>
                 </div>
 
@@ -2925,22 +2951,6 @@ export function Dashboard({ expenses, categories, incomeCategories, userName, cu
           </div>
         </div>
       )}
-
-      {/* Period type selector — shared bottom-sheet modal (renders outside the
-          overflow-hidden hero card so all three options are always visible) */}
-      <PeriodTypeModal
-        isOpen={showPeriodMenu}
-        selectedPeriodType={timePeriodType}
-        onClose={() => setShowPeriodMenu(false)}
-        onSelectPeriodType={(t) => {
-          setTimePeriodType(t);
-          const current = getCurrentPeriod();
-          setSelectedMonth(current.month);
-          setSelectedQuarter(current.quarter);
-          setSelectedYear(current.year);
-          setExpandedCategory(null);
-        }}
-      />
     </div>
   );
 }
