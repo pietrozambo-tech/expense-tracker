@@ -618,9 +618,9 @@ export default function App() {
               background: 'rgba(28, 28, 30, 0.92)',
               backdropFilter: 'blur(20px)',
               WebkitBackdropFilter: 'blur(20px)',
-              // Keep labels above the home indicator without stacking the full
-              // inset under them — matches native tab bar height on iPhone
-              paddingBottom: 'max(8px, calc(env(safe-area-inset-bottom) - 8px))',
+              // Lift labels clear of the home indicator AND the rounded screen
+              // corners (which otherwise clip the outer Dashboard/Settings labels)
+              paddingBottom: 'max(28px, env(safe-area-inset-bottom))',
               paddingTop: '11px',
               borderTopLeftRadius: '12px',
               borderTopRightRadius: '12px',
@@ -628,7 +628,7 @@ export default function App() {
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="w-full max-w-[430px] mx-auto grid grid-cols-5 items-center px-2">
+            <div className="w-full max-w-[430px] mx-auto grid grid-cols-5 items-center px-4">
               <button
                 onClick={() => {
                   setDashboardInitialPeriod(null); // direct visits start on the current month
