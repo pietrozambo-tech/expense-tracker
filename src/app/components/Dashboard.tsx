@@ -18,6 +18,24 @@ type TransactionType = 'expense' | 'income' | 'savings';
 // the installed app replays it, switching tabs within a session does not.
 let greetingShownThisLaunch = false;
 
+// Pick a "nice" axis top and step for the range [0, maxValue] so the y-axis
+// shows round labels (0, 250, 500, …) instead of raw fractions of the data max.
+function niceAxis(maxValue: number, targetTicks = 5): { max: number; step: number } {
+  if (!isFinite(maxValue) || maxValue <= 0) return { max: 1, step: 1 };
+  const rawStep = maxValue / targetTicks;
+  const mag = Math.pow(10, Math.floor(Math.log10(rawStep)));
+  const norm = rawStep / mag; // 1..10
+  const niceNorm = norm <= 1 ? 1 : norm <= 2 ? 2 : norm <= 2.5 ? 2.5 : norm <= 5 ? 5 : 10;
+  const step = niceNorm * mag;
+  return { max: Math.ceil(maxValue / step) * step, step };
+}
+
+// Compact y-axis tick label: full number with separators up to 10k, then "Nk".
+function formatAxisTick(value: number): string {
+  if (value >= 10000) return `${Math.round(value / 1000)}k`;
+  return Math.round(value).toLocaleString('en-US');
+}
+
 interface Expense {
   id: string;
   description: string;
@@ -1305,7 +1323,7 @@ export function Dashboard({ expenses, categories, incomeCategories, userName, cu
               const plotHeight = chartHeight - chartTopMargin - chartBottomMargin - xAxisHeight;
               
               // Use the actual max from the data (same as Recharts 'dataMax')
-              const actualMax = Math.max(...cumulativeData.map(d => d.cumulative));
+              const actualMax = niceAxis(Math.max(...cumulativeData.map(d => d.cumulative ?? 0), 1)).max;
               
               // Ensure we don't divide by zero
               if (actualMax === 0) return;
@@ -1367,7 +1385,7 @@ export function Dashboard({ expenses, categories, incomeCategories, userName, cu
               const chartHeight = 200;
               const xAxisHeight = 30;
               const plotHeight = chartHeight - chartTopMargin - chartBottomMargin - xAxisHeight;
-              const actualMax = Math.max(...cumulativeData.map(d => d.cumulative));
+              const actualMax = niceAxis(Math.max(...cumulativeData.map(d => d.cumulative ?? 0), 1)).max;
               
               if (actualMax === 0) return;
               
@@ -1431,19 +1449,28 @@ export function Dashboard({ expenses, categories, incomeCategories, userName, cu
                         const n = cumulativeData.length;
                         const dataMax = Math.max(...cumulativeData.map(d => d.cumulative ?? 0), 1);
 
+                        // Round the axis up to a nice max with round steps, leaving a little headroom
+                        const { max: axisMax, step: yStep } = niceAxis(dataMax);
+                        const yTicks: Array<{ value: number }> = [];
+                        for (let v = 0; v <= axisMax + 1e-6; v += yStep) yTicks.push({ value: v });
+
                         const xOf = (i: number) => marginLeft + (n > 1 ? (i / (n - 1)) * plotW : plotW / 2);
-                        const yOf = (v: number) => marginTop + plotH * (1 - v / dataMax);
+                        const yOf = (v: number) => marginTop + plotH * (1 - v / axisMax);
 
-                        // Y-axis ticks: 5 evenly spaced; integer steps for tiny ranges so labels don't repeat
-                        const yTicks = dataMax <= 4
-                          ? Array.from({ length: Math.floor(dataMax) + 1 }, (_, i) => ({ value: i }))
-                          : [0, 0.25, 0.5, 0.75, 1].map(r => ({ value: dataMax * r }));
-
-                        // X-axis ticks with interval
+                        // X-axis ticks at a regular interval; replace the last one with the true
+                        // final day when they'd otherwise collide, so labels never crowd
                         const interval = calculateInterval();
                         const xTicks = cumulativeData.filter((_, i) =>
-                          interval === 0 ? true : i % (interval + 1) === 0 || i === n - 1
+                          interval === 0 ? true : i % (interval + 1) === 0
                         );
+                        if (interval !== 0 && n > 1) {
+                          const lastDay = cumulativeData[n - 1];
+                          const prevIdx = cumulativeData.indexOf(xTicks[xTicks.length - 1]);
+                          if (prevIdx !== n - 1) {
+                            if (n - 1 - prevIdx >= (interval + 1) / 2) xTicks.push(lastDay);
+                            else xTicks[xTicks.length - 1] = lastDay;
+                          }
+                        }
 
                         // Area path — skip future days (cumulative === null) so the line stops at today
                         const linePts = cumulativeData
@@ -1525,7 +1552,7 @@ export function Dashboard({ expenses, categories, incomeCategories, userName, cu
                                 fontSize={10}
                                 fill="#8E8E93"
                               >
-                                {t.value >= 1000 ? `${(t.value / 1000).toFixed(0)}k` : Math.round(t.value).toString()}
+                                {formatAxisTick(t.value)}
                               </text>
                             ))}
 

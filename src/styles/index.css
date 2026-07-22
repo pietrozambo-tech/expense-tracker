@@ -3,19 +3,11 @@
 @import './theme.css';
 
 /*
- * Top status-bar inset.
- * - In a normal browser tab the browser chrome sits above the page, so we only
- *   need a hair of breathing room.
- * - Installed as a PWA (display-mode: standalone) the iOS status bar overlays
- *   the web view, so we reserve the safe-area inset, with a floor tall enough
- *   to clear the status bar / Dynamic Island even when env() reports 0.
+ * Small breathing room at the very top. Without viewport-fit=cover, iOS lays
+ * the standalone web view out inside the safe area (below the status bar,
+ * above the home indicator) on every device, so we don't manually reserve the
+ * status bar height — this is just a hair of padding.
  */
 .app-top-inset {
-  height: 10px;
-}
-@media (display-mode: standalone) {
-  .app-top-inset {
-    height: env(safe-area-inset-top);
-    min-height: 50px;
-  }
+  height: 8px;
 }
