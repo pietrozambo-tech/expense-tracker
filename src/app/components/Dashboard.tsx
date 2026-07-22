@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { ChevronRight, ArrowUpDown, TrendingUp, TrendingDown, Minus, Calendar, Receipt, ChevronLeft, ChevronDown, X, Clock } from 'lucide-react';
+import { ChevronRight, ArrowUpDown, TrendingUp, TrendingDown, Minus, Calendar, Receipt, ChevronLeft, ChevronDown, X, Clock, ArrowUp, ArrowDown, Wallet, Percent } from 'lucide-react';
 import { TrendCategoryBreakdown } from './TrendCategoryBreakdown';
 import React from 'react';
 import { formatAmount, formatCompactAmount, formatSummaryAmount, formatAmountListView, CURRENCIES, convertAmount } from '../utils/currency';
@@ -955,25 +955,68 @@ export function Dashboard({ expenses, categories, incomeCategories, userName, cu
   return (
     <div className="min-h-screen" style={{ backgroundColor: '#F5F5F7' }}>
       {view === 'overview' ? (
-        /* Personalized Greeting — shows for 2s on each app launch, then collapses */
-        <div
-          style={{
-            overflow: 'hidden',
-            maxHeight: showGreeting ? '72px' : 0,
-            opacity: showGreeting ? 1 : 0,
-            transition: 'opacity 0.3s ease-out, max-height 0.4s ease-out 0.1s'
-          }}
-        >
-          <div className="px-6 pt-1 pb-4">
-            <h1 style={{
-              color: '#1C1C1E',
-              fontSize: '28px',
-              fontWeight: '600',
-              letterSpacing: '-0.5px',
-              opacity: 0.9
-            }}>
-              {greeting}
-            </h1>
+        /* Title row: tab title on the left, period selector on the right.
+           The greeting sits below the title and fades out after 2s. */
+        <div className="px-6 pt-1 pb-3">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <h1 style={{ color: '#1C1C1E', fontSize: '28px', fontWeight: '600', letterSpacing: '-0.5px' }}>
+                Dashboard
+              </h1>
+              {/* Personalized greeting — visible for 2s on each app launch, then collapses */}
+              <div
+                style={{
+                  overflow: 'hidden',
+                  maxHeight: showGreeting ? '24px' : 0,
+                  opacity: showGreeting ? 1 : 0,
+                  transition: 'opacity 0.3s ease-out, max-height 0.4s ease-out 0.1s'
+                }}
+              >
+                <p style={{ color: '#8E8E93', fontSize: '14px', marginTop: '4px' }}>{greeting}</p>
+              </div>
+            </div>
+
+            {/* Period selector — a native <select> styled like the Activity tab
+                filters, with a label. Kept on the light background because the
+                same control flashes black on tap when placed on the dark card. */}
+            <div className="flex items-center gap-1.5 flex-shrink-0" style={{ marginTop: '6px' }}>
+              <span style={{ color: '#8E8E93', fontSize: '13px', fontWeight: '500' }}>Period</span>
+              <div
+                style={{
+                  WebkitTapHighlightColor: 'rgba(255, 255, 255, 0)',
+                  isolation: 'isolate',
+                  transform: 'translateZ(0)'
+                }}
+              >
+                <select
+                  value={timePeriodType}
+                  onChange={(e) => {
+                    setTimePeriodType(e.target.value as TimePeriodType);
+                    const current = getCurrentPeriod();
+                    setSelectedMonth(current.month);
+                    setSelectedQuarter(current.quarter);
+                    setSelectedYear(current.year);
+                    setExpandedCategory(null);
+                  }}
+                  className="px-2.5 py-1 rounded-md text-xs text-neutral-600 border border-neutral-200"
+                  style={{
+                    WebkitTapHighlightColor: 'rgba(255, 255, 255, 0)',
+                    WebkitAppearance: 'none',
+                    appearance: 'none',
+                    userSelect: 'none',
+                    WebkitUserSelect: 'none',
+                    touchAction: 'manipulation',
+                    backgroundColor: '#FAFAFA',
+                    transform: 'translateZ(0)',
+                    willChange: 'background-color'
+                  }}
+                >
+                  <option value="month">Month</option>
+                  <option value="quarter">Quarter</option>
+                  <option value="year">Year</option>
+                </select>
+              </div>
+            </div>
           </div>
         </div>
       ) : (
@@ -987,48 +1030,6 @@ export function Dashboard({ expenses, categories, incomeCategories, userName, cu
       {/* Current Month View */}
       {viewType === 'current-month' && (
         <>
-          {/* Period type selector — a native <select> styled exactly like the
-              year/month toggles in the Activity tab (FilterBar). Kept here on
-              the light page background because the same control flashes black
-              on tap when placed on the dark hero card. */}
-          <div className="px-6 mb-2 flex justify-end">
-            <div
-              style={{
-                WebkitTapHighlightColor: 'rgba(255, 255, 255, 0)',
-                isolation: 'isolate',
-                transform: 'translateZ(0)'
-              }}
-            >
-              <select
-                value={timePeriodType}
-                onChange={(e) => {
-                  setTimePeriodType(e.target.value as TimePeriodType);
-                  const current = getCurrentPeriod();
-                  setSelectedMonth(current.month);
-                  setSelectedQuarter(current.quarter);
-                  setSelectedYear(current.year);
-                  setExpandedCategory(null);
-                }}
-                className="px-2.5 py-1 rounded-md text-xs text-neutral-600 border border-neutral-200"
-                style={{
-                  WebkitTapHighlightColor: 'rgba(255, 255, 255, 0)',
-                  WebkitAppearance: 'none',
-                  appearance: 'none',
-                  userSelect: 'none',
-                  WebkitUserSelect: 'none',
-                  touchAction: 'manipulation',
-                  backgroundColor: '#FAFAFA',
-                  transform: 'translateZ(0)',
-                  willChange: 'background-color'
-                }}
-              >
-                <option value="month">Month</option>
-                <option value="quarter">Quarter</option>
-                <option value="year">Year</option>
-              </select>
-            </div>
-          </div>
-
           {/* Total Spending/Income/Savings Card — premium dark hero */}
           <div className="px-6 mb-4">
             <div
@@ -1068,36 +1069,70 @@ export function Dashboard({ expenses, categories, incomeCategories, userName, cu
                   </button>
                 </div>
 
-                {/* Four columns: Spending, Income, Savings, Saving Rate */}
-                <div className="grid grid-cols-4 gap-2">
-                  <div className="text-center">
-                    <div className="text-[10px] mb-1" style={{ color: 'rgba(235,235,245,0.55)' }}>Spending</div>
-                    <div className="font-bold text-[15px] tabular-nums" style={{ color: '#FFFFFF' }}>
-                      {formatAmountListView(totalSpending, currency, 0)}
+                {/* 2×2 metrics — raw flows (Spending / Income) on top, derived
+                    results (Savings / Saving Rate) below a hairline divider.
+                    Each is set apart by a tinted, colored icon. */}
+                <div>
+                  {/* Row 1: flows */}
+                  <div className="flex">
+                    <div className="flex items-center gap-2.5 flex-1 min-w-0">
+                      <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: 'rgba(255,105,97,0.16)' }}>
+                        <ArrowUp className="w-4 h-4" style={{ color: '#FF6961' }} strokeWidth={2.5} />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-[11px] leading-tight mb-1" style={{ color: 'rgba(235,235,245,0.6)' }}>Spending</div>
+                        <div className="font-bold text-[17px] leading-none tabular-nums truncate" style={{ color: '#FFFFFF' }}>
+                          {formatAmountListView(totalSpending, currency, 0)}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="w-px self-stretch mx-3" style={{ backgroundColor: 'rgba(255,255,255,0.07)' }} />
+                    <div className="flex items-center gap-2.5 flex-1 min-w-0">
+                      <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: 'rgba(48,209,88,0.16)' }}>
+                        <ArrowDown className="w-4 h-4" style={{ color: '#30D158' }} strokeWidth={2.5} />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-[11px] leading-tight mb-1" style={{ color: 'rgba(235,235,245,0.6)' }}>Income</div>
+                        <div className="font-bold text-[17px] leading-none tabular-nums truncate" style={{ color: '#FFFFFF' }}>
+                          {formatAmountListView(totalIncome, currency, 0)}
+                        </div>
+                      </div>
                     </div>
                   </div>
-                  <div className="text-center">
-                    <div className="text-[10px] mb-1" style={{ color: 'rgba(235,235,245,0.55)' }}>Income</div>
-                    <div className="font-bold text-[15px] tabular-nums" style={{ color: '#FFFFFF' }}>
-                      {formatAmountListView(totalIncome, currency, 0)}
+
+                  {/* Divider between flows and results */}
+                  <div className="h-px my-3" style={{ backgroundColor: 'rgba(255,255,255,0.07)' }} />
+
+                  {/* Row 2: results */}
+                  <div className="flex">
+                    <div className="flex items-center gap-2.5 flex-1 min-w-0">
+                      <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: 'rgba(100,160,255,0.16)' }}>
+                        <Wallet className="w-4 h-4" style={{ color: '#64A0FF' }} strokeWidth={2.5} />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-[11px] leading-tight mb-1" style={{ color: 'rgba(235,235,245,0.6)' }}>Savings</div>
+                        <div
+                          className="font-bold text-[17px] leading-none tabular-nums truncate"
+                          style={{ color: savings < 0 ? '#FF6961' : savings > 0 ? '#30D158' : '#FFFFFF' }}
+                        >
+                          {formatAmountListView(savings, currency, 0)}
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-[10px] mb-1" style={{ color: 'rgba(235,235,245,0.55)' }}>Savings</div>
-                    <div
-                      className="font-bold text-[15px] tabular-nums"
-                      style={{ color: savings < 0 ? '#FF6961' : savings > 0 ? '#30D158' : '#FFFFFF' }}
-                    >
-                      {formatAmountListView(savings, currency, 0)}
-                    </div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-[10px] mb-1" style={{ color: 'rgba(235,235,245,0.55)' }}>Saving Rate</div>
-                    <div
-                      className="font-bold text-[15px] tabular-nums"
-                      style={{ color: savings < 0 ? '#FF6961' : savings > 0 ? '#30D158' : '#FFFFFF' }}
-                    >
-                      {totalIncome > 0 ? `${Math.round((savings / totalIncome) * 100)}%` : '—'}
+                    <div className="w-px self-stretch mx-3" style={{ backgroundColor: 'rgba(255,255,255,0.07)' }} />
+                    <div className="flex items-center gap-2.5 flex-1 min-w-0">
+                      <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: 'rgba(100,160,255,0.16)' }}>
+                        <Percent className="w-4 h-4" style={{ color: '#64A0FF' }} strokeWidth={2.5} />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-[11px] leading-tight mb-1" style={{ color: 'rgba(235,235,245,0.6)' }}>Saving Rate</div>
+                        <div
+                          className="font-bold text-[17px] leading-none tabular-nums truncate"
+                          style={{ color: savings < 0 ? '#FF6961' : savings > 0 ? '#30D158' : '#FFFFFF' }}
+                        >
+                          {totalIncome > 0 ? `${Math.round((savings / totalIncome) * 100)}%` : '—'}
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
