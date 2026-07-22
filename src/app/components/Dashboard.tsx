@@ -987,6 +987,48 @@ export function Dashboard({ expenses, categories, incomeCategories, userName, cu
       {/* Current Month View */}
       {viewType === 'current-month' && (
         <>
+          {/* Period type selector — a native <select> styled exactly like the
+              year/month toggles in the Activity tab (FilterBar). Kept here on
+              the light page background because the same control flashes black
+              on tap when placed on the dark hero card. */}
+          <div className="px-6 mb-2 flex justify-end">
+            <div
+              style={{
+                WebkitTapHighlightColor: 'rgba(255, 255, 255, 0)',
+                isolation: 'isolate',
+                transform: 'translateZ(0)'
+              }}
+            >
+              <select
+                value={timePeriodType}
+                onChange={(e) => {
+                  setTimePeriodType(e.target.value as TimePeriodType);
+                  const current = getCurrentPeriod();
+                  setSelectedMonth(current.month);
+                  setSelectedQuarter(current.quarter);
+                  setSelectedYear(current.year);
+                  setExpandedCategory(null);
+                }}
+                className="px-2.5 py-1 rounded-md text-xs text-neutral-600 border border-neutral-200"
+                style={{
+                  WebkitTapHighlightColor: 'rgba(255, 255, 255, 0)',
+                  WebkitAppearance: 'none',
+                  appearance: 'none',
+                  userSelect: 'none',
+                  WebkitUserSelect: 'none',
+                  touchAction: 'manipulation',
+                  backgroundColor: '#FAFAFA',
+                  transform: 'translateZ(0)',
+                  willChange: 'background-color'
+                }}
+              >
+                <option value="month">Month</option>
+                <option value="quarter">Quarter</option>
+                <option value="year">Year</option>
+              </select>
+            </div>
+          </div>
+
           {/* Total Spending/Income/Savings Card — premium dark hero */}
           <div className="px-6 mb-4">
             <div
@@ -998,74 +1040,32 @@ export function Dashboard({ expenses, categories, incomeCategories, userName, cu
               }}
             >
               <div className="px-6 py-3.5">
-                {/* Period selector - single line */}
-                <div className="flex items-center justify-between gap-3 mb-4">
-                  {/* Left: Period navigation */}
-                  <div className="flex items-center gap-2 flex-1 min-w-0">
-                    <button
-                      onClick={navigatePrevious}
-                      className="w-7 h-7 flex items-center justify-center rounded-lg transition-colors flex-shrink-0"
-                      style={{ color: 'rgba(255,255,255,0.55)' }}
-                      aria-label={`Previous ${timePeriodType}`}
-                    >
-                      <ChevronLeft className="w-4 h-4" />
-                    </button>
-
-                    <div className="font-semibold text-sm text-center flex-1 min-w-0 truncate" style={{ color: '#FFFFFF' }}>
-                      {monthName}
-                    </div>
-
-                    <button
-                      onClick={navigateNext}
-                      disabled={isAtCurrentPeriod()}
-                      className="w-7 h-7 flex items-center justify-center rounded-lg transition-colors disabled:opacity-25 flex-shrink-0"
-                      style={{ color: 'rgba(255,255,255,0.55)' }}
-                      aria-label={`Next ${timePeriodType}`}
-                    >
-                      <ChevronRight className="w-4 h-4" />
-                    </button>
-                  </div>
-
-                  {/* Right: Period type selector — a native <select> styled exactly
-                      like the year/month toggles in the Activity tab (FilterBar) */}
-                  <div
-                    className="flex-shrink-0"
-                    style={{
-                      WebkitTapHighlightColor: 'rgba(255, 255, 255, 0)',
-                      isolation: 'isolate',
-                      transform: 'translateZ(0)'
-                    }}
+                {/* Period navigation — the period-type selector lives above the
+                    card on the light background (a native <select> on this dark
+                    card flashes black on tap). */}
+                <div className="flex items-center gap-2 mb-4">
+                  <button
+                    onClick={navigatePrevious}
+                    className="w-7 h-7 flex items-center justify-center rounded-lg transition-colors flex-shrink-0"
+                    style={{ color: 'rgba(255,255,255,0.55)' }}
+                    aria-label={`Previous ${timePeriodType}`}
                   >
-                    <select
-                      value={timePeriodType}
-                      onChange={(e) => {
-                        setTimePeriodType(e.target.value as TimePeriodType);
-                        const current = getCurrentPeriod();
-                        setSelectedMonth(current.month);
-                        setSelectedQuarter(current.quarter);
-                        setSelectedYear(current.year);
-                        setExpandedCategory(null);
-                      }}
-                      className="px-2.5 py-1 rounded-md text-xs border"
-                      style={{
-                        WebkitTapHighlightColor: 'rgba(255, 255, 255, 0)',
-                        WebkitAppearance: 'none',
-                        appearance: 'none',
-                        userSelect: 'none',
-                        WebkitUserSelect: 'none',
-                        touchAction: 'manipulation',
-                        color: '#1C1C1E',
-                        backgroundColor: '#FAFAFA',
-                        borderColor: '#E5E5EA',
-                        transform: 'translateZ(0)',
-                        willChange: 'background-color'
-                      }}
-                    >
-                      <option value="month">Month</option>
-                      <option value="quarter">Quarter</option>
-                      <option value="year">Year</option>
-                    </select>
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+
+                  <div className="font-semibold text-sm text-center flex-1 min-w-0 truncate" style={{ color: '#FFFFFF' }}>
+                    {monthName}
                   </div>
+
+                  <button
+                    onClick={navigateNext}
+                    disabled={isAtCurrentPeriod()}
+                    className="w-7 h-7 flex items-center justify-center rounded-lg transition-colors disabled:opacity-25 flex-shrink-0"
+                    style={{ color: 'rgba(255,255,255,0.55)' }}
+                    aria-label={`Next ${timePeriodType}`}
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
                 </div>
 
                 {/* Four columns: Spending, Income, Savings, Saving Rate */}
