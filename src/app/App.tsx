@@ -1,9 +1,21 @@
-import { useState } from 'react';
-import { mockExpenses } from './components/mockExpenses';
+import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { Toaster } from './components/ui/sonner';
 import { BarChart3, Plus, List, X, Settings as SettingsIcon, TrendingUp } from 'lucide-react';
-import { convertAmount, CURRENCIES } from './utils/currency';
+import { CURRENCIES } from './utils/currency';
+import type { Transaction } from './types';
+import {
+  clearAllData,
+  loadCategories,
+  loadIncomeCategories,
+  loadSettings,
+  loadTransactions,
+  saveCategories,
+  saveIncomeCategories,
+  saveSettings,
+  saveTransactions,
+} from './lib/storage';
+import { getDemoTransactions } from './lib/demoData';
 import { Dashboard } from './components/Dashboard';
 import { ExpensesList } from './components/ExpensesList';
 import { IncomeList } from './components/IncomeList';
@@ -18,9 +30,9 @@ import { Onboarding } from './components/Onboarding';
 import { categories as initialCategories, incomeCategories as initialIncomeCategories } from './components/categories';
 
 export default function App() {
-  const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(false);
-  const [userName, setUserName] = useState('');
-  const [userCurrency, setUserCurrency] = useState('EUR');
+  const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(() => loadSettings().onboarded);
+  const [userName, setUserName] = useState(() => loadSettings().userName);
+  const [userCurrency, setUserCurrency] = useState(() => loadSettings().currency);
   const [selectedTransactionCurrency, setSelectedTransactionCurrency] = useState('EUR'); // Currency for current transaction being added/edited
   const [currentTab, setCurrentTab] = useState<'dashboard' | 'add' | 'list' | 'income' | 'settings'>('dashboard');
   const [transactionType, setTransactionType] = useState<'expense' | 'income'>('expense');
@@ -38,12 +50,12 @@ export default function App() {
     const day = String(today.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
   });
-  const [expenses, setExpenses] = useState(mockExpenses);
+  const [expenses, setExpenses] = useState<Transaction[]>(loadTransactions);
   const [refreshKey, setRefreshKey] = useState(0);
   const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null);
   const [returnToTab, setReturnToTab] = useState<'dashboard' | 'list' | 'income' | 'settings' | 'add'>('dashboard'); // Track which tab to return to after editing
-  const [categories, setCategories] = useState(initialCategories);
-  const [incomeCategories, setIncomeCategories] = useState(initialIncomeCategories);
+  const [categories, setCategories] = useState(loadCategories);
+  const [incomeCategories, setIncomeCategories] = useState(loadIncomeCategories);
   const [isModalOpen, setIsModalOpen] = useState(false); // Track if any modal is open
   const [isSaving, setIsSaving] = useState(false); // Track if save is in progress to prevent duplicate submissions
   
@@ -58,6 +70,20 @@ export default function App() {
     currency: string;
     recurrence: string;
   } | null>(null);
+
+  // Persist app data whenever it changes
+  useEffect(() => {
+    saveTransactions(expenses);
+  }, [expenses]);
+  useEffect(() => {
+    saveCategories(categories);
+  }, [categories]);
+  useEffect(() => {
+    saveIncomeCategories(incomeCategories);
+  }, [incomeCategories]);
+  useEffect(() => {
+    saveSettings({ onboarded: hasCompletedOnboarding, userName, currency: userCurrency });
+  }, [hasCompletedOnboarding, userName, userCurrency]);
 
   const handleCategorySelect = (categoryId: string) => {
     setSelectedCategory(categoryId);
@@ -79,8 +105,8 @@ export default function App() {
     setSelectedCategory(expense.category.id);
     setSelectedSubcategory(expense.subcategory || null);
     setSelectedTransactionCurrency(expense.currency || userCurrency); // Set currency for current transaction
-    setRecurrence((expense as any).recurrence || 'Never repeat'); // Set recurrence
-    
+    setRecurrence(expense.recurrence || 'Never repeat');
+
     // Store original values for change detection
     setOriginalValues({
       amount: expense.amount.toString(),
@@ -90,7 +116,7 @@ export default function App() {
       subcategory: expense.subcategory || null,
       type: expense.type || 'expense',
       currency: expense.currency || userCurrency,
-      recurrence: (expense as any).recurrence || 'Never repeat'
+      recurrence: expense.recurrence || 'Never repeat'
     });
     
     // Set editing mode and open modal
@@ -169,7 +195,7 @@ export default function App() {
       });
     } else {
       // Create new transaction with current currency
-      const newExpense = {
+      const newExpense: Transaction = {
         id: `${transactionType}-${Date.now()}`,
         description: description || categoryData?.name || (transactionType === 'expense' ? 'Expense' : 'Income'),
         amount: parseFloat(amount),
@@ -393,7 +419,6 @@ export default function App() {
   
   // Handle transaction type switch
   const handleTransactionTypeChange = (newType: 'expense' | 'income') => {
-    console.log('handleTransactionTypeChange called:', newType);
     setTransactionType(newType);
     // Reset category selection when switching types
     setSelectedCategory(null);
@@ -413,25 +438,33 @@ export default function App() {
   
   const canSave = amount && parseFloat(amount) > 0 && selectedCategory && hasChanges;
 
-  const handleOnboardingComplete = (name: string, currency: string, useSampleData: boolean) => {
+  const handleOnboardingComplete = (name: string, currency: string) => {
     setUserName(name);
     setUserCurrency(currency);
-    
-    if (useSampleData) {
-      // Use sample data with selected currency
-      // Convert amounts if needed AND set currency field on each transaction
-      const dataWithCurrency = mockExpenses.map(expense => ({
-        ...expense,
-        amount: currency !== 'EUR' ? convertAmount(expense.amount, 'EUR', currency) : expense.amount,
-        currency: currency // Set the currency for each transaction
-      }));
-      setExpenses(dataWithCurrency);
-    } else {
-      // Start with empty data
-      setExpenses([]);
-    }
-    
     setHasCompletedOnboarding(true);
+  };
+
+  // Demo data (for testing) — replaces current transactions with date-shifted samples
+  const handleLoadDemoData = () => {
+    setExpenses(getDemoTransactions(userCurrency));
+    setRefreshKey(prev => prev + 1);
+    setCurrentTab('dashboard');
+    toast.success('Demo data loaded', {
+      description: 'Sample transactions for testing the app',
+      duration: 1400,
+    });
+  };
+
+  // Full reset: wipe storage and restart from onboarding
+  const handleEraseAllData = () => {
+    clearAllData();
+    setExpenses([]);
+    setCategories(initialCategories);
+    setIncomeCategories(initialIncomeCategories);
+    setUserName('');
+    setUserCurrency('EUR');
+    setCurrentTab('dashboard');
+    setHasCompletedOnboarding(false);
   };
 
   const handleCurrencyChange = (newCurrency: string) => {
@@ -519,6 +552,8 @@ export default function App() {
                 onCurrencyChange={handleCurrencyChange}
                 userName={userName}
                 onUserNameChange={handleUserNameChange}
+                onLoadDemoData={handleLoadDemoData}
+                onEraseAllData={handleEraseAllData}
               />
             )}
           </div>
@@ -713,26 +748,12 @@ export default function App() {
             </div>
 
             {/* Fixed Save Button at Bottom */}
-            {(() => {
-              console.log('About to render SaveButton:', { 
-                canSave, 
-                editingExpenseId, 
-                transactionType,
-                hasChanges,
-                originalValues,
-                currentAmount: amount,
-                currentCategory: selectedCategory
-              });
-              return (
-                <SaveButton 
-                  key={`${transactionType}-${editingExpenseId}-${canSave}-${amount}-${selectedCategory}`}
-                  onClick={handleSave} 
-                  disabled={!canSave} 
-                  isEditing={!!editingExpenseId}
-                  transactionType={transactionType}
-                />
-              );
-            })()}
+            <SaveButton
+              onClick={handleSave}
+              disabled={!canSave}
+              isEditing={!!editingExpenseId}
+              transactionType={transactionType}
+            />
           </div>
         )}
       </div>

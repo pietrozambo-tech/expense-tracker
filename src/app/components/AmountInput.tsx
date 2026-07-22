@@ -84,7 +84,7 @@ export function AmountInput({ value, onChange, currency, onCurrencyChange }: Amo
             value={formatDisplayValue(value)}
             onChange={handleChange}
             placeholder="0"
-            className="bg-transparent text-neutral-900 text-4xl font-bold outline-none flex-1 tabular-nums"
+            className="bg-transparent text-neutral-900 text-4xl font-bold outline-none flex-1 min-w-0 tabular-nums"
           />
         </div>
       </div>

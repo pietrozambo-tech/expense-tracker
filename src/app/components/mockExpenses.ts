@@ -1,4 +1,5 @@
 import { categories, incomeCategories } from './categories';
+import type { Transaction } from '../types';
 
 // Helper function to get category by name
 const getCategoryByName = (name: string, type: 'expense' | 'income') => {
@@ -1754,8 +1755,8 @@ const mockExpensesWithoutCurrency = [
 ];
 
 // Add currency and recurrence fields to all mock expenses if not present (default EUR and 'Never repeat')
-export const mockExpenses = mockExpensesWithoutCurrency.map(expense => ({
+export const mockExpenses: Transaction[] = mockExpensesWithoutCurrency.map(expense => ({
   ...expense,
-  currency: (expense as any).currency || ('EUR' as const),
-  recurrence: (expense as any).recurrence || ('Never repeat' as const)
+  currency: 'currency' in expense ? expense.currency : 'EUR',
+  recurrence: 'recurrence' in expense ? expense.recurrence : 'Never repeat'
 }));

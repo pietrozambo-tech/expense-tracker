@@ -228,7 +228,7 @@ export function IncomeItem({ income, onTap, onDelete, currency }: IncomeItemProp
             </p>
             {isRecurrent && (
               <p className="text-neutral-400 text-xs mt-0.5">
-                {(income as any).recurrence}
+                {income.recurrence}
               </p>
             )}
           </div>

@@ -60,7 +60,7 @@ export function TrendCategoryBreakdown({
       return acc;
     }, {} as Record<string, { amount: number; months: Set<string> }>);
     
-    const subcategories = Object.entries(subcategoryTotals).map(([name, data]) => ({
+    const subcategories = Object.entries(subcategoryTotals).map(([name, data]: [string, { amount: number; months: Set<string> }]) => ({
       name,
       amount: data.amount,
       monthlyAvg: monthsWithData > 0 ? data.amount / monthsWithData : 0,

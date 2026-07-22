@@ -223,7 +223,7 @@ export function ExpenseItem({ expense, onTap, onDelete, currency }: ExpenseItemP
             </p>
             {isRecurrent && (
               <p className="text-neutral-400 text-[10px] mt-0.5 font-medium uppercase tracking-tight">
-                {(expense as any).recurrence}
+                {expense.recurrence}
               </p>
             )}
           </div>

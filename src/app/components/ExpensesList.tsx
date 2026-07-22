@@ -8,18 +8,10 @@ import { formatAmount, CURRENCIES, convertAmount } from '../utils/currency';
 import { Download } from 'lucide-react';
 import { toast } from 'sonner';
 
-interface Expense {
-  id: string;
-  description: string;
-  amount: number;
-  category: any;
-  subcategory?: string;
-  date: string;
-  currency?: string;
-}
+import type { Transaction } from '../types';
 
 interface ExpensesListProps {
-  expenses: Expense[];
+  expenses: Transaction[];
   onEditExpense: (id: string) => void;
   onDeleteExpense: (id: string) => void;
   onModalOpenChange?: (isOpen: boolean) => void;
@@ -62,7 +54,7 @@ export function ExpensesList({ expenses, onEditExpense, onDeleteExpense, onModal
         expense.category.name,
         expense.subcategory || '',
         `"${convertedAmount.toFixed(2).replace('.', ',')}"`, // Quote the amount to preserve comma decimal separator
-        (expense as any).recurrence || 'Never repeat'
+        expense.recurrence || 'Never repeat'
       ];
       csvRows.push(row.join(','));
     });
@@ -186,13 +178,13 @@ export function ExpensesList({ expenses, onEditExpense, onDeleteExpense, onModal
     
     // Type filter (recurrence)
     if (typeFilter === 'One-off') {
-      const recurrence = (expense as any).recurrence || 'Never repeat';
+      const recurrence = expense.recurrence || 'Never repeat';
       if (recurrence !== 'Never repeat') {
         return false;
       }
     }
     if (typeFilter === 'Recurrent') {
-      const recurrence = (expense as any).recurrence || 'Never repeat';
+      const recurrence = expense.recurrence || 'Never repeat';
       if (recurrence === 'Never repeat') {
         return false;
       }

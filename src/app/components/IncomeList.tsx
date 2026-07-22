@@ -6,22 +6,12 @@ import { IncomeDayGroup } from './IncomeDayGroup';
 import { CategoryFilterModal } from './CategoryFilterModal';
 import { SubcategoryFilterModal } from './SubcategoryFilterModal';
 import { SearchModal } from './SearchModal';
-import { formatCurrency } from '../utils/format';
 import { CURRENCIES, formatAmount, convertAmount } from '../utils/currency';
 
-interface Income {
-  id: string;
-  description: string;
-  amount: number;
-  category: any;
-  subcategory?: string;
-  date: string;
-  type: 'income';
-  currency?: string;
-}
+import type { Transaction } from '../types';
 
 interface IncomeListProps {
-  expenses: Income[];
+  expenses: Transaction[];
   onEditIncome: (id: string) => void;
   onDeleteIncome: (id: string) => void;
   onModalOpenChange?: (isOpen: boolean) => void;
@@ -65,7 +55,7 @@ export function IncomeList({ expenses, onEditIncome, onDeleteIncome, onModalOpen
         income.category.name,
         income.subcategory || '',
         `"${convertedAmount.toFixed(2).replace('.', ',')}"`, // Quote the amount to preserve comma decimal separator
-        (income as any).recurrence || 'Never repeat'
+        income.recurrence || 'Never repeat'
       ];
       csvRows.push(row.join(','));
     });
@@ -189,13 +179,13 @@ export function IncomeList({ expenses, onEditIncome, onDeleteIncome, onModalOpen
     
     // Type filter (recurrence)
     if (typeFilter === 'One-off') {
-      const recurrence = (income as any).recurrence || 'Never repeat';
+      const recurrence = income.recurrence || 'Never repeat';
       if (recurrence !== 'Never repeat') {
         return false;
       }
     }
     if (typeFilter === 'Recurrent') {
-      const recurrence = (income as any).recurrence || 'Never repeat';
+      const recurrence = income.recurrence || 'Never repeat';
       if (recurrence === 'Never repeat') {
         return false;
       }

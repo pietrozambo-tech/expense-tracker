@@ -1,15 +1,9 @@
-import { ShoppingCart, Utensils, Car, Plane, Coffee, House, Heart, Dumbbell, Film, Zap, ShoppingBag, Ellipsis, Gift, CreditCard, FileText, Sparkles } from 'lucide-react';
+import type { Category } from '../types';
 
-export interface Category {
-  id: string;
-  name: string;
-  icon: React.ComponentType<{ className?: string }>;
-  subcategories?: string[];
-  type: 'expense' | 'income'; // Transaction type
-}
+export type { Category };
 
-// Expense Categories
-export const categories = [
+// Default expense categories (icon is a lucide icon name, see categoryIcons.ts)
+export const categories: Category[] = [
   {
     id: 'office-food',
     name: 'Office Food',
@@ -152,8 +146,8 @@ export const categories = [
   }
 ];
 
-// Income Categories
-export const incomeCategories = [
+// Default income categories
+export const incomeCategories: Category[] = [
   {
     id: 'salary',
     name: 'Salary',

@@ -23,6 +23,7 @@ interface Expense {
   date: string;
   type?: 'expense' | 'income';
   currency?: string;
+  recurrence?: string;
 }
 
 interface DashboardProps {
@@ -913,7 +914,7 @@ export function Dashboard({ expenses, categories, incomeCategories, userName, cu
     // Calculate totals by recurrence type
     const recurrenceMap: Record<string, number> = {};
     periodTransactions.forEach(transaction => {
-      const recurrence = (transaction as any).recurrence || 'Never repeat';
+      const recurrence = transaction.recurrence || 'Never repeat';
       const transactionCurrency = transaction.currency || currency;
       const convertedAmount = convertAmount(transaction.amount, transactionCurrency, currency);
       recurrenceMap[recurrence] = (recurrenceMap[recurrence] || 0) + convertedAmount;
@@ -1345,7 +1346,7 @@ export function Dashboard({ expenses, categories, incomeCategories, userName, cu
               const clampedIndex = Math.max(0, Math.min(dataIndex, cumulativeData.length - 1));
               const dataPoint = cumulativeData[clampedIndex];
               
-              if (!dataPoint) return;
+              if (!dataPoint || dataPoint.cumulative === null) return; // future days have no value
               
               const dataValue = dataPoint.cumulative;
               
@@ -1412,7 +1413,7 @@ export function Dashboard({ expenses, categories, incomeCategories, userName, cu
               const clampedIndex = Math.max(0, Math.min(dataIndex, cumulativeData.length - 1));
               const dataPoint = cumulativeData[clampedIndex];
               
-              if (!dataPoint) return;
+              if (!dataPoint || dataPoint.cumulative === null) return; // future days have no value
               
               const dataValue = dataPoint.cumulative;
               const chartHeight = 200;
@@ -1480,13 +1481,15 @@ export function Dashboard({ expenses, categories, incomeCategories, userName, cu
                         const plotW = svgW - marginLeft - marginRight;
                         const plotH = svgH - marginTop - marginBottom;
                         const n = cumulativeData.length;
-                        const dataMax = Math.max(...cumulativeData.map(d => d.cumulative), 1);
+                        const dataMax = Math.max(...cumulativeData.map(d => d.cumulative ?? 0), 1);
 
                         const xOf = (i: number) => marginLeft + (n > 1 ? (i / (n - 1)) * plotW : plotW / 2);
                         const yOf = (v: number) => marginTop + plotH * (1 - v / dataMax);
 
-                        // Y-axis ticks: 5 evenly spaced
-                        const yTicks = [0, 0.25, 0.5, 0.75, 1].map(r => ({ ratio: r, value: dataMax * r }));
+                        // Y-axis ticks: 5 evenly spaced; integer steps for tiny ranges so labels don't repeat
+                        const yTicks = dataMax <= 4
+                          ? Array.from({ length: Math.floor(dataMax) + 1 }, (_, i) => ({ value: i }))
+                          : [0, 0.25, 0.5, 0.75, 1].map(r => ({ value: dataMax * r }));
 
                         // X-axis ticks with interval
                         const interval = calculateInterval();
@@ -1494,8 +1497,11 @@ export function Dashboard({ expenses, categories, incomeCategories, userName, cu
                           interval === 0 ? true : i % (interval + 1) === 0 || i === n - 1
                         );
 
-                        // Area path
-                        const linePts = cumulativeData.map((d, i) => ({ x: xOf(i), y: yOf(d.cumulative) }));
+                        // Area path — skip future days (cumulative === null) so the line stops at today
+                        const linePts = cumulativeData
+                          .map((d, i) => ({ cumulative: d.cumulative, i }))
+                          .filter((d): d is { cumulative: number; i: number } => d.cumulative !== null)
+                          .map(d => ({ x: xOf(d.i), y: yOf(d.cumulative) }));
                         const lineD = linePts.reduce((acc, p, i) => {
                           if (i === 0) return `M ${p.x},${p.y}`;
                           const prev = linePts[i - 1];
@@ -1503,8 +1509,8 @@ export function Dashboard({ expenses, categories, incomeCategories, userName, cu
                           const cp2x = prev.x + (p.x - prev.x) * 2 / 3;
                           return `${acc} C ${cp1x},${prev.y} ${cp2x},${p.y} ${p.x},${p.y}`;
                         }, '');
-                        const areaD = n > 1
-                          ? `${lineD} L ${xOf(n - 1)},${marginTop + plotH} L ${xOf(0)},${marginTop + plotH} Z`
+                        const areaD = linePts.length > 1
+                          ? `${lineD} L ${linePts[linePts.length - 1].x},${marginTop + plotH} L ${linePts[0].x},${marginTop + plotH} Z`
                           : '';
 
                         return (
@@ -1543,7 +1549,7 @@ export function Dashboard({ expenses, categories, incomeCategories, userName, cu
                             {areaD && <path d={areaD} fill="url(#customCumulativeGrad)" />}
 
                             {/* Area stroke */}
-                            {n > 1 && <path d={lineD} fill="none" stroke="#6BA3F5" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />}
+                            {linePts.length > 1 && <path d={lineD} fill="none" stroke="#6BA3F5" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />}
 
                             {/* Y-axis labels */}
                             {yTicks.map((t, i) => (

@@ -1,6 +1,7 @@
-import { ChevronRight, ChevronLeft, List, TrendingUp, UserCircle, Wallet, BellRing, HelpCircle, ShieldCheck, ScrollText, Layers } from 'lucide-react';
+import { ChevronRight, ChevronLeft, UserCircle, Wallet, BellRing, HelpCircle, ShieldCheck, ScrollText, Layers, FlaskConical, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { Categories } from './Categories';
+import { ConfirmDialog } from './ConfirmDialog';
 import { CURRENCIES } from '../utils/currency';
 
 interface SettingsProps {
@@ -20,6 +21,8 @@ interface SettingsProps {
   onCurrencyChange: (currency: string) => void;
   userName: string;
   onUserNameChange: (name: string) => void;
+  onLoadDemoData: () => void;
+  onEraseAllData: () => void;
 }
 
 export function Settings({ 
@@ -38,14 +41,16 @@ export function Settings({
   userCurrency,
   onCurrencyChange,
   userName,
-  onUserNameChange
+  onUserNameChange,
+  onLoadDemoData,
+  onEraseAllData
 }: SettingsProps) {
   const [showCategories, setShowCategories] = useState(false);
   const [categoryType, setCategoryType] = useState<'expense' | 'income'>('expense');
   const [showCurrencySelector, setShowCurrencySelector] = useState(false);
   const [showNameEditor, setShowNameEditor] = useState(false);
   const [editedName, setEditedName] = useState(userName);
-  const [showCategoryTypeSelector, setShowCategoryTypeSelector] = useState(false);
+  const [confirmAction, setConfirmAction] = useState<'demo' | 'erase' | null>(null);
 
   const currencies = [
     { code: 'EUR', symbol: '€', name: 'Euro', flag: '🇪🇺' },
@@ -64,6 +69,25 @@ export function Settings({
       onUserNameChange(editedName.trim());
       setShowNameEditor(false);
     }
+  };
+
+  const openConfirm = (action: 'demo' | 'erase') => {
+    setConfirmAction(action);
+    onModalOpenChange(true);
+  };
+
+  const closeConfirm = () => {
+    setConfirmAction(null);
+    onModalOpenChange(false);
+  };
+
+  const handleConfirm = () => {
+    if (confirmAction === 'demo') {
+      onLoadDemoData();
+    } else if (confirmAction === 'erase') {
+      onEraseAllData();
+    }
+    closeConfirm();
   };
 
   // Show Currency Selector
@@ -384,12 +408,56 @@ export function Settings({
           </button>
         </div>
 
+        {/* Data section — demo data is for testing the app, erase resets everything */}
+        <p className="mt-8 mb-2 px-1" style={{ color: '#8E8E93', fontSize: '13px' }}>
+          Data
+        </p>
+        <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+          <button
+            onClick={() => openConfirm('demo')}
+            className="w-full flex items-center gap-3 px-5 py-4 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
+            style={{ borderBottom: '1px solid #F2F2F7' }}
+          >
+            <FlaskConical className="w-5 h-5" style={{ color: '#8E8E93' }} strokeWidth={2} />
+            <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '16px' }}>Load demo data</span>
+            <span style={{ color: '#8E8E93', fontSize: '13px' }}>For testing</span>
+          </button>
+
+          <button
+            onClick={() => openConfirm('erase')}
+            className="w-full flex items-center gap-3 px-5 py-4 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
+          >
+            <Trash2 className="w-5 h-5" style={{ color: '#EF4444' }} strokeWidth={2} />
+            <span className="flex-1 text-left" style={{ color: '#EF4444', fontSize: '16px' }}>Erase all data</span>
+          </button>
+        </div>
+
         {/* Version info */}
         <div className="mt-8 text-center pb-4">
           <p className="text-neutral-400 text-sm">Version 1.0.0</p>
           <p className="text-neutral-400 text-xs mt-1">Made with ❤️ in Figma</p>
         </div>
       </div>
+
+      {confirmAction === 'demo' && (
+        <ConfirmDialog
+          title="Load demo data?"
+          message="This replaces your current transactions with sample data so you can explore the app. Use 'Erase all data' to start clean again."
+          confirmLabel="Load"
+          variant="neutral"
+          onConfirm={handleConfirm}
+          onCancel={closeConfirm}
+        />
+      )}
+      {confirmAction === 'erase' && (
+        <ConfirmDialog
+          title="Erase all data?"
+          message="This permanently deletes all transactions, categories and settings, and restarts the app from scratch."
+          confirmLabel="Erase"
+          onConfirm={handleConfirm}
+          onCancel={closeConfirm}
+        />
+      )}
     </div>
   );
 }
