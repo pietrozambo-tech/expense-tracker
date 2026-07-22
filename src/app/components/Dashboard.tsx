@@ -957,39 +957,45 @@ export function Dashboard({ expenses, categories, incomeCategories, userName, cu
       {/* Current Month View */}
       {viewType === 'current-month' && (
         <>
-          {/* Total Spending/Income/Savings Card */}
+          {/* Total Spending/Income/Savings Card — premium dark hero */}
           <div className="px-6 mb-4">
-            <div className="rounded-2xl overflow-hidden" style={{ 
-              backgroundColor: '#FFFFFF',
-              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)'
-            }}>
-              <div className="px-6 py-3">
+            <div
+              className="rounded-2xl overflow-hidden"
+              style={{
+                background: 'linear-gradient(150deg, #2E2E32 0%, #1C1C1E 100%)',
+                boxShadow: '0 12px 30px rgba(28, 28, 30, 0.22)',
+                border: '1px solid rgba(255, 255, 255, 0.06)'
+              }}
+            >
+              <div className="px-6 py-3.5">
                 {/* Period selector - single line */}
-                <div className="flex items-center justify-between gap-3 mb-3">
+                <div className="flex items-center justify-between gap-3 mb-4">
                   {/* Left: Period navigation */}
                   <div className="flex items-center gap-2 flex-1 min-w-0">
                     <button
                       onClick={navigatePrevious}
-                      className="w-7 h-7 flex items-center justify-center rounded-lg active:bg-neutral-100 transition-colors flex-shrink-0"
+                      className="w-7 h-7 flex items-center justify-center rounded-lg transition-colors flex-shrink-0"
+                      style={{ color: 'rgba(255,255,255,0.55)' }}
                       aria-label={`Previous ${timePeriodType}`}
                     >
-                      <ChevronLeft className="w-4 h-4 text-neutral-400" />
+                      <ChevronLeft className="w-4 h-4" />
                     </button>
-                    
-                    <div className="text-neutral-900 font-semibold text-sm text-center flex-1 min-w-0 truncate">
+
+                    <div className="font-semibold text-sm text-center flex-1 min-w-0 truncate" style={{ color: '#FFFFFF' }}>
                       {monthName}
                     </div>
-                    
+
                     <button
                       onClick={navigateNext}
                       disabled={isAtCurrentPeriod()}
-                      className="w-7 h-7 flex items-center justify-center rounded-lg active:bg-neutral-100 transition-colors disabled:opacity-30 flex-shrink-0"
+                      className="w-7 h-7 flex items-center justify-center rounded-lg transition-colors disabled:opacity-25 flex-shrink-0"
+                      style={{ color: 'rgba(255,255,255,0.55)' }}
                       aria-label={`Next ${timePeriodType}`}
                     >
-                      <ChevronRight className="w-4 h-4 text-neutral-400" />
+                      <ChevronRight className="w-4 h-4" />
                     </button>
                   </div>
-                  
+
                   {/* Right: Period type dropdown */}
                   <div className="flex-shrink-0">
                     <select
@@ -997,7 +1003,7 @@ export function Dashboard({ expenses, categories, incomeCategories, userName, cu
                       onChange={(e) => {
                         const newType = e.target.value as TimePeriodType;
                         setTimePeriodType(newType);
-                        
+
                         // Reset to current period when changing type
                         const current = getCurrentPeriod();
                         setSelectedMonth(current.month);
@@ -1005,7 +1011,8 @@ export function Dashboard({ expenses, categories, incomeCategories, userName, cu
                         setSelectedYear(current.year);
                         setExpandedCategory(null);
                       }}
-                      className="text-xs text-neutral-600 bg-neutral-50 border border-neutral-200 rounded-lg px-2.5 py-1.5 font-medium"
+                      className="text-xs rounded-lg px-2.5 py-1.5 font-medium border-0 outline-none"
+                      style={{ color: '#1C1C1E', backgroundColor: 'rgba(255,255,255,0.92)' }}
                     >
                       <option value="month">Month</option>
                       <option value="quarter">Quarter</option>
@@ -1013,39 +1020,35 @@ export function Dashboard({ expenses, categories, incomeCategories, userName, cu
                     </select>
                   </div>
                 </div>
-                
-                {/* Three columns: Spending, Income, Savings */}
+
+                {/* Four columns: Spending, Income, Savings, Saving Rate */}
                 <div className="grid grid-cols-4 gap-2">
                   <div className="text-center">
-                    <div className="text-neutral-500 text-[10px] mb-1">Spending</div>
-                    <div className="text-neutral-900 font-bold text-[15px] tabular-nums">
+                    <div className="text-[10px] mb-1" style={{ color: 'rgba(235,235,245,0.55)' }}>Spending</div>
+                    <div className="font-bold text-[15px] tabular-nums" style={{ color: '#FFFFFF' }}>
                       {formatAmountListView(totalSpending, currency, 0)}
                     </div>
                   </div>
                   <div className="text-center">
-                    <div className="text-neutral-500 text-[10px] mb-1">Income</div>
-                    <div className="text-neutral-900 font-bold text-[15px] tabular-nums">
+                    <div className="text-[10px] mb-1" style={{ color: 'rgba(235,235,245,0.55)' }}>Income</div>
+                    <div className="font-bold text-[15px] tabular-nums" style={{ color: '#FFFFFF' }}>
                       {formatAmountListView(totalIncome, currency, 0)}
                     </div>
                   </div>
                   <div className="text-center">
-                    <div className="text-neutral-500 text-[10px] mb-1">Savings</div>
-                    <div 
+                    <div className="text-[10px] mb-1" style={{ color: 'rgba(235,235,245,0.55)' }}>Savings</div>
+                    <div
                       className="font-bold text-[15px] tabular-nums"
-                      style={{ 
-                        color: savings < 0 ? '#EF4444' : savings > 0 ? '#10B981' : '#1C1C1E'
-                      }}
+                      style={{ color: savings < 0 ? '#FF6961' : savings > 0 ? '#30D158' : '#FFFFFF' }}
                     >
                       {formatAmountListView(savings, currency, 0)}
                     </div>
                   </div>
                   <div className="text-center">
-                    <div className="text-neutral-500 text-[10px] mb-1">Saving Rate</div>
-                    <div 
+                    <div className="text-[10px] mb-1" style={{ color: 'rgba(235,235,245,0.55)' }}>Saving Rate</div>
+                    <div
                       className="font-bold text-[15px] tabular-nums"
-                      style={{ 
-                        color: savings < 0 ? '#EF4444' : savings > 0 ? '#10B981' : '#1C1C1E'
-                      }}
+                      style={{ color: savings < 0 ? '#FF6961' : savings > 0 ? '#30D158' : '#FFFFFF' }}
                     >
                       {totalIncome > 0 ? `${Math.round((savings / totalIncome) * 100)}%` : '—'}
                     </div>
@@ -1468,8 +1471,13 @@ export function Dashboard({ expenses, categories, incomeCategories, userName, cu
                           >
                             <defs>
                               <linearGradient id="customCumulativeGrad" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="0%" stopColor="#6BA3F5" stopOpacity={0.35} />
-                                <stop offset="100%" stopColor="#6BA3F5" stopOpacity={0.05} />
+                                <stop offset="0%" stopColor="#3B82F6" stopOpacity={0.20} />
+                                <stop offset="70%" stopColor="#3B82F6" stopOpacity={0.05} />
+                                <stop offset="100%" stopColor="#3B82F6" stopOpacity={0} />
+                              </linearGradient>
+                              <linearGradient id="customCumulativeLine" x1="0" y1="0" x2="1" y2="0">
+                                <stop offset="0%" stopColor="#60A5FA" />
+                                <stop offset="100%" stopColor="#2563EB" />
                               </linearGradient>
                             </defs>
 
@@ -1494,7 +1502,18 @@ export function Dashboard({ expenses, categories, incomeCategories, userName, cu
                             {areaD && <path d={areaD} fill="url(#customCumulativeGrad)" />}
 
                             {/* Area stroke */}
-                            {linePts.length > 1 && <path d={lineD} fill="none" stroke="#6BA3F5" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />}
+                            {linePts.length > 1 && <path d={lineD} fill="none" stroke="url(#customCumulativeLine)" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />}
+
+                            {/* "Today" endpoint marker so the line reads as current, not cut off */}
+                            {linePts.length > 0 && (() => {
+                              const last = linePts[linePts.length - 1];
+                              return (
+                                <>
+                                  <circle cx={last.x} cy={last.y} r={7} fill="#2563EB" opacity={0.12} />
+                                  <circle cx={last.x} cy={last.y} r={3.5} fill="#2563EB" stroke="#FFFFFF" strokeWidth={2} />
+                                </>
+                              );
+                            })()}
 
                             {/* Y-axis labels */}
                             {yTicks.map((t, i) => (
