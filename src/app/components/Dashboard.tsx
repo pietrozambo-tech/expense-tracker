@@ -1332,7 +1332,7 @@ export function Dashboard({ expenses, categories, incomeCategories, userName, cu
               // Recharts margins: { top: 5, right: 10, left: -8, bottom: 5 }
               // YAxis width is 40px
               const yAxisWidth = 40;
-              const chartLeftMargin = -8;
+              const chartLeftMargin = 0; // plot starts at yAxisWidth (labels sit to its left)
               const chartRightMargin = 10;
               const chartTopMargin = 5;
               const chartBottomMargin = 5;
@@ -1400,7 +1400,7 @@ export function Dashboard({ expenses, categories, incomeCategories, userName, cu
               const mouseX = e.clientX - rect.left;
               
               const yAxisWidth = 40;
-              const chartLeftMargin = -8;
+              const chartLeftMargin = 0; // plot starts at yAxisWidth (labels sit to its left)
               const chartRightMargin = 10;
               const chartTopMargin = 5;
               const chartBottomMargin = 5;
@@ -1480,7 +1480,7 @@ export function Dashboard({ expenses, categories, incomeCategories, userName, cu
                         const marginRight = 10;
                         const marginBottom = 35; // room for x-axis labels
                         const yAxisW = 40;
-                        const marginLeft = yAxisW - 8; // matches old recharts left: -8 offset
+                        const marginLeft = yAxisW; // plot starts after the y-axis label column so they don't overlap
                         const plotW = svgW - marginLeft - marginRight;
                         const plotH = svgH - marginTop - marginBottom;
                         const n = cumulativeData.length;
@@ -1579,11 +1579,11 @@ export function Dashboard({ expenses, categories, incomeCategories, userName, cu
                               );
                             })()}
 
-                            {/* Y-axis labels */}
+                            {/* Y-axis labels — right-aligned a few px before the plot's left edge */}
                             {yTicks.map((t, i) => (
                               <text
                                 key={`ylabel-${i}`}
-                                x={yAxisW - 4}
+                                x={marginLeft - 8}
                                 y={yOf(t.value) + 4}
                                 textAnchor="end"
                                 fontSize={10}
@@ -1623,7 +1623,7 @@ export function Dashboard({ expenses, categories, incomeCategories, userName, cu
                         const dotOffset = 12;
                         
                         const yAxisWidth = 40;
-                        const chartLeftMargin = -8;
+                        const chartLeftMargin = 0; // plot starts at yAxisWidth (labels sit to its left)
                         const chartRightMargin = 10;
                         const chartContainerWidth = 390;
                         const plotWidth = chartContainerWidth - yAxisWidth - chartLeftMargin - chartRightMargin;
