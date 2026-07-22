@@ -7,7 +7,7 @@ import { getCategoryIcon } from './categoryIcons';
 import { CategoryFilterModal } from './CategoryFilterModal';
 import { SubcategoryFilterModal } from './SubcategoryFilterModal';
 
-import { DayGroup } from './DayGroup';
+import { ActivityDayGroup } from './ActivityDayGroup';
 
 type ViewType = 'current-month' | 'trend';
 type CategorySortType = 'alphabetical' | 'amount';
@@ -2905,15 +2905,15 @@ export function Dashboard({ expenses, categories, incomeCategories, userName, cu
                 </div>
               ) : (
                 groupedDrilldownTransactions.map(([date, dayTxns]) => (
-                  <DayGroup
+                  <ActivityDayGroup
                     key={date}
                     date={date}
-                    expenses={dayTxns}
-                    onExpenseTap={(id) => {
+                    transactions={dayTxns as any}
+                    onTransactionTap={(id) => {
                       onEditExpense(id);
                       setDrilldownContext(null);
                     }}
-                    onDeleteExpense={onDeleteExpense}
+                    onDeleteTransaction={onDeleteExpense}
                     currency={currency}
                   />
                 ))
