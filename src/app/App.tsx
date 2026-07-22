@@ -17,8 +17,7 @@ import {
 } from './lib/storage';
 import { getDemoTransactions } from './lib/demoData';
 import { Dashboard } from './components/Dashboard';
-import { ExpensesList } from './components/ExpensesList';
-import { IncomeList } from './components/IncomeList';
+import { Activity } from './components/Activity';
 import { Settings } from './components/Settings';
 import { AmountInput } from './components/AmountInput';
 import { DateInput } from './components/DateInput';
@@ -34,7 +33,7 @@ export default function App() {
   const [userName, setUserName] = useState(() => loadSettings().userName);
   const [userCurrency, setUserCurrency] = useState(() => loadSettings().currency);
   const [selectedTransactionCurrency, setSelectedTransactionCurrency] = useState('EUR'); // Currency for current transaction being added/edited
-  const [currentTab, setCurrentTab] = useState<'dashboard' | 'add' | 'list' | 'income' | 'settings'>('dashboard');
+  const [currentTab, setCurrentTab] = useState<'dashboard' | 'activity' | 'add' | 'trend' | 'settings'>('dashboard');
   const [transactionType, setTransactionType] = useState<'expense' | 'income'>('expense');
   const [amount, setAmount] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -53,7 +52,9 @@ export default function App() {
   const [expenses, setExpenses] = useState<Transaction[]>(loadTransactions);
   const [refreshKey, setRefreshKey] = useState(0);
   const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null);
-  const [returnToTab, setReturnToTab] = useState<'dashboard' | 'list' | 'income' | 'settings' | 'add'>('dashboard'); // Track which tab to return to after editing
+  const [returnToTab, setReturnToTab] = useState<'dashboard' | 'activity' | 'trend' | 'settings' | 'add'>('dashboard'); // Track which tab to return to after editing
+  // Set when a Trend month is tapped so the Overview opens on that period
+  const [dashboardInitialPeriod, setDashboardInitialPeriod] = useState<{ month: number; year: number; type: 'expense' | 'income' } | null>(null);
   const [categories, setCategories] = useState(loadCategories);
   const [incomeCategories, setIncomeCategories] = useState(loadIncomeCategories);
   const [isModalOpen, setIsModalOpen] = useState(false); // Track if any modal is open
@@ -210,7 +211,7 @@ export default function App() {
       // Add to expenses list
       setExpenses([newExpense, ...expenses]);
       
-      // Force refresh of Dashboard and ExpensesList
+      // Force refresh of Dashboard and Activity
       setRefreshKey(prev => prev + 1);
 
       // Success feedback with navigation option
@@ -495,27 +496,23 @@ export default function App() {
     <div className="min-h-screen" style={{ backgroundColor: '#F5F5F7' }}>
       <Toaster position="top-center" />
       
-      {/* iPhone 14 Container */}
-      <div className="max-w-[430px] mx-auto min-h-screen flex flex-col" style={{ backgroundColor: '#F5F5F7' }}>
+      {/* iPhone 14 Container — Activity needs an exact viewport height so only
+          its transaction list scrolls; other tabs scroll as a whole page */}
+      <div
+        className={`max-w-[430px] mx-auto flex flex-col ${currentTab === 'activity' ? 'overflow-hidden' : 'min-h-screen'}`}
+        style={{ backgroundColor: '#F5F5F7', ...(currentTab === 'activity' ? { height: '100dvh' } : {}) }}
+      >
         {/* Status Bar Space */}
         <div className="h-10 flex-shrink-0" style={{ backgroundColor: '#F5F5F7' }} />
-        
-        {/* Content - Different structure for list tab vs others */}
-        {currentTab === 'list' ? (
-          <ExpensesList 
-            expenses={expenses.filter(e => e.type !== 'income')} 
-            onEditExpense={handleEditExpense}
-            onDeleteExpense={handleDeleteExpense}
+
+        {/* Content - Different structure for activity tab vs others */}
+        {currentTab === 'activity' ? (
+          <Activity
+            transactions={expenses}
+            onEditTransaction={handleEditExpense}
+            onDeleteTransaction={handleDeleteExpense}
             onModalOpenChange={setIsModalOpen}
             categories={categories}
-            currency={userCurrency}
-          />
-        ) : currentTab === 'income' ? (
-          <IncomeList 
-            expenses={expenses.filter(e => e.type === 'income')} 
-            onEditIncome={handleEditExpense}
-            onDeleteIncome={handleDeleteExpense}
-            onModalOpenChange={setIsModalOpen}
             incomeCategories={incomeCategories}
             currency={userCurrency}
           />
@@ -523,15 +520,34 @@ export default function App() {
           // Other tabs - Parent scrollable
           <div className="flex-1 overflow-y-auto pb-32">
             {currentTab === 'dashboard' && (
-              <Dashboard 
-                key={refreshKey} 
-                expenses={expenses} 
-                categories={categories} 
-                incomeCategories={incomeCategories} 
-                userName={userName} 
+              <Dashboard
+                key={refreshKey}
+                expenses={expenses}
+                categories={categories}
+                incomeCategories={incomeCategories}
+                userName={userName}
                 currency={userCurrency}
                 onEditExpense={handleEditExpense}
                 onDeleteExpense={handleDeleteExpense}
+                view="overview"
+                initialPeriod={dashboardInitialPeriod}
+              />
+            )}
+            {currentTab === 'trend' && (
+              <Dashboard
+                key={`trend-${refreshKey}`}
+                expenses={expenses}
+                categories={categories}
+                incomeCategories={incomeCategories}
+                userName={userName}
+                currency={userCurrency}
+                onEditExpense={handleEditExpense}
+                onDeleteExpense={handleDeleteExpense}
+                view="trend"
+                onShowOverview={(period) => {
+                  setDashboardInitialPeriod(period);
+                  setCurrentTab('dashboard');
+                }}
               />
             )}
             {currentTab === 'settings' && (
@@ -578,36 +594,39 @@ export default function App() {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="w-full max-w-[430px] mx-auto grid grid-cols-5 items-center px-6">
-              <button 
-                onClick={() => setCurrentTab('dashboard')} 
+              <button
+                onClick={() => {
+                  setDashboardInitialPeriod(null); // direct visits start on the current month
+                  setCurrentTab('dashboard');
+                }}
                 className="flex flex-col items-center gap-1 transition-all pointer-events-auto justify-self-center"
               >
-                <BarChart3 
-                  size={22} 
-                  style={{ color: currentTab === 'dashboard' ? '#FFFFFF' : '#8E8E93' }} 
-                  strokeWidth={currentTab === 'dashboard' ? 2.5 : 2} 
+                <BarChart3
+                  size={22}
+                  style={{ color: currentTab === 'dashboard' ? '#FFFFFF' : '#8E8E93' }}
+                  strokeWidth={currentTab === 'dashboard' ? 2.5 : 2}
                 />
-                <span 
-                  className="text-[10px] font-medium" 
+                <span
+                  className="text-[10px] font-medium"
                   style={{ color: currentTab === 'dashboard' ? '#FFFFFF' : '#8E8E93' }}
                 >
                   Dashboard
                 </span>
               </button>
-              <button 
-                onClick={() => setCurrentTab('list')} 
+              <button
+                onClick={() => setCurrentTab('activity')}
                 className="flex flex-col items-center gap-1 transition-all pointer-events-auto justify-self-center"
               >
-                <List 
-                  size={22} 
-                  style={{ color: currentTab === 'list' ? '#FFFFFF' : '#8E8E93' }} 
-                  strokeWidth={currentTab === 'list' ? 2.5 : 2} 
+                <List
+                  size={22}
+                  style={{ color: currentTab === 'activity' ? '#FFFFFF' : '#8E8E93' }}
+                  strokeWidth={currentTab === 'activity' ? 2.5 : 2}
                 />
-                <span 
-                  className="text-[10px] font-medium" 
-                  style={{ color: currentTab === 'list' ? '#FFFFFF' : '#8E8E93' }}
+                <span
+                  className="text-[10px] font-medium"
+                  style={{ color: currentTab === 'activity' ? '#FFFFFF' : '#8E8E93' }}
                 >
-                  Expenses
+                  Activity
                 </span>
               </button>
               <button
@@ -628,20 +647,20 @@ export default function App() {
                   <Plus size={24} style={{ color: '#1C1C1E' }} strokeWidth={2.5} />
                 </div>
               </button>
-              <button 
-                onClick={() => setCurrentTab('income')} 
+              <button
+                onClick={() => setCurrentTab('trend')}
                 className="flex flex-col items-center gap-1 transition-all pointer-events-auto justify-self-center"
               >
-                <TrendingUp 
-                  size={22} 
-                  style={{ color: currentTab === 'income' ? '#FFFFFF' : '#8E8E93' }} 
-                  strokeWidth={currentTab === 'income' ? 2.5 : 2} 
+                <TrendingUp
+                  size={22}
+                  style={{ color: currentTab === 'trend' ? '#FFFFFF' : '#8E8E93' }}
+                  strokeWidth={currentTab === 'trend' ? 2.5 : 2}
                 />
-                <span 
-                  className="text-[10px] font-medium" 
-                  style={{ color: currentTab === 'income' ? '#FFFFFF' : '#8E8E93' }}
+                <span
+                  className="text-[10px] font-medium"
+                  style={{ color: currentTab === 'trend' ? '#FFFFFF' : '#8E8E93' }}
                 >
-                  Income
+                  Trend
                 </span>
               </button>
               <button 

@@ -38,10 +38,14 @@ interface DashboardProps {
   currency: string;
   onEditExpense: (id: string) => void;
   onDeleteExpense: (id: string) => void;
+  view?: 'overview' | 'trend';
+  // Trend months link back to the Overview tab with that period selected
+  onShowOverview?: (period: { month: number; year: number; type: 'expense' | 'income' }) => void;
+  initialPeriod?: { month: number; year: number; type: 'expense' | 'income' } | null;
 }
 
-export function Dashboard({ expenses, categories, incomeCategories, userName, currency, onEditExpense, onDeleteExpense }: DashboardProps) {
-  const [viewType, setViewType] = useState<ViewType>('current-month');
+export function Dashboard({ expenses, categories, incomeCategories, userName, currency, onEditExpense, onDeleteExpense, view = 'overview', onShowOverview, initialPeriod }: DashboardProps) {
+  const viewType: ViewType = view === 'trend' ? 'trend' : 'current-month';
   const [timePeriodType, setTimePeriodType] = useState<TimePeriodType>('month');
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
   const [trendExpandedCategory, setTrendExpandedCategory] = useState<string | null>(null);
@@ -49,7 +53,7 @@ export function Dashboard({ expenses, categories, incomeCategories, userName, cu
   const [selectedSubcategory, setSelectedSubcategory] = useState<string>('All');
   const [categorySortBy, setCategorySortBy] = useState<CategorySortType>('alphabetical');
   const [drilldownSortBy, setDrilldownSortBy] = useState<'time' | 'amount'>('time');
-  const [transactionType, setTransactionType] = useState<TransactionType>('expense');
+  const [transactionType, setTransactionType] = useState<TransactionType>(initialPeriod?.type || 'expense');
   const [isTrendCategoryModalOpen, setIsTrendCategoryModalOpen] = useState(false);
   const [isTrendSubcategoryModalOpen, setIsTrendSubcategoryModalOpen] = useState(false);
   
@@ -73,9 +77,9 @@ export function Dashboard({ expenses, categories, incomeCategories, userName, cu
   
   // Track the specific period (month, quarter, or year)
   const now = new Date();
-  const [selectedMonth, setSelectedMonth] = useState<number>(now.getMonth()); // 0-11
-  const [selectedQuarter, setSelectedQuarter] = useState<number>(Math.floor(now.getMonth() / 3)); // 0-3
-  const [selectedYear, setSelectedYear] = useState<number>(now.getFullYear());
+  const [selectedMonth, setSelectedMonth] = useState<number>(initialPeriod?.month ?? now.getMonth()); // 0-11
+  const [selectedQuarter, setSelectedQuarter] = useState<number>(Math.floor((initialPeriod?.month ?? now.getMonth()) / 3)); // 0-3
+  const [selectedYear, setSelectedYear] = useState<number>(initialPeriod?.year ?? now.getFullYear());
 
   // Helper to parse YYYY-MM-DD to local Date object safely
   const parseLocalDate = (dateStr: string) => {
@@ -198,7 +202,7 @@ export function Dashboard({ expenses, categories, incomeCategories, userName, cu
   const [trendYearFilter, setTrendYearFilter] = useState<number>(getMostRecentYearWithData()); // Year filter for Trend tab
 
   // Greeting: visible on app launch, collapses after 2s or on first interaction
-  const [showGreeting, setShowGreeting] = useState(() => !greetingShownThisLaunch);
+  const [showGreeting, setShowGreeting] = useState(() => view === 'overview' && !greetingShownThisLaunch);
 
   useEffect(() => {
     if (!showGreeting) return;
@@ -920,64 +924,35 @@ export function Dashboard({ expenses, categories, incomeCategories, userName, cu
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: '#F5F5F7' }}>
-      {/* Personalized Greeting — shows for 2s on each app launch, then collapses */}
-      <div
-        style={{
-          overflow: 'hidden',
-          maxHeight: showGreeting ? '96px' : 0,
-          opacity: showGreeting ? 1 : 0,
-          transition: 'opacity 0.3s ease-out, max-height 0.4s ease-out 0.1s'
-        }}
-      >
-        <div className="px-6 pt-0 pb-6">
-          <h1 style={{ 
-            color: '#1C1C1E', 
-            fontSize: '28px', 
-            fontWeight: '600', 
-            letterSpacing: '-0.5px',
-            opacity: 0.9
-          }}>
-            {greeting}
-          </h1>
-        </div>
-      </div>
-
-      {/* View Toggle */}
-      <div className="sticky top-0 z-50 bg-[#F5F5F7]">
-        <div className="px-6 pt-0 mb-4">
-          <div 
-            className="flex gap-0 rounded-lg overflow-hidden"
-            style={{ 
-              backgroundColor: '#1C1C1E',
-              border: '1px solid #2C2C2E'
-            }}
-          >
-            <button
-              onClick={() => setViewType('current-month')}
-              className="flex-1 px-4 py-1.5 transition-all text-sm font-medium"
-              style={{
-                backgroundColor: viewType === 'current-month' ? '#3A3A3C' : 'transparent',
-                color: '#FFFFFF',
-                boxShadow: viewType === 'current-month' ? '0 2px 8px rgba(0, 0, 0, 0.3), inset 0 1px 2px rgba(255, 255, 255, 0.1)' : 'none'
-              }}
-            >
-              Overview
-            </button>
-            <button
-              onClick={() => setViewType('trend')}
-              className="flex-1 px-4 py-1.5 transition-all text-sm font-medium"
-              style={{
-                backgroundColor: viewType === 'trend' ? '#3A3A3C' : 'transparent',
-                color: '#FFFFFF',
-                boxShadow: viewType === 'trend' ? '0 2px 8px rgba(0, 0, 0, 0.3), inset 0 1px 2px rgba(255, 255, 255, 0.1)' : 'none'
-              }}
-            >
-              Trend
-            </button>
+      {view === 'overview' ? (
+        /* Personalized Greeting — shows for 2s on each app launch, then collapses */
+        <div
+          style={{
+            overflow: 'hidden',
+            maxHeight: showGreeting ? '96px' : 0,
+            opacity: showGreeting ? 1 : 0,
+            transition: 'opacity 0.3s ease-out, max-height 0.4s ease-out 0.1s'
+          }}
+        >
+          <div className="px-6 pt-0 pb-6">
+            <h1 style={{
+              color: '#1C1C1E',
+              fontSize: '28px',
+              fontWeight: '600',
+              letterSpacing: '-0.5px',
+              opacity: 0.9
+            }}>
+              {greeting}
+            </h1>
           </div>
         </div>
-        <div className="h-[1px] w-full bg-neutral-200 opacity-20" />
-      </div>
+      ) : (
+        <div className="px-6 pt-0 pb-6">
+          <h1 style={{ color: '#1C1C1E', fontSize: '28px', fontWeight: '600', letterSpacing: '-0.5px' }}>
+            Trend
+          </h1>
+        </div>
+      )}
 
       {/* Current Month View */}
       {viewType === 'current-month' && (
@@ -2651,19 +2626,12 @@ export function Dashboard({ expenses, categories, incomeCategories, userName, cu
                     <button
                       key={`${item.month}-${item.year}`}
                       onClick={() => {
-                        // Convert month name to number and navigate to Overview
-                        const monthNum = getMonthNumber(item.month);
-                        setSelectedMonth(monthNum);
-                        setSelectedYear(item.year);
-                        setTimePeriodType('month');
-                        setViewType('current-month');
-                        // Match transaction type if not viewing savings
-                        if (transactionType !== 'savings') {
-                          setTransactionType(transactionType);
-                        } else {
-                          // Reset to expense when diving into savings month
-                          setTransactionType('expense');
-                        }
+                        // Navigate to the Overview tab with this month selected
+                        onShowOverview?.({
+                          month: getMonthNumber(item.month),
+                          year: item.year,
+                          type: transactionType === 'savings' ? 'expense' : transactionType
+                        });
                       }}
                       className="w-full flex items-center gap-2.5 py-2.5 active:bg-neutral-50 transition-colors"
                     >
