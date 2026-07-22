@@ -14,6 +14,10 @@ type CategorySortType = 'alphabetical' | 'amount';
 type TimePeriodType = 'month' | 'quarter' | 'year';
 type TransactionType = 'expense' | 'income' | 'savings';
 
+// The greeting shows once per app launch (page load): reloading or reopening
+// the installed app replays it, switching tabs within a session does not.
+let greetingShownThisLaunch = false;
+
 interface Expense {
   id: string;
   description: string;
@@ -192,6 +196,30 @@ export function Dashboard({ expenses, categories, incomeCategories, userName, cu
   };
   
   const [trendYearFilter, setTrendYearFilter] = useState<number>(getMostRecentYearWithData()); // Year filter for Trend tab
+
+  // Greeting: visible on app launch, collapses after 2s or on first interaction
+  const [showGreeting, setShowGreeting] = useState(() => !greetingShownThisLaunch);
+
+  useEffect(() => {
+    if (!showGreeting) return;
+
+    const collapse = () => {
+      greetingShownThisLaunch = true;
+      setShowGreeting(false);
+    };
+
+    const timer = setTimeout(collapse, 2000);
+    window.addEventListener('scroll', collapse, { passive: true });
+    window.addEventListener('touchstart', collapse, { passive: true });
+    window.addEventListener('mousedown', collapse);
+
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('scroll', collapse);
+      window.removeEventListener('touchstart', collapse);
+      window.removeEventListener('mousedown', collapse);
+    };
+  }, [showGreeting]);
 
   // Reset recurrence layer when switching transaction type or time period
   useEffect(() => {
@@ -878,20 +906,29 @@ export function Dashboard({ expenses, categories, incomeCategories, userName, cu
 
   const monthName = getPeriodDisplayName();
 
-  // Get personalized greeting
+  // Get personalized greeting based on time of day
   const getGreeting = () => {
     const hour = new Date().getHours();
+    if (hour < 5) return 'Good night';
     if (hour < 12) return 'Good morning';
     if (hour < 18) return 'Good afternoon';
-    return 'Good evening';
+    if (hour < 23) return 'Good evening';
+    return 'Good night';
   };
 
   const greeting = userName ? `${getGreeting()}, ${userName}` : 'Welcome 👋';
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: '#F5F5F7' }}>
-      {/* Personalized Greeting */}
-      <div>
+      {/* Personalized Greeting — shows for 2s on each app launch, then collapses */}
+      <div
+        style={{
+          overflow: 'hidden',
+          maxHeight: showGreeting ? '96px' : 0,
+          opacity: showGreeting ? 1 : 0,
+          transition: 'opacity 0.3s ease-out, max-height 0.4s ease-out 0.1s'
+        }}
+      >
         <div className="px-6 pt-0 pb-6">
           <h1 style={{ 
             color: '#1C1C1E', 

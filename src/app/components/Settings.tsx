@@ -443,11 +443,6 @@ export function Settings({
           </button>
         </div>
 
-        {/* Version info */}
-        <div className="mt-8 text-center pb-4">
-          <p className="text-neutral-400 text-sm">Version 1.0.0</p>
-          <p className="text-neutral-400 text-xs mt-1">Made with ❤️ in Figma</p>
-        </div>
       </div>
 
       {confirmAction === 'demo' && (
