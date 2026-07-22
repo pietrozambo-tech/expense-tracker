@@ -620,7 +620,7 @@ export default function App() {
               WebkitBackdropFilter: 'blur(20px)',
               // Lift labels clear of the home indicator AND the rounded screen
               // corners (which otherwise clip the outer Dashboard/Settings labels)
-              paddingBottom: 'max(28px, env(safe-area-inset-bottom))',
+              paddingBottom: 'max(32px, env(safe-area-inset-bottom))',
               paddingTop: '11px',
               borderTopLeftRadius: '12px',
               borderTopRightRadius: '12px',
@@ -628,7 +628,7 @@ export default function App() {
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="w-full max-w-[430px] mx-auto grid grid-cols-5 items-center px-4">
+            <div className="w-full max-w-[430px] mx-auto grid grid-cols-5 items-center px-6">
               <button
                 onClick={() => {
                   setDashboardInitialPeriod(null); // direct visits start on the current month
@@ -642,7 +642,7 @@ export default function App() {
                   strokeWidth={currentTab === 'dashboard' ? 2.5 : 2}
                 />
                 <span
-                  className="text-[11px] font-medium whitespace-nowrap"
+                  className="text-[10px] font-medium whitespace-nowrap"
                   style={{ color: currentTab === 'dashboard' ? '#FFFFFF' : '#8E8E93' }}
                 >
                   Dashboard
@@ -658,7 +658,7 @@ export default function App() {
                   strokeWidth={currentTab === 'activity' ? 2.5 : 2}
                 />
                 <span
-                  className="text-[11px] font-medium whitespace-nowrap"
+                  className="text-[10px] font-medium whitespace-nowrap"
                   style={{ color: currentTab === 'activity' ? '#FFFFFF' : '#8E8E93' }}
                 >
                   Activity
@@ -692,7 +692,7 @@ export default function App() {
                   strokeWidth={currentTab === 'trend' ? 2.5 : 2}
                 />
                 <span
-                  className="text-[11px] font-medium whitespace-nowrap"
+                  className="text-[10px] font-medium whitespace-nowrap"
                   style={{ color: currentTab === 'trend' ? '#FFFFFF' : '#8E8E93' }}
                 >
                   Trend
@@ -708,7 +708,7 @@ export default function App() {
                   strokeWidth={currentTab === 'settings' ? 2.5 : 2} 
                 />
                 <span 
-                  className="text-[11px] font-medium whitespace-nowrap" 
+                  className="text-[10px] font-medium whitespace-nowrap" 
                   style={{ color: currentTab === 'settings' ? '#FFFFFF' : '#8E8E93' }}
                 >
                   Settings
