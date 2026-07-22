@@ -65,6 +65,7 @@ interface DashboardProps {
 export function Dashboard({ expenses, categories, incomeCategories, userName, currency, onEditExpense, onDeleteExpense, view = 'overview', onShowOverview, initialPeriod }: DashboardProps) {
   const viewType: ViewType = view === 'trend' ? 'trend' : 'current-month';
   const [timePeriodType, setTimePeriodType] = useState<TimePeriodType>('month');
+  const [showPeriodMenu, setShowPeriodMenu] = useState(false); // custom period-type dropdown
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
   const [trendExpandedCategory, setTrendExpandedCategory] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
@@ -1014,41 +1015,52 @@ export function Dashboard({ expenses, categories, incomeCategories, userName, cu
                     </button>
                   </div>
 
-                  {/* Right: Period type dropdown — custom appearance so the native
-                      iOS control never flashes its dark rendering on the dark card */}
+                  {/* Right: Period type dropdown — fully custom (no native <select>)
+                      so iOS never shows its dark picker overlay on tap */}
                   <div className="flex-shrink-0 relative">
-                    <select
-                      value={timePeriodType}
-                      onChange={(e) => {
-                        const newType = e.target.value as TimePeriodType;
-                        setTimePeriodType(newType);
-
-                        // Reset to current period when changing type
-                        const current = getCurrentPeriod();
-                        setSelectedMonth(current.month);
-                        setSelectedQuarter(current.quarter);
-                        setSelectedYear(current.year);
-                        setExpandedCategory(null);
-                      }}
-                      className="text-xs rounded-lg pl-2.5 pr-7 py-1.5 font-medium border-0 outline-none"
-                      style={{
-                        color: '#1C1C1E',
-                        backgroundColor: 'rgba(255,255,255,0.92)',
-                        appearance: 'none',
-                        WebkitAppearance: 'none',
-                        MozAppearance: 'none',
-                        colorScheme: 'light',
-                        WebkitTapHighlightColor: 'transparent',
-                      }}
+                    <button
+                      onClick={() => setShowPeriodMenu((v) => !v)}
+                      className="flex items-center gap-1 text-xs rounded-lg pl-2.5 pr-2 py-1.5 font-medium"
+                      style={{ color: '#1C1C1E', backgroundColor: 'rgba(255,255,255,0.92)', WebkitTapHighlightColor: 'transparent' }}
                     >
-                      <option value="month">Month</option>
-                      <option value="quarter">Quarter</option>
-                      <option value="year">Year</option>
-                    </select>
-                    <ChevronDown
-                      className="w-3.5 h-3.5 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none"
-                      style={{ color: '#8E8E93' }}
-                    />
+                      {timePeriodType === 'month' ? 'Month' : timePeriodType === 'quarter' ? 'Quarter' : 'Year'}
+                      <ChevronDown className="w-3.5 h-3.5" style={{ color: '#3C3C43' }} strokeWidth={2.5} />
+                    </button>
+
+                    {showPeriodMenu && (
+                      <>
+                        {/* Tap-away backdrop */}
+                        <div className="fixed inset-0 z-40" onClick={() => setShowPeriodMenu(false)} />
+                        {/* Options menu */}
+                        <div
+                          className="absolute right-0 mt-1 z-50 rounded-xl overflow-hidden"
+                          style={{ backgroundColor: '#FFFFFF', minWidth: '128px', boxShadow: '0 8px 24px rgba(0,0,0,0.18)' }}
+                        >
+                          {(['month', 'quarter', 'year'] as TimePeriodType[]).map((opt) => (
+                            <button
+                              key={opt}
+                              onClick={() => {
+                                setTimePeriodType(opt);
+                                const current = getCurrentPeriod();
+                                setSelectedMonth(current.month);
+                                setSelectedQuarter(current.quarter);
+                                setSelectedYear(current.year);
+                                setExpandedCategory(null);
+                                setShowPeriodMenu(false);
+                              }}
+                              className="w-full text-left px-4 py-2.5 text-sm active:bg-neutral-100 transition-colors"
+                              style={{
+                                color: timePeriodType === opt ? '#007AFF' : '#1C1C1E',
+                                fontWeight: timePeriodType === opt ? 600 : 400,
+                                borderBottom: opt !== 'year' ? '1px solid #F2F2F7' : 'none',
+                              }}
+                            >
+                              {opt === 'month' ? 'Month' : opt === 'quarter' ? 'Quarter' : 'Year'}
+                            </button>
+                          ))}
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
 
