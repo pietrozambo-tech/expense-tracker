@@ -38,6 +38,11 @@ transactions, expense categories, income categories, and user settings
 (name, main currency, onboarding flag). The storage layer is in
 `src/app/lib/storage.ts`; shared data types are in `src/app/types.ts`.
 
+**Backup**: Settings → Backup → *Export data* downloads a JSON file with all
+transactions, categories and settings; *Import data* validates and restores
+one (with a confirmation, since it overwrites current data). This is the
+manual safety net until cloud sync exists. See `src/app/lib/backup.ts`.
+
 **Demo data**: Settings → Data → *Load demo data* fills the app with sample
 transactions (date-shifted so the current month is always populated) for
 testing. *Erase all data* wipes storage and restarts from onboarding.

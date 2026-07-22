@@ -16,6 +16,7 @@ import {
   saveTransactions,
 } from './lib/storage';
 import { getDemoTransactions } from './lib/demoData';
+import { buildBackup, downloadBackup, type BackupFile } from './lib/backup';
 import { Dashboard } from './components/Dashboard';
 import { Activity } from './components/Activity';
 import { Settings } from './components/Settings';
@@ -456,6 +457,38 @@ export default function App() {
     });
   };
 
+  // Export everything to a JSON file the user can keep as a backup
+  const handleExportData = () => {
+    downloadBackup(
+      buildBackup({
+        userName,
+        currency: userCurrency,
+        transactions: expenses,
+        categories,
+        incomeCategories,
+      })
+    );
+    toast.success('Backup downloaded', {
+      description: 'Keep this file safe to restore later',
+      duration: 1800,
+    });
+  };
+
+  // Replace all data with the contents of a validated backup file
+  const handleImportData = (backup: BackupFile) => {
+    setExpenses(backup.transactions);
+    setCategories(backup.categories);
+    setIncomeCategories(backup.incomeCategories);
+    if (backup.userName) setUserName(backup.userName);
+    if (backup.currency) setUserCurrency(backup.currency);
+    setRefreshKey(prev => prev + 1);
+    setCurrentTab('dashboard');
+    toast.success('Backup restored', {
+      description: `${backup.transactions.length} transaction${backup.transactions.length !== 1 ? 's' : ''} imported`,
+      duration: 1800,
+    });
+  };
+
   // Full reset: wipe storage and restart from onboarding
   const handleEraseAllData = () => {
     clearAllData();
@@ -570,6 +603,8 @@ export default function App() {
                 onUserNameChange={handleUserNameChange}
                 onLoadDemoData={handleLoadDemoData}
                 onEraseAllData={handleEraseAllData}
+                onExportData={handleExportData}
+                onImportData={handleImportData}
               />
             )}
           </div>

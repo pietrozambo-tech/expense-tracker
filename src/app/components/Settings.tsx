@@ -1,8 +1,10 @@
-import { ChevronRight, ChevronLeft, UserCircle, Wallet, BellRing, HelpCircle, ShieldCheck, ScrollText, Layers, FlaskConical, Trash2 } from 'lucide-react';
-import { useState } from 'react';
+import { ChevronRight, ChevronLeft, UserCircle, Wallet, BellRing, HelpCircle, ShieldCheck, ScrollText, Layers, FlaskConical, Trash2, Download, Upload } from 'lucide-react';
+import { useRef, useState } from 'react';
+import { toast } from 'sonner';
 import { Categories } from './Categories';
 import { ConfirmDialog } from './ConfirmDialog';
 import { CURRENCIES } from '../utils/currency';
+import { parseBackup, type BackupFile } from '../lib/backup';
 
 interface SettingsProps {
   categories: any[];
@@ -23,6 +25,8 @@ interface SettingsProps {
   onUserNameChange: (name: string) => void;
   onLoadDemoData: () => void;
   onEraseAllData: () => void;
+  onExportData: () => void;
+  onImportData: (backup: BackupFile) => void;
 }
 
 export function Settings({ 
@@ -43,7 +47,9 @@ export function Settings({
   userName,
   onUserNameChange,
   onLoadDemoData,
-  onEraseAllData
+  onEraseAllData,
+  onExportData,
+  onImportData
 }: SettingsProps) {
   const [showCategories, setShowCategories] = useState(false);
   const [categoryType, setCategoryType] = useState<'expense' | 'income'>('expense');
@@ -51,6 +57,8 @@ export function Settings({
   const [showNameEditor, setShowNameEditor] = useState(false);
   const [editedName, setEditedName] = useState(userName);
   const [confirmAction, setConfirmAction] = useState<'demo' | 'erase' | null>(null);
+  const [pendingImport, setPendingImport] = useState<BackupFile | null>(null);
+  const importInputRef = useRef<HTMLInputElement>(null);
 
   const currencies = [
     { code: 'EUR', symbol: '€', name: 'Euro', flag: '🇪🇺' },
@@ -88,6 +96,29 @@ export function Settings({
       onEraseAllData();
     }
     closeConfirm();
+  };
+
+  // Read + validate a chosen backup file, then stage it for confirmation
+  const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // allow re-picking the same file later
+    if (!file) return;
+    try {
+      const backup = parseBackup(await file.text());
+      setPendingImport(backup);
+      onModalOpenChange(true);
+    } catch (err) {
+      toast.error('Import failed', {
+        description: err instanceof Error ? err.message : 'Unknown error',
+        duration: 2600,
+      });
+    }
+  };
+
+  const confirmImport = () => {
+    if (pendingImport) onImportData(pendingImport);
+    setPendingImport(null);
+    onModalOpenChange(false);
   };
 
   // Show Currency Selector
@@ -419,8 +450,40 @@ export function Settings({
           </button>
         </div>
 
-        {/* Data section — demo data is for testing the app, erase resets everything */}
+        {/* Backup section — export/import let the user keep their own copy */}
         <p className="mt-8 mb-2 px-1" style={{ color: '#8E8E93', fontSize: '13px' }}>
+          Backup
+        </p>
+        <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+          <button
+            onClick={onExportData}
+            className="w-full flex items-center gap-3 px-5 py-4 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
+            style={{ borderBottom: '1px solid #F2F2F7' }}
+          >
+            <Download className="w-5 h-5" style={{ color: '#8E8E93' }} strokeWidth={2} />
+            <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '16px' }}>Export data</span>
+            <span style={{ color: '#8E8E93', fontSize: '13px' }}>Save a backup</span>
+          </button>
+
+          <button
+            onClick={() => importInputRef.current?.click()}
+            className="w-full flex items-center gap-3 px-5 py-4 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
+          >
+            <Upload className="w-5 h-5" style={{ color: '#8E8E93' }} strokeWidth={2} />
+            <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '16px' }}>Import data</span>
+            <span style={{ color: '#8E8E93', fontSize: '13px' }}>Restore a backup</span>
+          </button>
+          <input
+            ref={importInputRef}
+            type="file"
+            accept="application/json,.json"
+            onChange={handleImportFile}
+            className="hidden"
+          />
+        </div>
+
+        {/* Data section — demo data is for testing the app, erase resets everything */}
+        <p className="mt-6 mb-2 px-1" style={{ color: '#8E8E93', fontSize: '13px' }}>
           Data
         </p>
         <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
@@ -462,6 +525,18 @@ export function Settings({
           confirmLabel="Erase"
           onConfirm={handleConfirm}
           onCancel={closeConfirm}
+        />
+      )}
+      {pendingImport && (
+        <ConfirmDialog
+          title="Restore this backup?"
+          message={`This replaces your current data with ${pendingImport.transactions.length} transaction${pendingImport.transactions.length !== 1 ? 's' : ''} from the backup${pendingImport.exportedAt ? ` (${new Date(pendingImport.exportedAt).toLocaleDateString()})` : ''}. Your current data will be overwritten.`}
+          confirmLabel="Restore"
+          onConfirm={confirmImport}
+          onCancel={() => {
+            setPendingImport(null);
+            onModalOpenChange(false);
+          }}
         />
       )}
     </div>
