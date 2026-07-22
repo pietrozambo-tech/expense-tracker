@@ -1014,8 +1014,9 @@ export function Dashboard({ expenses, categories, incomeCategories, userName, cu
                     </button>
                   </div>
 
-                  {/* Right: Period type dropdown */}
-                  <div className="flex-shrink-0">
+                  {/* Right: Period type dropdown — custom appearance so the native
+                      iOS control never flashes its dark rendering on the dark card */}
+                  <div className="flex-shrink-0 relative">
                     <select
                       value={timePeriodType}
                       onChange={(e) => {
@@ -1029,13 +1030,25 @@ export function Dashboard({ expenses, categories, incomeCategories, userName, cu
                         setSelectedYear(current.year);
                         setExpandedCategory(null);
                       }}
-                      className="text-xs rounded-lg px-2.5 py-1.5 font-medium border-0 outline-none"
-                      style={{ color: '#1C1C1E', backgroundColor: 'rgba(255,255,255,0.92)' }}
+                      className="text-xs rounded-lg pl-2.5 pr-7 py-1.5 font-medium border-0 outline-none"
+                      style={{
+                        color: '#1C1C1E',
+                        backgroundColor: 'rgba(255,255,255,0.92)',
+                        appearance: 'none',
+                        WebkitAppearance: 'none',
+                        MozAppearance: 'none',
+                        colorScheme: 'light',
+                        WebkitTapHighlightColor: 'transparent',
+                      }}
                     >
                       <option value="month">Month</option>
                       <option value="quarter">Quarter</option>
                       <option value="year">Year</option>
                     </select>
+                    <ChevronDown
+                      className="w-3.5 h-3.5 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none"
+                      style={{ color: '#8E8E93' }}
+                    />
                   </div>
                 </div>
 
