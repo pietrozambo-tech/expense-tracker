@@ -40,20 +40,13 @@ export function ActivityDayGroup({
     });
   };
 
-  // Net daily total in the user's currency: income adds, expenses subtract
-  const hasIncome = transactions.some(t => t.type === 'income');
-  const hasExpense = transactions.some(t => t.type !== 'income');
+  // Net daily total in the user's currency: income adds, expenses subtract.
+  // Shown with an explicit +/- sign and a neutral color — the sign carries the meaning.
   const netTotal = transactions.reduce((sum, t) => {
     const converted = convertAmount(t.amount, t.currency || currency, currency);
     return t.type === 'income' ? sum + converted : sum - converted;
   }, 0);
-
-  // Pure expense days read like a spending total (plain, no sign); any day with
-  // income shows the signed net, green when positive
-  const totalLabel = !hasIncome
-    ? formatAmountListView(-netTotal, currency, 2)
-    : `${netTotal >= 0 ? '+' : '-'}${formatAmountListView(Math.abs(netTotal), currency, 2)}`;
-  const totalColor = hasIncome && netTotal >= 0 ? '#34C759' : undefined;
+  const totalLabel = `${netTotal >= 0 ? '+' : '-'}${formatAmountListView(Math.abs(netTotal), currency, 2)}`;
 
   return (
     <div className="mb-3">
@@ -62,7 +55,7 @@ export function ActivityDayGroup({
         <h3 className="text-neutral-500 font-bold text-[10px] uppercase tracking-wider">{formatDate(date)}</h3>
         <span
           className="text-[10px] font-medium tabular-nums pr-4"
-          style={{ minWidth: '80px', textAlign: 'right', color: totalColor || '#A3A3A3' }}
+          style={{ minWidth: '80px', textAlign: 'right', color: '#A3A3A3' }}
         >
           {totalLabel}
         </span>

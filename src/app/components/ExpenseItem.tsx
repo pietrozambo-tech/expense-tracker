@@ -234,15 +234,15 @@ export function ExpenseItem({ expense, onTap, onDelete, currency }: ExpenseItemP
               {showConversion && convertedAmount !== null ? (
                 <>
                   <p className="text-neutral-900 font-bold tabular-nums text-sm">
-                    {formatAmountListView(convertedAmount, currency, 2)}
+                    -{formatAmountListView(convertedAmount, currency, 2)}
                   </p>
                   <p className="text-neutral-500 text-[10px] tabular-nums mt-0.5 font-medium">
-                    {formatAmountListView(expense.amount, transactionCurrency, 2)}
+                    -{formatAmountListView(expense.amount, transactionCurrency, 2)}
                   </p>
                 </>
               ) : (
                 <p className="text-neutral-900 font-bold tabular-nums text-sm">
-                  {formatAmountListView(expense.amount, transactionCurrency, 2)}
+                  -{formatAmountListView(expense.amount, transactionCurrency, 2)}
                 </p>
               )}
             </div>
