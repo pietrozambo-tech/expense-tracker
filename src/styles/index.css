@@ -1,3 +1,21 @@
 @import './fonts.css';
 @import './tailwind.css';
 @import './theme.css';
+
+/*
+ * Top status-bar inset.
+ * - In a normal browser tab the browser chrome sits above the page, so we only
+ *   need a hair of breathing room.
+ * - Installed as a PWA (display-mode: standalone) the iOS status bar overlays
+ *   the web view, so we reserve the safe-area inset, with a floor tall enough
+ *   to clear the status bar / Dynamic Island even when env() reports 0.
+ */
+.app-top-inset {
+  height: 10px;
+}
+@media (display-mode: standalone) {
+  .app-top-inset {
+    height: env(safe-area-inset-top);
+    min-height: 50px;
+  }
+}
