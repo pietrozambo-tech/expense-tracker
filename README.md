@@ -2,7 +2,9 @@
 
 A mobile-first expense tracking app: log a transaction in seconds, see where your money goes.
 
-Originally prototyped in [Figma Make](https://www.figma.com/design/qjH5nUgtAFEeE3K71GDmE9/Expense-Tracker), now a standalone web app.
+**Live app:** https://pietrozambo-tech.github.io/expense-tracker/
+
+Originally prototyped in [Figma Make](https://www.figma.com/design/qjH5nUgtAFEeE3K71GDmE9/Expense-Tracker), now a standalone PWA. On iPhone: open the link in Safari → Share → **Add to Home Screen** to install it like a native app. Every push to the default branch redeploys via GitHub Actions.
 
 ## Features
 
