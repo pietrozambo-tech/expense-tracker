@@ -613,22 +613,22 @@ export default function App() {
         {/* Bottom Navigation Bar - Only show when NOT in Add mode AND no modals are open */}
         {currentTab !== 'add' && !isModalOpen && (
           <div
-            className="fixed bottom-0 left-0 right-0 z-40 pointer-events-none"
+            className="fixed bottom-0 left-0 right-0 z-40"
             style={{
-              background: 'rgba(28, 28, 30, 0.85)',
+              background: 'rgba(28, 28, 30, 0.92)',
               backdropFilter: 'blur(20px)',
               WebkitBackdropFilter: 'blur(20px)',
               // Keep labels above the home indicator without stacking the full
               // inset under them — matches native tab bar height on iPhone
-              paddingBottom: 'max(6px, calc(env(safe-area-inset-bottom) - 10px))',
-              paddingTop: '8px',
+              paddingBottom: 'max(8px, calc(env(safe-area-inset-bottom) - 8px))',
+              paddingTop: '11px',
               borderTopLeftRadius: '12px',
               borderTopRightRadius: '12px',
               boxShadow: '0 -2px 10px rgba(0, 0, 0, 0.1)'
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="w-full max-w-[430px] mx-auto grid grid-cols-5 items-center px-6">
+            <div className="w-full max-w-[430px] mx-auto grid grid-cols-5 items-center px-2">
               <button
                 onClick={() => {
                   setDashboardInitialPeriod(null); // direct visits start on the current month
@@ -637,12 +637,12 @@ export default function App() {
                 className="flex flex-col items-center gap-1 transition-all pointer-events-auto justify-self-center"
               >
                 <BarChart3
-                  size={22}
+                  size={24}
                   style={{ color: currentTab === 'dashboard' ? '#FFFFFF' : '#8E8E93' }}
                   strokeWidth={currentTab === 'dashboard' ? 2.5 : 2}
                 />
                 <span
-                  className="text-[10px] font-medium"
+                  className="text-[11px] font-medium whitespace-nowrap"
                   style={{ color: currentTab === 'dashboard' ? '#FFFFFF' : '#8E8E93' }}
                 >
                   Dashboard
@@ -653,12 +653,12 @@ export default function App() {
                 className="flex flex-col items-center gap-1 transition-all pointer-events-auto justify-self-center"
               >
                 <List
-                  size={22}
+                  size={24}
                   style={{ color: currentTab === 'activity' ? '#FFFFFF' : '#8E8E93' }}
                   strokeWidth={currentTab === 'activity' ? 2.5 : 2}
                 />
                 <span
-                  className="text-[10px] font-medium"
+                  className="text-[11px] font-medium whitespace-nowrap"
                   style={{ color: currentTab === 'activity' ? '#FFFFFF' : '#8E8E93' }}
                 >
                   Activity
@@ -673,7 +673,7 @@ export default function App() {
                 className="flex flex-col items-center pointer-events-auto justify-self-center"
               >
                 <div
-                  className="w-11 h-11 rounded-full flex items-center justify-center transition-transform active:scale-95"
+                  className="w-12 h-12 rounded-full flex items-center justify-center transition-transform active:scale-95"
                   style={{
                     backgroundColor: '#FFFFFF',
                     boxShadow: '0 4px 16px rgba(255, 255, 255, 0.3)'
@@ -687,12 +687,12 @@ export default function App() {
                 className="flex flex-col items-center gap-1 transition-all pointer-events-auto justify-self-center"
               >
                 <TrendingUp
-                  size={22}
+                  size={24}
                   style={{ color: currentTab === 'trend' ? '#FFFFFF' : '#8E8E93' }}
                   strokeWidth={currentTab === 'trend' ? 2.5 : 2}
                 />
                 <span
-                  className="text-[10px] font-medium"
+                  className="text-[11px] font-medium whitespace-nowrap"
                   style={{ color: currentTab === 'trend' ? '#FFFFFF' : '#8E8E93' }}
                 >
                   Trend
@@ -703,12 +703,12 @@ export default function App() {
                 className="flex flex-col items-center gap-1 transition-all pointer-events-auto justify-self-center"
               >
                 <SettingsIcon 
-                  size={22} 
+                  size={24} 
                   style={{ color: currentTab === 'settings' ? '#FFFFFF' : '#8E8E93' }} 
                   strokeWidth={currentTab === 'settings' ? 2.5 : 2} 
                 />
                 <span 
-                  className="text-[10px] font-medium" 
+                  className="text-[11px] font-medium whitespace-nowrap" 
                   style={{ color: currentTab === 'settings' ? '#FFFFFF' : '#8E8E93' }}
                 >
                   Settings
