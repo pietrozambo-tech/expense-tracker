@@ -1,0 +1,77 @@
+import { 
+  ShoppingCart, 
+  UtensilsCrossed, 
+  Car, 
+  Plane, 
+  Coffee, 
+  Home, 
+  Heart, 
+  Dumbbell, 
+  Film, 
+  Zap, 
+  ShoppingBag, 
+  MoreHorizontal, 
+  Gift, 
+  CreditCard, 
+  FileText, 
+  Sparkles,
+  Smartphone,
+  Laptop,
+  Book,
+  Music,
+  Palette,
+  Briefcase,
+  GraduationCap,
+  Baby,
+  PawPrint,
+  Leaf,
+  Utensils,
+  Pizza,
+  Beer,
+  IceCream,
+  Candy,
+  TrendingUp
+} from 'lucide-react';
+
+export const availableIcons = {
+  Coffee,
+  UtensilsCrossed,
+  Gift,
+  ShoppingCart,
+  Heart,
+  Home,
+  Sparkles,
+  ShoppingBag,
+  Dumbbell,
+  CreditCard,
+  FileText,
+  Car,
+  Plane,
+  MoreHorizontal,
+  Smartphone,
+  Laptop,
+  Book,
+  Music,
+  Film,
+  Palette,
+  Briefcase,
+  GraduationCap,
+  Baby,
+  PawPrint,
+  Leaf,
+  Utensils,
+  Pizza,
+  Beer,
+  IceCream,
+  Candy,
+  Zap,
+  TrendingUp
+};
+
+export type IconName = keyof typeof availableIcons;
+
+export function getCategoryIcon(iconName: string) {
+  return availableIcons[iconName as IconName] || MoreHorizontal;
+}
+
+export const iconsList: IconName[] = Object.keys(availableIcons) as IconName[];
