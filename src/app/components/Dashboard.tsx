@@ -929,12 +929,12 @@ export function Dashboard({ expenses, categories, incomeCategories, userName, cu
         <div
           style={{
             overflow: 'hidden',
-            maxHeight: showGreeting ? '96px' : 0,
+            maxHeight: showGreeting ? '72px' : 0,
             opacity: showGreeting ? 1 : 0,
             transition: 'opacity 0.3s ease-out, max-height 0.4s ease-out 0.1s'
           }}
         >
-          <div className="px-6 pt-0 pb-6">
+          <div className="px-6 pt-1 pb-4">
             <h1 style={{
               color: '#1C1C1E',
               fontSize: '28px',
@@ -947,7 +947,7 @@ export function Dashboard({ expenses, categories, incomeCategories, userName, cu
           </div>
         </div>
       ) : (
-        <div className="px-6 pt-0 pb-6">
+        <div className="px-6 pt-1 pb-3">
           <h1 style={{ color: '#1C1C1E', fontSize: '28px', fontWeight: '600', letterSpacing: '-0.5px' }}>
             Trend
           </h1>

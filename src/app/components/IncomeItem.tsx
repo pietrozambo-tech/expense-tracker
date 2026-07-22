@@ -28,7 +28,7 @@ interface IncomeItemProps {
 
 export function IncomeItem({ income, onTap, onDelete, currency }: IncomeItemProps) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const { translateX, dragging, isOpen, close, handleTap, swipeHandlers } = useSwipeToDelete();
+  const { ref, translateX, dragging, isOpen, close, handleTap, rowStyle } = useSwipeToDelete();
 
   const Icon = getCategoryIcon(income.category.icon);
   const transactionCurrency = income.currency || currency;
@@ -55,10 +55,11 @@ export function IncomeItem({ income, onTap, onDelete, currency }: IncomeItemProp
 
         {/* Swipeable row */}
         <button
-          {...swipeHandlers}
+          ref={ref}
           onClick={() => handleTap(() => onTap(income.id))}
           className="w-full flex items-center gap-3 px-6 py-2.5 active:bg-neutral-100 min-h-[52px] relative"
           style={{
+            ...rowStyle,
             backgroundColor: 'white',
             transform: `translateX(${translateX}px)`,
             transition: dragging ? 'none' : 'transform 0.3s cubic-bezier(0.22, 1, 0.36, 1)',

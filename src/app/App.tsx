@@ -502,8 +502,8 @@ export default function App() {
         className={`max-w-[430px] mx-auto flex flex-col ${currentTab === 'activity' ? 'overflow-hidden' : 'min-h-screen'}`}
         style={{ backgroundColor: '#F5F5F7', ...(currentTab === 'activity' ? { height: '100dvh' } : {}) }}
       >
-        {/* Status Bar Space */}
-        <div className="h-10 flex-shrink-0" style={{ backgroundColor: '#F5F5F7' }} />
+        {/* Status Bar Space — just the device safe area (notch), small in a browser tab */}
+        <div className="flex-shrink-0" style={{ height: 'max(8px, env(safe-area-inset-top))', backgroundColor: '#F5F5F7' }} />
 
         {/* Content - Different structure for activity tab vs others */}
         {currentTab === 'activity' ? (

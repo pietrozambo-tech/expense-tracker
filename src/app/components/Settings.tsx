@@ -332,9 +332,9 @@ export function Settings({
   return (
     <div className="min-h-screen pb-24" style={{ backgroundColor: '#F5F5F7' }}>
       {/* Header */}
-      <div className="px-6 pb-6 pt-0">
+      <div className="px-6 pb-4 pt-1">
         <h1 style={{ color: '#1C1C1E', fontSize: '28px', fontWeight: '600', letterSpacing: '-0.5px' }}>Settings</h1>
-        <p style={{ color: '#8E8E93', fontSize: '13px', marginTop: '6px' }}>
+        <p style={{ color: '#8E8E93', fontSize: '13px', marginTop: '4px' }}>
           Manage your app preferences
         </p>
       </div>

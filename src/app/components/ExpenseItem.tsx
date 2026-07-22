@@ -28,7 +28,7 @@ interface ExpenseItemProps {
 
 export function ExpenseItem({ expense, onTap, onDelete, currency }: ExpenseItemProps) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const { translateX, dragging, isOpen, close, handleTap, swipeHandlers } = useSwipeToDelete();
+  const { ref, translateX, dragging, isOpen, close, handleTap, rowStyle } = useSwipeToDelete();
 
   const Icon = getCategoryIcon(expense.category.icon);
   const transactionCurrency = expense.currency || currency;
@@ -55,10 +55,11 @@ export function ExpenseItem({ expense, onTap, onDelete, currency }: ExpenseItemP
 
         {/* Swipeable row */}
         <button
-          {...swipeHandlers}
+          ref={ref}
           onClick={() => handleTap(() => onTap(expense.id))}
           className="w-full flex items-center gap-3 px-6 py-2.5 active:bg-neutral-100 min-h-[52px] relative"
           style={{
+            ...rowStyle,
             backgroundColor: 'white',
             transform: `translateX(${translateX}px)`,
             transition: dragging ? 'none' : 'transform 0.3s cubic-bezier(0.22, 1, 0.36, 1)',
