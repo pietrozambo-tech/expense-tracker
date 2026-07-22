@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { ChevronRight, ArrowUpDown, TrendingUp, TrendingDown, Minus, Calendar, Receipt, ChevronLeft, ChevronDown, X, Clock } from 'lucide-react';
 import { TrendCategoryBreakdown } from './TrendCategoryBreakdown';
 import React from 'react';
@@ -66,6 +66,18 @@ export function Dashboard({ expenses, categories, incomeCategories, userName, cu
   const viewType: ViewType = view === 'trend' ? 'trend' : 'current-month';
   const [timePeriodType, setTimePeriodType] = useState<TimePeriodType>('month');
   const [showPeriodMenu, setShowPeriodMenu] = useState(false); // custom period-type dropdown
+  // Measure the cumulative chart's real pixel width so its SVG renders 1:1
+  // (no aspect-ratio stretching that would deform the line dot / axis text).
+  const chartBoxRef = useRef<HTMLDivElement | null>(null);
+  const [chartWidth, setChartWidth] = useState(0);
+  useEffect(() => {
+    const measure = () => {
+      if (chartBoxRef.current) setChartWidth(chartBoxRef.current.clientWidth);
+    };
+    measure();
+    window.addEventListener('resize', measure);
+    return () => window.removeEventListener('resize', measure);
+  });
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
   const [trendExpandedCategory, setTrendExpandedCategory] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
@@ -1452,17 +1464,17 @@ export function Dashboard({ expenses, categories, incomeCategories, userName, cu
                     <h3 className="text-sm mb-3" style={{ color: '#1C1C1E', fontWeight: '600' }}>
                       Cumulative Spending
                     </h3>
-                    <div 
-                      style={{ height: '200px', width: '100%', touchAction: 'none', position: 'relative', minWidth: 0, minHeight: 0 }}
-                      onTouchStart={handleManualTouch}
-                      onTouchMove={handleManualTouch}
-                      onTouchEnd={() => setTooltipData(null)}
+                    <div
+                      ref={chartBoxRef}
+                      style={{ height: '200px', width: '100%', position: 'relative', minWidth: 0, minHeight: 0 }}
                       onMouseMove={handleManualMouse}
                       onMouseLeave={() => setTooltipData(null)}
                     >
                       {/* Custom SVG area chart — no recharts to avoid internal key collision */}
                       {(() => {
-                        const svgW = 390;
+                        // Render at the container's real width so 1 SVG unit = 1px:
+                        // this keeps the endpoint dot round and the axis text undistorted.
+                        const svgW = chartWidth || 340;
                         const svgH = 200;
                         const marginTop = 5;
                         const marginRight = 10;
@@ -1518,7 +1530,7 @@ export function Dashboard({ expenses, categories, incomeCategories, userName, cu
                             width="100%"
                             height="100%"
                             viewBox={`0 0 ${svgW} ${svgH}`}
-                            preserveAspectRatio="none"
+                            preserveAspectRatio="xMidYMid meet"
                             style={{ display: 'block' }}
                           >
                             <defs>
