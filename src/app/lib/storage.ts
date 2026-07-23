@@ -41,6 +41,7 @@ export const DEFAULT_SETTINGS: UserSettings = {
   onboarded: false,
   userName: '',
   currency: 'EUR',
+  hasSeenIntro: false,
   defaultSourceExpense: DEFAULT_SOURCE_EXPENSE,
   defaultSourceIncome: DEFAULT_SOURCE_INCOME,
 };

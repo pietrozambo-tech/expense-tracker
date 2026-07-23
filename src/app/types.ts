@@ -43,6 +43,8 @@ export interface UserSettings {
   onboarded: boolean;
   userName: string;
   currency: string;
+  // Whether the first-run feature carousel has been shown
+  hasSeenIntro?: boolean;
   // Source pre-selected on new transactions, separately for each direction
   defaultSourceExpense?: string;
   defaultSourceIncome?: string;

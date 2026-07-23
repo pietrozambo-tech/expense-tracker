@@ -30,10 +30,12 @@ import { CategorySelector } from './components/CategorySelector';
 import { SaveButton } from './components/SaveButton';
 import { DescriptionInput } from './components/DescriptionInput';
 import { Onboarding } from './components/Onboarding';
+import { WelcomeCarousel } from './components/WelcomeCarousel';
 import { categories as initialCategories, incomeCategories as initialIncomeCategories } from './components/categories';
 
 export default function App() {
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(() => loadSettings().onboarded);
+  const [hasSeenIntro, setHasSeenIntro] = useState(() => loadSettings().hasSeenIntro ?? false);
   const [userName, setUserName] = useState(() => loadSettings().userName);
   const [userCurrency, setUserCurrency] = useState(() => loadSettings().currency);
   const [selectedTransactionCurrency, setSelectedTransactionCurrency] = useState('EUR'); // Currency for current transaction being added/edited
@@ -108,10 +110,11 @@ export default function App() {
       onboarded: hasCompletedOnboarding,
       userName,
       currency: userCurrency,
+      hasSeenIntro,
       defaultSourceExpense,
       defaultSourceIncome,
     });
-  }, [hasCompletedOnboarding, userName, userCurrency, defaultSourceExpense, defaultSourceIncome]);
+  }, [hasCompletedOnboarding, userName, userCurrency, hasSeenIntro, defaultSourceExpense, defaultSourceIncome]);
 
   const handleCategorySelect = (categoryId: string) => {
     setSelectedCategory(categoryId);
@@ -516,6 +519,7 @@ export default function App() {
     setUserCurrency('EUR');
     setCurrentTab('dashboard');
     setHasCompletedOnboarding(false);
+    setHasSeenIntro(false);
   };
 
   // Source CRUD + defaults (managed in Settings › Sources)
@@ -569,6 +573,11 @@ export default function App() {
   // Show onboarding if not completed
   if (!hasCompletedOnboarding) {
     return <Onboarding onComplete={handleOnboardingComplete} />;
+  }
+
+  // First run after name + currency: show the feature carousel once
+  if (!hasSeenIntro) {
+    return <WelcomeCarousel userName={userName} onDone={() => setHasSeenIntro(true)} />;
   }
 
   return (
