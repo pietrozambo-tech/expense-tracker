@@ -1,10 +1,41 @@
 import { useRef, useState } from 'react';
 import {
   ArrowUp, ArrowDown, Wallet, Percent, Calendar, Repeat, ChevronDown,
-  ShoppingCart, Car, Home, Clapperboard,
+  ShoppingCart, Car, Home, Clapperboard, PiggyBank, TrendingUp,
 } from 'lucide-react';
 import type { Source } from '../types';
 import { SourceLogo } from './SourceLogo';
+
+// A small line chart (line + soft area + endpoint dot), matching the app style
+function Spark({ values, labels, color }: { values: number[]; labels: string[]; color: string }) {
+  const W = 300, H = 116, pad = 10;
+  const max = Math.max(...values) * 1.15;
+  const x = (i: number) => pad + (i * (W - pad * 2)) / (values.length - 1);
+  const y = (v: number) => H - pad - (v / max) * (H - pad * 2);
+  const line = values.map((v, i) => `${i === 0 ? 'M' : 'L'} ${x(i).toFixed(1)} ${y(v).toFixed(1)}`).join(' ');
+  const area = `${line} L ${x(values.length - 1)} ${H} L ${x(0)} ${H} Z`;
+  const gid = 'sp' + color.replace('#', '');
+  return (
+    <>
+      <svg viewBox={`0 0 ${W} ${H}`} width="100%" height={H} style={{ display: 'block' }}>
+        <defs>
+          <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={color} stopOpacity="0.18" />
+            <stop offset="100%" stopColor={color} stopOpacity="0" />
+          </linearGradient>
+        </defs>
+        <path d={area} fill={`url(#${gid})`} />
+        <path d={line} fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+        {values.map((v, i) => (
+          <circle key={i} cx={x(i)} cy={y(v)} r={i === values.length - 1 ? 4 : 2.5} fill={color} />
+        ))}
+      </svg>
+      <div className="flex justify-between mt-1 px-1">
+        {labels.map((l) => <span key={l} className="text-[10px]" style={{ color: '#B0B0B5' }}>{l}</span>)}
+      </div>
+    </>
+  );
+}
 
 interface WelcomeCarouselProps {
   userName?: string;
@@ -138,43 +169,19 @@ function DashboardIllustration() {
 }
 
 function TrendIllustration() {
-  // Sample monthly points (ascending-ish) drawn as a smooth line + area
-  const pts = [22, 30, 26, 40, 52, 60];
   const labels = ['Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul'];
-  const W = 300, H = 120, pad = 8;
-  const max = 70;
-  const x = (i: number) => pad + (i * (W - pad * 2)) / (pts.length - 1);
-  const y = (v: number) => H - pad - (v / max) * (H - pad * 2);
-  const line = pts.map((v, i) => `${i === 0 ? 'M' : 'L'} ${x(i).toFixed(1)} ${y(v).toFixed(1)}`).join(' ');
-  const area = `${line} L ${x(pts.length - 1)} ${H} L ${x(0)} ${H} Z`;
-  // Sample monthly split for a single category (Groceries)
-  const bars = [64, 52, 78, 60, 90, 84];
-  const barMax = 100;
+  const cumulative = [22, 30, 26, 40, 52, 60];       // overall, ascending
+  const groceries = [140, 110, 175, 130, 205, 180];  // one category, up and down
 
   return (
     <div className="flex flex-col gap-3">
       {/* Cumulative spending (line) */}
       <div className="rounded-2xl px-4 pt-4 pb-3" style={{ background: '#FFFFFF', boxShadow: '0 8px 24px rgba(0,0,0,0.06)', border: '1px solid #EEEEF1' }}>
         <div className="text-sm font-semibold mb-3" style={{ color: '#1C1C1E' }}>Cumulative spending</div>
-        <svg viewBox={`0 0 ${W} ${H}`} width="100%" height={H} style={{ display: 'block' }}>
-          <defs>
-            <linearGradient id="tg" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#007AFF" stopOpacity="0.18" />
-              <stop offset="100%" stopColor="#007AFF" stopOpacity="0" />
-            </linearGradient>
-          </defs>
-          <path d={area} fill="url(#tg)" />
-          <path d={line} fill="none" stroke="#007AFF" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-          {pts.map((v, i) => (
-            <circle key={i} cx={x(i)} cy={y(v)} r={i === pts.length - 1 ? 4 : 2.5} fill="#007AFF" />
-          ))}
-        </svg>
-        <div className="flex justify-between mt-1 px-1">
-          {labels.map((l) => <span key={l} className="text-[10px]" style={{ color: '#B0B0B5' }}>{l}</span>)}
-        </div>
+        <Spark values={cumulative} labels={labels} color="#007AFF" />
       </div>
 
-      {/* Per-category monthly split (bars) */}
+      {/* Per-category monthly line */}
       <div className="rounded-2xl px-4 pt-4 pb-3" style={{ background: '#FFFFFF', boxShadow: '0 8px 24px rgba(0,0,0,0.06)', border: '1px solid #EEEEF1' }}>
         <div className="flex items-center gap-2 mb-3">
           <span className="flex items-center justify-center flex-shrink-0" style={{ width: 22, height: 22, borderRadius: 7, background: '#E7F6EC' }}>
@@ -182,12 +189,55 @@ function TrendIllustration() {
           </span>
           <span className="text-sm font-semibold" style={{ color: '#1C1C1E' }}>Groceries · monthly</span>
         </div>
-        <div className="flex items-end justify-between gap-2" style={{ height: 70 }}>
-          {bars.map((v, i) => (
-            <div key={i} className="flex-1 rounded-md" style={{ height: `${(v / barMax) * 100}%`, background: i === bars.length - 1 ? '#2E9E5B' : 'rgba(46,158,91,0.35)' }} />
-          ))}
+        <Spark values={groceries} labels={labels} color="#2E9E5B" />
+      </div>
+    </div>
+  );
+}
+
+function SavingsIllustration() {
+  // Sample monthly savings — dips below zero one month, like the real Savings view
+  const vals = [1940, 1958, 1741, 1722, -2591, 1906, 2341];
+  const labels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul'];
+  const W = 300, H = 120, pad = 12;
+  const maxAbs = 2850;
+  const zeroY = H / 2;
+  const x = (i: number) => pad + (i * (W - pad * 2)) / (vals.length - 1);
+  const y = (v: number) => zeroY - (v / maxAbs) * (H / 2 - pad);
+  const line = vals.map((v, i) => `${i === 0 ? 'M' : 'L'} ${x(i).toFixed(1)} ${y(v).toFixed(1)}`).join(' ');
+
+  return (
+    <div className="flex flex-col gap-3">
+      {/* Stat tiles */}
+      <div className="grid grid-cols-2 gap-3">
+        <div className="rounded-2xl px-4 py-3" style={{ background: '#FFFFFF', boxShadow: '0 8px 24px rgba(0,0,0,0.06)', border: '1px solid #EEEEF1' }}>
+          <div className="flex items-center gap-1.5 mb-1">
+            <PiggyBank className="w-3.5 h-3.5" style={{ color: '#10B981' }} />
+            <span className="text-[11px]" style={{ color: '#8E8E93' }}>Total savings</span>
+          </div>
+          <div className="text-2xl font-bold tabular-nums" style={{ color: '#10B981' }}>9,016€</div>
         </div>
-        <div className="flex justify-between mt-1.5 px-0.5">
+        <div className="rounded-2xl px-4 py-3" style={{ background: '#FFFFFF', boxShadow: '0 8px 24px rgba(0,0,0,0.06)', border: '1px solid #EEEEF1' }}>
+          <div className="flex items-center gap-1.5 mb-1">
+            <TrendingUp className="w-3.5 h-3.5" style={{ color: '#10B981' }} />
+            <span className="text-[11px]" style={{ color: '#8E8E93' }}>Saving rate</span>
+          </div>
+          <div className="text-2xl font-bold tabular-nums" style={{ color: '#10B981' }}>38%</div>
+        </div>
+      </div>
+
+      {/* Savings line trend (crosses zero) */}
+      <div className="rounded-2xl px-4 pt-4 pb-3" style={{ background: '#FFFFFF', boxShadow: '0 8px 24px rgba(0,0,0,0.06)', border: '1px solid #EEEEF1' }}>
+        <div className="text-sm font-semibold mb-3" style={{ color: '#1C1C1E' }}>Savings trend</div>
+        <svg viewBox={`0 0 ${W} ${H}`} width="100%" height={H} style={{ display: 'block' }}>
+          {/* zero baseline */}
+          <line x1={pad} y1={zeroY} x2={W - pad} y2={zeroY} stroke="#E5E5EA" strokeWidth="1" strokeDasharray="3 3" />
+          <path d={line} fill="none" stroke="#007AFF" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+          {vals.map((v, i) => (
+            <circle key={i} cx={x(i)} cy={y(v)} r={i === vals.length - 1 ? 4 : 2.5} fill={v < 0 ? '#FF6961' : '#007AFF'} />
+          ))}
+        </svg>
+        <div className="flex justify-between mt-1 px-1">
           {labels.map((l) => <span key={l} className="text-[10px]" style={{ color: '#B0B0B5' }}>{l}</span>)}
         </div>
       </div>
@@ -220,6 +270,11 @@ export function WelcomeCarousel({ userName, onDone }: WelcomeCarouselProps) {
       illustration: <TrendIllustration />,
       title: 'Spot the trends',
       desc: 'See cumulative spending, and how any category splits out month over month.',
+    },
+    {
+      illustration: <SavingsIllustration />,
+      title: 'Grow your savings',
+      desc: 'Track savings and your saving rate over time — the app flags your best and worst months.',
     },
   ];
 
