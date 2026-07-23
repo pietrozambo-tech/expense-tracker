@@ -89,19 +89,47 @@ function DashboardIllustration() {
     { label: 'Savings', value: '2,341€', Icon: Wallet, tint: 'rgba(100,160,255,0.16)', color: '#64A0FF', accent: '#30D158' },
     { label: 'Saving Rate', value: '69%', Icon: Percent, tint: 'rgba(100,160,255,0.16)', color: '#64A0FF', accent: '#30D158' },
   ];
+  const rows = [
+    { name: 'Housing', Icon: Home, bg: '#E3EDFF', fg: '#3B6FE0', pct: 87, amt: '900€' },
+    { name: 'Groceries', Icon: ShoppingCart, bg: '#E7F6EC', fg: '#2E9E5B', pct: 8, amt: '84€' },
+    { name: 'Transport', Icon: Car, bg: '#E3EDFF', fg: '#4589D6', pct: 5, amt: '55€' },
+  ];
   return (
-    <div className="rounded-2xl px-5 py-4" style={{ background: 'linear-gradient(150deg, #2E2E32 0%, #1C1C1E 100%)', boxShadow: '0 12px 30px rgba(28,28,30,0.28)' }}>
-      <div className="text-center mb-3.5 text-sm font-semibold" style={{ color: '#FFFFFF' }}>July 2026</div>
-      <div className="grid grid-cols-2 gap-x-3 gap-y-3.5">
-        {metrics.map((m) => (
-          <div key={m.label} className="flex items-center gap-2.5">
-            <span className="flex items-center justify-center flex-shrink-0" style={{ width: 30, height: 30, borderRadius: 999, background: m.tint }}>
-              <m.Icon className="w-4 h-4" style={{ color: m.color }} strokeWidth={2.5} />
-            </span>
-            <div>
-              <div className="text-[11px]" style={{ color: 'rgba(235,235,245,0.6)' }}>{m.label}</div>
-              <div className="text-[16px] font-bold tabular-nums" style={{ color: m.accent || '#FFFFFF' }}>{m.value}</div>
+    <div className="flex flex-col gap-3">
+      {/* Hero summary */}
+      <div className="rounded-2xl px-5 py-4" style={{ background: 'linear-gradient(150deg, #2E2E32 0%, #1C1C1E 100%)', boxShadow: '0 12px 30px rgba(28,28,30,0.28)' }}>
+        <div className="text-center mb-3.5 text-sm font-semibold" style={{ color: '#FFFFFF' }}>July 2026</div>
+        <div className="grid grid-cols-2 gap-x-3 gap-y-3.5">
+          {metrics.map((m) => (
+            <div key={m.label} className="flex items-center gap-2.5">
+              <span className="flex items-center justify-center flex-shrink-0" style={{ width: 30, height: 30, borderRadius: 999, background: m.tint }}>
+                <m.Icon className="w-4 h-4" style={{ color: m.color }} strokeWidth={2.5} />
+              </span>
+              <div>
+                <div className="text-[11px]" style={{ color: 'rgba(235,235,245,0.6)' }}>{m.label}</div>
+                <div className="text-[16px] font-bold tabular-nums" style={{ color: m.accent || '#FFFFFF' }}>{m.value}</div>
+              </div>
             </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Category breakdown */}
+      <div className="rounded-2xl px-4 py-3" style={{ background: '#FFFFFF', boxShadow: '0 8px 24px rgba(0,0,0,0.06)', border: '1px solid #EEEEF1' }}>
+        <div className="text-sm font-semibold mb-1.5" style={{ color: '#1C1C1E' }}>Categories</div>
+        {rows.map((r) => (
+          <div key={r.name} className="flex items-center gap-2.5 py-1.5">
+            <span className="flex items-center justify-center flex-shrink-0" style={{ width: 28, height: 28, borderRadius: 8, background: r.bg }}>
+              <r.Icon className="w-4 h-4" style={{ color: r.fg }} />
+            </span>
+            <div className="flex-1 min-w-0">
+              <div className="text-[13px] font-medium mb-1" style={{ color: '#1C1C1E' }}>{r.name}</div>
+              <div className="h-1 rounded-full overflow-hidden" style={{ background: 'rgba(0,0,0,0.08)' }}>
+                <div className="h-full rounded-full" style={{ width: `${r.pct}%`, background: r.fg }} />
+              </div>
+            </div>
+            <span className="text-[11px] tabular-nums" style={{ color: '#B0B0B5' }}>{r.pct}%</span>
+            <span className="text-[13px] font-bold tabular-nums w-12 text-right" style={{ color: '#1C1C1E' }}>{r.amt}</span>
           </div>
         ))}
       </div>
@@ -119,24 +147,49 @@ function TrendIllustration() {
   const y = (v: number) => H - pad - (v / max) * (H - pad * 2);
   const line = pts.map((v, i) => `${i === 0 ? 'M' : 'L'} ${x(i).toFixed(1)} ${y(v).toFixed(1)}`).join(' ');
   const area = `${line} L ${x(pts.length - 1)} ${H} L ${x(0)} ${H} Z`;
+  // Sample monthly split for a single category (Groceries)
+  const bars = [64, 52, 78, 60, 90, 84];
+  const barMax = 100;
+
   return (
-    <div className="rounded-2xl px-4 pt-4 pb-3" style={{ background: '#FFFFFF', boxShadow: '0 8px 24px rgba(0,0,0,0.06)', border: '1px solid #EEEEF1' }}>
-      <div className="text-sm font-semibold mb-3" style={{ color: '#1C1C1E' }}>Cumulative spending</div>
-      <svg viewBox={`0 0 ${W} ${H}`} width="100%" height={H} style={{ display: 'block' }}>
-        <defs>
-          <linearGradient id="tg" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#007AFF" stopOpacity="0.18" />
-            <stop offset="100%" stopColor="#007AFF" stopOpacity="0" />
-          </linearGradient>
-        </defs>
-        <path d={area} fill="url(#tg)" />
-        <path d={line} fill="none" stroke="#007AFF" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-        {pts.map((v, i) => (
-          <circle key={i} cx={x(i)} cy={y(v)} r={i === pts.length - 1 ? 4 : 2.5} fill="#007AFF" />
-        ))}
-      </svg>
-      <div className="flex justify-between mt-1 px-1">
-        {labels.map((l) => <span key={l} className="text-[10px]" style={{ color: '#B0B0B5' }}>{l}</span>)}
+    <div className="flex flex-col gap-3">
+      {/* Cumulative spending (line) */}
+      <div className="rounded-2xl px-4 pt-4 pb-3" style={{ background: '#FFFFFF', boxShadow: '0 8px 24px rgba(0,0,0,0.06)', border: '1px solid #EEEEF1' }}>
+        <div className="text-sm font-semibold mb-3" style={{ color: '#1C1C1E' }}>Cumulative spending</div>
+        <svg viewBox={`0 0 ${W} ${H}`} width="100%" height={H} style={{ display: 'block' }}>
+          <defs>
+            <linearGradient id="tg" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#007AFF" stopOpacity="0.18" />
+              <stop offset="100%" stopColor="#007AFF" stopOpacity="0" />
+            </linearGradient>
+          </defs>
+          <path d={area} fill="url(#tg)" />
+          <path d={line} fill="none" stroke="#007AFF" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+          {pts.map((v, i) => (
+            <circle key={i} cx={x(i)} cy={y(v)} r={i === pts.length - 1 ? 4 : 2.5} fill="#007AFF" />
+          ))}
+        </svg>
+        <div className="flex justify-between mt-1 px-1">
+          {labels.map((l) => <span key={l} className="text-[10px]" style={{ color: '#B0B0B5' }}>{l}</span>)}
+        </div>
+      </div>
+
+      {/* Per-category monthly split (bars) */}
+      <div className="rounded-2xl px-4 pt-4 pb-3" style={{ background: '#FFFFFF', boxShadow: '0 8px 24px rgba(0,0,0,0.06)', border: '1px solid #EEEEF1' }}>
+        <div className="flex items-center gap-2 mb-3">
+          <span className="flex items-center justify-center flex-shrink-0" style={{ width: 22, height: 22, borderRadius: 7, background: '#E7F6EC' }}>
+            <ShoppingCart className="w-3.5 h-3.5" style={{ color: '#2E9E5B' }} />
+          </span>
+          <span className="text-sm font-semibold" style={{ color: '#1C1C1E' }}>Groceries · monthly</span>
+        </div>
+        <div className="flex items-end justify-between gap-2" style={{ height: 70 }}>
+          {bars.map((v, i) => (
+            <div key={i} className="flex-1 rounded-md" style={{ height: `${(v / barMax) * 100}%`, background: i === bars.length - 1 ? '#2E9E5B' : 'rgba(46,158,91,0.35)' }} />
+          ))}
+        </div>
+        <div className="flex justify-between mt-1.5 px-0.5">
+          {labels.map((l) => <span key={l} className="text-[10px]" style={{ color: '#B0B0B5' }}>{l}</span>)}
+        </div>
       </div>
     </div>
   );
@@ -166,7 +219,7 @@ export function WelcomeCarousel({ userName, onDone }: WelcomeCarouselProps) {
     {
       illustration: <TrendIllustration />,
       title: 'Spot the trends',
-      desc: 'The Trend tab reveals how your spending and saving evolve month over month.',
+      desc: 'See cumulative spending, and how any category splits out month over month.',
     },
   ];
 
