@@ -1,4 +1,6 @@
-import { ChevronDown, Search, X } from 'lucide-react';
+import { ChevronDown, Search, X, Wallet } from 'lucide-react';
+import type { Source } from '../types';
+import { SourceLogo } from './SourceLogo';
 
 interface FilterBarProps {
   year: string; // e.g., "2025"
@@ -7,12 +9,15 @@ interface FilterBarProps {
   subcategory?: string;
   searchQuery?: string;
   typeFilter?: string; // "All", "Non-repeated", "Repeated"
+  sourceFilter?: string; // 'All' or a source id
+  sources?: Source[];
   availableYears: string[];
   availableMonths: string[];
   onYearChange: (year: string) => void;
   onMonthChange: (month: string) => void;
   onOpenCategorySelector: () => void;
   onOpenSubcategorySelector?: () => void;
+  onOpenSourceSelector?: () => void;
   onOpenSearch: () => void;
   onClearSearch?: () => void;
   onTypeFilterChange?: (type: string) => void;
@@ -25,16 +30,20 @@ export function FilterBar({
   subcategory,
   searchQuery,
   typeFilter,
+  sourceFilter,
+  sources,
   availableYears,
   availableMonths,
   onYearChange,
   onMonthChange,
   onOpenCategorySelector,
   onOpenSubcategorySelector,
+  onOpenSourceSelector,
   onOpenSearch,
   onClearSearch,
   onTypeFilterChange
 }: FilterBarProps) {
+  const selectedSource = sources?.find((s) => s.id === sourceFilter);
   return (
     <div 
       className="sticky top-0 z-10 bg-white border-b border-neutral-100 px-6 py-2.5"
@@ -131,6 +140,29 @@ export function FilterBar({
           </div>
         )}
         
+        {/* Source Filter */}
+        {onOpenSourceSelector && (
+          <button
+            onClick={onOpenSourceSelector}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors ${
+              selectedSource ? 'bg-blue-50/70 hover:bg-blue-100' : 'bg-neutral-50/70 hover:bg-neutral-100'
+            }`}
+          >
+            {selectedSource ? (
+              <>
+                <SourceLogo source={selectedSource} size={16} />
+                <span className="text-blue-600 text-sm">{selectedSource.name}</span>
+              </>
+            ) : (
+              <>
+                <Wallet className="w-3.5 h-3.5 text-neutral-400" />
+                <span className="text-neutral-600 text-sm">Source</span>
+              </>
+            )}
+            <ChevronDown className={`w-3.5 h-3.5 ${selectedSource ? 'text-blue-400' : 'text-neutral-400'}`} />
+          </button>
+        )}
+
         {/* Category Filter */}
         <button
           onClick={onOpenCategorySelector}

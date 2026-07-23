@@ -3,11 +3,12 @@ import { FilterBar } from './FilterBar';
 import { ActivityDayGroup } from './ActivityDayGroup';
 import { CategoryFilterModal } from './CategoryFilterModal';
 import { SubcategoryFilterModal } from './SubcategoryFilterModal';
+import { SourceFilterModal } from './SourceFilterModal';
 import { SearchModal } from './SearchModal';
 import { formatAmount, CURRENCIES, convertAmount } from '../utils/currency';
 import { Download } from 'lucide-react';
 import { toast } from 'sonner';
-import type { Transaction } from '../types';
+import type { Transaction, Source } from '../types';
 
 type ActivityTypeFilter = 'all' | 'expense' | 'income';
 
@@ -19,6 +20,7 @@ interface ActivityProps {
   categories: any[];
   incomeCategories: any[];
   currency: string;
+  sources: Source[];
 }
 
 export function Activity({
@@ -28,7 +30,8 @@ export function Activity({
   onModalOpenChange,
   categories,
   incomeCategories,
-  currency
+  currency,
+  sources
 }: ActivityProps) {
   const now = new Date();
   const currentYear = String(now.getFullYear());
@@ -41,9 +44,11 @@ export function Activity({
   const [subcategoryFilter, setSubcategoryFilter] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState('All'); // recurrence filter (All / One-off / Recurrent)
+  const [sourceFilter, setSourceFilter] = useState('All'); // 'All' or a source id
 
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [isSubcategoryModalOpen, setIsSubcategoryModalOpen] = useState(false);
+  const [isSourceModalOpen, setIsSourceModalOpen] = useState(false);
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
 
   // Helper to parse YYYY-MM-DD to local Date object safely
@@ -122,6 +127,7 @@ export function Activity({
 
     if (categoryFilter !== 'All' && t.category.name !== categoryFilter) return false;
     if (subcategoryFilter !== 'All' && t.subcategory !== subcategoryFilter) return false;
+    if (sourceFilter !== 'All' && t.sourceId !== sourceFilter) return false;
     if (searchQuery && !t.description.toLowerCase().includes(searchQuery.toLowerCase())) return false;
 
     // Recurrence filter
@@ -279,6 +285,8 @@ export function Activity({
           subcategory={subcategoryFilter}
           searchQuery={searchQuery}
           typeFilter={typeFilter}
+          sourceFilter={sourceFilter}
+          sources={sources}
           availableYears={availableYears}
           availableMonths={availableMonths}
           onYearChange={(year) => setSelectedYear(year)}
@@ -289,6 +297,10 @@ export function Activity({
           }}
           onOpenSubcategorySelector={() => {
             setIsSubcategoryModalOpen(true);
+            onModalOpenChange?.(true);
+          }}
+          onOpenSourceSelector={() => {
+            setIsSourceModalOpen(true);
             onModalOpenChange?.(true);
           }}
           onOpenSearch={() => {
@@ -355,6 +367,21 @@ export function Activity({
           onModalOpenChange?.(false);
         }}
         availableSubcategories={getAvailableSubcategories()}
+      />
+
+      <SourceFilterModal
+        isOpen={isSourceModalOpen}
+        sources={sources}
+        selected={sourceFilter}
+        onClose={() => {
+          setIsSourceModalOpen(false);
+          onModalOpenChange?.(false);
+        }}
+        onSelect={(value) => {
+          setSourceFilter(value);
+          setIsSourceModalOpen(false);
+          onModalOpenChange?.(false);
+        }}
       />
 
       <SearchModal

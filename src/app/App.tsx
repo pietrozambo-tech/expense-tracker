@@ -631,6 +631,7 @@ export default function App() {
             categories={categories}
             incomeCategories={incomeCategories}
             currency={userCurrency}
+            sources={sources}
           />
         ) : (
           // Other tabs - Parent scrollable
