@@ -34,6 +34,8 @@ interface SettingsProps {
   onDeleteSource: (id: string) => void;
   openSourcesOnMount?: boolean;
   onSourcesOpened?: () => void;
+  openCategoriesOnMount?: boolean;
+  onCategoriesOpened?: () => void;
 }
 
 export function Settings({ 
@@ -63,7 +65,9 @@ export function Settings({
   onEditSource,
   onDeleteSource,
   openSourcesOnMount,
-  onSourcesOpened
+  onSourcesOpened,
+  openCategoriesOnMount,
+  onCategoriesOpened
 }: SettingsProps) {
   const [showCategories, setShowCategories] = useState(false);
   const [showSources, setShowSources] = useState(false);
@@ -80,6 +84,14 @@ export function Settings({
       onSourcesOpened?.();
     }
   }, [openSourcesOnMount, onSourcesOpened]);
+
+  // Deep-link from the welcome carousel opens Categories directly
+  useEffect(() => {
+    if (openCategoriesOnMount) {
+      setShowCategories(true);
+      onCategoriesOpened?.();
+    }
+  }, [openCategoriesOnMount, onCategoriesOpened]);
 
   const currencies = [
     { code: 'EUR', symbol: '€', name: 'Euro', flag: '🇪🇺' },

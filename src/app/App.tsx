@@ -76,6 +76,7 @@ export default function App() {
   );
   const [showSourceSelector, setShowSourceSelector] = useState(false);
   const [openSourcesOnSettings, setOpenSourcesOnSettings] = useState(false); // deep-link Settings → Sources
+  const [openCategoriesOnSettings, setOpenCategoriesOnSettings] = useState(false); // deep-link Settings → Categories
   const [isModalOpen, setIsModalOpen] = useState(false); // Track if any modal is open
   const [isSaving, setIsSaving] = useState(false); // Track if save is in progress to prevent duplicate submissions
   
@@ -581,10 +582,10 @@ export default function App() {
       <WelcomeCarousel
         userName={userName}
         onDone={() => setHasSeenIntro(true)}
-        onSetupSources={() => {
+        onSetupCategories={() => {
           setHasSeenIntro(true);
           setCurrentTab('settings');
-          setOpenSourcesOnSettings(true);
+          setOpenCategoriesOnSettings(true);
         }}
       />
     );
@@ -680,6 +681,8 @@ export default function App() {
                 onDeleteSource={handleDeleteSource}
                 openSourcesOnMount={openSourcesOnSettings}
                 onSourcesOpened={() => setOpenSourcesOnSettings(false)}
+                openCategoriesOnMount={openCategoriesOnSettings}
+                onCategoriesOpened={() => setOpenCategoriesOnSettings(false)}
               />
             )}
           </div>
