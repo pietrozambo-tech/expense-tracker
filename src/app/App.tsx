@@ -577,7 +577,17 @@ export default function App() {
 
   // First run after name + currency: show the feature carousel once
   if (!hasSeenIntro) {
-    return <WelcomeCarousel userName={userName} onDone={() => setHasSeenIntro(true)} />;
+    return (
+      <WelcomeCarousel
+        userName={userName}
+        onDone={() => setHasSeenIntro(true)}
+        onSetupSources={() => {
+          setHasSeenIntro(true);
+          setCurrentTab('settings');
+          setOpenSourcesOnSettings(true);
+        }}
+      />
+    );
   }
 
   return (

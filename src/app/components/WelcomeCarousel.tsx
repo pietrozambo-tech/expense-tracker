@@ -1,10 +1,11 @@
 import { useRef, useState } from 'react';
 import {
-  ArrowUp, ArrowDown, Wallet, Percent, Calendar, Repeat, ChevronDown,
-  ShoppingCart, Car, Home, Clapperboard, PiggyBank, TrendingUp,
+  ArrowUp, ArrowDown, Wallet, Percent, Calendar, Repeat, ChevronDown, ChevronRight,
+  ShoppingCart, Car, Home, Clapperboard, PiggyBank, TrendingUp, Landmark, Layers,
 } from 'lucide-react';
 import type { Source } from '../types';
 import { SourceLogo } from './SourceLogo';
+import { DEFAULT_SOURCES } from './sources';
 
 // A small line chart (line + soft area + endpoint dot), matching the app style
 function Spark({ values, labels, color }: { values: number[]; labels: string[]; color: string }) {
@@ -39,7 +40,8 @@ function Spark({ values, labels, color }: { values: number[]; labels: string[]; 
 
 interface WelcomeCarouselProps {
   userName?: string;
-  onDone: () => void;
+  onDone: () => void; // finish and enter the app
+  onSetupSources: () => void; // finish and jump to Settings › Sources
 }
 
 // A sample source used purely for the illustrations
@@ -245,7 +247,38 @@ function SavingsIllustration() {
   );
 }
 
-export function WelcomeCarousel({ userName, onDone }: WelcomeCarouselProps) {
+function SettingsIllustration() {
+  return (
+    <div className="rounded-2xl overflow-hidden" style={{ background: '#FFFFFF', boxShadow: '0 8px 24px rgba(0,0,0,0.06)', border: '1px solid #EEEEF1' }}>
+      {/* Sources row with the default banks */}
+      <div className="flex items-center gap-3 px-4 py-3.5" style={{ borderBottom: '1px solid #F2F2F7' }}>
+        <span className="flex items-center justify-center flex-shrink-0" style={{ width: 30, height: 30, borderRadius: 9, background: '#F2F2F7' }}>
+          <Landmark className="w-4 h-4" style={{ color: '#8E8E93' }} />
+        </span>
+        <span className="flex-1 text-[15px] font-medium" style={{ color: '#1C1C1E' }}>Sources</span>
+        <div className="flex" style={{ gap: 0 }}>
+          {DEFAULT_SOURCES.map((s, i) => (
+            <span key={s.id} style={{ marginLeft: i === 0 ? 0 : -6, boxShadow: '0 0 0 2px #FFFFFF', borderRadius: 6 }}>
+              <SourceLogo source={s} size={20} />
+            </span>
+          ))}
+        </div>
+        <ChevronRight className="w-4 h-4 flex-shrink-0" style={{ color: '#C7C7CC' }} />
+      </div>
+      {/* Categories row */}
+      <div className="flex items-center gap-3 px-4 py-3.5">
+        <span className="flex items-center justify-center flex-shrink-0" style={{ width: 30, height: 30, borderRadius: 9, background: '#F2F2F7' }}>
+          <Layers className="w-4 h-4" style={{ color: '#8E8E93' }} />
+        </span>
+        <span className="flex-1 text-[15px] font-medium" style={{ color: '#1C1C1E' }}>Categories</span>
+        <span className="text-[14px]" style={{ color: '#8E8E93' }}>18</span>
+        <ChevronRight className="w-4 h-4 flex-shrink-0" style={{ color: '#C7C7CC' }} />
+      </div>
+    </div>
+  );
+}
+
+export function WelcomeCarousel({ userName, onDone, onSetupSources }: WelcomeCarouselProps) {
   const slides = [
     {
       illustration: (
@@ -275,6 +308,11 @@ export function WelcomeCarousel({ userName, onDone }: WelcomeCarouselProps) {
       illustration: <SavingsIllustration />,
       title: 'Grow your savings',
       desc: 'Track savings and your saving rate over time — the app flags your best and worst months.',
+    },
+    {
+      illustration: <SettingsIllustration />,
+      title: 'Make it yours',
+      desc: 'The app comes with sample banks and categories — swap in your own accounts and tweak categories anytime in Settings.',
     },
   ];
 
@@ -344,13 +382,28 @@ export function WelcomeCarousel({ userName, onDone }: WelcomeCarouselProps) {
             />
           ))}
         </div>
-        <button
-          onClick={next}
-          className="w-full py-4 rounded-xl font-medium text-base transition-all active:scale-[0.98]"
-          style={{ backgroundColor: '#007AFF', color: '#FFFFFF', boxShadow: '0 2px 8px rgba(0,122,255,0.25)' }}
-        >
-          {isLast ? 'Start tracking' : 'Next'}
-        </button>
+        {isLast ? (
+          <div className="flex flex-col items-center gap-1">
+            <button
+              onClick={onSetupSources}
+              className="w-full py-4 rounded-xl font-medium text-base transition-all active:scale-[0.98]"
+              style={{ backgroundColor: '#007AFF', color: '#FFFFFF', boxShadow: '0 2px 8px rgba(0,122,255,0.25)' }}
+            >
+              Set up my sources
+            </button>
+            <button onClick={onDone} className="py-2.5 text-[15px] font-medium" style={{ color: '#8E8E93' }}>
+              I'll do it later
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={next}
+            className="w-full py-4 rounded-xl font-medium text-base transition-all active:scale-[0.98]"
+            style={{ backgroundColor: '#007AFF', color: '#FFFFFF', boxShadow: '0 2px 8px rgba(0,122,255,0.25)' }}
+          >
+            Next
+          </button>
+        )}
       </div>
     </div>
   );
