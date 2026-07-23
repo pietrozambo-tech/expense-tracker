@@ -486,11 +486,13 @@ export default function App() {
   };
 
   // Demo data (for testing) — replaces current transactions with date-shifted
-  // samples, spreading them across the current sources so the field is populated
+  // samples, assigning each a random source so the field is populated
   const handleLoadDemoData = () => {
-    const demo = getDemoTransactions(userCurrency).map((t, i) => ({
+    const demo = getDemoTransactions(userCurrency).map((t) => ({
       ...t,
-      sourceId: sources.length ? sources[i % sources.length].id : undefined,
+      sourceId: sources.length
+        ? sources[Math.floor(Math.random() * sources.length)].id
+        : undefined,
     }));
     setExpenses(demo);
     setRefreshKey(prev => prev + 1);
@@ -642,6 +644,7 @@ export default function App() {
                 expenses={expenses}
                 categories={categories}
                 incomeCategories={incomeCategories}
+                sources={sources}
                 userName={userName}
                 currency={userCurrency}
                 onEditExpense={handleEditExpense}
@@ -656,6 +659,7 @@ export default function App() {
                 expenses={expenses}
                 categories={categories}
                 incomeCategories={incomeCategories}
+                sources={sources}
                 userName={userName}
                 currency={userCurrency}
                 onEditExpense={handleEditExpense}

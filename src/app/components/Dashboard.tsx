@@ -6,6 +6,8 @@ import { formatAmount, formatCompactAmount, formatSummaryAmount, formatAmountLis
 import { getCategoryIcon } from './categoryIcons';
 import { CategoryFilterModal } from './CategoryFilterModal';
 import { SubcategoryFilterModal } from './SubcategoryFilterModal';
+import { SourceLogo } from './SourceLogo';
+import type { Source } from '../types';
 
 import { ActivityDayGroup } from './ActivityDayGroup';
 
@@ -46,12 +48,14 @@ interface Expense {
   type?: 'expense' | 'income';
   currency?: string;
   recurrence?: string;
+  sourceId?: string;
 }
 
 interface DashboardProps {
   expenses: Expense[];
   categories: any[];
   incomeCategories: any[];
+  sources?: Source[];
   userName?: string;
   currency: string;
   onEditExpense: (id: string) => void;
@@ -62,7 +66,7 @@ interface DashboardProps {
   initialPeriod?: { month: number; year: number; type: 'expense' | 'income' } | null;
 }
 
-export function Dashboard({ expenses, categories, incomeCategories, userName, currency, onEditExpense, onDeleteExpense, view = 'overview', onShowOverview, initialPeriod }: DashboardProps) {
+export function Dashboard({ expenses, categories, incomeCategories, sources = [], userName, currency, onEditExpense, onDeleteExpense, view = 'overview', onShowOverview, initialPeriod }: DashboardProps) {
   const viewType: ViewType = view === 'trend' ? 'trend' : 'current-month';
   const [timePeriodType, setTimePeriodType] = useState<TimePeriodType>('month');
   // Measure the cumulative chart's real pixel width so its SVG renders 1:1
@@ -936,6 +940,54 @@ export function Dashboard({ expenses, categories, incomeCategories, userName, cu
       ].filter(item => item.value > 0), // Only include items with values
       detail: recurrentTypes.map(([name, value]) => ({ name, value })).filter(item => item.value > 0) // Only include items with values
     };
+  };
+
+  // Breakdown of the current period + transaction type by payment source.
+  // Slice colours come from each source's brand colour.
+  const getSourceBreakdown = () => {
+    const periodStart = (() => {
+      switch (timePeriodType) {
+        case 'month': return new Date(selectedYear, selectedMonth, 1);
+        case 'quarter': return new Date(selectedYear, selectedQuarter * 3, 1);
+        case 'year': return new Date(selectedYear, 0, 1);
+      }
+    })();
+    const periodEnd = (() => {
+      switch (timePeriodType) {
+        case 'month': return new Date(selectedYear, selectedMonth + 1, 0, 23, 59, 59, 999);
+        case 'quarter': return new Date(selectedYear, (selectedQuarter + 1) * 3, 0, 23, 59, 59, 999);
+        case 'year': return new Date(selectedYear, 11, 31, 23, 59, 59, 999);
+      }
+    })();
+
+    const periodTransactions = expenses.filter((t) => {
+      const d = parseLocalDate(t.date);
+      const typeMatch =
+        transactionType === 'expense' ? t.type !== 'income'
+          : transactionType === 'income' ? t.type === 'income'
+          : true;
+      return typeMatch && d >= periodStart! && d <= periodEnd!;
+    });
+
+    const totals: Record<string, number> = {};
+    periodTransactions.forEach((t) => {
+      const key = t.sourceId || '__none__';
+      totals[key] = (totals[key] || 0) + convertAmount(t.amount, t.currency || currency, currency);
+    });
+
+    return Object.entries(totals)
+      .map(([id, value]) => {
+        const source = sources.find((s) => s.id === id) || null;
+        return {
+          id,
+          name: source?.name || 'No source',
+          color: source?.brand || '#C7C7CC',
+          source,
+          value,
+        };
+      })
+      .filter((item) => item.value > 0)
+      .sort((a, b) => b.value - a.value);
   };
 
   const monthName = getPeriodDisplayName();
@@ -2033,6 +2085,112 @@ export function Dashboard({ expenses, categories, incomeCategories, userName, cu
                             </span>
                           </div>
                         </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* Source Breakdown Pie Chart — below Recurring vs One-off */}
+          {(() => {
+            const sourceData = getSourceBreakdown();
+            const totalValue = sourceData.reduce((sum, item) => sum + item.value, 0);
+            if (totalValue === 0 || sourceData.length === 0) return null;
+
+            const withPct = sourceData.map((item) => ({
+              ...item,
+              percentage: (item.value / totalValue) * 100,
+            }));
+
+            const size = 130;
+            const strokeWidth = 28;
+            const radius = (size - strokeWidth) / 2;
+            const circumference = 2 * Math.PI * radius;
+            const centerX = size / 2;
+            const centerY = size / 2;
+
+            let cumulativeOffset = 0;
+            const segments = withPct.map((item) => {
+              const dashArray = (item.percentage / 100) * circumference;
+              const seg = { ...item, dashArray, dashOffset: cumulativeOffset };
+              cumulativeOffset += dashArray;
+              return seg;
+            });
+
+            return (
+              <div className="px-6 mb-4">
+                <div className="rounded-2xl overflow-hidden" style={{ backgroundColor: '#FFFFFF', boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)' }}>
+                  <div className="px-6 py-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <h3 className="text-sm" style={{ color: '#1C1C1E', fontWeight: '600' }}>
+                        {transactionType === 'income' ? 'Income by source' : 'Spending by source'}
+                      </h3>
+                    </div>
+
+                    {/* Donut */}
+                    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '150px' }}>
+                      <div style={{ position: 'relative', width: size, height: size }}>
+                        <svg width={size} height={size}>
+                          {segments.map((segment, index) => (
+                            <circle
+                              key={`${segment.id}-${index}`}
+                              cx={centerX}
+                              cy={centerY}
+                              r={radius}
+                              fill="none"
+                              stroke={segment.color}
+                              strokeWidth={strokeWidth}
+                              strokeDasharray={`${segment.dashArray} ${circumference}`}
+                              strokeDashoffset={-segment.dashOffset}
+                              style={{
+                                transform: 'rotate(-90deg)',
+                                transformOrigin: `${centerX}px ${centerY}px`,
+                              }}
+                              strokeLinecap="butt"
+                            />
+                          ))}
+                        </svg>
+                        <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', textAlign: 'center', pointerEvents: 'none' }}>
+                          <p style={{ color: '#8E8E93', fontSize: '10px', margin: 0, marginBottom: '2px' }}>Total</p>
+                          <p style={{ color: '#1C1C1E', fontSize: '13px', fontWeight: '600', margin: 0 }}>
+                            {formatAmountListView(totalValue, currency, 0)}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Legend */}
+                    <div style={{ marginTop: '8px' }}>
+                      {withPct.map((item, index) => (
+                        <div
+                          key={`${item.id}-${index}`}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            padding: '8px 0',
+                            borderBottomWidth: index < withPct.length - 1 ? '1px' : '0',
+                            borderBottomStyle: 'solid',
+                            borderBottomColor: '#F5F5F7',
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            {item.source ? (
+                              <SourceLogo source={item.source} size={18} />
+                            ) : (
+                              <div style={{ width: '12px', height: '12px', borderRadius: '3px', backgroundColor: item.color }} />
+                            )}
+                            <span style={{ color: '#1C1C1E', fontSize: '13px', fontWeight: '500' }}>{item.name}</span>
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                            <span style={{ color: '#8E8E93', fontSize: '12px' }}>{item.percentage.toFixed(0)}%</span>
+                            <span style={{ color: '#1C1C1E', fontSize: '13px', fontWeight: '600', minWidth: '70px', textAlign: 'right' }}>
+                              {formatAmountListView(item.value, currency, 0)}
+                            </span>
+                          </div>
+                        </div>
                       ))}
                     </div>
                   </div>
