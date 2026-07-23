@@ -23,7 +23,6 @@ import { Settings } from './components/Settings';
 import { AmountInput } from './components/AmountInput';
 import { DateInput } from './components/DateInput';
 import { CategorySelector } from './components/CategorySelector';
-import { SubcategorySelector } from './components/SubcategorySelector';
 import { SaveButton } from './components/SaveButton';
 import { DescriptionInput } from './components/DescriptionInput';
 import { Onboarding } from './components/Onboarding';
@@ -790,19 +789,14 @@ export default function App() {
                 onRecurrenceChange={setRecurrence}
               />
               
-              <CategorySelector 
+              <CategorySelector
                 selectedCategory={selectedCategory}
                 onSelectCategory={handleCategorySelect}
                 categories={activeCategories}
+                subcategories={subcategories}
+                selectedSubcategory={selectedSubcategory}
+                onSelectSubcategory={setSelectedSubcategory}
               />
-              
-              {selectedCategory && (
-                <SubcategorySelector
-                  subcategories={subcategories}
-                  selectedSubcategory={selectedSubcategory}
-                  onSelectSubcategory={setSelectedSubcategory}
-                />
-              )}
             </div>
 
             {/* Fixed Save Button at Bottom */}
