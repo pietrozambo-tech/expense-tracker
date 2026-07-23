@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { ChevronRight, ArrowUpDown, TrendingUp, TrendingDown, Minus, Calendar, Receipt, ChevronLeft, ChevronDown, X, Clock, ArrowUp, ArrowDown, Wallet, Percent } from 'lucide-react';
+import { ChevronRight, ArrowUpDown, TrendingUp, TrendingDown, Minus, Calendar, Receipt, ChevronLeft, ChevronDown, X, Clock, ArrowUp, ArrowDown, Wallet, Percent, PiggyBank } from 'lucide-react';
 import { TrendCategoryBreakdown } from './TrendCategoryBreakdown';
 import React from 'react';
 import { formatAmount, formatCompactAmount, formatSummaryAmount, formatAmountListView, CURRENCIES, convertAmount } from '../utils/currency';
@@ -2517,7 +2517,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                     {/* Total Savings Card */}
                     <div className="bg-neutral-50 rounded-lg p-3 min-h-[88px] flex flex-col">
                       <div className="flex items-center gap-1 mb-1">
-                        <TrendingUp className="w-3 h-3 text-neutral-500" />
+                        <PiggyBank className="w-3 h-3 text-neutral-500" />
                         <div className="text-neutral-500 text-[10px]">Total Savings</div>
                       </div>
                       <div className="flex-1 flex items-center">
