@@ -9,6 +9,8 @@ interface AuthContextValue {
   user: User | null;
   loading: boolean; // still resolving the initial session
   guest: boolean; // user chose to use the app locally, without an account
+  authError: string | null; // error returned in an OAuth redirect, if any
+  clearAuthError: () => void;
   sendEmailCode: (email: string) => Promise<{ error: string | null }>;
   verifyEmailCode: (email: string, code: string) => Promise<{ error: string | null }>;
   signInWithGoogle: () => Promise<{ error: string | null }>;
@@ -17,11 +19,29 @@ interface AuthContextValue {
   leaveGuest: () => void;
 }
 
+// Read an OAuth error that Supabase/Google put in the redirect URL (hash or query)
+function readUrlAuthError(): string | null {
+  try {
+    const hash = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+    const query = new URLSearchParams(window.location.search);
+    return (
+      hash.get('error_description') ||
+      hash.get('error') ||
+      query.get('error_description') ||
+      query.get('error') ||
+      null
+    );
+  } catch {
+    return null;
+  }
+}
+
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [authError, setAuthError] = useState<string | null>(() => readUrlAuthError());
   const [guest, setGuest] = useState<boolean>(() => {
     try {
       return localStorage.getItem(GUEST_KEY) === 'true';
@@ -110,6 +130,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         user: session?.user ?? null,
         loading,
         guest,
+        authError,
+        clearAuthError: () => setAuthError(null),
         sendEmailCode,
         verifyEmailCode,
         signInWithGoogle,

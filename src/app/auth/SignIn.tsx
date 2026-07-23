@@ -15,7 +15,7 @@ function GoogleG() {
 }
 
 export function SignIn() {
-  const { sendEmailCode, verifyEmailCode, signInWithGoogle, continueAsGuest } = useAuth();
+  const { sendEmailCode, verifyEmailCode, signInWithGoogle, continueAsGuest, authError, clearAuthError } = useAuth();
   const [step, setStep] = useState<'start' | 'code'>('start');
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
@@ -66,6 +66,15 @@ export function SignIn() {
             <p style={{ color: '#8E8E93', fontSize: 15, lineHeight: 1.45 }}>
               Sync your data securely across your devices.
             </p>
+
+            {authError && (
+              <div className="mt-4 px-4 py-3 rounded-xl" style={{ backgroundColor: '#FFF0EF', border: '1px solid #FFD5D2' }}>
+                <p style={{ color: '#C4271C', fontSize: 13, lineHeight: 1.4 }}>
+                  <span style={{ fontWeight: 600 }}>Sign-in didn't complete.</span> {authError}
+                </p>
+                <button onClick={clearAuthError} className="mt-1.5 text-[13px] font-medium" style={{ color: '#C4271C' }}>Dismiss</button>
+              </div>
+            )}
 
             {/* Google */}
             <button
