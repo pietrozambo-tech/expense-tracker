@@ -98,22 +98,26 @@ export function CategorySelector({
                     boxShadow: '0 1px 4px rgba(0, 0, 0, 0.05)'
                   }}
                 >
-                  <div className="flex items-center justify-between mb-2">
+                  {/* Fixed-height header so the panel doesn't resize when the
+                      clear (X) button appears on subcategory selection */}
+                  <div className="flex items-center justify-between mb-2 h-6">
                     <span
                       className="text-[11px] font-semibold"
                       style={{ color: '#8E8E93', letterSpacing: '0.06em' }}
                     >
                       SUBCATEGORY
                     </span>
-                    {selectedSubcategory && onSelectSubcategory && (
-                      <button
-                        onClick={() => onSelectSubcategory(null)}
-                        className="w-6 h-6 -mr-1 flex items-center justify-center rounded-full active:bg-neutral-100"
-                        aria-label="Clear subcategory"
-                      >
-                        <X className="w-4 h-4" style={{ color: '#8E8E93' }} />
-                      </button>
-                    )}
+                    <button
+                      onClick={() => onSelectSubcategory?.(null)}
+                      className="w-6 h-6 -mr-1 flex items-center justify-center rounded-full active:bg-neutral-100"
+                      aria-label="Clear subcategory"
+                      style={{
+                        visibility: selectedSubcategory ? 'visible' : 'hidden',
+                        pointerEvents: selectedSubcategory ? 'auto' : 'none'
+                      }}
+                    >
+                      <X className="w-4 h-4" style={{ color: '#8E8E93' }} />
+                    </button>
                   </div>
 
                   <div className="flex flex-wrap gap-2">
