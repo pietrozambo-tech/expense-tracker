@@ -679,9 +679,12 @@ export default function App() {
   // Signed in but the account's data hasn't loaded yet
   if (session && !cloudHydrated) return splash('Loading your data…');
 
-  // Show onboarding if not completed
+  // Show onboarding if not completed. Pre-fill the name with the first name
+  // from the signed-in account (Google gives `given_name`), surname excluded.
   if (!hasCompletedOnboarding) {
-    return <Onboarding onComplete={handleOnboardingComplete} />;
+    const meta = (session?.user?.user_metadata ?? {}) as Record<string, string>;
+    const googleFirstName = meta.given_name || (meta.full_name || meta.name || '').trim().split(/\s+/)[0] || '';
+    return <Onboarding onComplete={handleOnboardingComplete} initialName={googleFirstName} />;
   }
 
   // First run after name + currency: show the feature carousel once

@@ -3,10 +3,11 @@ import { CURRENCIES } from '../utils/currency';
 
 interface OnboardingProps {
   onComplete: (userName: string, currency: string) => void;
+  initialName?: string; // pre-fill (e.g. first name from a Google account)
 }
 
-export function Onboarding({ onComplete }: OnboardingProps) {
-  const [name, setName] = useState('');
+export function Onboarding({ onComplete, initialName = '' }: OnboardingProps) {
+  const [name, setName] = useState(initialName);
   const [currency, setCurrency] = useState('EUR');
 
   const handleGetStarted = () => {
