@@ -33,7 +33,7 @@ import { Onboarding } from './components/Onboarding';
 import { WelcomeCarousel } from './components/WelcomeCarousel';
 import { useAuth } from './auth/AuthProvider';
 import { SignIn } from './auth/SignIn';
-import { loadCloud, saveCloud, type SyncPayload } from './lib/cloud';
+import { loadCloud, saveCloud, deleteCloud, type SyncPayload } from './lib/cloud';
 import { categories as initialCategories, incomeCategories as initialIncomeCategories } from './components/categories';
 
 export default function App() {
@@ -584,8 +584,18 @@ export default function App() {
     });
   };
 
-  // Full reset: wipe storage and restart from onboarding
-  const handleEraseAllData = () => {
+  // Full reset: wipe everything and return to a fresh first-login. Deletes the
+  // cloud record and signs out (so the next sign-in is a clean first login) —
+  // handy for re-testing onboarding with a test account.
+  const handleEraseAllData = async () => {
+    if (userId) {
+      setCloudHydrated(false); // stop write-through from re-saving during teardown
+      try {
+        await deleteCloud(userId);
+      } catch {
+        /* ignore — proceed with local reset regardless */
+      }
+    }
     clearAllData();
     setExpenses([]);
     setCategories(initialCategories);
@@ -599,6 +609,9 @@ export default function App() {
     setCurrentTab('dashboard');
     setHasCompletedOnboarding(false);
     setHasSeenIntro(false);
+    // Return to the sign-in screen for a clean first-login next time
+    leaveGuest();
+    if (userId) await signOut();
   };
 
   // Source CRUD + defaults (managed in Settings › Sources)

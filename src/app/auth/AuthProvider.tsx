@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import type { Session, User } from '@supabase/supabase-js';
-import { supabase, authRedirectTo } from '../lib/supabase';
+import { supabase } from '../lib/supabase';
 
 const GUEST_KEY = 'expense-tracker.v1.guest';
 
@@ -9,7 +9,9 @@ interface AuthContextValue {
   user: User | null;
   loading: boolean; // still resolving the initial session
   guest: boolean; // user chose to use the app locally, without an account
-  signInWithEmail: (email: string) => Promise<{ error: string | null }>;
+  sendEmailCode: (email: string) => Promise<{ error: string | null }>;
+  verifyEmailCode: (email: string, code: string) => Promise<{ error: string | null }>;
+  signInWithGoogle: () => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
   continueAsGuest: () => void;
   leaveGuest: () => void;
@@ -51,10 +53,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => sub.subscription.unsubscribe();
   }, []);
 
-  const signInWithEmail = async (email: string) => {
+  // Email one-time code: sends a 6-digit code (no link to click, so it works
+  // even when the email is opened in a different browser / mail app).
+  const sendEmailCode = async (email: string) => {
     const { error } = await supabase.auth.signInWithOtp({
       email: email.trim(),
-      options: { emailRedirectTo: authRedirectTo() },
+      options: { shouldCreateUser: true },
+    });
+    return { error: error ? error.message : null };
+  };
+
+  const verifyEmailCode = async (email: string, code: string) => {
+    const { error } = await supabase.auth.verifyOtp({
+      email: email.trim(),
+      token: code.trim(),
+      type: 'email',
+    });
+    return { error: error ? error.message : null };
+  };
+
+  const signInWithGoogle = async () => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: `${window.location.origin}${window.location.pathname}` },
     });
     return { error: error ? error.message : null };
   };
@@ -89,7 +110,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         user: session?.user ?? null,
         loading,
         guest,
-        signInWithEmail,
+        sendEmailCode,
+        verifyEmailCode,
+        signInWithGoogle,
         signOut,
         continueAsGuest,
         leaveGuest,

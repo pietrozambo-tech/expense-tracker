@@ -50,3 +50,12 @@ export async function saveCloud(userId: string, payload: SyncPayload): Promise<v
     throw error;
   }
 }
+
+// Delete the user's whole dataset (used by "Erase all data").
+export async function deleteCloud(userId: string): Promise<void> {
+  const { error } = await supabase.from(TABLE).delete().eq('user_id', userId);
+  if (error) {
+    console.error('[cloud] delete failed', error.message);
+    throw error;
+  }
+}
