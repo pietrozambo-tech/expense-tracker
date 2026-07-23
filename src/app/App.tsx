@@ -31,6 +31,9 @@ import { SaveButton } from './components/SaveButton';
 import { DescriptionInput } from './components/DescriptionInput';
 import { Onboarding } from './components/Onboarding';
 import { WelcomeCarousel } from './components/WelcomeCarousel';
+import { useAuth } from './auth/AuthProvider';
+import { SignIn } from './auth/SignIn';
+import { loadCloud, saveCloud, type SyncPayload } from './lib/cloud';
 import { categories as initialCategories, incomeCategories as initialIncomeCategories } from './components/categories';
 
 export default function App() {
@@ -77,6 +80,12 @@ export default function App() {
   const [showSourceSelector, setShowSourceSelector] = useState(false);
   const [openSourcesOnSettings, setOpenSourcesOnSettings] = useState(false); // deep-link Settings → Sources
   const [openCategoriesOnSettings, setOpenCategoriesOnSettings] = useState(false); // deep-link Settings → Categories
+
+  // Auth + cloud sync
+  const { session, loading: authLoading, guest, signOut, leaveGuest } = useAuth();
+  const userId = session?.user?.id ?? null;
+  const userEmail = session?.user?.email ?? null;
+  const [cloudHydrated, setCloudHydrated] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false); // Track if any modal is open
   const [isSaving, setIsSaving] = useState(false); // Track if save is in progress to prevent duplicate submissions
   
@@ -116,6 +125,75 @@ export default function App() {
       defaultSourceIncome,
     });
   }, [hasCompletedOnboarding, userName, userCurrency, hasSeenIntro, defaultSourceExpense, defaultSourceIncome]);
+
+  // Snapshot the whole app state into the cloud payload shape
+  const buildPayload = (): SyncPayload => ({
+    transactions: expenses,
+    categories,
+    incomeCategories,
+    sources,
+    settings: {
+      onboarded: hasCompletedOnboarding,
+      userName,
+      currency: userCurrency,
+      hasSeenIntro,
+      defaultSourceExpense,
+      defaultSourceIncome,
+    },
+  });
+
+  // On sign-in: load the user's cloud data into state; if the account has none
+  // yet, push the current (local) data up — a one-time migration on first login.
+  useEffect(() => {
+    if (!userId) {
+      setCloudHydrated(false);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const cloud = await loadCloud(userId);
+        if (cancelled) return;
+        if (cloud) {
+          setExpenses(cloud.transactions ?? []);
+          setCategories(cloud.categories ?? initialCategories);
+          setIncomeCategories(cloud.incomeCategories ?? initialIncomeCategories);
+          setSources(cloud.sources?.length ? cloud.sources : DEFAULT_SOURCES);
+          const s = cloud.settings ?? ({} as SyncPayload['settings']);
+          setHasCompletedOnboarding(!!s.onboarded);
+          setUserName(s.userName ?? '');
+          setUserCurrency(s.currency ?? 'EUR');
+          setHasSeenIntro(!!s.hasSeenIntro);
+          setDefaultSourceExpense(s.defaultSourceExpense ?? DEFAULT_SOURCE_EXPENSE);
+          setDefaultSourceIncome(s.defaultSourceIncome ?? DEFAULT_SOURCE_INCOME);
+        } else {
+          await saveCloud(userId, buildPayload());
+        }
+      } catch {
+        // Sync unavailable (offline / policy) — fall back to local data
+      } finally {
+        if (!cancelled) {
+          setRefreshKey((prev) => prev + 1);
+          setCloudHydrated(true);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId]);
+
+  // Write changes back to the cloud (debounced), once hydrated
+  useEffect(() => {
+    if (!userId || !cloudHydrated) return;
+    const payload = buildPayload();
+    const t = setTimeout(() => {
+      saveCloud(userId, payload).catch(() => {});
+    }, 800);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId, cloudHydrated, expenses, categories, incomeCategories, sources, hasCompletedOnboarding, userName, userCurrency, hasSeenIntro, defaultSourceExpense, defaultSourceIncome]);
 
   const handleCategorySelect = (categoryId: string) => {
     setSelectedCategory(categoryId);
@@ -571,6 +649,23 @@ export default function App() {
     });
   };
 
+  // While the session (and, when signed in, the cloud data) is resolving, show
+  // a minimal splash so we don't flash the sign-in or onboarding screens.
+  const splash = (label?: string) => (
+    <div className="min-h-screen flex flex-col items-center justify-center gap-3" style={{ backgroundColor: '#F5F5F7' }}>
+      <div className="flex items-center justify-center rounded-3xl" style={{ width: 72, height: 72, background: '#FFFFFF', boxShadow: '0 10px 30px rgba(0,0,0,0.08)', fontSize: 38 }}>💸</div>
+      {label && <p style={{ color: '#8E8E93', fontSize: 14 }}>{label}</p>}
+    </div>
+  );
+
+  if (authLoading) return splash();
+
+  // Not signed in and not using the app locally → sign-in screen
+  if (!session && !guest) return <SignIn />;
+
+  // Signed in but the account's data hasn't loaded yet
+  if (session && !cloudHydrated) return splash('Loading your data…');
+
   // Show onboarding if not completed
   if (!hasCompletedOnboarding) {
     return <Onboarding onComplete={handleOnboardingComplete} />;
@@ -683,6 +778,10 @@ export default function App() {
                 onSourcesOpened={() => setOpenSourcesOnSettings(false)}
                 openCategoriesOnMount={openCategoriesOnSettings}
                 onCategoriesOpened={() => setOpenCategoriesOnSettings(false)}
+                userEmail={userEmail}
+                isGuest={guest}
+                onSignOut={async () => { await signOut(); }}
+                onSignInToSync={leaveGuest}
               />
             )}
           </div>

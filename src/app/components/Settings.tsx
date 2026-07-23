@@ -1,4 +1,4 @@
-import { ChevronRight, ChevronLeft, UserCircle, Wallet, BellRing, HelpCircle, ShieldCheck, ScrollText, Layers, FlaskConical, Trash2, Landmark } from 'lucide-react';
+import { ChevronRight, ChevronLeft, UserCircle, Wallet, BellRing, HelpCircle, ShieldCheck, ScrollText, Layers, FlaskConical, Trash2, Landmark, Cloud, LogOut } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Categories } from './Categories';
 import { SourcesManager } from './SourcesManager';
@@ -36,6 +36,10 @@ interface SettingsProps {
   onSourcesOpened?: () => void;
   openCategoriesOnMount?: boolean;
   onCategoriesOpened?: () => void;
+  userEmail?: string | null;
+  isGuest?: boolean;
+  onSignOut?: () => void;
+  onSignInToSync?: () => void;
 }
 
 export function Settings({ 
@@ -67,7 +71,11 @@ export function Settings({
   openSourcesOnMount,
   onSourcesOpened,
   openCategoriesOnMount,
-  onCategoriesOpened
+  onCategoriesOpened,
+  userEmail,
+  isGuest,
+  onSignOut,
+  onSignInToSync
 }: SettingsProps) {
   const [showCategories, setShowCategories] = useState(false);
   const [showSources, setShowSources] = useState(false);
@@ -394,6 +402,42 @@ export function Settings({
         <p style={{ color: '#8E8E93', fontSize: '13px', marginTop: '4px' }}>
           Manage your app preferences
         </p>
+      </div>
+
+      {/* Account section — sign-in / sign-out + sync status */}
+      <div className="px-6 mb-6">
+        <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+          {isGuest ? (
+            <button
+              onClick={onSignInToSync}
+              className="w-full flex items-center gap-3 px-5 py-4 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
+            >
+              <Cloud className="w-5 h-5" style={{ color: '#007AFF' }} strokeWidth={2} />
+              <div className="flex-1 text-left">
+                <div style={{ color: '#1C1C1E', fontSize: '16px' }}>Sign in to back up & sync</div>
+                <div style={{ color: '#8E8E93', fontSize: '13px' }}>Keep your data safe across devices</div>
+              </div>
+              <ChevronRight className="w-5 h-5" style={{ color: '#C7C7CC' }} />
+            </button>
+          ) : (
+            <>
+              <div className="w-full flex items-center gap-3 px-5 py-4" style={{ borderBottom: '1px solid #F2F2F7' }}>
+                <Cloud className="w-5 h-5" style={{ color: '#30D158' }} strokeWidth={2} />
+                <div className="flex-1 min-w-0">
+                  <div style={{ color: '#1C1C1E', fontSize: '16px' }}>Synced</div>
+                  {userEmail && <div className="truncate" style={{ color: '#8E8E93', fontSize: '13px' }}>{userEmail}</div>}
+                </div>
+              </div>
+              <button
+                onClick={onSignOut}
+                className="w-full flex items-center gap-3 px-5 py-4 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
+              >
+                <LogOut className="w-5 h-5" style={{ color: '#8E8E93' }} strokeWidth={2} />
+                <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '16px' }}>Sign out</span>
+              </button>
+            </>
+          )}
+        </div>
       </div>
 
       {/* Settings List */}
