@@ -719,8 +719,9 @@ export default function App() {
               // corners (which otherwise clip the outer Dashboard/Settings labels)
               paddingBottom: 'max(32px, env(safe-area-inset-bottom))',
               paddingTop: '11px',
-              borderTopLeftRadius: '12px',
-              borderTopRightRadius: '12px',
+              // Straight top edge (no rounded corners)
+              borderTopLeftRadius: '0px',
+              borderTopRightRadius: '0px',
               boxShadow: '0 -2px 10px rgba(0, 0, 0, 0.1)'
             }}
             onClick={(e) => e.stopPropagation()}
