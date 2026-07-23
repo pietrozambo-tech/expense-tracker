@@ -1,8 +1,13 @@
-import type { Category, Transaction, UserSettings } from '../types';
+import type { Category, Source, Transaction, UserSettings } from '../types';
 import {
   categories as defaultCategories,
   incomeCategories as defaultIncomeCategories,
 } from '../components/categories';
+import {
+  DEFAULT_SOURCES,
+  DEFAULT_SOURCE_EXPENSE,
+  DEFAULT_SOURCE_INCOME,
+} from '../components/sources';
 
 // Versioned keys so a future schema change can migrate (or ignore) old data.
 const key = (name: string) => `expense-tracker.v1.${name}`;
@@ -11,6 +16,7 @@ const KEYS = {
   transactions: key('transactions'),
   categories: key('categories'),
   incomeCategories: key('income-categories'),
+  sources: key('sources'),
   settings: key('settings'),
 };
 
@@ -35,10 +41,15 @@ export const DEFAULT_SETTINGS: UserSettings = {
   onboarded: false,
   userName: '',
   currency: 'EUR',
+  defaultSourceExpense: DEFAULT_SOURCE_EXPENSE,
+  defaultSourceIncome: DEFAULT_SOURCE_INCOME,
 };
 
 export const loadSettings = () => read<UserSettings>(KEYS.settings, DEFAULT_SETTINGS);
 export const saveSettings = (settings: UserSettings) => write(KEYS.settings, settings);
+
+export const loadSources = () => read<Source[]>(KEYS.sources, DEFAULT_SOURCES);
+export const saveSources = (sources: Source[]) => write(KEYS.sources, sources);
 
 export const loadTransactions = () => read<Transaction[]>(KEYS.transactions, []);
 export const saveTransactions = (transactions: Transaction[]) =>

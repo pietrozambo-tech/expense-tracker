@@ -7,9 +7,10 @@ interface AmountInputProps {
   onChange: (value: string) => void;
   currency: string;
   onCurrencyChange?: (currency: string) => void;
+  rightSlot?: React.ReactNode; // e.g. the source selector pill, aligned to the amount line
 }
 
-export function AmountInput({ value, onChange, currency, onCurrencyChange }: AmountInputProps) {
+export function AmountInput({ value, onChange, currency, onCurrencyChange, rightSlot }: AmountInputProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [showCurrencySelector, setShowCurrencySelector] = useState(false);
   const currencySymbol = CURRENCIES[currency]?.symbol || '€';
@@ -86,6 +87,8 @@ export function AmountInput({ value, onChange, currency, onCurrencyChange }: Amo
             placeholder="0"
             className="bg-transparent text-neutral-900 text-4xl font-bold outline-none flex-1 min-w-0 tabular-nums"
           />
+
+          {rightSlot && <div className="flex-shrink-0 self-center">{rightSlot}</div>}
         </div>
       </div>
 

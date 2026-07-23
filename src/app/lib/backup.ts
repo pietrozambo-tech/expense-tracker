@@ -1,4 +1,5 @@
-import type { Category, Transaction } from '../types';
+import type { Category, Source, Transaction } from '../types';
+import { DEFAULT_SOURCES } from '../components/sources';
 
 // On-disk shape of an exported backup. `version` lets a future import migrate
 // or reject older/newer files instead of silently corrupting data.
@@ -11,6 +12,9 @@ export interface BackupFile {
   transactions: Transaction[];
   categories: Category[];
   incomeCategories: Category[];
+  sources: Source[];
+  defaultSourceExpense?: string;
+  defaultSourceIncome?: string;
 }
 
 interface BackupInput {
@@ -19,6 +23,9 @@ interface BackupInput {
   transactions: Transaction[];
   categories: Category[];
   incomeCategories: Category[];
+  sources: Source[];
+  defaultSourceExpense?: string;
+  defaultSourceIncome?: string;
 }
 
 export function buildBackup(data: BackupInput): BackupFile {
@@ -31,6 +38,9 @@ export function buildBackup(data: BackupInput): BackupFile {
     transactions: data.transactions,
     categories: data.categories,
     incomeCategories: data.incomeCategories,
+    sources: data.sources,
+    defaultSourceExpense: data.defaultSourceExpense,
+    defaultSourceIncome: data.defaultSourceIncome,
   };
 }
 
@@ -92,6 +102,11 @@ export function parseBackup(text: string): BackupFile {
     throw new Error('This backup is missing category data.');
   }
 
+  // Sources were added after v1 shipped; older backups won't have them, so fall
+  // back to the defaults rather than rejecting the file.
+  const sources =
+    Array.isArray(o.sources) && o.sources.length > 0 ? (o.sources as Source[]) : DEFAULT_SOURCES;
+
   return {
     app: 'expense-tracker',
     version: 1,
@@ -101,5 +116,8 @@ export function parseBackup(text: string): BackupFile {
     transactions: o.transactions as Transaction[],
     categories: o.categories as Category[],
     incomeCategories: o.incomeCategories as Category[],
+    sources,
+    defaultSourceExpense: typeof o.defaultSourceExpense === 'string' ? o.defaultSourceExpense : undefined,
+    defaultSourceIncome: typeof o.defaultSourceIncome === 'string' ? o.defaultSourceIncome : undefined,
   };
 }

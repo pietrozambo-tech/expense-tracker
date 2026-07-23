@@ -1,20 +1,25 @@
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { Toaster } from './components/ui/sonner';
-import { BarChart3, Plus, List, X, Settings as SettingsIcon, TrendingUp } from 'lucide-react';
+import { BarChart3, Plus, List, X, Settings as SettingsIcon, TrendingUp, ChevronDown } from 'lucide-react';
 import { CURRENCIES } from './utils/currency';
-import type { Transaction } from './types';
+import type { Transaction, Source } from './types';
 import {
   clearAllData,
   loadCategories,
   loadIncomeCategories,
   loadSettings,
+  loadSources,
   loadTransactions,
   saveCategories,
   saveIncomeCategories,
   saveSettings,
+  saveSources,
   saveTransactions,
 } from './lib/storage';
+import { DEFAULT_SOURCES, DEFAULT_SOURCE_EXPENSE, DEFAULT_SOURCE_INCOME } from './components/sources';
+import { SourceLogo } from './components/SourceLogo';
+import { SourceSelectorModal } from './components/SourceSelectorModal';
 import { getDemoTransactions } from './lib/demoData';
 import { buildBackup, downloadBackup, type BackupFile } from './lib/backup';
 import { Dashboard } from './components/Dashboard';
@@ -57,6 +62,19 @@ export default function App() {
   const [dashboardInitialPeriod, setDashboardInitialPeriod] = useState<{ month: number; year: number; type: 'expense' | 'income' } | null>(null);
   const [categories, setCategories] = useState(loadCategories);
   const [incomeCategories, setIncomeCategories] = useState(loadIncomeCategories);
+  // Payment sources (Cash / banks) + the source pre-selected per direction
+  const [sources, setSources] = useState<Source[]>(loadSources);
+  const [defaultSourceExpense, setDefaultSourceExpense] = useState(
+    () => loadSettings().defaultSourceExpense || DEFAULT_SOURCE_EXPENSE
+  );
+  const [defaultSourceIncome, setDefaultSourceIncome] = useState(
+    () => loadSettings().defaultSourceIncome || DEFAULT_SOURCE_INCOME
+  );
+  const [selectedSourceId, setSelectedSourceId] = useState<string | null>(
+    () => loadSettings().defaultSourceExpense || DEFAULT_SOURCE_EXPENSE
+  );
+  const [showSourceSelector, setShowSourceSelector] = useState(false);
+  const [openSourcesOnSettings, setOpenSourcesOnSettings] = useState(false); // deep-link Settings → Sources
   const [isModalOpen, setIsModalOpen] = useState(false); // Track if any modal is open
   const [isSaving, setIsSaving] = useState(false); // Track if save is in progress to prevent duplicate submissions
   
@@ -70,6 +88,7 @@ export default function App() {
     type: 'expense' | 'income';
     currency: string;
     recurrence: string;
+    sourceId: string | null;
   } | null>(null);
 
   // Persist app data whenever it changes
@@ -83,8 +102,17 @@ export default function App() {
     saveIncomeCategories(incomeCategories);
   }, [incomeCategories]);
   useEffect(() => {
-    saveSettings({ onboarded: hasCompletedOnboarding, userName, currency: userCurrency });
-  }, [hasCompletedOnboarding, userName, userCurrency]);
+    saveSources(sources);
+  }, [sources]);
+  useEffect(() => {
+    saveSettings({
+      onboarded: hasCompletedOnboarding,
+      userName,
+      currency: userCurrency,
+      defaultSourceExpense,
+      defaultSourceIncome,
+    });
+  }, [hasCompletedOnboarding, userName, userCurrency, defaultSourceExpense, defaultSourceIncome]);
 
   const handleCategorySelect = (categoryId: string) => {
     setSelectedCategory(categoryId);
@@ -107,6 +135,7 @@ export default function App() {
     setSelectedSubcategory(expense.subcategory || null);
     setSelectedTransactionCurrency(expense.currency || userCurrency); // Set currency for current transaction
     setRecurrence(expense.recurrence || 'Never repeat');
+    setSelectedSourceId(expense.sourceId || defaultSourceFor(expense.type || 'expense'));
 
     // Store original values for change detection
     setOriginalValues({
@@ -117,7 +146,8 @@ export default function App() {
       subcategory: expense.subcategory || null,
       type: expense.type || 'expense',
       currency: expense.currency || userCurrency,
-      recurrence: expense.recurrence || 'Never repeat'
+      recurrence: expense.recurrence || 'Never repeat',
+      sourceId: expense.sourceId || null
     });
     
     // Set editing mode and open modal
@@ -133,6 +163,7 @@ export default function App() {
     setSelectedSubcategory(null);
     setDescription('');
     setTransactionType('expense'); // Reset to default expense type
+    setSelectedSourceId(defaultSourceExpense); // Reset to the expense default source
     setRecurrence('Never repeat'); // Reset recurrence
     setDate(() => {
       const today = new Date();
@@ -183,7 +214,8 @@ export default function App() {
               date: date,
               type: transactionType,
               currency: selectedTransactionCurrency, // Update currency when editing
-              recurrence: recurrence // Add recurrence
+              recurrence: recurrence, // Add recurrence
+              sourceId: selectedSourceId || undefined
             }
           : expense
       ));
@@ -205,9 +237,10 @@ export default function App() {
         date: date,
         type: transactionType,
         currency: selectedTransactionCurrency, // Store the currency with the transaction
-        recurrence: recurrence // Add recurrence
+        recurrence: recurrence, // Add recurrence
+        sourceId: selectedSourceId || undefined
       };
-      
+
       // Add to expenses list
       setExpenses([newExpense, ...expenses]);
       
@@ -418,14 +451,20 @@ export default function App() {
   const selectedCategoryData = activeCategories.find(c => c.id === selectedCategory);
   const subcategories = selectedCategoryData?.subcategories || [];
   
+  // The source pre-selected for a given direction
+  const defaultSourceFor = (type: 'expense' | 'income') =>
+    type === 'income' ? defaultSourceIncome : defaultSourceExpense;
+
   // Handle transaction type switch
   const handleTransactionTypeChange = (newType: 'expense' | 'income') => {
     setTransactionType(newType);
     // Reset category selection when switching types
     setSelectedCategory(null);
     setSelectedSubcategory(null);
+    // Move to the default source for the new direction
+    setSelectedSourceId(defaultSourceFor(newType));
   };
-  
+
   // Check if anything has changed (for edit mode)
   const hasChanges = editingExpenseId && originalValues
     ? amount !== originalValues.amount ||
@@ -434,7 +473,8 @@ export default function App() {
       selectedCategory !== originalValues.category ||
       selectedSubcategory !== originalValues.subcategory ||
       selectedTransactionCurrency !== originalValues.currency ||
-      recurrence !== originalValues.recurrence
+      recurrence !== originalValues.recurrence ||
+      (selectedSourceId || null) !== (originalValues.sourceId || null)
     : true;
   
   const canSave = amount && parseFloat(amount) > 0 && selectedCategory && hasChanges;
@@ -445,9 +485,14 @@ export default function App() {
     setHasCompletedOnboarding(true);
   };
 
-  // Demo data (for testing) — replaces current transactions with date-shifted samples
+  // Demo data (for testing) — replaces current transactions with date-shifted
+  // samples, spreading them across the current sources so the field is populated
   const handleLoadDemoData = () => {
-    setExpenses(getDemoTransactions(userCurrency));
+    const demo = getDemoTransactions(userCurrency).map((t, i) => ({
+      ...t,
+      sourceId: sources.length ? sources[i % sources.length].id : undefined,
+    }));
+    setExpenses(demo);
     setRefreshKey(prev => prev + 1);
     setCurrentTab('dashboard');
     toast.success('Demo data loaded', {
@@ -465,6 +510,9 @@ export default function App() {
         transactions: expenses,
         categories,
         incomeCategories,
+        sources,
+        defaultSourceExpense,
+        defaultSourceIncome,
       })
     );
     toast.success('Backup downloaded', {
@@ -478,6 +526,9 @@ export default function App() {
     setExpenses(backup.transactions);
     setCategories(backup.categories);
     setIncomeCategories(backup.incomeCategories);
+    if (backup.sources && backup.sources.length) setSources(backup.sources);
+    if (backup.defaultSourceExpense) setDefaultSourceExpense(backup.defaultSourceExpense);
+    if (backup.defaultSourceIncome) setDefaultSourceIncome(backup.defaultSourceIncome);
     if (backup.userName) setUserName(backup.userName);
     if (backup.currency) setUserCurrency(backup.currency);
     setRefreshKey(prev => prev + 1);
@@ -494,10 +545,43 @@ export default function App() {
     setExpenses([]);
     setCategories(initialCategories);
     setIncomeCategories(initialIncomeCategories);
+    setSources(DEFAULT_SOURCES);
+    setDefaultSourceExpense(DEFAULT_SOURCE_EXPENSE);
+    setDefaultSourceIncome(DEFAULT_SOURCE_INCOME);
+    setSelectedSourceId(DEFAULT_SOURCE_EXPENSE);
     setUserName('');
     setUserCurrency('EUR');
     setCurrentTab('dashboard');
     setHasCompletedOnboarding(false);
+  };
+
+  // Source CRUD + defaults (managed in Settings › Sources)
+  const handleAddSource = (source: Omit<Source, 'id'>) => {
+    const id = `src-${Date.now()}`;
+    setSources(prev => [...prev, { ...source, id }]);
+  };
+
+  const handleEditSource = (id: string, updates: Omit<Source, 'id'>) => {
+    setSources(prev => prev.map(s => (s.id === id ? { ...updates, id } : s)));
+  };
+
+  const handleDeleteSource = (id: string) => {
+    setSources(prev => {
+      const next = prev.filter(s => s.id !== id);
+      // If a default (or the currently selected) source was removed, fall back
+      const fallback = next[0]?.id;
+      if (fallback) {
+        if (defaultSourceExpense === id) setDefaultSourceExpense(fallback);
+        if (defaultSourceIncome === id) setDefaultSourceIncome(fallback);
+        if (selectedSourceId === id) setSelectedSourceId(fallback);
+      }
+      return next;
+    });
+  };
+
+  const handleSetDefaultSource = (direction: 'expense' | 'income', sourceId: string) => {
+    if (direction === 'income') setDefaultSourceIncome(sourceId);
+    else setDefaultSourceExpense(sourceId);
   };
 
   const handleCurrencyChange = (newCurrency: string) => {
@@ -604,6 +688,15 @@ export default function App() {
                 onEraseAllData={handleEraseAllData}
                 onExportData={handleExportData}
                 onImportData={handleImportData}
+                sources={sources}
+                defaultSourceExpense={defaultSourceExpense}
+                defaultSourceIncome={defaultSourceIncome}
+                onSetDefaultSource={handleSetDefaultSource}
+                onAddSource={handleAddSource}
+                onEditSource={handleEditSource}
+                onDeleteSource={handleDeleteSource}
+                openSourcesOnMount={openSourcesOnSettings}
+                onSourcesOpened={() => setOpenSourcesOnSettings(false)}
               />
             )}
           </div>
@@ -767,11 +860,23 @@ export default function App() {
                 </div>
               </div>
 
-              <AmountInput 
-                value={amount} 
-                onChange={setAmount} 
+              <AmountInput
+                value={amount}
+                onChange={setAmount}
                 currency={selectedTransactionCurrency}
                 onCurrencyChange={setSelectedTransactionCurrency}
+                rightSlot={
+                  <button
+                    type="button"
+                    onClick={() => setShowSourceSelector(true)}
+                    className="flex items-center gap-1 rounded-full pl-1 pr-1.5 py-1 active:scale-95 transition-transform"
+                    style={{ backgroundColor: '#F2F2F7', WebkitTapHighlightColor: 'transparent' }}
+                    aria-label="Select source"
+                  >
+                    <SourceLogo source={sources.find(s => s.id === selectedSourceId)} size={24} />
+                    <ChevronDown className="w-3.5 h-3.5" style={{ color: '#8E8E93' }} strokeWidth={2.5} />
+                  </button>
+                }
               />
               
               <DescriptionInput 
@@ -805,6 +910,20 @@ export default function App() {
               disabled={!canSave}
               isEditing={!!editingExpenseId}
               transactionType={transactionType}
+            />
+
+            {/* Source picker opened from the pill on the amount line */}
+            <SourceSelectorModal
+              isOpen={showSourceSelector}
+              sources={sources}
+              selectedSourceId={selectedSourceId}
+              onSelect={(id) => setSelectedSourceId(id)}
+              onClose={() => setShowSourceSelector(false)}
+              onManage={() => {
+                handleCloseModal();
+                setCurrentTab('settings');
+                setOpenSourcesOnSettings(true);
+              }}
             />
           </div>
         )}

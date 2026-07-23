@@ -1,10 +1,12 @@
-import { ChevronRight, ChevronLeft, UserCircle, Wallet, BellRing, HelpCircle, ShieldCheck, ScrollText, Layers, FlaskConical, Trash2, Download, Upload } from 'lucide-react';
-import { useRef, useState } from 'react';
+import { ChevronRight, ChevronLeft, UserCircle, Wallet, BellRing, HelpCircle, ShieldCheck, ScrollText, Layers, FlaskConical, Trash2, Download, Upload, Landmark } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { Categories } from './Categories';
+import { SourcesManager } from './SourcesManager';
 import { ConfirmDialog } from './ConfirmDialog';
 import { CURRENCIES } from '../utils/currency';
 import { parseBackup, type BackupFile } from '../lib/backup';
+import type { Source } from '../types';
 
 interface SettingsProps {
   categories: any[];
@@ -27,6 +29,15 @@ interface SettingsProps {
   onEraseAllData: () => void;
   onExportData: () => void;
   onImportData: (backup: BackupFile) => void;
+  sources: Source[];
+  defaultSourceExpense?: string;
+  defaultSourceIncome?: string;
+  onSetDefaultSource: (direction: 'expense' | 'income', sourceId: string) => void;
+  onAddSource: (source: Omit<Source, 'id'>) => void;
+  onEditSource: (id: string, updates: Omit<Source, 'id'>) => void;
+  onDeleteSource: (id: string) => void;
+  openSourcesOnMount?: boolean;
+  onSourcesOpened?: () => void;
 }
 
 export function Settings({ 
@@ -49,9 +60,19 @@ export function Settings({
   onLoadDemoData,
   onEraseAllData,
   onExportData,
-  onImportData
+  onImportData,
+  sources,
+  defaultSourceExpense,
+  defaultSourceIncome,
+  onSetDefaultSource,
+  onAddSource,
+  onEditSource,
+  onDeleteSource,
+  openSourcesOnMount,
+  onSourcesOpened
 }: SettingsProps) {
   const [showCategories, setShowCategories] = useState(false);
+  const [showSources, setShowSources] = useState(false);
   const [categoryType, setCategoryType] = useState<'expense' | 'income'>('expense');
   const [showCurrencySelector, setShowCurrencySelector] = useState(false);
   const [showNameEditor, setShowNameEditor] = useState(false);
@@ -59,6 +80,14 @@ export function Settings({
   const [confirmAction, setConfirmAction] = useState<'demo' | 'erase' | null>(null);
   const [pendingImport, setPendingImport] = useState<BackupFile | null>(null);
   const importInputRef = useRef<HTMLInputElement>(null);
+
+  // Deep-link from the Add screen's "Manage" link opens Sources directly
+  useEffect(() => {
+    if (openSourcesOnMount) {
+      setShowSources(true);
+      onSourcesOpened?.();
+    }
+  }, [openSourcesOnMount, onSourcesOpened]);
 
   const currencies = [
     { code: 'EUR', symbol: '€', name: 'Euro', flag: '🇪🇺' },
@@ -359,6 +388,22 @@ export function Settings({
     );
   }
 
+  // Show Sources subpage
+  if (showSources) {
+    return (
+      <SourcesManager
+        sources={sources}
+        defaultSourceExpense={defaultSourceExpense}
+        defaultSourceIncome={defaultSourceIncome}
+        onBack={() => setShowSources(false)}
+        onSetDefault={onSetDefaultSource}
+        onAddSource={onAddSource}
+        onEditSource={onEditSource}
+        onDeleteSource={onDeleteSource}
+      />
+    );
+  }
+
   // Show Settings list
   return (
     <div className="min-h-screen pb-24" style={{ backgroundColor: '#F5F5F7' }}>
@@ -403,6 +448,17 @@ export function Settings({
             <Layers className="w-5 h-5" style={{ color: '#8E8E93' }} strokeWidth={2} />
             <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '16px' }}>Categories</span>
             <span style={{ color: '#8E8E93', fontSize: '15px' }}>{categories.length + incomeCategories.length}</span>
+            <ChevronRight className="w-5 h-5" style={{ color: '#C7C7CC' }} />
+          </button>
+
+          <button
+            onClick={() => setShowSources(true)}
+            className="w-full flex items-center gap-3 px-5 py-4 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
+            style={{ borderBottom: '1px solid #F2F2F7' }}
+          >
+            <Landmark className="w-5 h-5" style={{ color: '#8E8E93' }} strokeWidth={2} />
+            <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '16px' }}>Sources</span>
+            <span style={{ color: '#8E8E93', fontSize: '15px' }}>{sources.length}</span>
             <ChevronRight className="w-5 h-5" style={{ color: '#C7C7CC' }} />
           </button>
 

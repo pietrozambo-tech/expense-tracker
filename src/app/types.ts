@@ -14,6 +14,18 @@ export interface Category {
   type: TransactionType;
 }
 
+// A payment source / account a transaction flows to or from: cash or a bank.
+// Rendered as a small brand-coloured logo tile (see components/SourceLogo).
+export interface Source {
+  id: string;
+  name: string;
+  kind: 'cash' | 'bank';
+  brand: string; // tile background colour (hex)
+  fg?: string; // tile foreground colour (defaults to white)
+  monogram?: string; // 1–2 letter mark, e.g. 'R', 'IS'
+  mark?: 'banknote' | 'monogram'; // which glyph the tile draws
+}
+
 export interface Transaction {
   id: string;
   description: string;
@@ -24,10 +36,14 @@ export interface Transaction {
   type: TransactionType;
   currency: string; // ISO code, e.g. 'EUR'
   recurrence?: string; // 'Never repeat', 'Every month', ...
+  sourceId?: string; // id into the sources list (optional for older data)
 }
 
 export interface UserSettings {
   onboarded: boolean;
   userName: string;
   currency: string;
+  // Source pre-selected on new transactions, separately for each direction
+  defaultSourceExpense?: string;
+  defaultSourceIncome?: string;
 }
