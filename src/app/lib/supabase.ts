@@ -19,7 +19,11 @@ export const supabase: SupabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON
     persistSession: true,
     autoRefreshToken: true,
     detectSessionInUrl: true,
-    flowType: 'pkce',
+    // Implicit flow returns the session in the redirect URL itself, so OAuth
+    // works reliably on a static site / installed PWA without depending on a
+    // code verifier stored in the originating browser context (which breaks
+    // across the redirect on GitHub Pages / mobile).
+    flowType: 'implicit',
   },
 });
 
