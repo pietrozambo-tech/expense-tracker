@@ -46,9 +46,29 @@ function AddIllustration() {
           <ChevronDown className="w-3 h-3" style={{ color: '#8E8E93' }} />
         </span>
       </div>
-      {/* Category grid */}
+      {/* Category grid — the selected category (Groceries) reveals its
+          subcategories inline, right below its row */}
       <div className="grid grid-cols-2 gap-2">
-        {cats.map(({ name, Icon, bg, fg, on }) => (
+        {cats.slice(0, 2).map(({ name, Icon, bg, fg, on }) => (
+          <div key={name} className="flex items-center gap-2 rounded-xl px-2.5 py-2"
+            style={{ background: on ? '#FFFFFF' : '#FAFAFB', boxShadow: on ? '0 0 0 2px #007AFF' : 'inset 0 0 0 1px #ECECEF' }}>
+            <span className="flex items-center justify-center flex-shrink-0" style={{ width: 26, height: 26, borderRadius: 8, background: bg }}>
+              <Icon className="w-4 h-4" style={{ color: fg }} />
+            </span>
+            <span className="text-sm" style={{ color: '#1C1C1E', fontWeight: on ? 600 : 500 }}>{name}</span>
+          </div>
+        ))}
+
+        {/* Subcategory panel for the selected Groceries */}
+        <div className="col-span-2 rounded-xl px-3 py-2.5" style={{ background: '#FFFFFF', border: '1px solid #ECECEF', boxShadow: '0 1px 4px rgba(0,0,0,0.05)' }}>
+          <div className="text-[10px] font-semibold mb-1.5" style={{ color: '#8E8E93', letterSpacing: '0.06em' }}>SUBCATEGORY</div>
+          <div className="flex gap-2">
+            <span className="rounded-lg px-2.5 py-1 text-xs border" style={{ background: '#EFF6FF', color: '#2563EB', borderColor: '#BFDBFE' }}>Supermarket</span>
+            <span className="rounded-lg px-2.5 py-1 text-xs border" style={{ background: '#FFFFFF', color: '#4B5563', borderColor: '#E5E7EB' }}>Market</span>
+          </div>
+        </div>
+
+        {cats.slice(2).map(({ name, Icon, bg, fg, on }) => (
           <div key={name} className="flex items-center gap-2 rounded-xl px-2.5 py-2"
             style={{ background: on ? '#FFFFFF' : '#FAFAFB', boxShadow: on ? '0 0 0 2px #007AFF' : 'inset 0 0 0 1px #ECECEF' }}>
             <span className="flex items-center justify-center flex-shrink-0" style={{ width: 26, height: 26, borderRadius: 8, background: bg }}>
@@ -136,7 +156,7 @@ export function WelcomeCarousel({ userName, onDone }: WelcomeCarouselProps) {
     {
       illustration: <AddIllustration />,
       title: 'Add in seconds',
-      desc: 'Enter an amount, pick a category, then set how often it repeats and which account it came from.',
+      desc: 'Enter an amount, choose a category and subcategory, then set how often it repeats and which account it came from.',
     },
     {
       illustration: <DashboardIllustration />,
