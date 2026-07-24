@@ -12,36 +12,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="Trackly" />
     <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png" />
-    <style>
-      html, body { height: 100%; margin: 0; }
-      #root { height: 100%; }
-      /* Force portrait, no matter how the phone is held. The manifest locks
-         orientation on installed Android; iOS web apps can't lock, so when a
-         phone is turned sideways we rotate the whole app back to portrait —
-         the vertical layout is preserved, with no landscape reflow and no
-         message. Scoped to short viewports (phones in landscape) so tablets
-         and desktop are unaffected. */
-      @media screen and (orientation: landscape) and (max-height: 500px) {
-        html, body { overflow: hidden; }
-        #root {
-          position: fixed;
-          top: 0;
-          left: 0;
-          width: 100vh;
-          height: 100vw;
-          transform-origin: top left;
-          transform: translateX(100vw) rotate(90deg);
-          overflow-y: auto;
-          overflow-x: hidden;
-          -webkit-overflow-scrolling: touch;
-        }
-        /* Full-height containers reference the (short) landscape vh; remap them
-           to the portrait height so they fill the rotated frame. */
-        #root .min-h-screen { min-height: 100vw; }
-        #root .h-screen { height: 100vw; }
-        #root [style*="100dvh"] { height: 100vw !important; }
-      }
-    </style>
+    <style>html, body { height: 100%; margin: 0; } #root { height: 100%; }</style>
   </head>
   <body>
     <div id="root"></div>
