@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { ChevronRight, ArrowUpDown, TrendingUp, TrendingDown, Minus, Calendar, Receipt, ChevronLeft, ChevronDown, X, Clock, ArrowUp, ArrowDown, Wallet, Percent, PiggyBank } from 'lucide-react';
+import { ChevronRight, ArrowUpDown, TrendingUp, TrendingDown, Minus, Plus, Calendar, Receipt, ChevronLeft, ChevronDown, X, Clock, Wallet, Percent, PiggyBank } from 'lucide-react';
 import { TrendCategoryBreakdown } from './TrendCategoryBreakdown';
 import React from 'react';
 import { formatAmount, formatCompactAmount, formatSummaryAmount, formatAmountListView, CURRENCIES, convertAmount } from '../utils/currency';
@@ -1161,7 +1161,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                   <div className="flex">
                     <div className="flex items-center gap-2.5 flex-1 min-w-0">
                       <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: 'rgba(255,105,97,0.16)' }}>
-                        <ArrowUp className="w-4 h-4" style={{ color: '#FF6961' }} strokeWidth={2.5} />
+                        <Minus className="w-4 h-4" style={{ color: '#FF6961' }} strokeWidth={3} />
                       </div>
                       <div className="min-w-0">
                         <div className="text-[11px] leading-tight mb-1" style={{ color: 'rgba(235,235,245,0.6)' }}>Spending</div>
@@ -1173,7 +1173,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                     <div className="w-px self-stretch mx-3" style={{ backgroundColor: 'rgba(255,255,255,0.07)' }} />
                     <div className="flex items-center gap-2.5 flex-1 min-w-0">
                       <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: 'rgba(48,209,88,0.16)' }}>
-                        <ArrowDown className="w-4 h-4" style={{ color: '#30D158' }} strokeWidth={2.5} />
+                        <Plus className="w-4 h-4" style={{ color: '#30D158' }} strokeWidth={3} />
                       </div>
                       <div className="min-w-0">
                         <div className="text-[11px] leading-tight mb-1" style={{ color: 'rgba(235,235,245,0.6)' }}>Income</div>
