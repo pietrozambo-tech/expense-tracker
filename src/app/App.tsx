@@ -600,10 +600,73 @@ export default function App() {
     });
   };
 
+  // Export everything as a single backup file: settings, categories,
+  // subcategories, sources and all transactions. Re-importable via restore.
+  const handleExportData = () => {
+    const backup = {
+      app: 'trackly',
+      kind: 'backup' as const,
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      settings: { userName, currency: userCurrency, defaultSourceExpense, defaultSourceIncome },
+      categories,
+      incomeCategories,
+      sources,
+      transactions: expenses,
+    };
+    try {
+      const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `trackly-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      track('data_exported', { count: expenses.length });
+      toast.success('Backup exported', {
+        description: `${expenses.length} transaction${expenses.length === 1 ? '' : 's'} saved to a file`,
+        duration: 2000,
+      });
+    } catch {
+      toast.error('Export failed');
+    }
+  };
+
+  // Restore a full backup produced by Export — replaces all current data.
+  const restoreBackup = (b: any) => {
+    const count = Array.isArray(b.transactions) ? b.transactions.length : 0;
+    if (Array.isArray(b.transactions)) setExpenses(b.transactions);
+    if (Array.isArray(b.categories)) setCategories(b.categories);
+    if (Array.isArray(b.incomeCategories)) setIncomeCategories(b.incomeCategories);
+    if (Array.isArray(b.sources)) setSources(b.sources);
+    if (b.settings) {
+      if (typeof b.settings.currency === 'string') setUserCurrency(b.settings.currency);
+      if (typeof b.settings.userName === 'string') setUserName(b.settings.userName);
+      if (typeof b.settings.defaultSourceExpense === 'string') setDefaultSourceExpense(b.settings.defaultSourceExpense);
+      if (typeof b.settings.defaultSourceIncome === 'string') setDefaultSourceIncome(b.settings.defaultSourceIncome);
+    }
+    setRefreshKey((prev) => prev + 1);
+    setCurrentTab('dashboard');
+    track('backup_restored', { count });
+    toast.success('Backup restored', {
+      description: `${count} transaction${count === 1 ? '' : 's'} loaded`,
+      duration: 2000,
+    });
+  };
+
   // Import a lightweight JSON payload (see lib/importData). Resolves category
   // names against the user's own categories, adds any new subcategories, and
-  // prepends the transactions. Persists + cloud-syncs via the usual effects.
+  // prepends the transactions. A full backup file (from Export) is restored
+  // instead. Persists + cloud-syncs via the usual effects.
   const handleImportData = (payload: ImportPayload) => {
+    // Full backup? Restore everything rather than appending.
+    const p = payload as any;
+    if (p && (p.kind === 'backup' || Array.isArray(p.categories) || Array.isArray(p.sources))) {
+      restoreBackup(p);
+      return { added: 0, skipped: [] };
+    }
     const res = buildImport(payload, categories, incomeCategories, userCurrency);
     if (res.added === 0) {
       toast.error('Nothing imported', {
@@ -827,6 +890,7 @@ export default function App() {
                 onLoadDemoData={handleLoadDemoData}
                 onEraseAllData={handleEraseAllData}
                 onImportData={handleImportData}
+                onExportData={handleExportData}
                 sources={sources}
                 defaultSourceExpense={defaultSourceExpense}
                 defaultSourceIncome={defaultSourceIncome}

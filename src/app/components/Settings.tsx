@@ -1,4 +1,4 @@
-import { ChevronRight, ChevronLeft, UserCircle, Wallet, BellRing, HelpCircle, ShieldCheck, ScrollText, Layers, FlaskConical, Trash2, Landmark, Cloud, LogOut, Upload, Copy } from 'lucide-react';
+import { ChevronRight, ChevronLeft, UserCircle, Wallet, BellRing, HelpCircle, ShieldCheck, ScrollText, Layers, FlaskConical, Trash2, Landmark, Cloud, LogOut, Upload, Copy, Download } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { Categories } from './Categories';
@@ -29,6 +29,7 @@ interface SettingsProps {
   onLoadDemoData: () => void;
   onEraseAllData: () => void;
   onImportData?: (payload: ImportPayload) => void;
+  onExportData?: () => void;
   sources: Source[];
   defaultSourceExpense?: string;
   defaultSourceIncome?: string;
@@ -66,6 +67,7 @@ export function Settings({
   onLoadDemoData,
   onEraseAllData,
   onImportData,
+  onExportData,
   sources,
   defaultSourceExpense,
   defaultSourceIncome,
@@ -90,7 +92,8 @@ export function Settings({
   const [showCurrencySelector, setShowCurrencySelector] = useState(false);
   const [showNameEditor, setShowNameEditor] = useState(false);
   const [editedName, setEditedName] = useState(userName);
-  const [confirmAction, setConfirmAction] = useState<'demo' | 'erase' | null>(null);
+  const [confirmAction, setConfirmAction] = useState<'demo' | 'erase' | 'restore' | null>(null);
+  const [pendingBackup, setPendingBackup] = useState<ImportPayload | null>(null);
 
   // Deep-link from the Add screen's "Manage" link opens Sources directly
   useEffect(() => {
@@ -142,11 +145,16 @@ export function Settings({
       onLoadDemoData();
     } else if (confirmAction === 'erase') {
       onEraseAllData();
+    } else if (confirmAction === 'restore' && pendingBackup) {
+      onImportData?.(pendingBackup);
+      setPendingBackup(null);
     }
     closeConfirm();
   };
 
-  // Import a JSON file (see lib/importData for the format)
+  // Import a JSON file (see lib/importData for the format). A full backup file
+  // (from Export) triggers a restore confirmation; a lightweight import file is
+  // appended directly.
   const importInputRef = useRef<HTMLInputElement>(null);
   const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -157,7 +165,17 @@ export function Settings({
       if (!payload || !Array.isArray(payload.transactions)) {
         throw new Error('bad format');
       }
-      onImportData?.(payload as ImportPayload);
+      const isBackup = payload.kind === 'backup' || Array.isArray(payload.categories) || Array.isArray(payload.sources);
+      if (isBackup) {
+        // Leave the Import subpage so the confirm dialog (rendered in the main
+        // Settings view) can mount.
+        setShowImport(false);
+        setPendingBackup(payload as ImportPayload);
+        setConfirmAction('restore');
+        onModalOpenChange(true);
+      } else {
+        onImportData?.(payload as ImportPayload);
+      }
     } catch {
       toast.error("Couldn't read that file", {
         description: 'Expected a Trackly import file (.json)',
@@ -634,7 +652,8 @@ Output only the JSON, with no commentary, and save it as a .json file.`;
             Choose file
           </button>
           <p style={{ color: '#A5A5AD', fontSize: 12, lineHeight: 1.5, marginTop: 10, textAlign: 'center' }}>
-            Imported transactions are added to your current data. For a clean start, erase first.
+            Imported transactions are added to your current data. Choosing a Trackly
+            backup file (from Export) restores it instead.
           </p>
         </div>
       </div>
@@ -798,6 +817,17 @@ Output only the JSON, with no commentary, and save it as a .json file.`;
               <ChevronRight className="w-5 h-5" style={{ color: '#C7C7CC' }} />
             </button>
           )}
+          {onExportData && (
+            <button
+              onClick={onExportData}
+              className="w-full flex items-center gap-3 px-5 py-4 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
+              style={{ borderBottom: '1px solid #F2F2F7' }}
+            >
+              <Download className="w-5 h-5" style={{ color: '#8E8E93' }} strokeWidth={2} />
+              <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '16px' }}>Export data</span>
+              <span style={{ color: '#8E8E93', fontSize: '13px' }}>Backup</span>
+            </button>
+          )}
           <button
             onClick={() => openConfirm('demo')}
             className="w-full flex items-center gap-3 px-5 py-4 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
@@ -844,6 +874,15 @@ Output only the JSON, with no commentary, and save it as a .json file.`;
           confirmLabel="Erase"
           onConfirm={handleConfirm}
           onCancel={closeConfirm}
+        />
+      )}
+      {confirmAction === 'restore' && (
+        <ConfirmDialog
+          title="Restore this backup?"
+          message="This replaces all your current transactions, categories, sources and settings with the contents of the backup file."
+          confirmLabel="Restore"
+          onConfirm={handleConfirm}
+          onCancel={() => { setPendingBackup(null); closeConfirm(); }}
         />
       )}
     </div>
