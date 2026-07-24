@@ -568,24 +568,9 @@ export function Settings({
           <button
             onClick={() => setShowAbout(true)}
             className="w-full flex items-center gap-3 px-5 py-4 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
-            style={{ borderBottom: '1px solid #F2F2F7' }}
           >
             <HelpCircle className="w-5 h-5" style={{ color: '#8E8E93' }} strokeWidth={2} />
             <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '16px' }}>About</span>
-            <ChevronRight className="w-5 h-5" style={{ color: '#C7C7CC' }} />
-          </button>
-
-          <button className="w-full flex items-center gap-3 px-5 py-4 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
-            style={{ borderBottom: '1px solid #F2F2F7' }}
-          >
-            <ShieldCheck className="w-5 h-5" style={{ color: '#8E8E93' }} strokeWidth={2} />
-            <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '16px' }}>Privacy Policy</span>
-            <ChevronRight className="w-5 h-5" style={{ color: '#C7C7CC' }} />
-          </button>
-
-          <button className="w-full flex items-center gap-3 px-5 py-4 hover:bg-neutral-50 active:bg-neutral-100 transition-colors">
-            <ScrollText className="w-5 h-5" style={{ color: '#8E8E93' }} strokeWidth={2} />
-            <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '16px' }}>Terms of Service</span>
             <ChevronRight className="w-5 h-5" style={{ color: '#C7C7CC' }} />
           </button>
         </div>
