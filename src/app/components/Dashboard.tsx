@@ -1236,8 +1236,8 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
               backgroundColor: '#FFFFFF',
               boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)'
             }}>
-              <div className="px-6 py-4">
-                <div className="flex items-center justify-between mb-3">
+              <div className="px-4 py-4">
+                <div className="flex items-center justify-between mb-3 px-1">
                   <h2 style={{ color: '#1C1C1E', fontWeight: '600' }}>Categories</h2>
                   <button
                     onClick={() => setCategorySortBy(categorySortBy === 'alphabetical' ? 'amount' : 'alphabetical')}
@@ -1297,7 +1297,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                                 })()}
                               </div>
                               <div className="flex-1 min-w-0 text-left">
-                                <div className="text-neutral-900 font-medium text-sm mb-1 truncate">{item.name}</div>
+                                <div className="text-neutral-900 font-medium text-sm mb-1 leading-tight">{item.name}</div>
                                 {!isExpanded && (
                                   <div className="h-1 rounded-full overflow-hidden" style={{ backgroundColor: 'rgba(0, 0, 0, 0.08)' }}>
                                     <div 
@@ -1308,8 +1308,8 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                                 )}
                               </div>
                             </div>
-                            <div className="flex items-center gap-2 flex-shrink-0 ml-2">
-                              <div className="text-neutral-400 text-[11px] tabular-nums text-right w-9">{item.percentage.toFixed(0)}%</div>
+                            <div className="flex items-center gap-1.5 flex-shrink-0 ml-1">
+                              <div className="text-neutral-400 text-[11px] tabular-nums text-right w-8">{item.percentage.toFixed(0)}%</div>
                               <div className="text-neutral-900 font-bold text-[15px] tabular-nums text-right whitespace-nowrap min-w-[60px]">
                                 {formatAmountListView(item.amount, currency, 0)}
                               </div>
