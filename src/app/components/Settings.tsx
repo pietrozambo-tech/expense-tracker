@@ -1,4 +1,4 @@
-import { ChevronRight, ChevronLeft, UserCircle, Wallet, BellRing, HelpCircle, ShieldCheck, ScrollText, Layers, FlaskConical, Trash2, Landmark, Cloud, LogOut, Upload } from 'lucide-react';
+import { ChevronRight, ChevronLeft, UserCircle, Wallet, BellRing, HelpCircle, ShieldCheck, ScrollText, Layers, FlaskConical, Trash2, Landmark, Cloud, LogOut, Upload, Copy } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { Categories } from './Categories';
@@ -85,6 +85,7 @@ export function Settings({
   const [showCategories, setShowCategories] = useState(false);
   const [showSources, setShowSources] = useState(false);
   const [showAbout, setShowAbout] = useState(false);
+  const [showImport, setShowImport] = useState(false);
   const [categoryType, setCategoryType] = useState<'expense' | 'income'>('expense');
   const [showCurrencySelector, setShowCurrencySelector] = useState(false);
   const [showNameEditor, setShowNameEditor] = useState(false);
@@ -467,6 +468,163 @@ export function Settings({
     );
   }
 
+  // Show Import subpage — guides the user to turn their own spreadsheet into
+  // Trackly's import format using an AI assistant, then pick the file.
+  if (showImport) {
+    const expList = categories
+      .map((c: any) => `- ${c.name}${c.subcategories?.length ? ` (subcategories: ${c.subcategories.join(', ')})` : ''}`)
+      .join('\n');
+    const incList = incomeCategories.map((c: any) => `- ${c.name}`).join('\n');
+    const srcList = sources.map((s) => `${s.id} = ${s.name}`).join(', ');
+    const importPrompt = `I want to import my expense & income history into an app called "Trackly". I'll give you my data (a spreadsheet, CSV, or a pasted table). Convert ALL of it into ONE JSON file in EXACTLY this format:
+
+{
+  "version": 1,
+  "currency": "${userCurrency}",
+  "transactions": [
+    { "date": "2026-01-31", "amount": 800, "type": "expense", "category": "Housing", "subcategory": "Rent", "description": "Rent", "source": "revolut" }
+  ]
+}
+
+Rules:
+- "date": YYYY-MM-DD.
+- "amount": a positive number. For a refund / cashback / money received back on an EXPENSE, use a NEGATIVE amount.
+- "type": "expense" or "income".
+- "category": MUST be one of my categories listed below — pick the closest match, do not invent new category names.
+- "subcategory": optional; prefer one from that category's list below, but a sensible new one is fine.
+- "description": a short label from my data.
+- "source": optional; one of my source ids below (use "revolut" if unsure).
+
+My EXPENSE categories (with their subcategories):
+${expList}
+
+My INCOME categories:
+${incList}
+
+My sources (id = name): ${srcList}
+
+Output only the JSON, with no commentary, and save it as a .json file.`;
+
+    const copyPrompt = async () => {
+      try {
+        await navigator.clipboard.writeText(importPrompt);
+        toast.success('Prompt copied', { duration: 1400 });
+      } catch {
+        toast.error('Copy failed — select the text and copy it manually');
+      }
+    };
+
+    const Step = ({ n, children }: { n: number; children: React.ReactNode }) => (
+      <div className="flex gap-3 items-start">
+        <div
+          className="flex-shrink-0 flex items-center justify-center rounded-full"
+          style={{ width: 22, height: 22, backgroundColor: '#007AFF', color: '#fff', fontSize: 12, fontWeight: 700 }}
+        >
+          {n}
+        </div>
+        <p style={{ color: '#3A3A3C', fontSize: 14, lineHeight: 1.5 }}>{children}</p>
+      </div>
+    );
+
+    return (
+      <div className="h-screen flex flex-col" style={{ backgroundColor: '#F5F5F7' }}>
+        <div style={{ backgroundColor: '#F5F5F7' }}>
+          <div className="px-6 pb-4 pt-0">
+            <div className="flex items-center justify-center relative">
+              <button
+                onClick={() => setShowImport(false)}
+                className="absolute left-0 -ml-2 px-2 py-1 rounded-lg active:bg-neutral-200 transition-colors"
+              >
+                <ChevronLeft size={24} style={{ color: '#007AFF' }} />
+              </button>
+              <h1 style={{ color: '#1C1C1E', fontSize: '20px', fontWeight: '600', letterSpacing: '-0.3px' }}>Import data</h1>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-6 pb-28">
+          {/* Intro */}
+          <div className="pt-2 pb-5">
+            <h2 style={{ color: '#1C1C1E', fontSize: 22, fontWeight: 700, letterSpacing: '-0.02em' }}>
+              Bring in your existing data
+            </h2>
+            <p style={{ color: '#6B6B75', fontSize: 15, lineHeight: 1.5, marginTop: 8 }}>
+              Already track your spending in a spreadsheet? An AI assistant can convert it into a Trackly file
+              for you in seconds — no manual re-entry.
+            </p>
+          </div>
+
+          {/* Steps */}
+          <div className="bg-white rounded-2xl shadow-sm p-5 flex flex-col gap-4">
+            <Step n={1}>
+              Open any AI assistant (ChatGPT, Claude, Gemini…). Paste the prompt below and attach your
+              spreadsheet, CSV, or just paste your table.
+            </Step>
+            <Step n={2}>
+              It returns a <span style={{ fontWeight: 600 }}>.json</span> file already matched to your categories
+              and sources. Save it to your phone.
+            </Step>
+            <Step n={3}>
+              Come back here, tap <span style={{ fontWeight: 600 }}>Choose file</span>, and pick it. That's it.
+            </Step>
+          </div>
+
+          {/* Prompt */}
+          <div className="flex items-center justify-between mt-7 mb-2">
+            <p style={{ color: '#8E8E93', fontSize: 13, fontWeight: 500 }}>PROMPT FOR YOUR AI ASSISTANT</p>
+            <button
+              onClick={copyPrompt}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full active:scale-95 transition-transform"
+              style={{ backgroundColor: '#007AFF' }}
+            >
+              <Copy className="w-3.5 h-3.5" style={{ color: '#fff' }} strokeWidth={2.5} />
+              <span style={{ color: '#fff', fontSize: 12, fontWeight: 600 }}>Copy</span>
+            </button>
+          </div>
+          <div style={{ backgroundColor: '#1C1C1E', borderRadius: 14, padding: 14, maxHeight: 240, overflowY: 'auto' }}>
+            <pre
+              style={{
+                color: '#E5E5EA',
+                fontSize: 11.5,
+                lineHeight: 1.55,
+                whiteSpace: 'pre-wrap',
+                wordBreak: 'break-word',
+                fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+                margin: 0,
+              }}
+            >
+              {importPrompt}
+            </pre>
+          </div>
+          <p style={{ color: '#A5A5AD', fontSize: 12, lineHeight: 1.5, marginTop: 10 }}>
+            The prompt already lists <span style={{ fontWeight: 600 }}>your</span> current categories, subcategories
+            and sources, so the file lands ready to import.
+          </p>
+
+          {/* Upload */}
+          <input
+            ref={importInputRef}
+            type="file"
+            accept=".json,application/json"
+            onChange={handleImportFile}
+            style={{ display: 'none' }}
+          />
+          <button
+            onClick={() => importInputRef.current?.click()}
+            className="w-full mt-7 py-4 rounded-2xl font-medium text-base flex items-center justify-center gap-2 active:scale-[0.98] transition-transform"
+            style={{ backgroundColor: '#1C1C1E', color: '#fff', boxShadow: '0 6px 18px rgba(28,28,30,0.20)' }}
+          >
+            <Upload className="w-5 h-5" strokeWidth={2} />
+            Choose file
+          </button>
+          <p style={{ color: '#A5A5AD', fontSize: 12, lineHeight: 1.5, marginTop: 10, textAlign: 'center' }}>
+            Imported transactions are added to your current data. For a clean start, erase first.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   // Show Sources subpage
   if (showSources) {
     return (
@@ -614,24 +772,15 @@ export function Settings({
         </p>
         <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
           {onImportData && (
-            <>
-              <input
-                ref={importInputRef}
-                type="file"
-                accept=".json,application/json"
-                onChange={handleImportFile}
-                style={{ display: 'none' }}
-              />
-              <button
-                onClick={() => importInputRef.current?.click()}
-                className="w-full flex items-center gap-3 px-5 py-4 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
-                style={{ borderBottom: '1px solid #F2F2F7' }}
-              >
-                <Upload className="w-5 h-5" style={{ color: '#8E8E93' }} strokeWidth={2} />
-                <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '16px' }}>Import data</span>
-                <span style={{ color: '#8E8E93', fontSize: '13px' }}>From file</span>
-              </button>
-            </>
+            <button
+              onClick={() => setShowImport(true)}
+              className="w-full flex items-center gap-3 px-5 py-4 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
+              style={{ borderBottom: '1px solid #F2F2F7' }}
+            >
+              <Upload className="w-5 h-5" style={{ color: '#8E8E93' }} strokeWidth={2} />
+              <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '16px' }}>Import data</span>
+              <ChevronRight className="w-5 h-5" style={{ color: '#C7C7CC' }} />
+            </button>
           )}
           <button
             onClick={() => openConfirm('demo')}
