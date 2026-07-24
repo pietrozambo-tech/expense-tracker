@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import type { Session, User } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
+import { identifyUser, track, resetAnalytics } from '../lib/analytics';
 
 const GUEST_KEY = 'expense-tracker.v1.guest';
 
@@ -58,7 +59,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(false);
     });
 
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, newSession) => {
+    const { data: sub } = supabase.auth.onAuthStateChange((event, newSession) => {
       setSession(newSession);
       // Signing in supersedes guest mode
       if (newSession) {
@@ -67,6 +68,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           localStorage.removeItem(GUEST_KEY);
         } catch {
           /* ignore */
+        }
+        // Analytics: tie events to this user; count fresh sign-ins (not reloads)
+        const u = newSession.user;
+        identifyUser(u.id, { email: u.email, provider: u.app_metadata?.provider });
+        if (event === 'SIGNED_IN') {
+          track('signed_in', { method: u.app_metadata?.provider || 'email' });
         }
       }
     });
@@ -110,6 +117,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
+    track('signed_out');
+    resetAnalytics();
     await supabase.auth.signOut();
     setSession(null);
   };

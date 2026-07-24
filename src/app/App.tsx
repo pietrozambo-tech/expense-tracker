@@ -35,6 +35,7 @@ import { useAuth } from './auth/AuthProvider';
 import { SignIn } from './auth/SignIn';
 import { TracklyLogo } from './components/TracklyLogo';
 import { loadCloud, saveCloud, deleteCloud, type SyncPayload } from './lib/cloud';
+import { track } from './lib/analytics';
 import { categories as initialCategories, incomeCategories as initialIncomeCategories } from './components/categories';
 
 export default function App() {
@@ -335,6 +336,7 @@ export default function App() {
 
       // Add to expenses list
       setExpenses([newExpense, ...expenses]);
+      track('transaction_added', { type: transactionType, hasSource: !!selectedSourceId });
       
       // Force refresh of Dashboard and Activity
       setRefreshKey(prev => prev + 1);
@@ -575,6 +577,7 @@ export default function App() {
     setUserName(name);
     setUserCurrency(currency);
     setHasCompletedOnboarding(true);
+    track('onboarding_completed', { currency });
   };
 
   // Demo data (for testing) — replaces current transactions with date-shifted
@@ -589,6 +592,7 @@ export default function App() {
     setExpenses(demo);
     setRefreshKey(prev => prev + 1);
     setCurrentTab('dashboard');
+    track('demo_loaded');
     toast.success('Demo data loaded', {
       description: 'Sample transactions for testing the app',
       duration: 1400,
