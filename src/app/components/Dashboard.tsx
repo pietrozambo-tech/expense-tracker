@@ -2514,27 +2514,22 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                       <ChevronDown className="w-3 h-3 text-neutral-400" />
                     </button>
                     
-                    {/* Subcategory Filter - show when category selected and subcategory is active */}
-                    {selectedCategory !== 'All' && selectedSubcategory !== 'All' && (
-                      <div className="flex items-center gap-1 px-2.5 py-1.5 bg-blue-50 border border-blue-200 rounded-lg">
-                        <span className="text-blue-600 text-xs">{selectedSubcategory}</span>
-                        <button
-                          onClick={() => setSelectedSubcategory('All')}
-                          className="text-blue-400 hover:text-blue-600 transition-colors"
-                          aria-label="Clear subcategory filter"
-                        >
-                          <X className="w-3 h-3" />
-                        </button>
-                      </div>
-                    )}
-                    
-                    {/* Add Subcategory Filter button */}
-                    {selectedCategory !== 'All' && selectedSubcategory === 'All' && availableSubcategories.length > 0 && (
+                    {/* Subcategory toggle — appears right next to the category
+                        toggle once a category (with subcategories) is selected,
+                        mirroring the category toggle. Opens the subcategory
+                        picker (which includes "All" to reset). */}
+                    {selectedCategory !== 'All' && availableSubcategories.length > 0 && (
                       <button
                         onClick={() => setIsTrendSubcategoryModalOpen(true)}
-                        className="flex items-center gap-1 px-2.5 py-1.5 border border-dashed border-neutral-300 hover:bg-neutral-50 rounded-lg transition-colors"
+                        className="flex items-center gap-1.5 px-2.5 py-1.5 border rounded-lg transition-colors"
+                        style={selectedSubcategory === 'All'
+                          ? { backgroundColor: '#FFFFFF', borderColor: '#E5E5EA' }
+                          : { backgroundColor: '#EFF6FF', borderColor: '#BFDBFE' }}
                       >
-                        <span className="text-neutral-400 text-xs">+ Filter</span>
+                        <span className="text-xs" style={{ color: selectedSubcategory === 'All' ? '#525252' : '#2563EB' }}>
+                          {selectedSubcategory === 'All' ? 'All Subcategories' : selectedSubcategory}
+                        </span>
+                        <ChevronDown className="w-3 h-3" style={{ color: selectedSubcategory === 'All' ? '#A3A3A3' : '#60A5FA' }} />
                       </button>
                     )}
                   </div>
@@ -2662,42 +2657,33 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
               })() : (
                 <div className={`grid gap-2 ${transactionType === 'expense' ? 'grid-cols-3' : 'grid-cols-2'}`}>
                   <div className="bg-neutral-50 rounded-lg p-3">
-                    <div className="flex items-center gap-1 mb-1">
-                      <TrendingUp className="w-3 h-3 text-neutral-500" />
-                      <div className="text-neutral-500 text-[10px]">
-                        {transactionType === 'expense' ? 'Total Spent' : 'Total Earned'}
-                      </div>
+                    <div className="text-neutral-500 text-[10px] mb-1">
+                      {transactionType === 'expense' ? 'Total Spent' : 'Total Earned'}
                     </div>
                     <div className="text-neutral-900 font-bold text-lg tabular-nums">
                       {formatAmountListView(totalSpent, currency, 0)}
                     </div>
                     <div className="text-neutral-400 text-[10px] mt-0.5">
-                      {trendData.length > 0 && trendData.length === 1 
-                        ? 'This month' 
+                      {trendData.length > 0 && trendData.length === 1
+                        ? 'This month'
                         : `${trendData.length} months`}
                     </div>
                   </div>
                   <div className="bg-neutral-50 rounded-lg p-3">
-                    <div className="flex items-center gap-1 mb-1">
-                      <Calendar className="w-3 h-3 text-neutral-500" />
-                      <div className="text-neutral-500 text-[9px] whitespace-nowrap">Monthly Average</div>
-                    </div>
+                    <div className="text-neutral-500 text-[10px] mb-1 whitespace-nowrap">Monthly Average</div>
                     <div className="text-neutral-900 font-bold text-lg tabular-nums">
                       {formatAmountListView(avgAmount, currency, 0)}
                     </div>
                   </div>
                   {transactionType === 'expense' && (
                     <div className="bg-neutral-50 rounded-lg p-3">
-                      <div className="flex items-center gap-1 mb-1">
-                        <Receipt className="w-3 h-3 text-neutral-500" />
-                        <div className="text-neutral-500 text-[10px]">Transactions</div>
-                      </div>
+                      <div className="text-neutral-500 text-[10px] mb-1">Transactions</div>
                       <div className="text-neutral-900 font-bold text-lg tabular-nums">
                         {trendData.reduce((sum, month) => sum + month.count, 0)}
                       </div>
                       <div className="text-neutral-400 text-[10px] mt-0.5">
-                        {trendData.length > 0 && trendData.length === 1 
-                          ? 'This month' 
+                        {trendData.length > 0 && trendData.length === 1
+                          ? 'This month'
                           : `${trendData.length} months`}
                       </div>
                     </div>
