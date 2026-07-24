@@ -555,6 +555,14 @@ export function Settings({
           </button>
         </div>
 
+        {/* Signature */}
+        <div className="mt-10 mb-2 text-center">
+          <p style={{ color: '#B0B0B5', fontSize: '12px', fontWeight: 500 }}>Trackly · v0.1</p>
+          <p style={{ color: '#B0B0B5', fontSize: '12px', fontStyle: 'italic', marginTop: '2px' }}>
+            Designed in Spain by Zambop
+          </p>
+        </div>
+
       </div>
 
       {confirmAction === 'demo' && (

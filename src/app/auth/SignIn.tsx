@@ -163,6 +163,11 @@ export function SignIn() {
             <button onClick={continueAsGuest} className="w-full py-3 mt-2 text-[15px] font-medium" style={{ color: '#8E8E93' }}>
               Continue without an account
             </button>
+            <p className="text-center mt-3 px-4" style={{ color: '#A5A5AD', fontSize: 12, lineHeight: 1.5 }}>
+              By continuing you agree to our{' '}
+              <span style={{ color: '#8E8E93', fontWeight: 500 }}>Terms</span> &{' '}
+              <span style={{ color: '#8E8E93', fontWeight: 500 }}>Privacy Policy</span>.
+            </p>
           </>
         ) : (
           <button
