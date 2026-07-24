@@ -600,6 +600,16 @@ export default function App() {
     });
   };
 
+  // Demo transactions carry a `demo-` id prefix, so they can be removed on
+  // their own without touching the user's real data.
+  const hasDemoData = expenses.some((e) => e.id.startsWith('demo-'));
+  const handleEraseDemoData = () => {
+    setExpenses((prev) => prev.filter((e) => !e.id.startsWith('demo-')));
+    setRefreshKey((prev) => prev + 1);
+    setCurrentTab('dashboard');
+    toast.success('Demo data removed', { duration: 1400 });
+  };
+
   // Export everything as a single backup file: settings, categories,
   // subcategories, sources and all transactions. Re-importable via restore.
   const handleExportData = () => {
@@ -889,6 +899,8 @@ export default function App() {
                 onUserNameChange={handleUserNameChange}
                 onLoadDemoData={handleLoadDemoData}
                 onEraseAllData={handleEraseAllData}
+                onEraseDemoData={handleEraseDemoData}
+                hasDemoData={hasDemoData}
                 onImportData={handleImportData}
                 onExportData={handleExportData}
                 sources={sources}

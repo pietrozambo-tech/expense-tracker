@@ -1534,8 +1534,12 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                   return n + (s[(v - 20) % 10] || s[v] || s[0]);
                 };
                 periodLabel = `${dayOfWeek}, ${monthName} ${getOrdinal(day)}`;
+              } else if (timePeriodType === 'year') {
+                // The x-axis shows just the month initial when zoomed to a year;
+                // spell it out fully in the tooltip where there's room.
+                periodLabel = new Date(selectedYear, clampedIndex, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
               }
-              
+
               setTooltipData({
                 x: xPosition,
                 y: yPosition,
@@ -1594,8 +1598,12 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                   return n + (s[(v - 20) % 10] || s[v] || s[0]);
                 };
                 periodLabel = `${dayOfWeek}, ${monthName} ${getOrdinal(day)}`;
+              } else if (timePeriodType === 'year') {
+                // The x-axis shows just the month initial when zoomed to a year;
+                // spell it out fully in the tooltip where there's room.
+                periodLabel = new Date(selectedYear, clampedIndex, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
               }
-              
+
               setTooltipData({
                 x: xPosition,
                 y: yPosition,
@@ -1755,7 +1763,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                                   fontSize={11}
                                   fill="#8E8E93"
                                 >
-                                  {d.label}
+                                  {timePeriodType === 'year' ? d.label.charAt(0) : d.label}
                                 </text>
                               );
                             })}

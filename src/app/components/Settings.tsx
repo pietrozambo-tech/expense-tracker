@@ -28,6 +28,8 @@ interface SettingsProps {
   onUserNameChange: (name: string) => void;
   onLoadDemoData: () => void;
   onEraseAllData: () => void;
+  onEraseDemoData?: () => void;
+  hasDemoData?: boolean;
   onImportData?: (payload: ImportPayload) => void;
   onExportData?: () => void;
   sources: Source[];
@@ -66,6 +68,8 @@ export function Settings({
   onUserNameChange,
   onLoadDemoData,
   onEraseAllData,
+  onEraseDemoData,
+  hasDemoData,
   onImportData,
   onExportData,
   sources,
@@ -92,7 +96,7 @@ export function Settings({
   const [showCurrencySelector, setShowCurrencySelector] = useState(false);
   const [showNameEditor, setShowNameEditor] = useState(false);
   const [editedName, setEditedName] = useState(userName);
-  const [confirmAction, setConfirmAction] = useState<'demo' | 'erase' | 'restore' | null>(null);
+  const [confirmAction, setConfirmAction] = useState<'demo' | 'erase' | 'erase-demo' | 'restore' | null>(null);
   const [pendingBackup, setPendingBackup] = useState<ImportPayload | null>(null);
 
   // Deep-link from the Add screen's "Manage" link opens Sources directly
@@ -145,6 +149,8 @@ export function Settings({
       onLoadDemoData();
     } else if (confirmAction === 'erase') {
       onEraseAllData();
+    } else if (confirmAction === 'erase-demo') {
+      onEraseDemoData?.();
     } else if (confirmAction === 'restore' && pendingBackup) {
       onImportData?.(pendingBackup);
       setPendingBackup(null);
@@ -838,6 +844,18 @@ Output only the JSON, with no commentary, and save it as a .json file.`;
             <span style={{ color: '#8E8E93', fontSize: '13px' }}>For testing</span>
           </button>
 
+          {hasDemoData && onEraseDemoData && (
+            <button
+              onClick={() => openConfirm('erase-demo')}
+              className="w-full flex items-center gap-3 px-5 py-4 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
+              style={{ borderBottom: '1px solid #F2F2F7' }}
+            >
+              <Trash2 className="w-5 h-5" style={{ color: '#8E8E93' }} strokeWidth={2} />
+              <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '16px' }}>Erase demo data</span>
+              <span style={{ color: '#8E8E93', fontSize: '13px' }}>Keep my data</span>
+            </button>
+          )}
+
           <button
             onClick={() => openConfirm('erase')}
             className="w-full flex items-center gap-3 px-5 py-4 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
@@ -862,6 +880,16 @@ Output only the JSON, with no commentary, and save it as a .json file.`;
           title="Load demo data?"
           message="This replaces your current transactions with sample data so you can explore the app. Use 'Erase all data' to start clean again."
           confirmLabel="Load"
+          variant="neutral"
+          onConfirm={handleConfirm}
+          onCancel={closeConfirm}
+        />
+      )}
+      {confirmAction === 'erase-demo' && (
+        <ConfirmDialog
+          title="Erase demo data?"
+          message="This removes the sample transactions that were loaded for testing. Your own transactions, categories and settings are kept."
+          confirmLabel="Erase demo"
           variant="neutral"
           onConfirm={handleConfirm}
           onCancel={closeConfirm}
