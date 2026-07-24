@@ -192,7 +192,9 @@ export function AmountInput({ value, onChange, currency, onCurrencyChange, right
                       onChange={(e) => setCurrencySearch(e.target.value)}
                       placeholder="Search currency"
                       autoFocus
-                      className="w-full pl-9 pr-3 py-2.5 bg-neutral-50 rounded-xl text-[15px] outline-none focus:ring-2 focus:ring-blue-500"
+                      // 16px (text-base) prevents iOS Safari from auto-zooming
+                      // when the field is focused.
+                      className="w-full pl-9 pr-3 py-2.5 bg-neutral-50 rounded-xl text-base outline-none focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
                 </div>
