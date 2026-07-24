@@ -76,7 +76,7 @@ export function CategorySelector({
                   <Icon className={`w-4.5 h-4.5 ${isSelected ? category.color : 'text-neutral-400'}`} />
                 </div>
                 <span
-                  className={`text-sm text-left leading-tight line-clamp-2 ${isSelected ? 'text-neutral-900 font-medium' : 'text-neutral-600'}`}
+                  className={`text-[13px] text-left leading-tight line-clamp-2 ${isSelected ? 'text-neutral-900 font-medium' : 'text-neutral-600'}`}
                   style={{
                     transform: 'translateZ(0)',
                     backfaceVisibility: 'hidden'

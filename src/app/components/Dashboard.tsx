@@ -1297,7 +1297,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                                 })()}
                               </div>
                               <div className="flex-1 min-w-0 text-left">
-                                <div className="text-neutral-900 font-medium text-sm mb-1 leading-tight">{item.name}</div>
+                                <div className="text-neutral-900 font-medium text-[13px] mb-1 leading-tight">{item.name}</div>
                                 {!isExpanded && (
                                   <div className="h-1 rounded-full overflow-hidden" style={{ backgroundColor: 'rgba(0, 0, 0, 0.08)' }}>
                                     <div 
