@@ -12,10 +12,44 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="Trackly" />
     <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png" />
-    <style>html, body { height: 100%; margin: 0; } #root { height: 100%; }</style>
+    <style>
+      html, body { height: 100%; margin: 0; }
+      #root { height: 100%; }
+      /* Portrait-only: the manifest locks orientation on installed Android, but
+         iOS web apps can't lock, so cover the app when a phone is turned sideways.
+         Targets short viewports (phones in landscape), not tablets or desktop. */
+      #rotate-lock { display: none; }
+      @media screen and (orientation: landscape) and (max-height: 500px) {
+        #rotate-lock {
+          display: flex;
+          position: fixed;
+          inset: 0;
+          z-index: 2147483647;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          gap: 14px;
+          padding: 24px;
+          text-align: center;
+          background: #F5F5F7;
+          color: #1C1C1E;
+          font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+        }
+      }
+    </style>
   </head>
   <body>
     <div id="root"></div>
+    <div id="rotate-lock" aria-hidden="true">
+      <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="#3B82F6" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="8.5" y="2.5" width="9" height="19" rx="2" />
+        <line x1="11" y1="18.5" x2="14" y2="18.5" />
+        <path d="M6.5 5.5 A 8 8 0 0 0 3.2 11" />
+        <polyline points="3.6,7.9 3,11.2 6.3,10.6" />
+      </svg>
+      <div style="font-size:17px; font-weight:600;">Rotate your phone upright</div>
+      <div style="font-size:14px; color:#8E8E93; max-width:280px; line-height:1.45;">Trackly is designed for portrait mode.</div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
