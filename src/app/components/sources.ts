@@ -15,6 +15,27 @@ export const DEFAULT_SOURCES: Source[] = [
 export const DEFAULT_SOURCE_EXPENSE = 'revolut';
 export const DEFAULT_SOURCE_INCOME = 'revolut';
 
+// A small library of well-known banks, offered as quick-picks when adding a
+// source. These are brand-colour + initials tiles (NOT official logos), so the
+// major banks stay recognisable without embedding any trademarked artwork.
+// Users can still add a fully custom source and pick any colour.
+export const BANK_LIBRARY: { name: string; brand: string; monogram: string }[] = [
+  { name: 'Revolut', brand: '#0B0B0D', monogram: 'R' },
+  { name: 'Santander', brand: '#EC0000', monogram: 'S' },
+  { name: 'Intesa Sanpaolo', brand: '#00854A', monogram: 'IS' },
+  { name: 'BBVA', brand: '#072146', monogram: 'BB' },
+  { name: 'CaixaBank', brand: '#007DC5', monogram: 'CX' },
+  { name: 'Wise', brand: '#163300', monogram: 'W' },
+  { name: 'N26', brand: '#48AC98', monogram: 'N' },
+  { name: 'HSBC', brand: '#DB0011', monogram: 'H' },
+  { name: 'Barclays', brand: '#00AEEF', monogram: 'B' },
+  { name: 'Deutsche Bank', brand: '#0018A8', monogram: 'DB' },
+  { name: 'BNP Paribas', brand: '#00915A', monogram: 'BN' },
+  { name: 'UniCredit', brand: '#E2001A', monogram: 'UC' },
+  { name: 'ING', brand: '#FF6200', monogram: 'IN' },
+  { name: 'Monzo', brand: '#FF3464', monogram: 'M' },
+];
+
 // A colour palette offered when creating a custom source.
 export const SOURCE_COLORS = [
   '#0B0B0D', '#EC0000', '#00854A', '#2FA84F', '#0A84FF',

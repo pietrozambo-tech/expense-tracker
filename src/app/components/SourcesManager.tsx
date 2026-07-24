@@ -3,7 +3,7 @@ import { ChevronLeft, Plus, Pencil, Trash2, ChevronRight } from 'lucide-react';
 import type { Source } from '../types';
 import { SourceLogo } from './SourceLogo';
 import { SourceSelectorModal } from './SourceSelectorModal';
-import { SOURCE_COLORS, monogramFromName } from './sources';
+import { SOURCE_COLORS, BANK_LIBRARY, monogramFromName } from './sources';
 import { ConfirmDialog } from './ConfirmDialog';
 
 interface SourcesManagerProps {
@@ -187,6 +187,20 @@ function SourceFormModal({
 }) {
   const [name, setName] = useState(initial?.name || '');
   const [brand, setBrand] = useState(initial?.brand || SOURCE_COLORS[0]);
+  // Monogram tracks the name, but a library pick can set an exact one (e.g. "R").
+  const [monogram, setMonogram] = useState(initial?.monogram || monogramFromName(initial?.name || 'New'));
+  const isCash = initial?.mark === 'banknote';
+
+  const onNameChange = (v: string) => {
+    setName(v);
+    setMonogram(monogramFromName(v || 'New'));
+  };
+
+  const pickBank = (bank: { name: string; brand: string; monogram: string }) => {
+    setName(bank.name);
+    setBrand(bank.brand);
+    setMonogram(bank.monogram);
+  };
 
   const trimmed = name.trim();
   const preview: Source = {
@@ -194,8 +208,8 @@ function SourceFormModal({
     name: trimmed || 'New source',
     kind: initial?.kind || 'bank',
     brand,
-    monogram: initial?.mark === 'banknote' ? undefined : monogramFromName(trimmed || 'New'),
-    mark: initial?.mark === 'banknote' ? 'banknote' : 'monogram',
+    monogram: isCash ? undefined : monogram,
+    mark: isCash ? 'banknote' : 'monogram',
   };
 
   const save = () => {
@@ -204,8 +218,8 @@ function SourceFormModal({
       name: trimmed,
       kind: initial?.kind || 'bank',
       brand,
-      monogram: initial?.mark === 'banknote' ? undefined : monogramFromName(trimmed),
-      mark: initial?.mark === 'banknote' ? 'banknote' : 'monogram',
+      monogram: isCash ? undefined : monogram,
+      mark: isCash ? 'banknote' : 'monogram',
       fg: initial?.fg,
     });
   };
@@ -228,13 +242,40 @@ function SourceFormModal({
             <input
               type="text"
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={(e) => onNameChange(e.target.value)}
               placeholder="e.g. N26, Monzo, Wallet"
               autoFocus
               className="flex-1 px-4 py-3 rounded-xl text-base outline-none"
               style={{ backgroundColor: '#F2F2F5', color: '#1C1C1E' }}
             />
           </div>
+
+          {/* Bank quick-picks — only when adding (not editing / not cash) */}
+          {!initial && !isCash && (
+            <>
+              <p className="mb-2" style={{ color: '#8E8E93', fontSize: '13px' }}>Pick a bank</p>
+              <div className="grid grid-cols-7 gap-2 mb-6">
+                {BANK_LIBRARY.map((bank) => {
+                  const selected = name.trim().toLowerCase() === bank.name.toLowerCase();
+                  return (
+                    <button
+                      key={bank.name}
+                      onClick={() => pickBank(bank)}
+                      className="flex items-center justify-center rounded-full transition-transform active:scale-95"
+                      style={{ boxShadow: selected ? `0 0 0 2px #fff, 0 0 0 4px ${bank.brand}` : 'none' }}
+                      aria-label={bank.name}
+                      title={bank.name}
+                    >
+                      <SourceLogo
+                        source={{ id: 'lib', name: bank.name, kind: 'bank', brand: bank.brand, monogram: bank.monogram, mark: 'monogram' }}
+                        size={34}
+                      />
+                    </button>
+                  );
+                })}
+              </div>
+            </>
+          )}
 
           <p className="mb-2" style={{ color: '#8E8E93', fontSize: '13px' }}>Colour</p>
           <div className="flex flex-wrap gap-2.5 mb-6">
