@@ -2,6 +2,7 @@ import { ChevronRight, ChevronLeft, UserCircle, Wallet, BellRing, HelpCircle, Sh
 import { useEffect, useState } from 'react';
 import { Categories } from './Categories';
 import { SourcesManager } from './SourcesManager';
+import { TracklyLogo } from './TracklyLogo';
 import { ConfirmDialog } from './ConfirmDialog';
 import { CURRENCIES } from '../utils/currency';
 import type { Source } from '../types';
@@ -79,6 +80,7 @@ export function Settings({
 }: SettingsProps) {
   const [showCategories, setShowCategories] = useState(false);
   const [showSources, setShowSources] = useState(false);
+  const [showAbout, setShowAbout] = useState(false);
   const [categoryType, setCategoryType] = useState<'expense' | 'income'>('expense');
   const [showCurrencySelector, setShowCurrencySelector] = useState(false);
   const [showNameEditor, setShowNameEditor] = useState(false);
@@ -377,6 +379,61 @@ export function Settings({
     );
   }
 
+  // Show About subpage
+  if (showAbout) {
+    return (
+      <div className="h-screen flex flex-col" style={{ backgroundColor: '#F5F5F7' }}>
+        <div style={{ backgroundColor: '#F5F5F7' }}>
+          <div className="px-6 pb-4 pt-0">
+            <div className="flex items-center justify-center relative">
+              <button
+                onClick={() => setShowAbout(false)}
+                className="absolute left-0 -ml-2 px-2 py-1 rounded-lg active:bg-neutral-200 transition-colors"
+              >
+                <ChevronLeft size={24} style={{ color: '#007AFF' }} />
+              </button>
+              <h1 style={{ color: '#1C1C1E', fontSize: '20px', fontWeight: '600', letterSpacing: '-0.3px' }}>About</h1>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto pb-24">
+          {/* Brand */}
+          <div className="flex flex-col items-center text-center px-6 pt-6 pb-8">
+            <TracklyLogo size={80} className="mb-4" />
+            <h2 style={{ color: '#1C1C1E', fontSize: '28px', fontWeight: 700, letterSpacing: '-0.03em' }}>Trackly</h2>
+            <p style={{ color: '#8E8E93', fontSize: '14px', marginTop: '4px' }}>Version 0.1</p>
+            <p style={{ color: '#6B6B75', fontSize: '15px', marginTop: '12px', maxWidth: 300, lineHeight: 1.5 }}>
+              Track every expense in seconds — with clear insights into where your money goes.
+            </p>
+          </div>
+
+          {/* Links */}
+          <div className="px-6">
+            <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+              <button className="w-full flex items-center gap-3 px-5 py-4 active:bg-neutral-100 transition-colors" style={{ borderBottom: '1px solid #F2F2F7' }}>
+                <ShieldCheck className="w-5 h-5" style={{ color: '#8E8E93' }} strokeWidth={2} />
+                <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '16px' }}>Privacy Policy</span>
+                <ChevronRight className="w-5 h-5" style={{ color: '#C7C7CC' }} />
+              </button>
+              <button className="w-full flex items-center gap-3 px-5 py-4 active:bg-neutral-100 transition-colors">
+                <ScrollText className="w-5 h-5" style={{ color: '#8E8E93' }} strokeWidth={2} />
+                <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '16px' }}>Terms of Service</span>
+                <ChevronRight className="w-5 h-5" style={{ color: '#C7C7CC' }} />
+              </button>
+            </div>
+          </div>
+
+          {/* Signature */}
+          <div className="mt-10 text-center px-6">
+            <p style={{ color: '#B0B0B5', fontSize: '13px', fontStyle: 'italic' }}>Designed in Spain by Zambop</p>
+            <p style={{ color: '#C7C7CC', fontSize: '12px', marginTop: '4px' }}>© {new Date().getFullYear()} Trackly</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // Show Sources subpage
   if (showSources) {
     return (
@@ -508,7 +565,9 @@ export function Settings({
             <ChevronRight className="w-5 h-5" style={{ color: '#C7C7CC' }} />
           </button>
 
-          <button className="w-full flex items-center gap-3 px-5 py-4 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
+          <button
+            onClick={() => setShowAbout(true)}
+            className="w-full flex items-center gap-3 px-5 py-4 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
             style={{ borderBottom: '1px solid #F2F2F7' }}
           >
             <HelpCircle className="w-5 h-5" style={{ color: '#8E8E93' }} strokeWidth={2} />

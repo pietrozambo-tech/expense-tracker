@@ -14,6 +14,7 @@ interface AuthContextValue {
   sendEmailCode: (email: string) => Promise<{ error: string | null }>;
   verifyEmailCode: (email: string, code: string) => Promise<{ error: string | null }>;
   signInWithGoogle: () => Promise<{ error: string | null }>;
+  signInWithApple: () => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
   continueAsGuest: () => void;
   leaveGuest: () => void;
@@ -100,6 +101,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error: error ? error.message : null };
   };
 
+  const signInWithApple = async () => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'apple',
+      options: { redirectTo: `${window.location.origin}${window.location.pathname}` },
+    });
+    return { error: error ? error.message : null };
+  };
+
   const signOut = async () => {
     await supabase.auth.signOut();
     setSession(null);
@@ -135,6 +144,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         sendEmailCode,
         verifyEmailCode,
         signInWithGoogle,
+        signInWithApple,
         signOut,
         continueAsGuest,
         leaveGuest,
