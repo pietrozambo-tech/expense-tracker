@@ -10,6 +10,11 @@ const TAGLINE = 'Track every expense in seconds.';
 // setup. Flip to true once configured (e.g. when moving to the App Store).
 const APPLE_SIGN_IN_ENABLED = false;
 
+// Email one-time-code sign-in is ready in code, but delivering codes to real
+// users needs a custom SMTP provider configured in Supabase. Until that's set
+// up, keep Google as the only account method. Flip to true once SMTP is live.
+const EMAIL_SIGN_IN_ENABLED = false;
+
 // Google "G" logo (official colours), inlined so it works offline
 function GoogleG() {
   return (
@@ -122,31 +127,42 @@ export function SignIn() {
               Continue with Google
             </button>
 
-            {/* Divider */}
-            <div className="flex items-center gap-3 my-4">
-              <div className="flex-1 h-px" style={{ background: '#E3E3E8' }} />
-              <span style={{ color: '#A5A5AD', fontSize: 12, fontWeight: 500 }}>OR</span>
-              <div className="flex-1 h-px" style={{ background: '#E3E3E8' }} />
-            </div>
+            <p className="text-center mt-3.5 px-6" style={{ color: '#8E8E93', fontSize: 13, lineHeight: 1.45 }}>
+              Sign in to back up your data and sync it across your devices.
+            </p>
 
-            {/* Email */}
-            <div className="relative">
-              <Mail className="w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2" style={{ color: '#8E8E93' }} />
-              <input
-                type="email"
-                inputMode="email"
-                autoComplete="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') send(); }}
-                placeholder="you@email.com"
-                className="w-full pl-11 pr-4 py-4 rounded-2xl text-base outline-none transition-all"
-                style={{ backgroundColor: '#FFFFFF', color: '#1C1C1E', border: '1px solid #E5E5EA', boxShadow: '0 2px 10px rgba(17,24,39,0.04)' }}
-                onFocus={(e) => { e.target.style.border = '1.5px solid #3B82F6'; e.target.style.boxShadow = '0 0 0 3px rgba(59,130,246,0.10)'; }}
-                onBlur={(e) => { e.target.style.border = '1px solid #E5E5EA'; e.target.style.boxShadow = '0 2px 10px rgba(17,24,39,0.04)'; }}
-              />
-            </div>
             {error && <p className="mt-3" style={{ color: '#FF3B30', fontSize: 13 }}>{error}</p>}
+
+            {/* Email — hidden until a custom SMTP provider is configured in
+                Supabase (see EMAIL_SIGN_IN_ENABLED) */}
+            {EMAIL_SIGN_IN_ENABLED && (
+              <>
+                {/* Divider */}
+                <div className="flex items-center gap-3 my-4">
+                  <div className="flex-1 h-px" style={{ background: '#E3E3E8' }} />
+                  <span style={{ color: '#A5A5AD', fontSize: 12, fontWeight: 500 }}>OR</span>
+                  <div className="flex-1 h-px" style={{ background: '#E3E3E8' }} />
+                </div>
+
+                {/* Email input */}
+                <div className="relative">
+                  <Mail className="w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2" style={{ color: '#8E8E93' }} />
+                  <input
+                    type="email"
+                    inputMode="email"
+                    autoComplete="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') send(); }}
+                    placeholder="you@email.com"
+                    className="w-full pl-11 pr-4 py-4 rounded-2xl text-base outline-none transition-all"
+                    style={{ backgroundColor: '#FFFFFF', color: '#1C1C1E', border: '1px solid #E5E5EA', boxShadow: '0 2px 10px rgba(17,24,39,0.04)' }}
+                    onFocus={(e) => { e.target.style.border = '1.5px solid #3B82F6'; e.target.style.boxShadow = '0 0 0 3px rgba(59,130,246,0.10)'; }}
+                    onBlur={(e) => { e.target.style.border = '1px solid #E5E5EA'; e.target.style.boxShadow = '0 2px 10px rgba(17,24,39,0.04)'; }}
+                  />
+                </div>
+              </>
+            )}
           </>
         ) : (
           <div className="pt-16">
@@ -185,14 +201,16 @@ export function SignIn() {
       <div className="px-6 pb-8 pt-6">
         {step === 'start' ? (
           <>
-            <button
-              onClick={send}
-              disabled={!emailValid || busy}
-              className="w-full py-4 rounded-2xl font-medium text-base transition-all active:scale-[0.98]"
-              style={{ backgroundColor: !emailValid ? '#E5E5EA' : '#1C1C1E', color: '#FFFFFF', boxShadow: !emailValid ? 'none' : '0 6px 18px rgba(28,28,30,0.22)', cursor: !emailValid ? 'not-allowed' : 'pointer' }}
-            >
-              {busy ? 'Sending…' : 'Email me a code'}
-            </button>
+            {EMAIL_SIGN_IN_ENABLED && (
+              <button
+                onClick={send}
+                disabled={!emailValid || busy}
+                className="w-full py-4 rounded-2xl font-medium text-base transition-all active:scale-[0.98]"
+                style={{ backgroundColor: !emailValid ? '#E5E5EA' : '#1C1C1E', color: '#FFFFFF', boxShadow: !emailValid ? 'none' : '0 6px 18px rgba(28,28,30,0.22)', cursor: !emailValid ? 'not-allowed' : 'pointer' }}
+              >
+                {busy ? 'Sending…' : 'Email me a code'}
+              </button>
+            )}
             <button onClick={continueAsGuest} className="w-full py-3 mt-2 text-[15px] font-medium" style={{ color: '#8E8E93' }}>
               Continue without an account
             </button>
