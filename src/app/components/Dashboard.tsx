@@ -1310,9 +1310,9 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                                 )}
                               </div>
                             </div>
-                            <div className="flex items-center gap-0.5 flex-shrink-0 ml-1">
-                              <div className="text-neutral-400 text-[11px] tabular-nums text-right w-9">{item.percentage.toFixed(0)}%</div>
-                              <div className="text-neutral-900 font-bold text-[15px] tabular-nums text-right w-16">
+                            <div className="flex items-center gap-1 flex-shrink-0 ml-1">
+                              <div className="text-neutral-400 text-[11px] tabular-nums text-right w-8">{item.percentage.toFixed(0)}%</div>
+                              <div className="text-neutral-900 font-bold text-[15px] tabular-nums text-right whitespace-nowrap">
                                 {formatAmountListView(item.amount, currency, 0)}
                               </div>
                               {/* Trend Indicator */}
@@ -1350,9 +1350,9 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                                         />
                                       </div>
                                     </div>
-                                    <div className="flex items-center gap-0.5 flex-shrink-0 ml-1">
-                                      <div className="text-neutral-400 text-[10px] tabular-nums text-right w-9">{sub.percentage.toFixed(0)}%</div>
-                                      <div className="text-neutral-600 font-normal text-xs tabular-nums text-right w-16">
+                                    <div className="flex items-center gap-1 flex-shrink-0 ml-1">
+                                      <div className="text-neutral-400 text-[10px] tabular-nums text-right w-8">{sub.percentage.toFixed(0)}%</div>
+                                      <div className="text-neutral-600 font-normal text-xs tabular-nums text-right whitespace-nowrap">
                                         {formatAmountListView(sub.amount, currency, 0)}
                                       </div>
                                       {/* Trend Indicator */}

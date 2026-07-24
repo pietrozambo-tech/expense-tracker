@@ -37,17 +37,18 @@ export const formatAmount = (amount: number, currencyCode: string, decimals: num
   }
   
   const currency = CURRENCIES[currencyCode] || CURRENCIES.EUR;
-  
+
   // Format the number with locale
   const formattedNumber = amount.toLocaleString('en-US', {
     minimumFractionDigits: decimals,
     maximumFractionDigits: decimals
   });
-  
-  // Position symbol before or after
-  return currency.position === 'before' 
-    ? `${currency.symbol}${formattedNumber}`
-    : `${formattedNumber}${currency.symbol}`;
+
+  // Multi-letter symbols (e.g. AED) read better with a space
+  const sep = currency.symbol.length > 1 ? ' ' : '';
+  return currency.position === 'before'
+    ? `${currency.symbol}${sep}${formattedNumber}`
+    : `${formattedNumber}${sep}${currency.symbol}`;
 };
 
 export const formatCompactAmount = (amount: number, currencyCode: string): string => {
@@ -82,9 +83,10 @@ export const formatCompactAmount = (amount: number, currencyCode: string): strin
   
   const withSign = `${sign}${formattedNumber}`;
   
+  const sep = currency.symbol.length > 1 ? ' ' : '';
   return currency.position === 'before'
-    ? `${currency.symbol}${withSign}`
-    : `${withSign}${currency.symbol}`;
+    ? `${currency.symbol}${sep}${withSign}`
+    : `${withSign}${sep}${currency.symbol}`;
 };
 
 export const formatSummaryAmount = (amount: number, currencyCode: string): string => {
@@ -116,9 +118,10 @@ export const formatSummaryAmount = (amount: number, currencyCode: string): strin
   
   const withSign = `${sign}${formattedNumber}`;
   
+  const sep = currency.symbol.length > 1 ? ' ' : '';
   return currency.position === 'before'
-    ? `${currency.symbol}${withSign}`
-    : `${withSign}${currency.symbol}`;
+    ? `${currency.symbol}${sep}${withSign}`
+    : `${withSign}${sep}${currency.symbol}`;
 };
 
 // Format amount with currency symbol ALWAYS after the number (for list views)
@@ -137,5 +140,6 @@ export const formatAmountListView = (amount: number, currencyCode: string, decim
   });
   
   // Always position symbol after the number for list views
-  return `${formattedNumber}${currency.symbol}`;
+  const sep = currency.symbol.length > 1 ? ' ' : '';
+  return `${formattedNumber}${sep}${currency.symbol}`;
 };

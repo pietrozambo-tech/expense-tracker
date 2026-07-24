@@ -126,6 +126,16 @@ export default function App() {
     });
   }, [hasCompletedOnboarding, userName, userCurrency, hasSeenIntro, defaultSourceExpense, defaultSourceIncome]);
 
+  // When opening a NEW transaction, pre-select the current default source for
+  // the active type — so changing the default in Settings takes effect
+  // immediately (without needing to toggle expense/income).
+  useEffect(() => {
+    if (currentTab === 'add' && !editingExpenseId) {
+      setSelectedSourceId(transactionType === 'income' ? defaultSourceIncome : defaultSourceExpense);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentTab]);
+
   // Snapshot the whole app state into the cloud payload shape
   const buildPayload = (): SyncPayload => ({
     transactions: expenses,
