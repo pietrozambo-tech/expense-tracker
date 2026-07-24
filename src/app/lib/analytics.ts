@@ -1,10 +1,11 @@
 import posthog from 'posthog-js';
 
 // PostHog product analytics. The project API key is a *public* client key
-// (safe to ship in the bundle). Paste yours below (or set VITE_POSTHOG_KEY).
-// While the key is empty, analytics is disabled and every call is a no-op —
+// (safe to ship in the bundle). Set VITE_POSTHOG_KEY to override the default.
+// If the key is empty, analytics is disabled and every call is a no-op —
 // the app works exactly the same, it just doesn't send anything.
-const POSTHOG_KEY = import.meta.env.VITE_POSTHOG_KEY || '';
+const POSTHOG_KEY =
+  import.meta.env.VITE_POSTHOG_KEY || 'phc_AhqkgTPkKvTzkCYyKLbJfjPzNYPJDxh6nGSDR4hPV8Yv';
 const POSTHOG_HOST = import.meta.env.VITE_POSTHOG_HOST || 'https://eu.i.posthog.com';
 
 let enabled = false;

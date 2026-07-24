@@ -424,6 +424,15 @@ export function Settings({
             </div>
           </div>
 
+          {/* Privacy note */}
+          <div className="px-6 mt-4">
+            <p style={{ color: '#8E8E93', fontSize: '12px', lineHeight: 1.5, textAlign: 'center', maxWidth: 320, margin: '0 auto' }}>
+              Trackly uses privacy-friendly analytics to understand how the app is
+              used and improve it. This never includes your transactions, amounts, or
+              category details.
+            </p>
+          </div>
+
           {/* Signature */}
           <div className="mt-10 text-center px-6">
             <p style={{ color: '#B0B0B5', fontSize: '13px', fontStyle: 'italic' }}>Designed in Spain by Zambop</p>
