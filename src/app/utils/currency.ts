@@ -1,4 +1,5 @@
 // Currency configuration and conversion utilities
+import { convert as fxConvert } from '../lib/fx';
 
 export interface Currency {
   code: string;
@@ -58,19 +59,9 @@ export const CURRENCIES: Record<string, Currency> = {
   MAD: { code: 'MAD', symbol: 'MAD', position: 'before', name: 'Moroccan Dirham', flag: '🇲🇦' },
 };
 
-// Approximate conversion rates (in a real app, these would come from an API)
-const CONVERSION_RATES: Record<string, Record<string, number>> = {
-  EUR: { EUR: 1, USD: 1.09, GBP: 0.86, AED: 4.02 },
-  USD: { EUR: 0.92, USD: 1, GBP: 0.79, AED: 3.67 },
-  GBP: { EUR: 1.16, USD: 1.27, GBP: 1, AED: 4.67 },
-  AED: { EUR: 0.25, USD: 0.27, GBP: 0.21, AED: 1 }
-};
-
 export const convertAmount = (amount: number, fromCurrency: string, toCurrency: string): number => {
   if (fromCurrency === toCurrency) return amount;
-  
-  const rate = CONVERSION_RATES[fromCurrency]?.[toCurrency] || 1;
-  return amount * rate;
+  return fxConvert(amount, fromCurrency, toCurrency);
 };
 
 export const formatAmount = (amount: number, currencyCode: string, decimals: number = 2): string => {
