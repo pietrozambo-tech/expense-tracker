@@ -30,7 +30,11 @@ import {
   Beer,
   IceCream,
   Candy,
-  TrendingUp
+  TrendingUp,
+  Building2,
+  Wrench,
+  Plug,
+  Fuel
 } from 'lucide-react';
 
 export const availableIcons = {
@@ -65,7 +69,11 @@ export const availableIcons = {
   IceCream,
   Candy,
   Zap,
-  TrendingUp
+  TrendingUp,
+  Building2,
+  Wrench,
+  Plug,
+  Fuel
 };
 
 export type IconName = keyof typeof availableIcons;
