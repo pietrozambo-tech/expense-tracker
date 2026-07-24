@@ -24,9 +24,17 @@ interface IncomeItemProps {
   onTap: (id: string) => void;
   onDelete: (id: string) => void;
   currency: string; // fallback when the transaction has no currency of its own
+  showDate?: boolean; // show the transaction date on the row (e.g. amount-sorted lists with no day headers)
 }
 
-export function IncomeItem({ income, onTap, onDelete, currency }: IncomeItemProps) {
+// Compact date like "1 Jul" for inline row use
+const formatShortDate = (dateString: string) => {
+  const parsed = new Date(dateString);
+  if (isNaN(parsed.getTime())) return dateString;
+  return parsed.toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
+};
+
+export function IncomeItem({ income, onTap, onDelete, currency, showDate = false }: IncomeItemProps) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const { ref, translateX, dragging, isOpen, close, handleTap, rowStyle } = useSwipeToDelete();
 
@@ -77,11 +85,15 @@ export function IncomeItem({ income, onTap, onDelete, currency }: IncomeItemProp
               {income.category.name}
               {income.subcategory && ` - ${income.subcategory}`}
             </p>
-            {isRecurrent && (
+            {showDate ? (
+              <p className="text-neutral-400 text-[10px] mt-0.5 font-medium">
+                {formatShortDate(income.date)}
+              </p>
+            ) : isRecurrent ? (
               <p className="text-neutral-400 text-[10px] mt-0.5 font-medium uppercase tracking-tight">
                 {income.recurrence}
               </p>
-            )}
+            ) : null}
           </div>
 
           {/* Amount */}

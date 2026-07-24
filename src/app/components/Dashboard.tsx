@@ -10,6 +10,8 @@ import { SourceLogo } from './SourceLogo';
 import type { Source } from '../types';
 
 import { ActivityDayGroup } from './ActivityDayGroup';
+import { ExpenseItem } from './ExpenseItem';
+import { IncomeItem } from './IncomeItem';
 
 type ViewType = 'current-month' | 'trend';
 type CategorySortType = 'alphabetical' | 'amount';
@@ -178,31 +180,26 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
     });
   }, [drilldownContext, expenses, transactionType, timePeriodType, selectedYear, selectedMonth, selectedQuarter]);
 
-  // Memoized grouping for the drilldown list
-  const groupedDrilldownTransactions = React.useMemo(() => {
-    if (drilldownTransactions.length === 0) return [];
-    
+  // Memoized list for the drilldown modal.
+  // - amount mode: a single flat list ranked by amount (biggest first), each row
+  //   shows its own date, so there are no day headers to break on cross-day sorting.
+  // - time mode: grouped by day with the usual Today/Yesterday/date headers.
+  const drilldownList = React.useMemo<
+    | { mode: 'empty' }
+    | { mode: 'amount'; items: Expense[] }
+    | { mode: 'time'; groups: [string, Expense[]][] }
+  >(() => {
+    if (drilldownTransactions.length === 0) return { mode: 'empty' };
+
     if (drilldownSortBy === 'amount') {
-      // For amount sorting, we still want to show dates.
-      // We sort the raw transactions by amount first
-      const sorted = [...drilldownTransactions].sort((a, b) => {
+      const items = [...drilldownTransactions].sort((a, b) => {
         const amountA = convertAmount(a.amount, a.currency || currency, currency);
         const amountB = convertAmount(b.amount, b.currency || currency, currency);
         return amountB - amountA;
       });
-      
-      // Then we wrap each transaction in its own "date" group to preserve the DayGroup look
-      // OR we just return them as a list. The user wants to "keep also the transaction date".
-      // The current DayGroup component shows the date in the header.
-      // If we keep the DayGroup structure, we can't easily sort *across* days by amount without breaking the "grouped by day" visual.
-      // Let's create a special "Item with Date" view or just group by date but sort the groups? No, that doesn't work for cross-day sorting.
-      
-      // Better: Return them grouped by their own ID as a key, but we need to modify the rendering loop.
-      // Actually, the simplest way is to return an array of [unique_id, [single_transaction]] 
-      // where unique_id is formatted to show the date.
-      return sorted.map(txn => [`${txn.date}_${txn.id}`, [txn]]) as [string, Expense[]][];
+      return { mode: 'amount', items };
     }
-    
+
     const grouped = drilldownTransactions.reduce((groups, txn) => {
       const date = txn.date;
       if (!groups[date]) groups[date] = [];
@@ -210,8 +207,9 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
       return groups;
     }, {} as Record<string, Expense[]>);
 
-    return Object.entries(grouped)
+    const groups = Object.entries(grouped)
       .sort(([dateA], [dateB]) => new Date(dateB).getTime() - new Date(dateA).getTime());
+    return { mode: 'time', groups };
   }, [drilldownTransactions, drilldownSortBy, currency]);
   
   // Get available years from expenses data
@@ -3125,15 +3123,44 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
             
             {/* List */}
             <div className="flex-1 overflow-y-auto pb-10 bg-[#F5F5F7]">
-              {groupedDrilldownTransactions.length === 0 ? (
+              {drilldownList.mode === 'empty' ? (
                 <div className="flex flex-col items-center justify-center h-full py-12 px-6 text-center">
                   <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mb-4 shadow-sm">
                     <Receipt className="w-8 h-8 text-neutral-300" />
                   </div>
                   <p className="text-neutral-500 text-sm font-medium">No transactions found for this selection.</p>
                 </div>
+              ) : drilldownList.mode === 'amount' ? (
+                // Ranked by amount: flat list, each row carries its own date
+                <div className="bg-white">
+                  {drilldownList.items.map((txn) => {
+                    const handleTap = (id: string) => {
+                      onEditExpense(id);
+                      setDrilldownContext(null);
+                    };
+                    return txn.type === 'income' ? (
+                      <IncomeItem
+                        key={txn.id}
+                        income={txn as any}
+                        showDate
+                        onTap={handleTap}
+                        onDelete={onDeleteExpense}
+                        currency={currency}
+                      />
+                    ) : (
+                      <ExpenseItem
+                        key={txn.id}
+                        expense={txn as any}
+                        showDate
+                        onTap={handleTap}
+                        onDelete={onDeleteExpense}
+                        currency={currency}
+                      />
+                    );
+                  })}
+                </div>
               ) : (
-                groupedDrilldownTransactions.map(([date, dayTxns]) => (
+                drilldownList.groups.map(([date, dayTxns]) => (
                   <ActivityDayGroup
                     key={date}
                     date={date}
