@@ -478,7 +478,7 @@ export function Settings({
 
           {/* Signature */}
           <div className="mt-10 text-center px-6">
-            <p style={{ color: '#B0B0B5', fontSize: '13px', fontStyle: 'italic' }}>Designed in Spain by Zambop</p>
+            <p style={{ color: '#B0B0B5', fontSize: '13px', fontStyle: 'italic' }}>Brought to you by Zambop</p>
             <p style={{ color: '#C7C7CC', fontSize: '12px', marginTop: '4px' }}>© {new Date().getFullYear()} Trackly</p>
           </div>
         </div>
@@ -851,7 +851,7 @@ Output only the JSON, with no commentary, and save it as a .json file.`;
         <div className="mt-10 mb-2 text-center">
           <p style={{ color: '#B0B0B5', fontSize: '12px', fontWeight: 500 }}>Trackly · v0.1</p>
           <p style={{ color: '#B0B0B5', fontSize: '12px', fontStyle: 'italic', marginTop: '2px' }}>
-            Designed in Spain by Zambop
+            Brought to you by Zambop
           </p>
         </div>
 

@@ -133,7 +133,7 @@ export function Activity({
     // Recurrence filter
     const recurrence = t.recurrence || 'Never repeat';
     if (typeFilter === 'One-off' && recurrence !== 'Never repeat') return false;
-    if (typeFilter === 'Recurrent' && recurrence === 'Never repeat') return false;
+    if (typeFilter === 'Recurring' && recurrence === 'Never repeat') return false;
 
     return true;
   });

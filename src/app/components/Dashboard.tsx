@@ -962,7 +962,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
     return {
       overview: [
         { name: 'One-off', value: oneOff },
-        { name: 'Recurrent', value: recurrent }
+        { name: 'Recurring', value: recurrent }
       ].filter(item => item.value > 0), // Only include items with values
       detail: recurrentTypes.map(([name, value]) => ({ name, value })).filter(item => item.value > 0) // Only include items with values
     };
@@ -1948,7 +1948,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                     {/* Title and Back button */}
                     <div className="flex items-center justify-between mb-2">
                       <h3 className="text-sm" style={{ color: '#1C1C1E', fontWeight: '600' }}>
-                        Recurring vs One-off
+                        One-off vs Recurring
                       </h3>
                       {recurrenceLayer === 'detail' && (
                         <button
@@ -1998,7 +1998,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                                   opacity
                                 }}
                                 onClick={() => {
-                                  if (segment.name === 'Recurrent' && recurrenceLayer === 'overview') {
+                                  if (segment.name === 'Recurring' && recurrenceLayer === 'overview') {
                                     setRecurrenceLayer('detail');
                                   } else {
                                     setSelectedRecurrenceSlice(isSelected ? null : segment.name);
@@ -2085,7 +2085,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                         <button
                           key={`${item.name}-${index}`}
                           onClick={() => {
-                            if (item.name === 'Recurrent' && recurrenceLayer === 'overview') {
+                            if (item.name === 'Recurring' && recurrenceLayer === 'overview') {
                               setRecurrenceLayer('detail');
                             } else {
                               const isSelected = selectedRecurrenceSlice === item.name;
@@ -2126,7 +2126,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                               fontWeight: '500'
                             }}>
                               {item.name}
-                              {item.name === 'Recurrent' && recurrenceLayer === 'overview' && (
+                              {item.name === 'Recurring' && recurrenceLayer === 'overview' && (
                                 <ChevronRight size={14} style={{ display: 'inline', marginLeft: '4px', verticalAlign: 'middle' }} />
                               )}
                             </span>
@@ -2189,7 +2189,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                   <div className="px-6 py-4">
                     <div className="flex items-center justify-between mb-2">
                       <h3 className="text-sm" style={{ color: '#1C1C1E', fontWeight: '600' }}>
-                        {transactionType === 'income' ? 'Income by source' : 'Spending by source'}
+                        {transactionType === 'income' ? 'Income by Source' : 'Spending by Source'}
                       </h3>
                     </div>
 
@@ -2964,7 +2964,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                       <div className={`w-12 flex-shrink-0 text-left text-[11px] tabular-nums self-center ${
                         trendData.length > 1 && isMaxMonth ? `text-${maxColor}-600 font-medium` : 'text-neutral-600'
                       }`}>
-                        {item.month} '{item.year.toString().slice(-2)}
+                        {item.month}
                       </div>
                       
                       {/* Visual indicator - mini bar */}

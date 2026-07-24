@@ -35,7 +35,7 @@ export function ActivityDayGroup({
 
     return parsed.toLocaleDateString('en-US', {
       weekday: 'long',
-      month: 'short',
+      month: 'long',
       day: 'numeric'
     });
   };
