@@ -6,6 +6,10 @@ import { TracklyLogo } from '../components/TracklyLogo';
 // Placeholder tagline — swap for the final one once decided.
 const TAGLINE = 'Track every expense in seconds.';
 
+// Apple sign-in is ready in code but needs paid Apple Developer + Supabase
+// setup. Flip to true once configured (e.g. when moving to the App Store).
+const APPLE_SIGN_IN_ENABLED = false;
+
 // Google "G" logo (official colours), inlined so it works offline
 function GoogleG() {
   return (
@@ -94,16 +98,18 @@ export function SignIn() {
               </div>
             )}
 
-            {/* Apple */}
-            <button
-              onClick={apple}
-              disabled={busy}
-              className="w-full py-4 rounded-2xl font-medium text-base flex items-center justify-center gap-2.5 transition-all active:scale-[0.98] mb-3"
-              style={{ backgroundColor: '#000000', color: '#FFFFFF', boxShadow: '0 2px 10px rgba(0,0,0,0.12)' }}
-            >
-              <AppleLogo />
-              Continue with Apple
-            </button>
+            {/* Apple — hidden until configured (see APPLE_SIGN_IN_ENABLED) */}
+            {APPLE_SIGN_IN_ENABLED && (
+              <button
+                onClick={apple}
+                disabled={busy}
+                className="w-full py-4 rounded-2xl font-medium text-base flex items-center justify-center gap-2.5 transition-all active:scale-[0.98] mb-3"
+                style={{ backgroundColor: '#000000', color: '#FFFFFF', boxShadow: '0 2px 10px rgba(0,0,0,0.12)' }}
+              >
+                <AppleLogo />
+                Continue with Apple
+              </button>
+            )}
 
             {/* Google */}
             <button
