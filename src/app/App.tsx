@@ -21,6 +21,7 @@ import { DEFAULT_SOURCES, DEFAULT_SOURCE_EXPENSE, DEFAULT_SOURCE_INCOME } from '
 import { SourceLogo } from './components/SourceLogo';
 import { SourceSelectorModal } from './components/SourceSelectorModal';
 import { getDemoTransactions } from './lib/demoData';
+import { buildImport, type ImportPayload } from './lib/importData';
 import { Dashboard } from './components/Dashboard';
 import { Activity } from './components/Activity';
 import { Settings } from './components/Settings';
@@ -599,6 +600,33 @@ export default function App() {
     });
   };
 
+  // Import a lightweight JSON payload (see lib/importData). Resolves category
+  // names against the user's own categories, adds any new subcategories, and
+  // prepends the transactions. Persists + cloud-syncs via the usual effects.
+  const handleImportData = (payload: ImportPayload) => {
+    const res = buildImport(payload, categories, incomeCategories, userCurrency);
+    if (res.added === 0) {
+      toast.error('Nothing imported', {
+        description: res.skipped.length ? `${res.skipped.length} rows couldn't be matched` : 'No transactions found in the file',
+        duration: 2200,
+      });
+      return res;
+    }
+    setCategories(res.categories);
+    saveCategories(res.categories);
+    setIncomeCategories(res.incomeCategories);
+    saveIncomeCategories(res.incomeCategories);
+    setExpenses((prev) => [...res.transactions, ...prev]);
+    setRefreshKey((prev) => prev + 1);
+    setCurrentTab('dashboard');
+    track('data_imported', { count: res.added });
+    toast.success(`Imported ${res.added} transaction${res.added === 1 ? '' : 's'}`, {
+      description: res.skipped.length ? `${res.skipped.length} skipped (unmatched)` : 'Added to your account',
+      duration: 2000,
+    });
+    return res;
+  };
+
   // Full reset: wipe everything and return to a fresh first-login. Deletes the
   // cloud record and signs out (so the next sign-in is a clean first login) —
   // handy for re-testing onboarding with a test account.
@@ -798,6 +826,7 @@ export default function App() {
                 onUserNameChange={handleUserNameChange}
                 onLoadDemoData={handleLoadDemoData}
                 onEraseAllData={handleEraseAllData}
+                onImportData={handleImportData}
                 sources={sources}
                 defaultSourceExpense={defaultSourceExpense}
                 defaultSourceIncome={defaultSourceIncome}

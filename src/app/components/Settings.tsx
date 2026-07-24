@@ -1,11 +1,13 @@
-import { ChevronRight, ChevronLeft, UserCircle, Wallet, BellRing, HelpCircle, ShieldCheck, ScrollText, Layers, FlaskConical, Trash2, Landmark, Cloud, LogOut } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { ChevronRight, ChevronLeft, UserCircle, Wallet, BellRing, HelpCircle, ShieldCheck, ScrollText, Layers, FlaskConical, Trash2, Landmark, Cloud, LogOut, Upload } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { toast } from 'sonner';
 import { Categories } from './Categories';
 import { SourcesManager } from './SourcesManager';
 import { TracklyLogo } from './TracklyLogo';
 import { ConfirmDialog } from './ConfirmDialog';
 import { CURRENCIES } from '../utils/currency';
 import type { Source } from '../types';
+import type { ImportPayload } from '../lib/importData';
 
 interface SettingsProps {
   categories: any[];
@@ -26,6 +28,7 @@ interface SettingsProps {
   onUserNameChange: (name: string) => void;
   onLoadDemoData: () => void;
   onEraseAllData: () => void;
+  onImportData?: (payload: ImportPayload) => void;
   sources: Source[];
   defaultSourceExpense?: string;
   defaultSourceIncome?: string;
@@ -62,6 +65,7 @@ export function Settings({
   onUserNameChange,
   onLoadDemoData,
   onEraseAllData,
+  onImportData,
   sources,
   defaultSourceExpense,
   defaultSourceIncome,
@@ -139,6 +143,26 @@ export function Settings({
       onEraseAllData();
     }
     closeConfirm();
+  };
+
+  // Import a JSON file (see lib/importData for the format)
+  const importInputRef = useRef<HTMLInputElement>(null);
+  const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // reset so the same file can be picked again
+    if (!file) return;
+    try {
+      const payload = JSON.parse(await file.text());
+      if (!payload || !Array.isArray(payload.transactions)) {
+        throw new Error('bad format');
+      }
+      onImportData?.(payload as ImportPayload);
+    } catch {
+      toast.error("Couldn't read that file", {
+        description: 'Expected a Trackly import file (.json)',
+        duration: 2400,
+      });
+    }
   };
 
   // Show Currency Selector
@@ -589,6 +613,26 @@ export function Settings({
           Data
         </p>
         <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+          {onImportData && (
+            <>
+              <input
+                ref={importInputRef}
+                type="file"
+                accept=".json,application/json"
+                onChange={handleImportFile}
+                style={{ display: 'none' }}
+              />
+              <button
+                onClick={() => importInputRef.current?.click()}
+                className="w-full flex items-center gap-3 px-5 py-4 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
+                style={{ borderBottom: '1px solid #F2F2F7' }}
+              >
+                <Upload className="w-5 h-5" style={{ color: '#8E8E93' }} strokeWidth={2} />
+                <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '16px' }}>Import data</span>
+                <span style={{ color: '#8E8E93', fontSize: '13px' }}>From file</span>
+              </button>
+            </>
+          )}
           <button
             onClick={() => openConfirm('demo')}
             className="w-full flex items-center gap-3 px-5 py-4 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"

@@ -43,6 +43,11 @@ export function ExpenseItem({ expense, onTap, onDelete, currency, showDate = fal
   const showConversion = transactionCurrency !== currency;
   const convertedAmount = showConversion ? convertAmount(expense.amount, transactionCurrency, currency) : null;
   const isRecurrent = expense.recurrence && expense.recurrence !== 'Never repeat';
+  // A negative expense is a refund / credit: show it as a green "+" inflow
+  // instead of a broken double-minus.
+  const isCredit = expense.amount < 0;
+  const sign = isCredit ? '+' : '-';
+  const creditStyle = isCredit ? { color: '#34C759' } : undefined;
 
   return (
     <>
@@ -101,16 +106,16 @@ export function ExpenseItem({ expense, onTap, onDelete, currency, showDate = fal
             <div>
               {showConversion && convertedAmount !== null ? (
                 <>
-                  <p className="text-neutral-900 font-bold tabular-nums text-sm">
-                    -{formatAmountListView(convertedAmount, currency, 2)}
+                  <p className="text-neutral-900 font-bold tabular-nums text-sm" style={creditStyle}>
+                    {sign}{formatAmountListView(Math.abs(convertedAmount), currency, 2)}
                   </p>
                   <p className="text-neutral-500 text-[10px] tabular-nums mt-0.5 font-medium">
-                    -{formatAmountListView(expense.amount, transactionCurrency, 2)}
+                    {sign}{formatAmountListView(Math.abs(expense.amount), transactionCurrency, 2)}
                   </p>
                 </>
               ) : (
-                <p className="text-neutral-900 font-bold tabular-nums text-sm">
-                  -{formatAmountListView(expense.amount, transactionCurrency, 2)}
+                <p className="text-neutral-900 font-bold tabular-nums text-sm" style={creditStyle}>
+                  {sign}{formatAmountListView(Math.abs(expense.amount), transactionCurrency, 2)}
                 </p>
               )}
             </div>
