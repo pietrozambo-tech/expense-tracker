@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { CURRENCIES } from '../utils/currency';
+import { CURRENCIES, MAIN_CURRENCY_CODES } from '../utils/currency';
 
 interface OnboardingProps {
   onComplete: (userName: string, currency: string) => void;
@@ -72,7 +72,7 @@ export function Onboarding({ onComplete, initialName = '' }: OnboardingProps) {
             Main currency
           </label>
           <div className="grid grid-cols-2 gap-3">
-            {Object.values(CURRENCIES).map((option) => {
+            {MAIN_CURRENCY_CODES.map((code) => CURRENCIES[code]).map((option) => {
               const isSelected = currency === option.code;
               return (
                 <button

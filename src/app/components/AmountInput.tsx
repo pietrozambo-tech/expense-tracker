@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { CURRENCIES } from '../utils/currency';
-import { ChevronDown } from 'lucide-react';
+import { CURRENCIES, MAIN_CURRENCY_CODES } from '../utils/currency';
+import { ChevronDown, ChevronRight, ChevronLeft, Search } from 'lucide-react';
 
 interface AmountInputProps {
   value: string;
@@ -13,7 +13,22 @@ interface AmountInputProps {
 export function AmountInput({ value, onChange, currency, onCurrencyChange, rightSlot }: AmountInputProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [showCurrencySelector, setShowCurrencySelector] = useState(false);
+  const [showAllCurrencies, setShowAllCurrencies] = useState(false);
+  const [currencySearch, setCurrencySearch] = useState('');
   const currencySymbol = CURRENCIES[currency]?.symbol || '€';
+
+  const closeCurrency = () => {
+    setShowCurrencySelector(false);
+    setShowAllCurrencies(false);
+    setCurrencySearch('');
+  };
+
+  const allCurrencyCodes = Object.keys(CURRENCIES).filter((code) => {
+    const q = currencySearch.trim().toLowerCase();
+    if (!q) return true;
+    const c = CURRENCIES[code];
+    return code.toLowerCase().includes(q) || c.name.toLowerCase().includes(q);
+  });
 
   useEffect(() => {
     // Auto-focus on mount
@@ -60,7 +75,43 @@ export function AmountInput({ value, onChange, currency, onCurrencyChange, right
     if (onCurrencyChange) {
       onCurrencyChange(selectedCurrency);
     }
-    setShowCurrencySelector(false);
+    closeCurrency();
+  };
+
+  // One currency row, shared by the "main" list and the full "Others" list
+  const renderCurrencyRow = (code: string, showBorder: boolean) => {
+    const currencyData = CURRENCIES[code];
+    if (!currencyData) return null;
+    return (
+      <button
+        key={code}
+        onClick={() => handleCurrencySelect(code)}
+        className="w-full flex items-center justify-between px-5 py-3.5 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
+        style={{ borderBottom: showBorder ? '1px solid #F2F2F7' : 'none' }}
+      >
+        <div className="flex items-center gap-3">
+          <div
+            className="w-10 h-10 rounded-full flex items-center justify-center"
+            style={{ backgroundColor: currency === code ? '#E3F2FF' : '#F2F2F7', fontSize: '22px' }}
+          >
+            {currencyData.flag}
+          </div>
+          <div className="flex flex-col items-start">
+            <span className="font-medium" style={{ color: currency === code ? '#007AFF' : '#1C1C1E', fontSize: '16px' }}>
+              {code}
+            </span>
+            <span className="text-neutral-500 text-sm">{currencyData.name}</span>
+          </div>
+        </div>
+        {currency === code && (
+          <div className="w-6 h-6 rounded-full flex items-center justify-center" style={{ backgroundColor: '#007AFF' }}>
+            <svg width="12" height="10" viewBox="0 0 12 10" fill="none">
+              <path d="M1 5L4.5 8.5L11 1.5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </div>
+        )}
+      </button>
+    );
   };
 
   return (
@@ -94,72 +145,60 @@ export function AmountInput({ value, onChange, currency, onCurrencyChange, right
 
       {/* Currency Selector Modal */}
       {showCurrencySelector && (
-        <div 
-          className="fixed inset-0 bg-black/50 z-50 flex items-end justify-center" 
-          onClick={() => setShowCurrencySelector(false)}
+        <div
+          className="fixed inset-0 bg-black/50 z-50 flex items-end justify-center"
+          onClick={closeCurrency}
           style={{ transform: 'translateZ(0)' }}
         >
-          <div 
-            className="bg-white rounded-t-3xl w-full max-w-[430px] p-6 pb-8 shadow-xl" 
+          <div
+            className="bg-white rounded-t-3xl w-full max-w-[430px] p-6 pb-8 shadow-xl flex flex-col"
             onClick={(e) => e.stopPropagation()}
-            style={{ 
-              transform: 'translateZ(0)',
-              maxHeight: '50vh'
-            }}
+            style={{ transform: 'translateZ(0)', maxHeight: '72vh' }}
           >
-            <h3 className="text-lg font-semibold text-neutral-900 mb-4">Select Currency</h3>
-            <div className="bg-white rounded-2xl overflow-hidden">
-              {Object.entries(CURRENCIES).map(([code, currencyData], index) => (
+            {!showAllCurrencies ? (
+              <>
+                <h3 className="text-lg font-semibold text-neutral-900 mb-4">Select Currency</h3>
+                <div className="bg-white rounded-2xl overflow-hidden">
+                  {MAIN_CURRENCY_CODES.map((code, i) => renderCurrencyRow(code, i < MAIN_CURRENCY_CODES.length - 1))}
+                </div>
                 <button
-                  key={code}
-                  onClick={() => handleCurrencySelect(code)}
-                  className="w-full flex items-center justify-between px-5 py-4 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
-                  style={{
-                    borderBottom: index < Object.keys(CURRENCIES).length - 1 ? '1px solid #F2F2F7' : 'none'
-                  }}
+                  onClick={() => setShowAllCurrencies(true)}
+                  className="w-full flex items-center justify-between px-5 py-4 mt-3 rounded-2xl bg-neutral-50 active:bg-neutral-100 transition-colors"
                 >
-                  <div className="flex items-center gap-3">
-                    <div
-                      className="w-10 h-10 rounded-full flex items-center justify-center"
-                      style={{
-                        backgroundColor: currency === code ? '#E3F2FF' : '#F2F2F7',
-                        fontSize: '22px'
-                      }}
-                    >
-                      {currencyData.flag}
-                    </div>
-                    <div className="flex flex-col items-start">
-                      <span
-                        className="font-medium"
-                        style={{
-                          color: currency === code ? '#007AFF' : '#1C1C1E',
-                          fontSize: '16px'
-                        }}
-                      >
-                        {code}
-                      </span>
-                      <span className="text-neutral-500 text-sm">{currencyData.name}</span>
-                    </div>
-                  </div>
-                  {currency === code && (
-                    <div
-                      className="w-6 h-6 rounded-full flex items-center justify-center"
-                      style={{ backgroundColor: '#007AFF' }}
-                    >
-                      <svg width="12" height="10" viewBox="0 0 12 10" fill="none">
-                        <path
-                          d="M1 5L4.5 8.5L11 1.5"
-                          stroke="white"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        />
-                      </svg>
-                    </div>
-                  )}
+                  <span className="font-medium text-neutral-700" style={{ fontSize: '16px' }}>Others</span>
+                  <ChevronRight className="w-5 h-5 text-neutral-400" />
                 </button>
-              ))}
-            </div>
+              </>
+            ) : (
+              <>
+                <div className="flex items-center gap-2 mb-3">
+                  <button
+                    onClick={() => { setShowAllCurrencies(false); setCurrencySearch(''); }}
+                    className="p-1 -ml-1 rounded-lg active:bg-neutral-100"
+                    aria-label="Back"
+                  >
+                    <ChevronLeft className="w-6 h-6 text-neutral-500" />
+                  </button>
+                  <div className="flex-1 relative">
+                    <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+                    <input
+                      value={currencySearch}
+                      onChange={(e) => setCurrencySearch(e.target.value)}
+                      placeholder="Search currency"
+                      autoFocus
+                      className="w-full pl-9 pr-3 py-2.5 bg-neutral-50 rounded-xl text-[15px] outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+                <div className="bg-white rounded-2xl overflow-y-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
+                  {allCurrencyCodes.length === 0 ? (
+                    <div className="text-center py-8 text-neutral-400 text-sm">No currency found</div>
+                  ) : (
+                    allCurrencyCodes.map((code, i) => renderCurrencyRow(code, i < allCurrencyCodes.length - 1))
+                  )}
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
