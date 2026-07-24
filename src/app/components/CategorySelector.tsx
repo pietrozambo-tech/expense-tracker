@@ -52,7 +52,7 @@ export function CategorySelector({
             <Fragment key={category.id}>
               <button
                 onClick={() => onSelectCategory(category.id)}
-                className={`flex items-center gap-3 py-2.5 px-3 rounded-xl h-[52px] ${
+                className={`flex items-center gap-3 py-2.5 px-3 rounded-xl min-h-[52px] ${
                   isSelected
                     ? 'bg-neutral-50 ring-2 ring-blue-500'
                     : 'bg-neutral-50/50 hover:bg-neutral-100'
@@ -76,10 +76,9 @@ export function CategorySelector({
                   <Icon className={`w-4.5 h-4.5 ${isSelected ? category.color : 'text-neutral-400'}`} />
                 </div>
                 <span
-                  className={`text-sm text-left leading-tight ${isSelected ? 'text-neutral-900 font-medium' : 'text-neutral-600'}`}
+                  className={`text-sm text-left leading-tight line-clamp-2 ${isSelected ? 'text-neutral-900 font-medium' : 'text-neutral-600'}`}
                   style={{
                     transform: 'translateZ(0)',
-                    display: 'inline-block',
                     backfaceVisibility: 'hidden'
                   }}
                 >
