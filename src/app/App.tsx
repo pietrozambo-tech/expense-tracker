@@ -33,6 +33,7 @@ import { Onboarding } from './components/Onboarding';
 import { WelcomeCarousel } from './components/WelcomeCarousel';
 import { useAuth } from './auth/AuthProvider';
 import { SignIn } from './auth/SignIn';
+import { TracklyLogo } from './components/TracklyLogo';
 import { loadCloud, saveCloud, deleteCloud, type SyncPayload } from './lib/cloud';
 import { categories as initialCategories, incomeCategories as initialIncomeCategories } from './components/categories';
 
@@ -676,7 +677,7 @@ export default function App() {
   // a minimal splash so we don't flash the sign-in or onboarding screens.
   const splash = (label?: string) => (
     <div className="min-h-screen flex flex-col items-center justify-center gap-3" style={{ backgroundColor: '#F5F5F7' }}>
-      <div className="flex items-center justify-center rounded-3xl" style={{ width: 72, height: 72, background: '#FFFFFF', boxShadow: '0 10px 30px rgba(0,0,0,0.08)', fontSize: 38 }}>💸</div>
+      <TracklyLogo size={64} />
       {label && <p style={{ color: '#8E8E93', fontSize: 14 }}>{label}</p>}
     </div>
   );

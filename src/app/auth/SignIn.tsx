@@ -1,6 +1,10 @@
 import { useState } from 'react';
 import { Mail, ArrowLeft } from 'lucide-react';
 import { useAuth } from './AuthProvider';
+import { TracklyLogo } from '../components/TracklyLogo';
+
+// Placeholder tagline — swap for the final one once decided.
+const TAGLINE = 'Track every expense in seconds.';
 
 // Google "G" logo (official colours), inlined so it works offline
 function GoogleG() {
@@ -29,11 +33,7 @@ export function SignIn() {
     setError(null);
     setBusy(true);
     const { error } = await signInWithGoogle();
-    if (error) {
-      setError(error);
-      setBusy(false);
-    }
-    // On success the browser redirects to Google, so no further UI needed.
+    if (error) { setError(error); setBusy(false); }
   };
 
   const send = async () => {
@@ -52,23 +52,25 @@ export function SignIn() {
     setError(null);
     const { error } = await verifyEmailCode(email, code);
     if (error) { setError(error); setBusy(false); }
-    // On success onAuthStateChange takes over and the app renders.
   };
 
-  return (
-    <div className="min-h-screen flex flex-col max-w-[430px] mx-auto" style={{ backgroundColor: '#F5F5F7' }}>
-      <div className="flex-1 flex flex-col px-6 pt-16">
-        <div className="flex items-center justify-center rounded-3xl mb-6" style={{ width: 72, height: 72, background: '#FFFFFF', boxShadow: '0 10px 30px rgba(0,0,0,0.08)', fontSize: 38 }}>💸</div>
+  // Soft brand halo at the top fading into the app background
+  const bg = 'radial-gradient(130% 65% at 50% -5%, rgba(99,102,241,0.12), rgba(59,130,246,0.06) 42%, #F5F5F7 72%)';
 
+  return (
+    <div className="min-h-screen flex flex-col max-w-[430px] mx-auto" style={{ background: bg }}>
+      <div className="flex-1 flex flex-col px-6">
         {step === 'start' ? (
           <>
-            <h1 style={{ color: '#1C1C1E', fontSize: 32, fontWeight: 600, letterSpacing: '-0.7px', marginBottom: 8 }}>Sign in</h1>
-            <p style={{ color: '#8E8E93', fontSize: 15, lineHeight: 1.45 }}>
-              Sync your data securely across your devices.
-            </p>
+            {/* Brand hero */}
+            <div className="flex flex-col items-center text-center pt-20 pb-8">
+              <TracklyLogo size={64} className="mb-4" />
+              <h1 style={{ color: '#1C1C1E', fontSize: 34, fontWeight: 700, letterSpacing: '-0.03em', lineHeight: 1 }}>Trackly</h1>
+              <p className="mt-2.5" style={{ color: '#6B6B75', fontSize: 16, lineHeight: 1.4, maxWidth: 300 }}>{TAGLINE}</p>
+            </div>
 
             {authError && (
-              <div className="mt-4 px-4 py-3 rounded-xl" style={{ backgroundColor: '#FFF0EF', border: '1px solid #FFD5D2' }}>
+              <div className="mb-4 px-4 py-3 rounded-xl" style={{ backgroundColor: '#FFF0EF', border: '1px solid #FFD5D2' }}>
                 <p style={{ color: '#C4271C', fontSize: 13, lineHeight: 1.4 }}>
                   <span style={{ fontWeight: 600 }}>Sign-in didn't complete.</span> {authError}
                 </p>
@@ -80,18 +82,18 @@ export function SignIn() {
             <button
               onClick={google}
               disabled={busy}
-              className="w-full mt-8 py-4 rounded-xl font-medium text-base flex items-center justify-center gap-3 transition-all active:scale-[0.98]"
-              style={{ backgroundColor: '#FFFFFF', color: '#1C1C1E', border: '1px solid #E5E5EA', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}
+              className="w-full py-4 rounded-2xl font-medium text-base flex items-center justify-center gap-3 transition-all active:scale-[0.98]"
+              style={{ backgroundColor: '#FFFFFF', color: '#1C1C1E', border: '1px solid #E5E5EA', boxShadow: '0 2px 10px rgba(17,24,39,0.05)' }}
             >
               <GoogleG />
               Continue with Google
             </button>
 
             {/* Divider */}
-            <div className="flex items-center gap-3 my-5">
-              <div className="flex-1 h-px" style={{ background: '#E5E5EA' }} />
-              <span style={{ color: '#B0B0B5', fontSize: 13 }}>or</span>
-              <div className="flex-1 h-px" style={{ background: '#E5E5EA' }} />
+            <div className="flex items-center gap-3 my-4">
+              <div className="flex-1 h-px" style={{ background: '#E3E3E8' }} />
+              <span style={{ color: '#A5A5AD', fontSize: 12, fontWeight: 500 }}>OR</span>
+              <div className="flex-1 h-px" style={{ background: '#E3E3E8' }} />
             </div>
 
             {/* Email */}
@@ -105,21 +107,22 @@ export function SignIn() {
                 onChange={(e) => setEmail(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter') send(); }}
                 placeholder="you@email.com"
-                className="w-full pl-11 pr-4 py-4 rounded-xl text-base outline-none transition-all"
-                style={{ backgroundColor: '#FFFFFF', color: '#1C1C1E', border: '1px solid #E5E5EA', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}
-                onFocus={(e) => { e.target.style.border = '1.5px solid #007AFF'; e.target.style.boxShadow = '0 0 0 3px rgba(0,122,255,0.08)'; }}
-                onBlur={(e) => { e.target.style.border = '1px solid #E5E5EA'; e.target.style.boxShadow = '0 1px 3px rgba(0,0,0,0.04)'; }}
+                className="w-full pl-11 pr-4 py-4 rounded-2xl text-base outline-none transition-all"
+                style={{ backgroundColor: '#FFFFFF', color: '#1C1C1E', border: '1px solid #E5E5EA', boxShadow: '0 2px 10px rgba(17,24,39,0.04)' }}
+                onFocus={(e) => { e.target.style.border = '1.5px solid #3B82F6'; e.target.style.boxShadow = '0 0 0 3px rgba(59,130,246,0.10)'; }}
+                onBlur={(e) => { e.target.style.border = '1px solid #E5E5EA'; e.target.style.boxShadow = '0 2px 10px rgba(17,24,39,0.04)'; }}
               />
             </div>
             {error && <p className="mt-3" style={{ color: '#FF3B30', fontSize: 13 }}>{error}</p>}
           </>
         ) : (
-          <>
-            <button onClick={() => { setStep('start'); setError(null); }} className="flex items-center gap-1 -ml-1 mb-4 self-start" style={{ color: '#007AFF', fontSize: 15 }}>
+          <div className="pt-16">
+            <button onClick={() => { setStep('start'); setError(null); }} className="flex items-center gap-1 -ml-1 mb-5 self-start" style={{ color: '#3B82F6', fontSize: 15 }}>
               <ArrowLeft className="w-4 h-4" /> Back
             </button>
-            <h1 style={{ color: '#1C1C1E', fontSize: 28, fontWeight: 600, letterSpacing: '-0.6px', marginBottom: 8 }}>Enter your code</h1>
-            <p style={{ color: '#8E8E93', fontSize: 15, lineHeight: 1.45 }}>
+            <TracklyLogo size={48} className="mb-5" />
+            <h1 style={{ color: '#1C1C1E', fontSize: 28, fontWeight: 700, letterSpacing: '-0.02em', marginBottom: 8 }}>Enter your code</h1>
+            <p style={{ color: '#6B6B75', fontSize: 15, lineHeight: 1.45 }}>
               We emailed a 6-digit code to <span style={{ color: '#1C1C1E', fontWeight: 600 }}>{email.trim()}</span>. Enter it below.
             </p>
             <input
@@ -132,16 +135,16 @@ export function SignIn() {
               onKeyDown={(e) => { if (e.key === 'Enter') verify(); }}
               placeholder="000000"
               autoFocus
-              className="w-full mt-6 py-4 rounded-xl text-center outline-none transition-all"
-              style={{ backgroundColor: '#FFFFFF', color: '#1C1C1E', border: '1px solid #E5E5EA', boxShadow: '0 1px 3px rgba(0,0,0,0.04)', fontSize: 30, fontWeight: 700, letterSpacing: '10px' }}
-              onFocus={(e) => { e.target.style.border = '1.5px solid #007AFF'; e.target.style.boxShadow = '0 0 0 3px rgba(0,122,255,0.08)'; }}
-              onBlur={(e) => { e.target.style.border = '1px solid #E5E5EA'; e.target.style.boxShadow = '0 1px 3px rgba(0,0,0,0.04)'; }}
+              className="w-full mt-6 py-4 rounded-2xl text-center outline-none transition-all"
+              style={{ backgroundColor: '#FFFFFF', color: '#1C1C1E', border: '1px solid #E5E5EA', boxShadow: '0 2px 10px rgba(17,24,39,0.04)', fontSize: 30, fontWeight: 700, letterSpacing: '10px' }}
+              onFocus={(e) => { e.target.style.border = '1.5px solid #3B82F6'; e.target.style.boxShadow = '0 0 0 3px rgba(59,130,246,0.10)'; }}
+              onBlur={(e) => { e.target.style.border = '1px solid #E5E5EA'; e.target.style.boxShadow = '0 2px 10px rgba(17,24,39,0.04)'; }}
             />
             {error && <p className="mt-3" style={{ color: '#FF3B30', fontSize: 13 }}>{error}</p>}
-            <button onClick={send} disabled={busy} className="mt-4 text-[15px] font-medium self-start" style={{ color: '#007AFF' }}>
+            <button onClick={send} disabled={busy} className="mt-4 text-[15px] font-medium self-start" style={{ color: '#3B82F6' }}>
               Resend code
             </button>
-          </>
+          </div>
         )}
       </div>
 
@@ -152,12 +155,12 @@ export function SignIn() {
             <button
               onClick={send}
               disabled={!emailValid || busy}
-              className="w-full py-4 rounded-xl font-medium text-base transition-all active:scale-[0.98]"
-              style={{ backgroundColor: !emailValid ? '#E5E5EA' : '#007AFF', color: '#FFFFFF', boxShadow: !emailValid ? 'none' : '0 2px 8px rgba(0,122,255,0.25)', cursor: !emailValid ? 'not-allowed' : 'pointer' }}
+              className="w-full py-4 rounded-2xl font-medium text-base transition-all active:scale-[0.98]"
+              style={{ backgroundColor: !emailValid ? '#E5E5EA' : '#1C1C1E', color: '#FFFFFF', boxShadow: !emailValid ? 'none' : '0 6px 18px rgba(28,28,30,0.22)', cursor: !emailValid ? 'not-allowed' : 'pointer' }}
             >
               {busy ? 'Sending…' : 'Email me a code'}
             </button>
-            <button onClick={continueAsGuest} className="w-full py-3 mt-1 text-[15px] font-medium" style={{ color: '#8E8E93' }}>
+            <button onClick={continueAsGuest} className="w-full py-3 mt-2 text-[15px] font-medium" style={{ color: '#8E8E93' }}>
               Continue without an account
             </button>
           </>
@@ -165,8 +168,8 @@ export function SignIn() {
           <button
             onClick={verify}
             disabled={!codeValid || busy}
-            className="w-full py-4 rounded-xl font-medium text-base transition-all active:scale-[0.98]"
-            style={{ backgroundColor: !codeValid ? '#E5E5EA' : '#007AFF', color: '#FFFFFF', boxShadow: !codeValid ? 'none' : '0 2px 8px rgba(0,122,255,0.25)', cursor: !codeValid ? 'not-allowed' : 'pointer' }}
+            className="w-full py-4 rounded-2xl font-medium text-base transition-all active:scale-[0.98]"
+            style={{ backgroundColor: !codeValid ? '#E5E5EA' : '#1C1C1E', color: '#FFFFFF', boxShadow: !codeValid ? 'none' : '0 6px 18px rgba(28,28,30,0.22)', cursor: !codeValid ? 'not-allowed' : 'pointer' }}
           >
             {busy ? 'Verifying…' : 'Verify & sign in'}
           </button>

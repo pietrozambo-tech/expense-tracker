@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import type { Source } from '../types';
 import { SourceLogo } from './SourceLogo';
+import { TracklyLogo } from './TracklyLogo';
 import { DEFAULT_SOURCES } from './sources';
 
 // A small line chart (line + soft area + endpoint dot), matching the app style
@@ -283,10 +284,10 @@ export function WelcomeCarousel({ userName, onDone, onSetupCategories }: Welcome
     {
       illustration: (
         <div className="flex flex-col items-center justify-center" style={{ minHeight: 220 }}>
-          <div className="flex items-center justify-center rounded-3xl mb-2" style={{ width: 96, height: 96, background: '#FFFFFF', boxShadow: '0 10px 30px rgba(0,0,0,0.08)', fontSize: 52 }}>💸</div>
+          <TracklyLogo size={92} />
         </div>
       ),
-      title: userName ? `Welcome, ${userName} 👋` : 'Welcome 👋',
+      title: userName ? `Welcome, ${userName} 👋` : 'Welcome to Trackly 👋',
       desc: 'A quick look at what you can do — it takes 20 seconds.',
     },
     {
