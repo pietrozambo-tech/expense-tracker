@@ -68,6 +68,11 @@ interface DashboardProps {
   initialPeriod?: { month: number; year: number; type: 'expense' | 'income' } | null;
 }
 
+// Sentinel drilldown target: only the transactions with no subcategory
+// ("Other"). Distinctive enough that it can't collide with a real
+// subcategory name. (A null subcategory already means "all transactions".)
+const UNCATEGORIZED = '__uncategorized__';
+
 export function Dashboard({ expenses, categories, incomeCategories, sources = [], userName, currency, onEditExpense, onDeleteExpense, view = 'overview', onShowOverview, initialPeriod }: DashboardProps) {
   const viewType: ViewType = view === 'trend' ? 'trend' : 'current-month';
   const [timePeriodType, setTimePeriodType] = useState<TimePeriodType>('month');
@@ -176,7 +181,11 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
       const categoryMatch = expense.category.name === categoryName;
       if (!categoryMatch) return false;
 
-      return subcategoryName ? expense.subcategory === subcategoryName : true;
+      // null → every transaction; UNCATEGORIZED → only those with no
+      // subcategory; otherwise → an exact subcategory match.
+      if (!subcategoryName) return true;
+      if (subcategoryName === UNCATEGORIZED) return !expense.subcategory;
+      return expense.subcategory === subcategoryName;
     });
   }, [drilldownContext, expenses, transactionType, timePeriodType, selectedYear, selectedMonth, selectedQuarter]);
 
@@ -503,6 +512,24 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
         percentage: filteredTotal > 0 ? (amount / filteredTotal) * 100 : 0
       }))
       .sort((a, b) => b.amount - a.amount);
+  };
+
+  // The "Other" bucket: transactions in a category that have no subcategory.
+  // These are invisible in the subcategory breakdown, so we surface them as a
+  // dedicated row (and count all category transactions for the "View all" row).
+  const getCategoryExtras = (categoryName: string) => {
+    const all = filteredTransactions.filter(e => e.category.name === categoryName);
+    const generic = all.filter(e => !e.subcategory);
+    const amount = generic.reduce(
+      (sum, e) => sum + convertAmount(e.amount, e.currency || currency, currency),
+      0
+    );
+    return {
+      totalCount: all.length,
+      otherCount: generic.length,
+      otherAmount: amount,
+      otherPercentage: filteredTotal > 0 ? (amount / filteredTotal) * 100 : 0,
+    };
   };
 
   // Calculate trend for categories and subcategories
@@ -1265,6 +1292,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                     {sortedCategories.map((item, idx) => {
                       const isExpanded = expandedCategory === item.name;
                       const subcategories = getSubcategoryTotals(item.name);
+                      const extras = getCategoryExtras(item.name);
                       const trend = calculateTrend(item.name);
 
                       return (
@@ -1369,6 +1397,43 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                                   </button>
                                 );
                               })}
+
+                              {/* "Other": transactions in this category with no
+                                  subcategory — otherwise unreachable from here */}
+                              {extras.otherCount > 0 && (
+                                <button
+                                  onClick={() => setDrilldownContext({ categoryName: item.name, subcategoryName: UNCATEGORIZED })}
+                                  className="flex items-center justify-between gap-3 py-1 w-full text-left active:bg-neutral-100 rounded-md px-1 transition-colors"
+                                >
+                                  <div className="flex-1 min-w-0">
+                                    <div className="text-neutral-400 text-xs truncate italic">Other</div>
+                                    <div className="h-0.5 bg-neutral-100 rounded-full overflow-hidden mt-1">
+                                      <div
+                                        className={`h-full ${item.category.bgColor.replace('bg-', 'bg-opacity-30 bg-')}`}
+                                        style={{ width: `${Math.max(0, extras.otherPercentage)}%` }}
+                                      />
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-1.5 flex-shrink-0 ml-1">
+                                    <div className="text-neutral-400 text-[10px] tabular-nums text-right w-8">{extras.otherPercentage.toFixed(0)}%</div>
+                                    <div className="text-neutral-600 font-normal text-xs tabular-nums text-right whitespace-nowrap min-w-[60px]">
+                                      {formatAmountListView(extras.otherAmount, currency, 0)}
+                                    </div>
+                                    <div className="w-3.5 ml-1.5" />
+                                  </div>
+                                </button>
+                              )}
+
+                              {/* See every transaction in the category at once */}
+                              <button
+                                onClick={() => setDrilldownContext({ categoryName: item.name, subcategoryName: null })}
+                                className="flex items-center gap-1 py-1.5 w-full text-left active:bg-neutral-100 rounded-md px-1 transition-colors"
+                              >
+                                <span className="text-[11px] font-medium" style={{ color: '#007AFF' }}>
+                                  View all {extras.totalCount} transactions
+                                </span>
+                                <ChevronRight className="w-3.5 h-3.5" style={{ color: '#007AFF' }} />
+                              </button>
                             </div>
                           )}
                         </div>
@@ -3074,7 +3139,9 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                 <div className="flex-1 min-w-0">
                   <div className="flex flex-wrap items-center gap-2 mb-1.5">
                     <h3 className="text-xl font-bold text-neutral-900 leading-tight">
-                      {drilldownContext.subcategoryName || drilldownContext.categoryName}
+                      {drilldownContext.subcategoryName
+                        ? (drilldownContext.subcategoryName === UNCATEGORIZED ? 'Other' : drilldownContext.subcategoryName)
+                        : drilldownContext.categoryName}
                     </h3>
                     {drilldownContext.subcategoryName && (
                       <span className="text-[10px] text-neutral-400 font-bold px-2 py-0.5 bg-neutral-50 rounded-full border border-neutral-100 uppercase tracking-tight">
