@@ -475,25 +475,41 @@ export function Settings({
       .map((c: any) => `- ${c.name}${c.subcategories?.length ? ` (subcategories: ${c.subcategories.join(', ')})` : ''}`)
       .join('\n');
     const incList = incomeCategories.map((c: any) => `- ${c.name}`).join('\n');
-    const srcList = sources.map((s) => `${s.id} = ${s.name}`).join(', ');
+    const hasSources = sources.length > 0;
+    const srcList = hasSources ? sources.map((s) => `${s.id} = ${s.name}`).join(', ') : '(none — omit the "source" field)';
+    // Build the example row from the user's OWN setup, so nothing hardcoded
+    // (currency, category, subcategory, source) can mislead the assistant.
+    const exampleCat: any = categories[0];
+    const exampleCatName = exampleCat?.name || 'Groceries';
+    const exampleSub = exampleCat?.subcategories?.[0] as string | undefined;
+    const defaultSrc = sources.find((s) => s.id === defaultSourceExpense) || sources[0];
+    const defaultSrcId = defaultSrc?.id;
+    const exampleRow =
+      `    { "date": "2026-01-15", "amount": 42.50, "type": "expense", "category": "${exampleCatName}"` +
+      `${exampleSub ? `, "subcategory": "${exampleSub}"` : ''}, "description": "Example"` +
+      `${defaultSrcId ? `, "source": "${defaultSrcId}"` : ''} }`;
+    const sourceRule = hasSources
+      ? `- "source": optional; one of my source ids below${defaultSrcId ? ` (use "${defaultSrcId}" if unsure)` : ''}.`
+      : `- "source": leave this field out — I have no sources set up.`;
     const importPrompt = `I want to import my expense & income history into an app called "Trackly". I'll give you my data (a spreadsheet, CSV, or a pasted table). Convert ALL of it into ONE JSON file in EXACTLY this format:
 
 {
   "version": 1,
   "currency": "${userCurrency}",
   "transactions": [
-    { "date": "2026-01-31", "amount": 800, "type": "expense", "category": "Housing", "subcategory": "Rent", "description": "Rent", "source": "revolut" }
+${exampleRow}
   ]
 }
 
 Rules:
+- Keep "currency" exactly as "${userCurrency}" — all my amounts are in ${userCurrency}. Do NOT convert amounts to another currency.
 - "date": YYYY-MM-DD.
 - "amount": a positive number. For a refund / cashback / money received back on an EXPENSE, use a NEGATIVE amount.
 - "type": "expense" or "income".
-- "category": MUST be one of my categories listed below — pick the closest match, do not invent new category names.
+- "category": MUST be exactly one of my categories listed below — pick the closest match, do not invent or rename categories.
 - "subcategory": optional; prefer one from that category's list below, but a sensible new one is fine.
 - "description": a short label from my data.
-- "source": optional; one of my source ids below (use "revolut" if unsure).
+${sourceRule}
 
 My EXPENSE categories (with their subcategories):
 ${expList}
