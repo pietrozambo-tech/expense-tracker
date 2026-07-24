@@ -153,7 +153,13 @@ export function AmountInput({ value, onChange, currency, onCurrencyChange, right
           <div
             className="bg-white rounded-t-3xl w-full max-w-[430px] p-6 pb-8 shadow-xl flex flex-col"
             onClick={(e) => e.stopPropagation()}
-            style={{ transform: 'translateZ(0)', maxHeight: '72vh' }}
+            style={
+              // In the searchable "Others" view, use a tall sheet so the search
+              // bar sits near the top and results stay above the keyboard.
+              showAllCurrencies
+                ? { transform: 'translateZ(0)', height: '88vh', maxHeight: '88vh' }
+                : { transform: 'translateZ(0)', maxHeight: '72vh' }
+            }
           >
             {!showAllCurrencies ? (
               <>
@@ -190,7 +196,7 @@ export function AmountInput({ value, onChange, currency, onCurrencyChange, right
                     />
                   </div>
                 </div>
-                <div className="bg-white rounded-2xl overflow-y-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
+                <div className="bg-white rounded-2xl overflow-y-auto flex-1 min-h-0" style={{ WebkitOverflowScrolling: 'touch' }}>
                   {allCurrencyCodes.length === 0 ? (
                     <div className="text-center py-8 text-neutral-400 text-sm">No currency found</div>
                   ) : (
