@@ -2,7 +2,7 @@ import { useRef, useState, type ReactNode } from 'react';
 import {
   Minus, Plus, Wallet, Percent, Calendar, Repeat, ChevronDown, ChevronRight,
   ShoppingCart, Car, Home, Clapperboard, TrendingUp, Landmark, Layers,
-  FlaskConical,
+  FlaskConical, Trash2,
 } from 'lucide-react';
 import type { Source } from '../types';
 import { SourceLogo } from './SourceLogo';
@@ -45,8 +45,7 @@ interface WelcomeCarouselProps {
   userName?: string;
   onDone: () => void; // finish and enter the app
   onSetupCategories: () => void; // finish and jump to Settings › Categories
-  demoLoaded: boolean; // whether sample data is currently loaded
-  onToggleDemo: (on: boolean) => void; // load / clear the sample data in place
+  onLoadDemo: () => void; // load sample data in place (stays in the carousel)
 }
 
 // A sample source used purely for the illustrations
@@ -253,26 +252,7 @@ function SavingsIllustration() {
   );
 }
 
-// A small iOS-style toggle.
-function Toggle({ on, onChange }: { on: boolean; onChange: (v: boolean) => void }) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={on}
-      onClick={() => onChange(!on)}
-      className="relative flex-shrink-0 transition-colors active:scale-95"
-      style={{ width: 46, height: 28, borderRadius: 999, background: on ? '#34C759' : '#E3E3E8' }}
-    >
-      <span
-        className="absolute rounded-full bg-white transition-transform"
-        style={{ top: 2, left: 2, width: 24, height: 24, boxShadow: '0 1px 3px rgba(0,0,0,0.25)', transform: on ? 'translateX(18px)' : 'translateX(0)' }}
-      />
-    </button>
-  );
-}
-
-function DemoIllustration({ loaded, onToggle }: { loaded: boolean; onToggle: (v: boolean) => void }) {
+function DemoIllustration() {
   const spark = [12, 18, 15, 24, 21, 30];
   const labels = ['Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul'];
   return (
@@ -310,18 +290,10 @@ function DemoIllustration({ loaded, onToggle }: { loaded: boolean; onToggle: (v:
         <Spark values={spark} labels={labels} color="#007AFF" />
       </div>
 
-      {/* Toggle to load / clear the sample data right here */}
-      <div
-        className="flex items-center justify-between rounded-2xl px-4 py-3"
-        style={{ background: '#FFFFFF', border: '1px solid #EEEEF1', boxShadow: '0 4px 16px rgba(0,0,0,0.05)' }}
-      >
-        <div className="min-w-0 pr-3">
-          <div style={{ color: '#1C1C1E', fontSize: 14, fontWeight: 600 }}>
-            {loaded ? 'Sample data loaded' : 'Load sample data'}
-          </div>
-          <div style={{ color: '#8E8E93', fontSize: 12 }}>Turn it off to clear it, anytime</div>
-        </div>
-        <Toggle on={loaded} onChange={onToggle} />
+      {/* Reassurance: it's throwaway data */}
+      <div className="flex items-center justify-center gap-1.5">
+        <Trash2 className="w-3.5 h-3.5" style={{ color: '#8E8E93' }} />
+        <span style={{ color: '#8E8E93', fontSize: 12.5 }}>Remove it all in one tap, anytime</span>
       </div>
     </div>
   );
@@ -358,8 +330,8 @@ function SettingsIllustration() {
   );
 }
 
-export function WelcomeCarousel({ userName, onDone, onSetupCategories, demoLoaded, onToggleDemo }: WelcomeCarouselProps) {
-  const slides: Array<{ illustration: ReactNode; title: string; desc: string }> = [
+export function WelcomeCarousel({ userName, onDone, onSetupCategories, onLoadDemo }: WelcomeCarouselProps) {
+  const slides: Array<{ illustration: ReactNode; title: string; desc: string; cta?: 'demo' }> = [
     {
       illustration: (
         <div className="flex flex-col items-center justify-center" style={{ minHeight: 220 }}>
@@ -390,9 +362,10 @@ export function WelcomeCarousel({ userName, onDone, onSetupCategories, demoLoade
       desc: 'Track savings and your saving rate over time — the app flags your best and worst months.',
     },
     {
-      illustration: <DemoIllustration loaded={demoLoaded} onToggle={onToggleDemo} />,
+      illustration: <DemoIllustration />,
       title: 'Want to look around first?',
-      desc: 'Flip the switch to fill the app with sample transactions, then explore the dashboard and trends with real-looking data. Turn it off any time to clear them.',
+      desc: 'Load a set of sample transactions and explore the dashboard and trends with real-looking data. Remove it all in one tap whenever you want.',
+      cta: 'demo',
     },
     {
       illustration: <SettingsIllustration />,
@@ -404,6 +377,7 @@ export function WelcomeCarousel({ userName, onDone, onSetupCategories, demoLoade
   const scrollerRef = useRef<HTMLDivElement>(null);
   const [index, setIndex] = useState(0);
   const isLast = index >= slides.length - 1;
+  const isDemoSlide = slides[index]?.cta === 'demo';
 
   const onScroll = () => {
     const el = scrollerRef.current;
@@ -478,6 +452,19 @@ export function WelcomeCarousel({ userName, onDone, onSetupCategories, demoLoade
             </button>
             <button onClick={onDone} className="py-2.5 text-[15px] font-medium" style={{ color: '#8E8E93' }}>
               I'll do it later
+            </button>
+          </div>
+        ) : isDemoSlide ? (
+          <div className="flex flex-col items-center gap-1">
+            <button
+              onClick={() => { onLoadDemo(); next(); }}
+              className="w-full py-4 rounded-xl font-medium text-base transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+              style={{ backgroundColor: '#007AFF', color: '#FFFFFF', boxShadow: '0 2px 8px rgba(0,122,255,0.25)' }}
+            >
+              <FlaskConical className="w-4 h-4" /> Load sample data
+            </button>
+            <button onClick={next} className="py-2.5 text-[15px] font-medium" style={{ color: '#8E8E93' }}>
+              Maybe later
             </button>
           </div>
         ) : (

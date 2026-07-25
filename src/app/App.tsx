@@ -816,8 +816,7 @@ export default function App() {
           setCurrentTab('settings');
           setOpenCategoriesOnSettings(true);
         }}
-        demoLoaded={hasDemoData}
-        onToggleDemo={(on) => (on ? handleLoadDemoData() : handleEraseDemoData())}
+        onLoadDemo={handleLoadDemoData} // loads samples in place; carousel then advances to the last slide
       />
     );
   }
