@@ -515,6 +515,19 @@ export function Settings({
     const sourceRule = hasSources
       ? `- "source": optional; one of my source ids listed below${defaultSrcId ? ` (use "${defaultSrcId}" if unsure)` : ''}.`
       : `- "source": leave this field out — I have no sources set up.`;
+    // A second example showing a foreign-currency row, so mixed-currency
+    // statements are handled. Pick any code that isn't the home one.
+    const foreignEx = userCurrency === 'USD' ? 'EUR' : 'USD';
+    const exampleRow2 =
+      `    { "date": "2026-01-18", "amount": 30.00, "currency": "${foreignEx}", "type": "expense", "category": "${exampleCatName}", "description": "A purchase made abroad" }`;
+    // If the user has a catch-all category ("Others"), name it as the fallback
+    // so unmatched rows land there instead of a vague "closest" category.
+    const catchAll: any = categories.find((c: any) =>
+      /^(other|others|miscellaneous|misc|uncategori[sz]ed)$/i.test(String(c.name).trim()),
+    );
+    const fallbackLine = catchAll
+      ? `- If nothing fits at all, use "${catchAll.name}" — never drop the row or leave the category blank.`
+      : `- If nothing fits at all, pick my closest general category — never drop the row or leave it blank.`;
     const importPrompt = `I want to import my expense & income history into an app called "Trackly".
 
 I'll give you my data in whatever form I have it — an Excel/CSV spreadsheet, a bank or credit-card statement (PDF, CSV, or screenshots), photos or screenshots of a transaction list, or just a pasted table. Read ALL of it and turn EVERY transaction into ONE JSON file in EXACTLY this format:
@@ -523,7 +536,8 @@ I'll give you my data in whatever form I have it — an Excel/CSV spreadsheet, a
   "version": 1,
   "currency": "${userCurrency}",
   "transactions": [
-${exampleRow}
+${exampleRow},
+${exampleRow2}
   ]
 }
 
@@ -532,7 +546,8 @@ FORMAT
 - "amount": a plain positive number — no currency symbol, no thousands separators (e.g. 1234.56).
 - "type": "expense" for money going out, "income" for money coming in.
 - A refund, cashback or money returned on a card: keep "type":"expense" but make "amount" NEGATIVE.
-- "currency": always "${userCurrency}". My amounts are already in ${userCurrency} — never convert them.
+- File "currency": "${userCurrency}" (my home currency) — the default for every row. Most statements are entirely in ${userCurrency}, so you leave it as is.
+- Per-row "currency": add this to a row ONLY when it's in a DIFFERENT currency (e.g. a foreign purchase). Put the amount exactly as shown in that currency plus its ISO code — do NOT convert it; Trackly does the conversion.
 - "description": a short, readable label. Clean up cryptic statement text (e.g. "SQ *BLUE BOTTLE 1234" → "Blue Bottle").
 ${sourceRule}
 
@@ -541,7 +556,7 @@ Every transaction MUST use exactly ONE of MY categories listed below (matched by
 - If my data already has categories, map each one to the CLOSEST of my categories.
 - If it uses broad or bank-style categories (e.g. "Groceries", "Bills", "Shopping"), map those to the closest of my categories too.
 - If it has NO category, work it out from the merchant / description (e.g. "Uber" → Transport, "Netflix" → Subscriptions, "Tesco" → Groceries).
-- If nothing fits well, choose my closest general category rather than dropping the row.
+${fallbackLine}
 - "subcategory": optional — use one of that category's subcategories if it fits, or add a sensible new one.
 
 READING A STATEMENT

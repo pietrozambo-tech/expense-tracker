@@ -677,7 +677,7 @@ export default function App() {
     const p = payload as any;
     if (p && (p.kind === 'backup' || Array.isArray(p.categories) || Array.isArray(p.sources))) {
       restoreBackup(p);
-      return { added: 0, skipped: [] };
+      return { added: 0, defaulted: 0, skipped: [] };
     }
     const res = buildImport(payload, categories, incomeCategories, userCurrency);
     if (res.added === 0) {
@@ -695,8 +695,11 @@ export default function App() {
     setRefreshKey((prev) => prev + 1);
     setCurrentTab('dashboard');
     track('data_imported', { count: res.added });
+    const notes: string[] = [];
+    if (res.defaulted) notes.push(`${res.defaulted} set to Others`);
+    if (res.skipped.length) notes.push(`${res.skipped.length} skipped`);
     toast.success(`Imported ${res.added} transaction${res.added === 1 ? '' : 's'}`, {
-      description: res.skipped.length ? `${res.skipped.length} skipped (unmatched)` : 'Added to your account',
+      description: notes.length ? notes.join(' · ') : 'Added to your account',
       duration: 2000,
     });
     return res;

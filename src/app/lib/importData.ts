@@ -1,5 +1,5 @@
 import type { Transaction, Category, TransactionType } from '../types';
-import { convertAmount, BASE_CURRENCY } from '../utils/currency';
+import { convertAmount, BASE_CURRENCY, CURRENCIES } from '../utils/currency';
 
 // A single transaction in the lightweight import format. Categories are
 // referenced by *name* (not the full object) so the file is easy to generate
@@ -13,11 +13,12 @@ export interface ImportRecord {
   subcategory?: string; // added to the category if it doesn't exist yet
   description?: string;
   source?: string; // source id (e.g. 'revolut'); optional
+  currency?: string; // ISO code for this row; overrides the payload currency (e.g. a foreign purchase)
 }
 
 export interface ImportPayload {
   version?: number;
-  currency?: string; // ISO code applied to every row unless overridden
+  currency?: string; // ISO code applied to every row unless a row overrides it
   transactions: ImportRecord[];
 }
 
@@ -26,8 +27,12 @@ export interface ImportResult {
   categories: Category[]; // expense categories (may gain new subcategories)
   incomeCategories: Category[]; // income categories (may gain new subcategories)
   added: number;
+  defaulted: number; // rows whose category didn't match and fell back to a catch-all
   skipped: { record: ImportRecord; reason: string }[];
 }
+
+// A category name that acts as the catch-all bucket for anything unmatched.
+const CATCHALL_RE = /^(other|others|miscellaneous|misc|uncategori[sz]ed)$/i;
 
 function uid() {
   return `imp-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 9)}`;
@@ -60,24 +65,38 @@ export function buildImport(
     const n = name.trim().toLowerCase();
     return list.find((c) => c.name.trim().toLowerCase() === n);
   };
+  const findCatchAll = (type: TransactionType) =>
+    (type === 'income' ? inc : exp).find((c) => CATCHALL_RE.test(c.name.trim()));
 
   const transactions: Transaction[] = [];
   const skipped: { record: ImportRecord; reason: string }[] = [];
+  let defaulted = 0;
 
   for (const rec of payload.transactions || []) {
     if (!rec || typeof rec.amount !== 'number' || !rec.date || !rec.category || !rec.type) {
       skipped.push({ record: rec, reason: 'missing required field' });
       continue;
     }
-    const cat = findCat(rec.category, rec.type);
+    // Resolve the category. If the name doesn't match one of the user's
+    // categories, fall back to a catch-all ("Others") rather than dropping the
+    // row — and remember the original label as a subcategory so the intent
+    // isn't lost. Only skip if there's no catch-all bucket at all.
+    let cat = findCat(rec.category, rec.type);
+    let subHint = rec.subcategory;
     if (!cat) {
-      skipped.push({ record: rec, reason: `unknown ${rec.type} category "${rec.category}"` });
-      continue;
+      const bucket = findCatchAll(rec.type);
+      if (!bucket) {
+        skipped.push({ record: rec, reason: `unknown ${rec.type} category "${rec.category}"` });
+        continue;
+      }
+      cat = bucket;
+      if (!subHint || !subHint.trim()) subHint = rec.category; // keep the original name as a subcategory
+      defaulted++;
     }
 
     let subcategory: string | undefined;
-    if (rec.subcategory && rec.subcategory.trim()) {
-      const sub = rec.subcategory.trim();
+    if (subHint && subHint.trim()) {
+      const sub = subHint.trim();
       const list = cat.subcategories || [];
       const existing = list.find((s) => s.toLowerCase() === sub.toLowerCase());
       if (existing) {
@@ -88,6 +107,10 @@ export function buildImport(
       }
     }
 
+    // Per-row currency wins over the file-level currency; ignore an unknown code.
+    const rowCurrency =
+      rec.currency && CURRENCIES[rec.currency] ? rec.currency : payload.currency || fallbackCurrency;
+
     transactions.push({
       id: uid(),
       description: (rec.description || '').trim(),
@@ -96,12 +119,12 @@ export function buildImport(
       subcategory,
       date: rec.date,
       type: rec.type,
-      currency: payload.currency || fallbackCurrency,
-      baseAmount: convertAmount(rec.amount, payload.currency || fallbackCurrency, BASE_CURRENCY),
+      currency: rowCurrency,
+      baseAmount: convertAmount(rec.amount, rowCurrency, BASE_CURRENCY),
       recurrence: 'Never repeat',
       sourceId: rec.source || undefined,
     });
   }
 
-  return { transactions, categories: exp, incomeCategories: inc, added: transactions.length, skipped };
+  return { transactions, categories: exp, incomeCategories: inc, added: transactions.length, defaulted, skipped };
 }
