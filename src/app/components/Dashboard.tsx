@@ -1200,7 +1200,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                           className="font-bold text-[17px] leading-none tabular-nums truncate"
                           style={{ color: savings < 0 ? '#FF6961' : savings > 0 ? '#30D158' : '#FFFFFF' }}
                         >
-                          {totalIncome > 0 ? `${Math.round((savings / totalIncome) * 100)}%` : '—'}
+                          {totalIncome > 0 ? `${Math.round((savings / totalIncome) * 100)}%` : '-'}
                         </div>
                       </div>
                     </div>
@@ -2986,14 +2986,14 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                       {/* Weight % - only for category/subcategory */}
                       {selectedCategory !== 'All' && (
                         <div className="flex-shrink-0 w-10 text-right text-[11px] text-neutral-400 tabular-nums self-center">
-                          {item.amount > 0 ? `${item.percentage.toFixed(0)}%` : '—'}
+                          {item.amount > 0 ? `${item.percentage.toFixed(0)}%` : '-'}
                         </div>
                       )}
                       
                       {/* Transaction count - only for category/subcategory */}
                       {selectedCategory !== 'All' && (
                         <div className="flex-shrink-0 w-8 text-center text-[11px] text-neutral-500 tabular-nums self-center">
-                          {item.count > 0 ? item.count : '—'}
+                          {item.count > 0 ? item.count : '-'}
                         </div>
                       )}
                       
@@ -3005,7 +3005,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                             color: monthlySavingRate < 0 ? '#EF4444' : monthlySavingRate > 0 ? '#10B981' : '#8E8E93'
                           }}
                         >
-                          {monthlySavingRate !== 0 ? `${Math.round(monthlySavingRate)}%` : '—'}
+                          {monthlySavingRate !== 0 ? `${Math.round(monthlySavingRate)}%` : '-'}
                         </div>
                       )}
                       

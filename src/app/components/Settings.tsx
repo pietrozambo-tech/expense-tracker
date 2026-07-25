@@ -44,6 +44,7 @@ interface SettingsProps {
   openCategoriesOnMount?: boolean;
   onCategoriesOpened?: () => void;
   userEmail?: string | null;
+  userAvatar?: string | null;
   isGuest?: boolean;
   onSignOut?: () => void;
   onSignInToSync?: () => void;
@@ -84,10 +85,13 @@ export function Settings({
   openCategoriesOnMount,
   onCategoriesOpened,
   userEmail,
+  userAvatar,
   isGuest,
   onSignOut,
   onSignInToSync
 }: SettingsProps) {
+  // Falls back to the name initial if the avatar image can't be loaded.
+  const [avatarBroken, setAvatarBroken] = useState(false);
   const [showCategories, setShowCategories] = useState(false);
   const [showSources, setShowSources] = useState(false);
   const [showAbout, setShowAbout] = useState(false);
@@ -454,7 +458,7 @@ export function Settings({
             <p style={{ color: '#007AFF', fontSize: '14px', fontWeight: 600, marginTop: '4px', letterSpacing: '0.02em' }}>Your Expense Lens</p>
             <p style={{ color: '#8E8E93', fontSize: '13px', marginTop: '6px' }}>Version 0.1</p>
             <p style={{ color: '#6B6B75', fontSize: '15px', marginTop: '12px', maxWidth: 300, lineHeight: 1.5 }}>
-              Track every expense in seconds — with clear insights into where your money goes.
+              Track every expense in seconds - with clear insights into where your money goes.
             </p>
           </div>
 
@@ -501,7 +505,7 @@ export function Settings({
       .join('\n');
     const incList = incomeCategories.map((c: any) => `- ${c.name}`).join('\n');
     const hasSources = sources.length > 0;
-    const srcList = hasSources ? sources.map((s) => `${s.id} = ${s.name}`).join(', ') : '(none — omit the "source" field)';
+    const srcList = hasSources ? sources.map((s) => `${s.id} = ${s.name}`).join(', ') : '(none - omit the "source" field)';
     // Build the example row from the user's OWN setup, so nothing hardcoded
     // (currency, category, subcategory, source) can mislead the assistant.
     const exampleCat: any = categories[0];
@@ -515,7 +519,7 @@ export function Settings({
       `${defaultSrcId ? `, "source": "${defaultSrcId}"` : ''} }`;
     const sourceRule = hasSources
       ? `- "source": optional; one of my source ids listed below${defaultSrcId ? ` (use "${defaultSrcId}" if unsure)` : ''}.`
-      : `- "source": leave this field out — I have no sources set up.`;
+      : `- "source": leave this field out - I have no sources set up.`;
     // A second example showing a foreign-currency row, so mixed-currency
     // statements are handled. Pick any code that isn't the home one.
     const foreignEx = userCurrency === 'USD' ? 'EUR' : 'USD';
@@ -527,11 +531,11 @@ export function Settings({
       /^(other|others|miscellaneous|misc|uncategori[sz]ed)$/i.test(String(c.name).trim()),
     );
     const fallbackLine = catchAll
-      ? `- If nothing fits at all, use "${catchAll.name}" — never drop the row or leave the category blank.`
-      : `- If nothing fits at all, pick my closest general category — never drop the row or leave it blank.`;
+      ? `- If nothing fits at all, use "${catchAll.name}" - never drop the row or leave the category blank.`
+      : `- If nothing fits at all, pick my closest general category - never drop the row or leave it blank.`;
     const importPrompt = `I want to import my expense & income history into an app called "Trackly".
 
-I'll give you my data in whatever form I have it — an Excel/CSV spreadsheet, a bank or credit-card statement (PDF, CSV, or screenshots), photos or screenshots of a transaction list, or just a pasted table. Read ALL of it and turn EVERY transaction into ONE JSON file in EXACTLY this format:
+I'll give you my data in whatever form I have it - an Excel/CSV spreadsheet, a bank or credit-card statement (PDF, CSV, or screenshots), photos or screenshots of a transaction list, or just a pasted table. Read ALL of it and turn EVERY transaction into ONE JSON file in EXACTLY this format:
 
 {
   "version": 1,
@@ -544,25 +548,25 @@ ${exampleRow2}
 
 FORMAT
 - "date": YYYY-MM-DD. Convert any date format to this. If a date is ambiguous (e.g. 03/04/25), infer the order from the other rows and stay consistent.
-- "amount": a plain positive number — no currency symbol, no thousands separators (e.g. 1234.56).
+- "amount": a plain positive number - no currency symbol, no thousands separators (e.g. 1234.56).
 - "type": "expense" for money going out, "income" for money coming in.
 - A refund, cashback or money returned on a card: keep "type":"expense" but make "amount" NEGATIVE.
-- File "currency": "${userCurrency}" (my home currency) — the default for every row. Most statements are entirely in ${userCurrency}, so you leave it as is.
-- Per-row "currency": add this to a row ONLY when it's in a DIFFERENT currency (e.g. a foreign purchase). Put the amount exactly as shown in that currency plus its ISO code — do NOT convert it; Trackly does the conversion.
+- File "currency": "${userCurrency}" (my home currency) - the default for every row. Most statements are entirely in ${userCurrency}, so you leave it as is.
+- Per-row "currency": add this to a row ONLY when it's in a DIFFERENT currency (e.g. a foreign purchase). Put the amount exactly as shown in that currency plus its ISO code - do NOT convert it; Trackly does the conversion.
 - "description": a short, readable label. Clean up cryptic statement text (e.g. "SQ *BLUE BOTTLE 1234" → "Blue Bottle").
 ${sourceRule}
 
-CATEGORISING — the important part
+CATEGORISING - the important part
 Every transaction MUST use exactly ONE of MY categories listed below (matched by name). Never invent, rename, translate, or leave the category blank.
 - If my data already has categories, map each one to the CLOSEST of my categories.
 - If it uses broad or bank-style categories (e.g. "Groceries", "Bills", "Shopping"), map those to the closest of my categories too.
 - If it has NO category, work it out from the merchant / description (e.g. "Uber" → Transport, "Netflix" → Subscriptions, "Tesco" → Groceries).
 ${fallbackLine}
-- "subcategory": optional — use one of that category's subcategories if it fits, or add a sensible new one.
+- "subcategory": optional - use one of that category's subcategories if it fits, or add a sensible new one.
 
 READING A STATEMENT
 - Include real transactions only. Skip opening/closing balances, running balances, "balance brought forward" and pure summary lines.
-- Bank fees, interest charged and card charges ARE expenses — include them.
+- Bank fees, interest charged and card charges ARE expenses - include them.
 - If debits and credits are in separate columns: debit = expense, credit = income.
 - Remove obvious duplicates.
 
@@ -574,14 +578,14 @@ ${incList}
 
 My sources (id = name): ${srcList}
 
-Output ONLY the JSON — no commentary, no code fences — and save it as a .json file.`;
+Output ONLY the JSON - no commentary, no code fences - and save it as a .json file.`;
 
     const copyPrompt = async () => {
       try {
         await navigator.clipboard.writeText(importPrompt);
         toast.success('Prompt copied', { duration: 1400 });
       } catch {
-        toast.error('Copy failed — select the text and copy it manually');
+        toast.error('Copy failed - select the text and copy it manually');
       }
     };
 
@@ -621,14 +625,14 @@ Output ONLY the JSON — no commentary, no code fences — and save it as a .jso
             </h2>
             <p style={{ color: '#6B6B75', fontSize: 15, lineHeight: 1.5, marginTop: 8 }}>
               Got a spreadsheet, a bank statement, or even screenshots of your transactions? An AI assistant can
-              turn any of them into a Trackly file in seconds — no manual re-entry.
+              turn any of them into a Trackly file in seconds - no manual re-entry.
             </p>
           </div>
 
           {/* Steps */}
           <div className="bg-white rounded-2xl shadow-sm p-5 flex flex-col gap-4">
             <Step n={1}>
-              Open any AI assistant (ChatGPT, Claude, Gemini…). Paste the prompt below and attach your file —
+              Open any AI assistant (ChatGPT, Claude, Gemini…). Paste the prompt below and attach your file -
               a spreadsheet, a bank/card statement (PDF or CSV), screenshots, or a pasted table.
             </Step>
             <Step n={2}>
@@ -768,7 +772,15 @@ Output ONLY the JSON — no commentary, no code fences — and save it as a .jso
             className="w-full flex items-center gap-3 px-5 py-4 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
             style={{ borderBottom: '1px solid #F2F2F7' }}
           >
-            {userName ? (
+            {userAvatar && !avatarBroken ? (
+              <img
+                src={userAvatar}
+                alt="Profile"
+                referrerPolicy="no-referrer"
+                onError={() => setAvatarBroken(true)}
+                className="w-7 h-7 -ml-1 rounded-full flex-shrink-0 object-cover"
+              />
+            ) : userName ? (
               <div
                 className="w-7 h-7 -ml-1 rounded-full flex items-center justify-center flex-shrink-0"
                 style={{ backgroundColor: '#1C1C1E' }}

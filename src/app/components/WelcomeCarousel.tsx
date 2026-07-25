@@ -379,10 +379,12 @@ export function WelcomeCarousel({ userName, onDone, onSetupCategories, onLoadDem
       illustration: (
         <div className="flex flex-col items-center justify-center" style={{ minHeight: 220 }}>
           <TracklyLogo size={92} />
+          <h2 style={{ color: '#1C1C1E', fontSize: 30, fontWeight: 700, letterSpacing: '-0.03em', marginTop: 18 }}>Trackly</h2>
+          <p style={{ color: '#007AFF', fontSize: 15, fontWeight: 600, marginTop: 4, letterSpacing: '0.02em' }}>Your Expense Lens</p>
         </div>
       ),
       title: userName ? `Welcome, ${userName} 👋` : 'Welcome to Trackly 👋',
-      desc: 'A quick look at what you can do — it takes 20 seconds.',
+      desc: 'A quick look at what you can do - it takes 20 seconds.',
     },
     {
       illustration: <AddIllustration />,
@@ -392,7 +394,7 @@ export function WelcomeCarousel({ userName, onDone, onSetupCategories, onLoadDem
     {
       illustration: <DashboardIllustration />,
       title: 'Your money at a glance',
-      desc: 'The dashboard shows spending, income and savings — with breakdowns by category and source.',
+      desc: 'The dashboard shows spending, income and savings - with breakdowns by category and source.',
     },
     {
       illustration: <TrendIllustration />,
@@ -402,7 +404,7 @@ export function WelcomeCarousel({ userName, onDone, onSetupCategories, onLoadDem
     {
       illustration: <SavingsIllustration />,
       title: 'Grow your savings',
-      desc: 'Track savings and your saving rate over time — the app flags your best and worst months.',
+      desc: 'Track savings and your saving rate over time - the app flags your best and worst months.',
     },
     {
       illustration: <DemoIllustration />,
@@ -413,7 +415,7 @@ export function WelcomeCarousel({ userName, onDone, onSetupCategories, onLoadDem
     {
       illustration: <SettingsIllustration />,
       title: 'Make it yours',
-      desc: 'Start with your categories — tailor them to how you spend. Add your banks as sources, and export a full backup of everything whenever you like.',
+      desc: 'Start with your categories - tailor them to how you spend. Add your banks as sources, and export a full backup of everything whenever you like.',
     },
   ];
 

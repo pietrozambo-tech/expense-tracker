@@ -92,6 +92,9 @@ export default function App() {
   const { session, loading: authLoading, guest, signOut, leaveGuest } = useAuth();
   const userId = session?.user?.id ?? null;
   const userEmail = session?.user?.email ?? null;
+  // Google (and other OAuth providers) put the profile photo in user_metadata.
+  const userMeta = (session?.user?.user_metadata ?? {}) as Record<string, any>;
+  const userAvatar: string | null = userMeta.avatar_url || userMeta.picture || null;
   const [cloudHydrated, setCloudHydrated] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false); // Track if any modal is open
   const [isSaving, setIsSaving] = useState(false); // Track if save is in progress to prevent duplicate submissions
@@ -928,6 +931,7 @@ export default function App() {
                 openCategoriesOnMount={openCategoriesOnSettings}
                 onCategoriesOpened={() => setOpenCategoriesOnSettings(false)}
                 userEmail={userEmail}
+                userAvatar={userAvatar}
                 isGuest={guest}
                 onSignOut={async () => { await signOut(); }}
                 onSignInToSync={leaveGuest}

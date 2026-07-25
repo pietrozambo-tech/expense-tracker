@@ -33,9 +33,9 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['icons/apple-touch-icon.png'],
       manifest: {
-        name: 'Trackly — Your Expense Lens',
+        name: 'Trackly - Your Expense Lens',
         short_name: 'Trackly',
-        description: 'Your Expense Lens — track every expense in seconds',
+        description: 'Your Expense Lens - track every expense in seconds',
         start_url: './',
         scope: './',
         display: 'standalone',
