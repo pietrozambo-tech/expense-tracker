@@ -7,20 +7,18 @@
 // Conversions are synchronous and read the in-memory table, so they never
 // block rendering or require the network.
 
+import { CURRENCY_DEFS } from './currencyData';
+
 const CACHE_KEY = 'expense-tracker.v1.fxRates';
 const API_URL = 'https://open.er-api.com/v6/latest/EUR';
 const MAX_AGE_MS = 12 * 60 * 60 * 1000; // refresh if older than 12h
 
-// Approximate EUR-based seed rates (units per 1 EUR). Used until a live refresh
-// succeeds; keeps every currency sensible offline instead of falling back to 1:1.
-const SEED_RATES: Record<string, number> = {
-  EUR: 1, USD: 1.08, GBP: 0.85, AED: 3.97, JPY: 170, CHF: 0.96, CAD: 1.47,
-  AUD: 1.63, NZD: 1.78, CNY: 7.8, HKD: 8.45, SGD: 1.46, INR: 90, KRW: 1450,
-  THB: 39, MYR: 5.1, IDR: 17000, PHP: 62, VND: 27000, SEK: 11.4, NOK: 11.7,
-  DKK: 7.46, ISK: 150, PLN: 4.3, CZK: 25, HUF: 395, RON: 4.97, TRY: 35,
-  RUB: 98, BRL: 5.9, MXN: 20, ARS: 970, CLP: 1030, COP: 4300, ZAR: 20,
-  SAR: 4.05, QAR: 3.93, ILS: 4.0, EGP: 52, MAD: 10.8,
-};
+// Approximate EUR-based seed rates (units per 1 EUR), derived from the shared
+// currency list. Used until a live refresh succeeds; keeps every currency
+// sensible offline instead of falling back to 1:1.
+const SEED_RATES: Record<string, number> = Object.fromEntries(
+  CURRENCY_DEFS.map((c) => [c.code, c.seed]),
+);
 
 // Live, mutable table (EUR-based). Starts on the seed values.
 let rates: Record<string, number> = { ...SEED_RATES };
