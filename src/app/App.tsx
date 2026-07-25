@@ -38,6 +38,7 @@ import { TracklyLogo } from './components/TracklyLogo';
 import { loadCloud, saveCloud, deleteCloud, type SyncPayload } from './lib/cloud';
 import { track } from './lib/analytics';
 import { categories as initialCategories, incomeCategories as initialIncomeCategories } from './components/categories';
+import { reassignToOthers } from './lib/categoryOps';
 
 export default function App() {
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(() => loadSettings().onboarded);
@@ -416,15 +417,12 @@ export default function App() {
   };
 
   const handleDeleteCategory = (id: string) => {
-    setCategories(categories.filter(cat => cat.id !== id));
-    
-    // Unlink expenses from deleted category
-    setExpenses(expenses.map(expense => 
-      expense.category.id === id 
-        ? { ...expense, category: { ...expense.category, id: 'others' } }
-        : expense
-    ));
-    
+    const deleted = categories.find((c) => c.id === id);
+    if (!deleted) return;
+    // Move its transactions to "Others" so nothing is orphaned.
+    const { cats, txns } = reassignToOthers(deleted, categories, expenses);
+    setCategories(cats);
+    setExpenses(txns);
     setRefreshKey(prev => prev + 1);
     toast.success('Category deleted', {
       duration: 1400,
@@ -521,14 +519,13 @@ export default function App() {
   };
 
   const handleDeleteIncomeCategory = (id: string) => {
-    setIncomeCategories(incomeCategories.filter(cat => cat.id !== id));
-    
-    // For income transactions, we might want to handle this differently
-    // since there's no "others" category for income. We could just remove the reference.
-    setExpenses(expenses.filter(expense => 
-      !(expense.type === 'income' && expense.category.id === id)
-    ));
-    
+    const deleted = incomeCategories.find((c) => c.id === id);
+    if (!deleted) return;
+    // Reassign its income transactions to an "Others" income bucket (created if
+    // needed) rather than deleting them, so no data is lost.
+    const { cats, txns } = reassignToOthers(deleted, incomeCategories, expenses);
+    setIncomeCategories(cats);
+    setExpenses(txns);
     setRefreshKey(prev => prev + 1);
     toast.success('Income category deleted', {
       duration: 1400,
