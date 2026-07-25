@@ -1,4 +1,5 @@
 import { ChevronDown, Search, X, Wallet } from 'lucide-react';
+import type { ReactNode } from 'react';
 import type { Source } from '../types';
 import { SourceLogo } from './SourceLogo';
 
@@ -23,7 +24,58 @@ interface FilterBarProps {
   onTypeFilterChange?: (type: string) => void;
 }
 
-export function FilterBar({ 
+// One shared pill spec so every filter chip has the same height, radius, type
+// size and chevron — whether it's a native <select> or a button that opens a
+// modal. The transparent border keeps bordered (dashed) and fill pills the
+// exact same height.
+const PILL = 'flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-[13px] leading-5 transition-colors';
+const PILL_NEUTRAL = 'bg-neutral-100 border-transparent text-neutral-600 hover:bg-neutral-200/60';
+const CHEVRON = 'w-3.5 h-3.5 flex-shrink-0';
+
+// iOS rendering hints (kept from the original native selects).
+const IOS_SELECT_STYLE = {
+  WebkitTapHighlightColor: 'rgba(255,255,255,0)',
+  WebkitAppearance: 'none' as const,
+  appearance: 'none' as const,
+  userSelect: 'none' as const,
+  WebkitUserSelect: 'none' as const,
+  touchAction: 'manipulation' as const,
+  transform: 'translateZ(0)',
+};
+
+// A pill that looks exactly like the button chips (visible value + chevron),
+// with a transparent native <select> overlaid on top to capture taps and show
+// the OS picker. Rendering the value/chevron as normal flex children (rather
+// than overlaying a chevron on the select) keeps it identical to the buttons.
+function SelectPill({
+  value,
+  onChange,
+  children,
+  label,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  children: ReactNode;
+  label: string;
+}) {
+  return (
+    <div className={`${PILL} ${PILL_NEUTRAL} relative`}>
+      <span>{value}</span>
+      <ChevronDown className={`${CHEVRON} text-neutral-400`} />
+      <select
+        aria-label={label}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+        style={IOS_SELECT_STYLE}
+      >
+        {children}
+      </select>
+    </div>
+  );
+}
+
+export function FilterBar({
   year,
   month,
   category,
@@ -45,172 +97,108 @@ export function FilterBar({
 }: FilterBarProps) {
   const selectedSource = sources?.find((s) => s.id === sourceFilter);
   return (
-    <div 
+    <div
       className="sticky top-0 z-10 bg-white border-b border-neutral-100 px-6 py-2.5"
       style={{ WebkitTapHighlightColor: 'rgba(255, 255, 255, 0)' }}
     >
-      <div 
+      <div
         className="flex items-center gap-2 flex-wrap"
         style={{ WebkitTapHighlightColor: 'rgba(255, 255, 255, 0)' }}
       >
         {/* Year Filter */}
-        <div style={{ 
-          WebkitTapHighlightColor: 'rgba(255, 255, 255, 0)', 
-          isolation: 'isolate',
-          transform: 'translateZ(0)'
-        }}>
-          <select
-            value={year}
-            onChange={(e) => onYearChange(e.target.value)}
-            className="px-2.5 py-1 rounded-md text-xs text-neutral-600 border border-neutral-200"
-            style={{ 
-              WebkitTapHighlightColor: 'rgba(255, 255, 255, 0)',
-              WebkitAppearance: 'none',
-              appearance: 'none',
-              userSelect: 'none',
-              WebkitUserSelect: 'none',
-              touchAction: 'manipulation',
-              backgroundColor: '#FAFAFA',
-              transform: 'translateZ(0)',
-              willChange: 'background-color'
-            }}
-          >
-            {availableYears.map(y => (
-              <option key={y} value={y}>{y}</option>
-            ))}
-          </select>
-        </div>
-        
+        <SelectPill value={year} onChange={onYearChange} label="Filter by year">
+          {availableYears.map(y => (
+            <option key={y} value={y}>{y}</option>
+          ))}
+        </SelectPill>
+
         {/* Month Filter */}
-        <div style={{ 
-          WebkitTapHighlightColor: 'rgba(255, 255, 255, 0)', 
-          isolation: 'isolate',
-          transform: 'translateZ(0)'
-        }}>
-          <select
-            value={month}
-            onChange={(e) => onMonthChange(e.target.value)}
-            className="px-2.5 py-1 rounded-md text-xs text-neutral-600 border border-neutral-200"
-            style={{ 
-              WebkitTapHighlightColor: 'rgba(255, 255, 255, 0)',
-              WebkitAppearance: 'none',
-              appearance: 'none',
-              userSelect: 'none',
-              WebkitUserSelect: 'none',
-              touchAction: 'manipulation',
-              backgroundColor: '#FAFAFA',
-              transform: 'translateZ(0)',
-              willChange: 'background-color'
-            }}
-          >
-            <option value="Full Year">Full Year</option>
-            {availableMonths.map(m => (
-              <option key={m} value={m}>{m}</option>
-            ))}
-          </select>
-        </div>
-        
+        <SelectPill value={month} onChange={onMonthChange} label="Filter by month">
+          <option value="Full Year">Full Year</option>
+          {availableMonths.map(m => (
+            <option key={m} value={m}>{m}</option>
+          ))}
+        </SelectPill>
+
         {/* Type Filter */}
         {onTypeFilterChange && (
-          <div style={{ 
-            WebkitTapHighlightColor: 'rgba(255, 255, 255, 0)', 
-            isolation: 'isolate',
-            transform: 'translateZ(0)'
-          }}>
-            <select
-              value={typeFilter}
-              onChange={(e) => onTypeFilterChange(e.target.value as any)}
-              className="px-2.5 py-1 rounded-md text-xs text-neutral-600 border border-neutral-200"
-              style={{ 
-                WebkitTapHighlightColor: 'rgba(255, 255, 255, 0)',
-                WebkitAppearance: 'none',
-                appearance: 'none',
-                userSelect: 'none',
-                WebkitUserSelect: 'none',
-                touchAction: 'manipulation',
-                backgroundColor: '#FAFAFA',
-                transform: 'translateZ(0)',
-                willChange: 'background-color'
-              }}
-            >
-              <option value="All">All</option>
-              <option value="One-off">One-off</option>
-              <option value="Recurring">Recurring</option>
-            </select>
-          </div>
+          <SelectPill value={typeFilter ?? 'All'} onChange={(v) => onTypeFilterChange(v)} label="Filter by type">
+            <option value="All">All</option>
+            <option value="One-off">One-off</option>
+            <option value="Recurring">Recurring</option>
+          </SelectPill>
         )}
-        
+
         {/* Source Filter */}
         {onOpenSourceSelector && (
           <button
             onClick={onOpenSourceSelector}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors ${
-              selectedSource ? 'bg-blue-50/70 hover:bg-blue-100' : 'bg-neutral-50/70 hover:bg-neutral-100'
+            className={`${PILL} ${
+              selectedSource
+                ? 'bg-blue-50 border-transparent text-blue-600 hover:bg-blue-100'
+                : PILL_NEUTRAL
             }`}
           >
             {selectedSource ? (
               <>
                 <SourceLogo source={selectedSource} size={16} />
-                <span className="text-blue-600 text-sm">{selectedSource.name}</span>
+                <span>{selectedSource.name}</span>
               </>
             ) : (
               <>
-                <Wallet className="w-3.5 h-3.5 text-neutral-400" />
-                <span className="text-neutral-600 text-sm">Source</span>
+                <Wallet className="w-3.5 h-3.5 text-neutral-400 flex-shrink-0" />
+                <span>Source</span>
               </>
             )}
-            <ChevronDown className={`w-3.5 h-3.5 ${selectedSource ? 'text-blue-400' : 'text-neutral-400'}`} />
+            <ChevronDown className={`${CHEVRON} ${selectedSource ? 'text-blue-400' : 'text-neutral-400'}`} />
           </button>
         )}
 
         {/* Category Filter */}
-        <button
-          onClick={onOpenCategorySelector}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-neutral-50/70 hover:bg-neutral-100 rounded-lg transition-colors"
-        >
-          <span className="text-neutral-600 text-sm">{category}</span>
-          <ChevronDown className="w-3.5 h-3.5 text-neutral-400" />
+        <button onClick={onOpenCategorySelector} className={`${PILL} ${PILL_NEUTRAL}`}>
+          <span>{category}</span>
+          <ChevronDown className={`${CHEVRON} text-neutral-400`} />
         </button>
-        
+
         {/* Subcategory Filter - only show when available */}
         {subcategory && subcategory !== 'All' && onOpenSubcategorySelector && (
           <button
             onClick={onOpenSubcategorySelector}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50/70 hover:bg-blue-100 rounded-lg transition-colors"
+            className={`${PILL} bg-blue-50 border-transparent text-blue-600 hover:bg-blue-100`}
           >
-            <span className="text-blue-600 text-sm">{subcategory}</span>
-            <ChevronDown className="w-3.5 h-3.5 text-blue-400" />
+            <span>{subcategory}</span>
+            <ChevronDown className={`${CHEVRON} text-blue-400`} />
           </button>
         )}
-        
+
         {/* Add Subcategory Filter button - only show when category is selected and no subcategory */}
         {category !== 'All' && (!subcategory || subcategory === 'All') && onOpenSubcategorySelector && (
           <button
             onClick={onOpenSubcategorySelector}
-            className="flex items-center gap-1.5 px-3 py-1.5 border border-dashed border-neutral-300 hover:bg-neutral-50 rounded-lg transition-colors"
+            className={`${PILL} bg-transparent border-dashed border-neutral-300 text-neutral-400 hover:bg-neutral-50`}
           >
-            <span className="text-neutral-400 text-sm">+ Subcategory</span>
+            <span>+ Subcategory</span>
           </button>
         )}
-        
+
         {/* Active Search Query Display */}
         {searchQuery && onClearSearch && (
           <button
             onClick={onClearSearch}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-green-50/70 hover:bg-green-100 rounded-lg transition-colors max-w-[140px]"
+            className={`${PILL} bg-green-50 border-transparent text-green-600 hover:bg-green-100 max-w-[140px]`}
           >
             <Search className="w-3.5 h-3.5 text-green-600 flex-shrink-0" />
-            <span className="text-green-600 text-sm truncate">{searchQuery}</span>
+            <span className="truncate">{searchQuery}</span>
             <X className="w-3.5 h-3.5 text-green-400 flex-shrink-0" />
           </button>
         )}
-        
+
         {/* Search */}
         <button
           onClick={onOpenSearch}
-          className="ml-auto p-1.5 bg-neutral-50/70 hover:bg-neutral-100 rounded-lg transition-colors"
+          className="ml-auto flex items-center justify-center w-8 h-8 rounded-lg border border-transparent bg-neutral-100 hover:bg-neutral-200/60 transition-colors"
         >
-          <Search className="w-4.5 h-4.5 text-neutral-400" />
+          <Search className="w-4 h-4 text-neutral-400" />
         </button>
       </div>
     </div>
