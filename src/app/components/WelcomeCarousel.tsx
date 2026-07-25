@@ -176,9 +176,6 @@ function DashboardIllustration() {
 }
 
 function TrendIllustration() {
-  const cumLabels = ['Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul'];
-  const cumulative = [22, 30, 26, 40, 52, 60]; // overall, ascending
-
   // Line Trend — mirrors the top of the real Trend tab (stat cards + line).
   const tLabels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul'];
   const trend = [4475, 3620, 3280, 3010, 2920, 3480, 3800];
@@ -205,12 +202,6 @@ function TrendIllustration() {
 
   return (
     <div className="flex flex-col gap-3">
-      {/* Cumulative spending (kept) */}
-      <div className="rounded-2xl px-4 pt-3.5 pb-2.5" style={{ background: '#FFFFFF', boxShadow: '0 8px 24px rgba(0,0,0,0.06)', border: '1px solid #EEEEF1' }}>
-        <div className="text-[13px] font-semibold mb-1.5" style={{ color: '#1C1C1E' }}>Cumulative spending</div>
-        <Spark values={cumulative} labels={cumLabels} color="#007AFF" h={72} />
-      </div>
-
       {/* Trend tab top: stat cards + Line Trend chart */}
       <div className="rounded-2xl p-4" style={{ background: '#FFFFFF', boxShadow: '0 8px 24px rgba(0,0,0,0.06)', border: '1px solid #EEEEF1' }}>
         <div className="grid grid-cols-3 gap-2 mb-4">
@@ -406,7 +397,7 @@ export function WelcomeCarousel({ userName, onDone, onSetupCategories, onLoadDem
     {
       illustration: <TrendIllustration />,
       title: 'Spot the trends',
-      desc: 'Follow your cumulative spending, and see your monthly totals, average and how the trend moves month over month.',
+      desc: 'See your monthly totals and average, and how your spending trend moves month over month.',
     },
     {
       illustration: <SavingsIllustration />,
