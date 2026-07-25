@@ -11,8 +11,8 @@ import { TracklyLogo } from './TracklyLogo';
 import { DEFAULT_SOURCES } from './sources';
 
 // A small line chart (line + soft area + endpoint dot), matching the app style
-function Spark({ values, labels, color }: { values: number[]; labels: string[]; color: string }) {
-  const W = 300, H = 116, pad = 10;
+function Spark({ values, labels, color, h = 116 }: { values: number[]; labels: string[]; color: string; h?: number }) {
+  const W = 300, H = h, pad = 10;
   const max = Math.max(...values) * 1.15;
   const x = (i: number) => pad + (i * (W - pad * 2)) / (values.length - 1);
   const y = (v: number) => H - pad - (v / max) * (H - pad * 2);
@@ -176,27 +176,81 @@ function DashboardIllustration() {
 }
 
 function TrendIllustration() {
-  const labels = ['Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul'];
-  const cumulative = [22, 30, 26, 40, 52, 60];       // overall, ascending
-  const groceries = [140, 110, 175, 130, 205, 180];  // one category, up and down
+  const cumLabels = ['Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul'];
+  const cumulative = [22, 30, 26, 40, 52, 60]; // overall, ascending
+
+  // Line Trend — mirrors the top of the real Trend tab (stat cards + line).
+  const tLabels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul'];
+  const trend = [4475, 3620, 3280, 3010, 2920, 3480, 3800];
+  const yMax = 4475, yMin = 2773, yRange = yMax - yMin;
+  const avg = 3533;
+  const W = 320, H = 84;
+  const px = (i: number) => (i / (trend.length - 1)) * W;
+  const py = (v: number) => H - ((v - yMin) / yRange) * H;
+  const linePath = trend
+    .map((v, i) => {
+      if (i === 0) return `M ${px(0)},${py(v)}`;
+      const p = px(i - 1), c = px(i);
+      return `C ${p + (c - p) / 3},${py(trend[i - 1])} ${p + ((c - p) * 2) / 3},${py(v)} ${c},${py(v)}`;
+    })
+    .join(' ');
+  const areaPath = `M 0,${H} ${trend.map((v, i) => `L ${px(i)},${py(v)}`).join(' ')} L ${W},${H} Z`;
+  const avgY = py(avg);
+
+  const tiles = [
+    { label: 'Total Spent', value: '24,731€', sub: '7 months' },
+    { label: 'Monthly Avg', value: '3,533€', sub: '' },
+    { label: 'Transactions', value: '405', sub: '7 months' },
+  ];
 
   return (
     <div className="flex flex-col gap-3">
-      {/* Cumulative spending (line) */}
-      <div className="rounded-2xl px-4 pt-4 pb-3" style={{ background: '#FFFFFF', boxShadow: '0 8px 24px rgba(0,0,0,0.06)', border: '1px solid #EEEEF1' }}>
-        <div className="text-sm font-semibold mb-3" style={{ color: '#1C1C1E' }}>Cumulative spending</div>
-        <Spark values={cumulative} labels={labels} color="#007AFF" />
+      {/* Cumulative spending (kept) */}
+      <div className="rounded-2xl px-4 pt-3.5 pb-2.5" style={{ background: '#FFFFFF', boxShadow: '0 8px 24px rgba(0,0,0,0.06)', border: '1px solid #EEEEF1' }}>
+        <div className="text-[13px] font-semibold mb-1.5" style={{ color: '#1C1C1E' }}>Cumulative spending</div>
+        <Spark values={cumulative} labels={cumLabels} color="#007AFF" h={72} />
       </div>
 
-      {/* Per-category monthly line */}
-      <div className="rounded-2xl px-4 pt-4 pb-3" style={{ background: '#FFFFFF', boxShadow: '0 8px 24px rgba(0,0,0,0.06)', border: '1px solid #EEEEF1' }}>
-        <div className="flex items-center gap-2 mb-3">
-          <span className="flex items-center justify-center flex-shrink-0" style={{ width: 22, height: 22, borderRadius: 7, background: '#E7F6EC' }}>
-            <ShoppingCart className="w-3.5 h-3.5" style={{ color: '#2E9E5B' }} />
-          </span>
-          <span className="text-sm font-semibold" style={{ color: '#1C1C1E' }}>Groceries · monthly</span>
+      {/* Trend tab top: stat cards + Line Trend chart */}
+      <div className="rounded-2xl p-4" style={{ background: '#FFFFFF', boxShadow: '0 8px 24px rgba(0,0,0,0.06)', border: '1px solid #EEEEF1' }}>
+        <div className="grid grid-cols-3 gap-2 mb-4">
+          {tiles.map((t) => (
+            <div key={t.label} className="rounded-lg px-2 py-2" style={{ background: '#F5F5F7' }}>
+              <div className="text-[9px] leading-tight" style={{ color: '#8E8E93' }}>{t.label}</div>
+              <div className="text-[15px] font-bold tabular-nums leading-tight mt-0.5" style={{ color: '#1C1C1E' }}>{t.value}</div>
+              {t.sub && <div className="text-[8px] mt-0.5" style={{ color: '#B0B0B5' }}>{t.sub}</div>}
+            </div>
+          ))}
         </div>
-        <Spark values={groceries} labels={labels} color="#2E9E5B" />
+
+        <div className="text-[13px] font-semibold mb-2" style={{ color: '#1C1C1E' }}>Line Trend</div>
+        <div className="flex">
+          {/* Y-axis labels */}
+          <div className="flex flex-col justify-between pr-2 text-[9px] tabular-nums font-medium" style={{ height: H, color: '#B0B0B5' }}>
+            <span>4,475€</span>
+            <span>3,624€</span>
+            <span>2,773€</span>
+          </div>
+          <div className="flex-1 min-w-0">
+            <svg viewBox={`0 0 ${W} ${H}`} width="100%" height={H} preserveAspectRatio="none" style={{ display: 'block' }}>
+              <defs>
+                <linearGradient id="trendGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#3B82F6" stopOpacity="0.12" />
+                  <stop offset="100%" stopColor="#3B82F6" stopOpacity="0.01" />
+                </linearGradient>
+              </defs>
+              <line x1="0" y1="0.5" x2={W} y2="0.5" stroke="#F1F1F1" strokeWidth="1" vectorEffect="non-scaling-stroke" />
+              <line x1="0" y1={H / 2} x2={W} y2={H / 2} stroke="#F1F1F1" strokeWidth="1" vectorEffect="non-scaling-stroke" />
+              <line x1="0" y1={H - 0.5} x2={W} y2={H - 0.5} stroke="#F1F1F1" strokeWidth="1" vectorEffect="non-scaling-stroke" />
+              <line x1="0" y1={avgY} x2={W} y2={avgY} stroke="#A3A3A3" strokeWidth="1" strokeDasharray="4 4" opacity="0.35" vectorEffect="non-scaling-stroke" />
+              <path d={areaPath} fill="url(#trendGrad)" />
+              <path d={linePath} fill="none" stroke="#3B82F6" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+            </svg>
+            <div className="flex justify-between mt-1.5">
+              {tLabels.map((l) => <span key={l} className="text-[9px]" style={{ color: '#B0B0B5' }}>{l}</span>)}
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -317,14 +371,12 @@ function SettingsIllustration() {
           <Landmark className="w-4 h-4" style={{ color: '#8E8E93' }} />
         </span>
         <span className="flex-1 text-[15px] font-medium" style={{ color: '#1C1C1E' }}>Sources</span>
-        <div className="flex" style={{ gap: 0 }}>
-          {DEFAULT_SOURCES.map((s, i) => (
-            <span key={s.id} style={{ marginLeft: i === 0 ? 0 : -6, boxShadow: '0 0 0 2px #FFFFFF', borderRadius: 6 }}>
-              <SourceLogo source={s} size={20} />
-            </span>
+        <div className="flex items-center" style={{ gap: 5 }}>
+          {DEFAULT_SOURCES.map((s) => (
+            <SourceLogo key={s.id} source={s} size={22} />
           ))}
         </div>
-        <ChevronRight className="w-4 h-4 flex-shrink-0" style={{ color: '#C7C7CC' }} />
+        <ChevronRight className="w-4 h-4 flex-shrink-0 ml-2" style={{ color: '#C7C7CC' }} />
       </div>
     </div>
   );
@@ -354,7 +406,7 @@ export function WelcomeCarousel({ userName, onDone, onSetupCategories, onLoadDem
     {
       illustration: <TrendIllustration />,
       title: 'Spot the trends',
-      desc: 'See cumulative spending, and how any category splits out month over month.',
+      desc: 'Follow your cumulative spending, and see your monthly totals, average and how the trend moves month over month.',
     },
     {
       illustration: <SavingsIllustration />,
