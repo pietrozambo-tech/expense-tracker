@@ -861,7 +861,7 @@ export default function App() {
           />
         ) : (
           // Other tabs - Parent scrollable
-          <div ref={mainScrollRef} className="flex-1 overflow-y-auto pb-28">
+          <div ref={mainScrollRef} className="flex-1 overflow-y-auto pb-32">
             {currentTab === 'dashboard' && (
               <Dashboard
                 key={refreshKey}

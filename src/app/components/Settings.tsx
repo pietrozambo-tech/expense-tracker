@@ -719,9 +719,10 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
 
   // Show Settings list
   return (
-    // No min-h-screen / large bottom padding here: the parent scroll area
-    // already pads for the nav bar, so the page ends just below the signature.
-    <div style={{ backgroundColor: '#F5F5F7' }}>
+    // No min-h-screen here: the page ends just below the signature. The small
+    // negative margin trims the parent scroll area's nav padding for this tab
+    // only (other tabs keep it), so the signature sits snug above the nav bar.
+    <div style={{ backgroundColor: '#F5F5F7', marginBottom: -16 }}>
       {/* Header */}
       <div className="px-6 pb-4 pt-1">
         <h1 style={{ color: '#1C1C1E', fontSize: '28px', fontWeight: '600', letterSpacing: '-0.5px' }}>Settings</h1>
