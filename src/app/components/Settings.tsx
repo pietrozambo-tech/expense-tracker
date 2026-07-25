@@ -513,9 +513,11 @@ export function Settings({
       `${exampleSub ? `, "subcategory": "${exampleSub}"` : ''}, "description": "Example"` +
       `${defaultSrcId ? `, "source": "${defaultSrcId}"` : ''} }`;
     const sourceRule = hasSources
-      ? `- "source": optional; one of my source ids below${defaultSrcId ? ` (use "${defaultSrcId}" if unsure)` : ''}.`
+      ? `- "source": optional; one of my source ids listed below${defaultSrcId ? ` (use "${defaultSrcId}" if unsure)` : ''}.`
       : `- "source": leave this field out — I have no sources set up.`;
-    const importPrompt = `I want to import my expense & income history into an app called "Trackly". I'll give you my data (a spreadsheet, CSV, or a pasted table). Convert ALL of it into ONE JSON file in EXACTLY this format:
+    const importPrompt = `I want to import my expense & income history into an app called "Trackly".
+
+I'll give you my data in whatever form I have it — an Excel/CSV spreadsheet, a bank or credit-card statement (PDF, CSV, or screenshots), photos or screenshots of a transaction list, or just a pasted table. Read ALL of it and turn EVERY transaction into ONE JSON file in EXACTLY this format:
 
 {
   "version": 1,
@@ -525,25 +527,38 @@ ${exampleRow}
   ]
 }
 
-Rules:
-- Keep "currency" exactly as "${userCurrency}" — all my amounts are in ${userCurrency}. Do NOT convert amounts to another currency.
-- "date": YYYY-MM-DD.
-- "amount": a positive number. For a refund / cashback / money received back on an EXPENSE, use a NEGATIVE amount.
-- "type": "expense" or "income".
-- "category": MUST be exactly one of my categories listed below — pick the closest match, do not invent or rename categories.
-- "subcategory": optional; prefer one from that category's list below, but a sensible new one is fine.
-- "description": a short label from my data.
+FORMAT
+- "date": YYYY-MM-DD. Convert any date format to this. If a date is ambiguous (e.g. 03/04/25), infer the order from the other rows and stay consistent.
+- "amount": a plain positive number — no currency symbol, no thousands separators (e.g. 1234.56).
+- "type": "expense" for money going out, "income" for money coming in.
+- A refund, cashback or money returned on a card: keep "type":"expense" but make "amount" NEGATIVE.
+- "currency": always "${userCurrency}". My amounts are already in ${userCurrency} — never convert them.
+- "description": a short, readable label. Clean up cryptic statement text (e.g. "SQ *BLUE BOTTLE 1234" → "Blue Bottle").
 ${sourceRule}
 
-My EXPENSE categories (with their subcategories):
+CATEGORISING — the important part
+Every transaction MUST use exactly ONE of MY categories listed below (matched by name). Never invent, rename, translate, or leave the category blank.
+- If my data already has categories, map each one to the CLOSEST of my categories.
+- If it uses broad or bank-style categories (e.g. "Groceries", "Bills", "Shopping"), map those to the closest of my categories too.
+- If it has NO category, work it out from the merchant / description (e.g. "Uber" → Transport, "Netflix" → Subscriptions, "Tesco" → Groceries).
+- If nothing fits well, choose my closest general category rather than dropping the row.
+- "subcategory": optional — use one of that category's subcategories if it fits, or add a sensible new one.
+
+READING A STATEMENT
+- Include real transactions only. Skip opening/closing balances, running balances, "balance brought forward" and pure summary lines.
+- Bank fees, interest charged and card charges ARE expenses — include them.
+- If debits and credits are in separate columns: debit = expense, credit = income.
+- Remove obvious duplicates.
+
+MY EXPENSE categories (with their subcategories):
 ${expList}
 
-My INCOME categories:
+MY INCOME categories:
 ${incList}
 
 My sources (id = name): ${srcList}
 
-Output only the JSON, with no commentary, and save it as a .json file.`;
+Output ONLY the JSON — no commentary, no code fences — and save it as a .json file.`;
 
     const copyPrompt = async () => {
       try {
@@ -589,16 +604,16 @@ Output only the JSON, with no commentary, and save it as a .json file.`;
               Bring in your existing data
             </h2>
             <p style={{ color: '#6B6B75', fontSize: 15, lineHeight: 1.5, marginTop: 8 }}>
-              Already track your spending in a spreadsheet? An AI assistant can convert it into a Trackly file
-              for you in seconds — no manual re-entry.
+              Got a spreadsheet, a bank statement, or even screenshots of your transactions? An AI assistant can
+              turn any of them into a Trackly file in seconds — no manual re-entry.
             </p>
           </div>
 
           {/* Steps */}
           <div className="bg-white rounded-2xl shadow-sm p-5 flex flex-col gap-4">
             <Step n={1}>
-              Open any AI assistant (ChatGPT, Claude, Gemini…). Paste the prompt below and attach your
-              spreadsheet, CSV, or just paste your table.
+              Open any AI assistant (ChatGPT, Claude, Gemini…). Paste the prompt below and attach your file —
+              a spreadsheet, a bank/card statement (PDF or CSV), screenshots, or a pasted table.
             </Step>
             <Step n={2}>
               It returns a <span style={{ fontWeight: 600 }}>.json</span> file already matched to your categories
