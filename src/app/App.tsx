@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { Toaster } from './components/ui/sonner';
 import { BarChart3, Plus, List, X, Settings as SettingsIcon, TrendingUp, ChevronDown } from 'lucide-react';
-import { CURRENCIES } from './utils/currency';
+import { CURRENCIES, convertAmount, BASE_CURRENCY } from './utils/currency';
 import type { Transaction, Source } from './types';
 import {
   clearAllData,
@@ -308,6 +308,7 @@ export default function App() {
               date: date,
               type: transactionType,
               currency: selectedTransactionCurrency, // Update currency when editing
+              baseAmount: convertAmount(parseFloat(amount), selectedTransactionCurrency, BASE_CURRENCY), // lock FX value
               recurrence: recurrence, // Add recurrence
               sourceId: selectedSourceId || undefined
             }
@@ -331,6 +332,7 @@ export default function App() {
         date: date,
         type: transactionType,
         currency: selectedTransactionCurrency, // Store the currency with the transaction
+        baseAmount: convertAmount(parseFloat(amount), selectedTransactionCurrency, BASE_CURRENCY), // lock FX value
         recurrence: recurrence, // Add recurrence
         sourceId: selectedSourceId || undefined
       };

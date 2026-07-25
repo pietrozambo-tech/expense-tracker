@@ -3,7 +3,7 @@ import { ChevronRight, ArrowUpDown, TrendingUp, TrendingDown, Minus, Plus, Calen
 import { SavingsJar } from './SavingsJar';
 import { TrendCategoryBreakdown } from './TrendCategoryBreakdown';
 import React from 'react';
-import { formatAmount, formatCompactAmount, formatSummaryAmount, formatAmountListView, CURRENCIES, convertAmount } from '../utils/currency';
+import { formatAmount, formatCompactAmount, formatSummaryAmount, formatAmountListView, CURRENCIES, homeAmount } from '../utils/currency';
 import { getCategoryIcon } from './categoryIcons';
 import { CategoryFilterModal } from './CategoryFilterModal';
 import { SubcategoryFilterModal } from './SubcategoryFilterModal';
@@ -203,8 +203,8 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
 
     if (drilldownSortBy === 'amount') {
       const items = [...drilldownTransactions].sort((a, b) => {
-        const amountA = convertAmount(a.amount, a.currency || currency, currency);
-        const amountB = convertAmount(b.amount, b.currency || currency, currency);
+        const amountA = homeAmount(a, currency);
+        const amountB = homeAmount(b, currency);
         return amountB - amountA;
       });
       return { mode: 'amount', items };
@@ -441,13 +441,11 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
   const periodExpenses = currentMonthExpenses.filter(e => e.type !== 'income');
   const periodIncome = currentMonthExpenses.filter(e => e.type === 'income');
   const totalSpending = periodExpenses.reduce((sum, e) => {
-    const transactionCurrency = e.currency || currency;
-    const convertedAmount = convertAmount(e.amount, transactionCurrency, currency);
+    const convertedAmount = homeAmount(e, currency);
     return sum + convertedAmount;
   }, 0);
   const totalIncome = periodIncome.reduce((sum, e) => {
-    const transactionCurrency = e.currency || currency;
-    const convertedAmount = convertAmount(e.amount, transactionCurrency, currency);
+    const convertedAmount = homeAmount(e, currency);
     return sum + convertedAmount;
   }, 0);
   const savings = totalIncome - totalSpending;
@@ -459,8 +457,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
     ? periodIncome
     : currentMonthExpenses;
   const filteredTotal = filteredTransactions.reduce((sum, e) => {
-    const transactionCurrency = e.currency || currency;
-    const convertedAmount = convertAmount(e.amount, transactionCurrency, currency);
+    const convertedAmount = homeAmount(e, currency);
     return sum + convertedAmount;
   }, 0);
 
@@ -470,8 +467,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
   // Group expenses by category for current month
   const categoryTotals = filteredTransactions.reduce((acc, expense) => {
     const categoryName = expense.category.name;
-    const transactionCurrency = expense.currency || currency;
-    const convertedAmount = convertAmount(expense.amount, transactionCurrency, currency);
+    const convertedAmount = homeAmount(expense, currency);
     acc[categoryName] = (acc[categoryName] || 0) + convertedAmount;
     return acc;
   }, {} as Record<string, number>);
@@ -500,8 +496,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
     
     categoryExpenses.forEach(expense => {
       if (expense.subcategory) {
-        const transactionCurrency = expense.currency || currency;
-        const convertedAmount = convertAmount(expense.amount, transactionCurrency, currency);
+        const convertedAmount = homeAmount(expense, currency);
         subcategoryTotals[expense.subcategory] = (subcategoryTotals[expense.subcategory] || 0) + convertedAmount;
       }
     });
@@ -522,7 +517,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
     const all = filteredTransactions.filter(e => e.category.name === categoryName);
     const generic = all.filter(e => !e.subcategory);
     const amount = generic.reduce(
-      (sum, e) => sum + convertAmount(e.amount, e.currency || currency, currency),
+      (sum, e) => sum + homeAmount(e, currency),
       0
     );
     return {
@@ -549,8 +544,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
       currentAmount = filteredTransactions
         .filter(e => e.category.name === categoryName && e.subcategory === subcategoryName)
         .reduce((sum, e) => {
-          const transactionCurrency = e.currency || currency;
-          const convertedAmount = convertAmount(e.amount, transactionCurrency, currency);
+          const convertedAmount = homeAmount(e, currency);
           return sum + convertedAmount;
         }, 0);
     } else {
@@ -558,8 +552,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
       currentAmount = filteredTransactions
         .filter(e => e.category.name === categoryName)
         .reduce((sum, e) => {
-          const transactionCurrency = e.currency || currency;
-          const convertedAmount = convertAmount(e.amount, transactionCurrency, currency);
+          const convertedAmount = homeAmount(e, currency);
           return sum + convertedAmount;
         }, 0);
     }
@@ -571,8 +564,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
       previousAmount = previousFilteredTransactions
         .filter(e => e.category.name === categoryName && e.subcategory === subcategoryName)
         .reduce((sum, e) => {
-          const transactionCurrency = e.currency || currency;
-          const convertedAmount = convertAmount(e.amount, transactionCurrency, currency);
+          const convertedAmount = homeAmount(e, currency);
           return sum + convertedAmount;
         }, 0);
     } else {
@@ -580,8 +572,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
       previousAmount = previousFilteredTransactions
         .filter(e => e.category.name === categoryName)
         .reduce((sum, e) => {
-          const transactionCurrency = e.currency || currency;
-          const convertedAmount = convertAmount(e.amount, transactionCurrency, currency);
+          const convertedAmount = homeAmount(e, currency);
           return sum + convertedAmount;
         }, 0);
     }
@@ -640,13 +631,11 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
         });
         
         const monthIncome = monthExpenses.filter(e => e.type === 'income').reduce((sum, e) => {
-          const transactionCurrency = e.currency || currency;
-          const convertedAmount = convertAmount(e.amount, transactionCurrency, currency);
+          const convertedAmount = homeAmount(e, currency);
           return sum + convertedAmount;
         }, 0);
         const monthSpending = monthExpenses.filter(e => e.type !== 'income').reduce((sum, e) => {
-          const transactionCurrency = e.currency || currency;
-          const convertedAmount = convertAmount(e.amount, transactionCurrency, currency);
+          const convertedAmount = homeAmount(e, currency);
           return sum + convertedAmount;
         }, 0);
         const savingsAmount = monthIncome - monthSpending;
@@ -725,8 +714,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
       });
       
       const monthTotal = monthExpenses.reduce((sum, e) => {
-        const transactionCurrency = e.currency || currency;
-        const convertedAmount = convertAmount(e.amount, transactionCurrency, currency);
+        const convertedAmount = homeAmount(e, currency);
         return sum + convertedAmount;
       }, 0);
       
@@ -745,16 +733,14 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
         if (isSubcategory && subcategoryName) {
           const filtered = monthExpenses.filter(e => e.category.name === categoryName && e.subcategory === subcategoryName);
           amount = filtered.reduce((sum, e) => {
-            const transactionCurrency = e.currency || currency;
-            const convertedAmount = convertAmount(e.amount, transactionCurrency, currency);
+            const convertedAmount = homeAmount(e, currency);
             return sum + convertedAmount;
           }, 0);
           filteredCount = filtered.length;
         } else {
           const filtered = monthExpenses.filter(e => e.category.name === categoryName);
           amount = filtered.reduce((sum, e) => {
-            const transactionCurrency = e.currency || currency;
-            const convertedAmount = convertAmount(e.amount, transactionCurrency, currency);
+            const convertedAmount = homeAmount(e, currency);
             return sum + convertedAmount;
           }, 0);
           filteredCount = filtered.length;
@@ -949,8 +935,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
     const recurrenceMap: Record<string, number> = {};
     periodTransactions.forEach(transaction => {
       const recurrence = transaction.recurrence || 'Never repeat';
-      const transactionCurrency = transaction.currency || currency;
-      const convertedAmount = convertAmount(transaction.amount, transactionCurrency, currency);
+      const convertedAmount = homeAmount(transaction, currency);
       recurrenceMap[recurrence] = (recurrenceMap[recurrence] || 0) + convertedAmount;
     });
     
@@ -998,7 +983,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
     const totals: Record<string, number> = {};
     periodTransactions.forEach((t) => {
       const key = t.sourceId || '__none__';
-      totals[key] = (totals[key] || 0) + convertAmount(t.amount, t.currency || currency, currency);
+      totals[key] = (totals[key] || 0) + homeAmount(t, currency);
     });
 
     return Object.entries(totals)
@@ -3149,7 +3134,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                     <span className="text-neutral-300">·</span>
                     <span style={{ color: transactionType === 'expense' ? '#D32F2F' : '#2E7D32' }}>
                       {formatAmountListView(
-                        drilldownTransactions.reduce((sum, txn) => sum + convertAmount(txn.amount, txn.currency || currency, currency), 0),
+                        drilldownTransactions.reduce((sum, txn) => sum + homeAmount(txn, currency), 0),
                         currency,
                         0
                       )}

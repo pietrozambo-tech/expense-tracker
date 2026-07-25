@@ -1,5 +1,5 @@
 import { Trash2, Repeat } from 'lucide-react';
-import { formatAmountListView, convertAmount } from '../utils/currency';
+import { formatAmountListView, homeAmount } from '../utils/currency';
 import { useState } from 'react';
 import { getCategoryIcon } from './categoryIcons';
 import { useSwipeToDelete } from '../lib/useSwipeToDelete';
@@ -41,7 +41,7 @@ export function ExpenseItem({ expense, onTap, onDelete, currency, showDate = fal
   const Icon = getCategoryIcon(expense.category.icon);
   const transactionCurrency = expense.currency || currency;
   const showConversion = transactionCurrency !== currency;
-  const convertedAmount = showConversion ? convertAmount(expense.amount, transactionCurrency, currency) : null;
+  const convertedAmount = showConversion ? homeAmount(expense, currency) : null;
   const isRecurrent = expense.recurrence && expense.recurrence !== 'Never repeat';
   // A negative expense is a refund / credit: show it as a green "+" inflow
   // instead of a broken double-minus.

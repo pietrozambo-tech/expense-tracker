@@ -1,6 +1,6 @@
 import { ExpenseItem } from './ExpenseItem';
 import { IncomeItem } from './IncomeItem';
-import { formatAmountListView, convertAmount } from '../utils/currency';
+import { formatAmountListView, homeAmount } from '../utils/currency';
 import type { Transaction } from '../types';
 
 interface ActivityDayGroupProps {
@@ -43,7 +43,7 @@ export function ActivityDayGroup({
   // Net daily total in the user's currency: income adds, expenses subtract.
   // Shown with an explicit +/- sign and a neutral color — the sign carries the meaning.
   const netTotal = transactions.reduce((sum, t) => {
-    const converted = convertAmount(t.amount, t.currency || currency, currency);
+    const converted = homeAmount(t, currency);
     return t.type === 'income' ? sum + converted : sum - converted;
   }, 0);
   const totalLabel = `${netTotal >= 0 ? '+' : '-'}${formatAmountListView(Math.abs(netTotal), currency, 2)}`;

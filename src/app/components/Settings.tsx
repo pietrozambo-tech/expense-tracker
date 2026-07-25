@@ -134,7 +134,7 @@ export function Settings({
     }
   };
 
-  const openConfirm = (action: 'demo' | 'erase') => {
+  const openConfirm = (action: 'demo' | 'erase' | 'erase-demo' | 'restore') => {
     setConfirmAction(action);
     onModalOpenChange(true);
   };

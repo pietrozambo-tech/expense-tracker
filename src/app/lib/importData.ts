@@ -1,4 +1,5 @@
 import type { Transaction, Category, TransactionType } from '../types';
+import { convertAmount, BASE_CURRENCY } from '../utils/currency';
 
 // A single transaction in the lightweight import format. Categories are
 // referenced by *name* (not the full object) so the file is easy to generate
@@ -96,6 +97,7 @@ export function buildImport(
       date: rec.date,
       type: rec.type,
       currency: payload.currency || fallbackCurrency,
+      baseAmount: convertAmount(rec.amount, payload.currency || fallbackCurrency, BASE_CURRENCY),
       recurrence: 'Never repeat',
       sourceId: rec.source || undefined,
     });

@@ -5,7 +5,7 @@ import { CategoryFilterModal } from './CategoryFilterModal';
 import { SubcategoryFilterModal } from './SubcategoryFilterModal';
 import { SourceFilterModal } from './SourceFilterModal';
 import { SearchModal } from './SearchModal';
-import { formatAmount, CURRENCIES, convertAmount } from '../utils/currency';
+import { formatAmount, CURRENCIES, homeAmount } from '../utils/currency';
 import { Download } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Transaction, Source } from '../types';
@@ -174,7 +174,7 @@ export function Activity({
   // Header total: net for All (signed), spending total for Expenses, +total for Income
   const totalCount = filteredTransactions.length;
   const netTotal = filteredTransactions.reduce((sum, t) => {
-    const converted = convertAmount(t.amount, t.currency || currency, currency);
+    const converted = homeAmount(t, currency);
     return t.type === 'income' ? sum + converted : sum - converted;
   }, 0);
   const headerTotal =
@@ -196,7 +196,7 @@ export function Activity({
     const csvRows = [headers.join(',')];
 
     filteredTransactions.forEach(t => {
-      const converted = convertAmount(t.amount, t.currency || currency, currency);
+      const converted = homeAmount(t, currency);
       const row = [
         t.date,
         t.type === 'income' ? 'Income' : 'Expense',

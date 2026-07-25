@@ -35,6 +35,10 @@ export interface Transaction {
   date: string; // YYYY-MM-DD in local time
   type: TransactionType;
   currency: string; // ISO code, e.g. 'EUR'
+  // Amount converted to the base currency (EUR) at save time. This locks the
+  // FX value so a foreign-currency transaction keeps its worth as rates move.
+  // Optional for older data / same-currency entries.
+  baseAmount?: number;
   recurrence?: string; // 'Never repeat', 'Every month', ...
   sourceId?: string; // id into the sources list (optional for older data)
 }

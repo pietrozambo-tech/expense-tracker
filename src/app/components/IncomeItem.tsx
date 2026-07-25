@@ -1,5 +1,5 @@
 import { Trash2, Repeat } from 'lucide-react';
-import { formatAmountListView, convertAmount } from '../utils/currency';
+import { formatAmountListView, homeAmount } from '../utils/currency';
 import { useState } from 'react';
 import { getCategoryIcon } from './categoryIcons';
 import { useSwipeToDelete } from '../lib/useSwipeToDelete';
@@ -41,7 +41,7 @@ export function IncomeItem({ income, onTap, onDelete, currency, showDate = false
   const Icon = getCategoryIcon(income.category.icon);
   const transactionCurrency = income.currency || currency;
   const showConversion = transactionCurrency !== currency;
-  const convertedAmount = showConversion ? convertAmount(income.amount, transactionCurrency, currency) : null;
+  const convertedAmount = showConversion ? homeAmount(income, currency) : null;
   const isRecurrent = income.recurrence && income.recurrence !== 'Never repeat';
 
   return (

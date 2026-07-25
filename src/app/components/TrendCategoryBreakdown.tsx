@@ -1,7 +1,7 @@
 import { ChevronRight, TrendingUp, ArrowUpDown } from 'lucide-react';
 import { getCategoryIcon } from './categoryIcons';
 import { useState } from 'react';
-import { formatSummaryAmount, CURRENCIES, convertAmount } from '../utils/currency';
+import { formatSummaryAmount, CURRENCIES, homeAmount } from '../utils/currency';
 
 interface TrendCategoryBreakdownProps {
   trendFilteredTransactions: any[];
@@ -24,8 +24,7 @@ export function TrendCategoryBreakdown({
   const categoryBreakdown = trendSortedCategories.map(item => {
     const categoryTransactions = trendFilteredTransactions.filter(t => t.category.name === item.name);
     const totalAmount = categoryTransactions.reduce((sum, t) => {
-      const transactionCurrency = t.currency || currency;
-      const convertedAmount = convertAmount(t.amount, transactionCurrency, currency);
+      const convertedAmount = homeAmount(t, currency);
       return sum + convertedAmount;
     }, 0);
     
@@ -39,8 +38,7 @@ export function TrendCategoryBreakdown({
     
     const monthlyAvg = monthsWithData > 0 ? totalAmount / monthsWithData : 0;
     const totalSpending = trendFilteredTransactions.reduce((sum, t) => {
-      const transactionCurrency = t.currency || currency;
-      const convertedAmount = convertAmount(t.amount, transactionCurrency, currency);
+      const convertedAmount = homeAmount(t, currency);
       return sum + convertedAmount;
     }, 0);
     const weightPercentage = totalSpending > 0 ? (totalAmount / totalSpending) * 100 : 0;
@@ -51,8 +49,7 @@ export function TrendCategoryBreakdown({
         if (!acc[t.subcategory]) {
           acc[t.subcategory] = { amount: 0, months: new Set() };
         }
-        const transactionCurrency = t.currency || currency;
-        const convertedAmount = convertAmount(t.amount, transactionCurrency, currency);
+        const convertedAmount = homeAmount(t, currency);
         acc[t.subcategory].amount += convertedAmount;
         const date = new Date(t.date);
         acc[t.subcategory].months.add(`${date.getFullYear()}-${date.getMonth()}`);

@@ -64,6 +64,26 @@ export const convertAmount = (amount: number, fromCurrency: string, toCurrency: 
   return fxConvert(amount, fromCurrency, toCurrency);
 };
 
+// Base currency used to lock a transaction's FX value (see Transaction.baseAmount).
+export const BASE_CURRENCY = 'EUR';
+
+// The value of a transaction in the user's home currency.
+// - Same currency as home: the amount as-is (exact, no rounding).
+// - Otherwise: prefer the locked EUR value captured at save time so historical
+//   transactions don't re-value as rates move; fall back to a live conversion
+//   for older/imported entries that predate the lock.
+export function homeAmount(
+  txn: { amount: number; currency?: string; baseAmount?: number },
+  homeCurrency: string
+): number {
+  const from = txn.currency || homeCurrency;
+  if (from === homeCurrency) return txn.amount;
+  if (typeof txn.baseAmount === 'number' && isFinite(txn.baseAmount)) {
+    return fxConvert(txn.baseAmount, BASE_CURRENCY, homeCurrency);
+  }
+  return fxConvert(txn.amount, from, homeCurrency);
+}
+
 export const formatAmount = (amount: number, currencyCode: string, decimals: number = 2): string => {
   // Handle null/undefined amounts
   if (amount === null || amount === undefined) {
