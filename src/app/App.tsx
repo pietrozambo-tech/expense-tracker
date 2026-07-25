@@ -819,6 +819,10 @@ export default function App() {
           setCurrentTab('settings');
           setOpenCategoriesOnSettings(true);
         }}
+        onLoadDemo={() => {
+          setHasSeenIntro(true);
+          handleLoadDemoData(); // loads samples and lands on the dashboard
+        }}
       />
     );
   }

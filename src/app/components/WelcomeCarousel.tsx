@@ -1,7 +1,8 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, type ReactNode } from 'react';
 import {
   Minus, Plus, Wallet, Percent, Calendar, Repeat, ChevronDown, ChevronRight,
   ShoppingCart, Car, Home, Clapperboard, TrendingUp, Landmark, Layers,
+  FlaskConical, Trash2,
 } from 'lucide-react';
 import type { Source } from '../types';
 import { SourceLogo } from './SourceLogo';
@@ -44,6 +45,7 @@ interface WelcomeCarouselProps {
   userName?: string;
   onDone: () => void; // finish and enter the app
   onSetupCategories: () => void; // finish and jump to Settings › Categories
+  onLoadDemo: () => void; // finish, load sample data and land on the dashboard
 }
 
 // A sample source used purely for the illustrations
@@ -250,6 +252,53 @@ function SavingsIllustration() {
   );
 }
 
+function DemoIllustration() {
+  const spark = [12, 18, 15, 24, 21, 30];
+  const labels = ['Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul'];
+  return (
+    <div className="flex flex-col gap-3">
+      {/* A sample dashboard preview with a "Sample" badge */}
+      <div className="relative rounded-2xl px-4 py-4" style={{ background: '#FFFFFF', boxShadow: '0 8px 24px rgba(0,0,0,0.06)', border: '1px solid #EEEEF1' }}>
+        <span
+          className="absolute flex items-center gap-1 rounded-full px-2 py-0.5"
+          style={{ top: 12, right: 12, background: '#FEF3E2', color: '#C77700', fontSize: 10, fontWeight: 700, letterSpacing: '0.04em' }}
+        >
+          <FlaskConical className="w-3 h-3" /> SAMPLE
+        </span>
+        {/* Mini hero: Spending (−) and Income (+) */}
+        <div className="flex items-center pr-16 mb-3">
+          <div className="flex items-center gap-2 flex-1 min-w-0">
+            <span className="flex items-center justify-center flex-shrink-0" style={{ width: 28, height: 28, borderRadius: 999, background: 'rgba(255,105,97,0.16)' }}>
+              <Minus className="w-3.5 h-3.5" style={{ color: '#FF6961' }} strokeWidth={3} />
+            </span>
+            <div className="min-w-0">
+              <div className="text-[10px]" style={{ color: '#8E8E93' }}>Spending</div>
+              <div className="text-[15px] font-bold tabular-nums" style={{ color: '#1C1C1E' }}>820€</div>
+            </div>
+          </div>
+          <div className="w-px self-stretch mx-2" style={{ background: '#ECECEF' }} />
+          <div className="flex items-center gap-2 flex-1 min-w-0">
+            <span className="flex items-center justify-center flex-shrink-0" style={{ width: 28, height: 28, borderRadius: 999, background: 'rgba(48,209,88,0.16)' }}>
+              <Plus className="w-3.5 h-3.5" style={{ color: '#30D158' }} strokeWidth={3} />
+            </span>
+            <div className="min-w-0">
+              <div className="text-[10px]" style={{ color: '#8E8E93' }}>Income</div>
+              <div className="text-[15px] font-bold tabular-nums" style={{ color: '#1C1C1E' }}>2,400€</div>
+            </div>
+          </div>
+        </div>
+        <Spark values={spark} labels={labels} color="#007AFF" />
+      </div>
+
+      {/* Reassurance: it's throwaway data */}
+      <div className="flex items-center justify-center gap-1.5">
+        <Trash2 className="w-3.5 h-3.5" style={{ color: '#8E8E93' }} />
+        <span style={{ color: '#8E8E93', fontSize: 12.5 }}>Remove it all in one tap, anytime</span>
+      </div>
+    </div>
+  );
+}
+
 function SettingsIllustration() {
   return (
     <div className="rounded-2xl overflow-hidden" style={{ background: '#FFFFFF', boxShadow: '0 8px 24px rgba(0,0,0,0.06)', border: '1px solid #EEEEF1' }}>
@@ -281,8 +330,8 @@ function SettingsIllustration() {
   );
 }
 
-export function WelcomeCarousel({ userName, onDone, onSetupCategories }: WelcomeCarouselProps) {
-  const slides = [
+export function WelcomeCarousel({ userName, onDone, onSetupCategories, onLoadDemo }: WelcomeCarouselProps) {
+  const slides: Array<{ illustration: ReactNode; title: string; desc: string; cta?: 'demo' }> = [
     {
       illustration: (
         <div className="flex flex-col items-center justify-center" style={{ minHeight: 220 }}>
@@ -313,6 +362,12 @@ export function WelcomeCarousel({ userName, onDone, onSetupCategories }: Welcome
       desc: 'Track savings and your saving rate over time — the app flags your best and worst months.',
     },
     {
+      illustration: <DemoIllustration />,
+      title: 'Want to look around first?',
+      desc: 'Load a set of sample transactions and explore the dashboard and trends with real-looking data. Remove it all in one tap whenever you want.',
+      cta: 'demo',
+    },
+    {
       illustration: <SettingsIllustration />,
       title: 'Make it yours',
       desc: 'Start with your categories — tailor them to how you spend. Add your banks as sources, and export a full backup of everything whenever you like.',
@@ -322,6 +377,7 @@ export function WelcomeCarousel({ userName, onDone, onSetupCategories }: Welcome
   const scrollerRef = useRef<HTMLDivElement>(null);
   const [index, setIndex] = useState(0);
   const isLast = index >= slides.length - 1;
+  const isDemoSlide = slides[index]?.cta === 'demo';
 
   const onScroll = () => {
     const el = scrollerRef.current;
@@ -396,6 +452,19 @@ export function WelcomeCarousel({ userName, onDone, onSetupCategories }: Welcome
             </button>
             <button onClick={onDone} className="py-2.5 text-[15px] font-medium" style={{ color: '#8E8E93' }}>
               I'll do it later
+            </button>
+          </div>
+        ) : isDemoSlide ? (
+          <div className="flex flex-col items-center gap-1">
+            <button
+              onClick={onLoadDemo}
+              className="w-full py-4 rounded-xl font-medium text-base transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+              style={{ backgroundColor: '#007AFF', color: '#FFFFFF', boxShadow: '0 2px 8px rgba(0,122,255,0.25)' }}
+            >
+              <FlaskConical className="w-4 h-4" /> Load sample data
+            </button>
+            <button onClick={next} className="py-2.5 text-[15px] font-medium" style={{ color: '#8E8E93' }}>
+              Maybe later
             </button>
           </div>
         ) : (
