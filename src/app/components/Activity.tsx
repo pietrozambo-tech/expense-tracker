@@ -191,20 +191,36 @@ export function Activity({
       return;
     }
 
-    const currencyName = CURRENCIES[currency]?.code || 'EUR';
-    const headers = ['Date', 'Type', 'Description', 'Category', 'Subcategory', `Amount (${currencyName})`, 'Recurrence'];
+    const homeCode = CURRENCIES[currency]?.code || 'EUR';
+    // Escape any cell that contains a comma, quote or newline. Amounts use a
+    // comma decimal separator, so they're always quoted by this rule too.
+    const esc = (v: string | number) => {
+      const s = String(v ?? '');
+      return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const money = (n: number) => esc(n.toFixed(2).replace('.', ','));
+
+    const headers = [
+      'Date', 'Type', 'Description', 'Category', 'Subcategory', 'Source',
+      'Currency', 'Amount', `Amount (${homeCode})`, 'Recurrence',
+    ];
     const csvRows = [headers.join(',')];
 
     filteredTransactions.forEach(t => {
-      const converted = homeAmount(t, currency);
+      const txnCurrency = t.currency || currency; // the currency it was entered in
+      const sourceName = sources.find(s => s.id === t.sourceId)?.name || '';
+      const converted = homeAmount(t, currency); // value in the user's home currency
       const row = [
-        t.date,
+        esc(t.date),
         t.type === 'income' ? 'Income' : 'Expense',
-        `"${t.description}"`, // Quote to handle commas in description
-        t.category.name,
-        t.subcategory || '',
-        `"${converted.toFixed(2).replace('.', ',')}"`, // Quote to preserve comma decimal separator
-        t.recurrence || 'Never repeat'
+        esc(t.description),
+        esc(t.category.name),
+        esc(t.subcategory || ''),
+        esc(sourceName),
+        esc(txnCurrency),
+        money(t.amount),   // original amount, in its own currency
+        money(converted),  // converted to the home currency
+        esc(t.recurrence || 'Never repeat'),
       ];
       csvRows.push(row.join(','));
     });
