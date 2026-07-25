@@ -719,7 +719,9 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
 
   // Show Settings list
   return (
-    <div className="min-h-screen pb-24" style={{ backgroundColor: '#F5F5F7' }}>
+    // No min-h-screen / large bottom padding here: the parent scroll area
+    // already pads for the nav bar, so the page ends just below the signature.
+    <div style={{ backgroundColor: '#F5F5F7' }}>
       {/* Header */}
       <div className="px-6 pb-4 pt-1">
         <h1 style={{ color: '#1C1C1E', fontSize: '28px', fontWeight: '600', letterSpacing: '-0.5px' }}>Settings</h1>
@@ -909,7 +911,7 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
         </div>
 
         {/* Signature */}
-        <div className="mt-10 mb-2 text-center">
+        <div className="mt-8 mb-1 text-center">
           <p style={{ color: '#B0B0B5', fontSize: '12px', fontWeight: 500 }}>Trackly · v0.1</p>
           <p style={{ color: '#B0B0B5', fontSize: '12px', fontStyle: 'italic', marginTop: '2px' }}>
             Brought to you by Zambop
