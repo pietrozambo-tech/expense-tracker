@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { Toaster } from './components/ui/sonner';
 import { BarChart3, Plus, List, X, Settings as SettingsIcon, TrendingUp, ChevronDown } from 'lucide-react';
@@ -47,6 +47,9 @@ export default function App() {
   const [userCurrency, setUserCurrency] = useState(() => loadSettings().currency);
   const [selectedTransactionCurrency, setSelectedTransactionCurrency] = useState('EUR'); // Currency for current transaction being added/edited
   const [currentTab, setCurrentTab] = useState<'dashboard' | 'activity' | 'add' | 'trend' | 'settings'>('dashboard');
+  // The shared scroll container for the non-activity tabs. Switching tabs must
+  // start the new tab from the top (see the effect below).
+  const mainScrollRef = useRef<HTMLDivElement>(null);
   const [transactionType, setTransactionType] = useState<'expense' | 'income'>('expense');
   const [amount, setAmount] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -119,6 +122,13 @@ export default function App() {
   useEffect(() => {
     saveSources(sources);
   }, [sources]);
+  // Start each tab from the top when switching in the nav bar, rather than
+  // inheriting the previous tab's scroll position. Reset both the shared
+  // scroll container and the window (whichever actually scrolls).
+  useEffect(() => {
+    mainScrollRef.current?.scrollTo({ top: 0 });
+    window.scrollTo({ top: 0 });
+  }, [currentTab]);
   useEffect(() => {
     saveSettings({
       onboarded: hasCompletedOnboarding,
@@ -848,7 +858,7 @@ export default function App() {
           />
         ) : (
           // Other tabs - Parent scrollable
-          <div className="flex-1 overflow-y-auto pb-32">
+          <div ref={mainScrollRef} className="flex-1 overflow-y-auto pb-32">
             {currentTab === 'dashboard' && (
               <Dashboard
                 key={refreshKey}
