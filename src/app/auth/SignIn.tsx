@@ -4,7 +4,7 @@ import { useAuth } from './AuthProvider';
 import { TracklyLogo } from '../components/TracklyLogo';
 
 // Placeholder tagline — swap for the final one once decided.
-const TAGLINE = 'Track every expense in seconds.';
+const TAGLINE = 'Your Expense Lens';
 
 // Apple sign-in is ready in code but needs paid Apple Developer + Supabase
 // setup. Flip to true once configured (e.g. when moving to the App Store).

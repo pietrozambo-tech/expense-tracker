@@ -451,7 +451,8 @@ export function Settings({
           <div className="flex flex-col items-center text-center px-6 pt-6 pb-8">
             <TracklyLogo size={80} className="mb-4" />
             <h2 style={{ color: '#1C1C1E', fontSize: '28px', fontWeight: 700, letterSpacing: '-0.03em' }}>Trackly</h2>
-            <p style={{ color: '#8E8E93', fontSize: '14px', marginTop: '4px' }}>Version 0.1</p>
+            <p style={{ color: '#007AFF', fontSize: '14px', fontWeight: 600, marginTop: '4px', letterSpacing: '0.02em' }}>Your Expense Lens</p>
+            <p style={{ color: '#8E8E93', fontSize: '13px', marginTop: '6px' }}>Version 0.1</p>
             <p style={{ color: '#6B6B75', fontSize: '15px', marginTop: '12px', maxWidth: 300, lineHeight: 1.5 }}>
               Track every expense in seconds — with clear insights into where your money goes.
             </p>
