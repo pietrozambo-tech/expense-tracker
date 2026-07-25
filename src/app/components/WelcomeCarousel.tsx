@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import {
-  ArrowUp, ArrowDown, Wallet, Percent, Calendar, Repeat, ChevronDown, ChevronRight,
+  Minus, Plus, Wallet, Percent, Calendar, Repeat, ChevronDown, ChevronRight,
   ShoppingCart, Car, Home, Clapperboard, TrendingUp, Landmark, Layers,
 } from 'lucide-react';
 import type { Source } from '../types';
@@ -119,10 +119,11 @@ function AddIllustration() {
 
 function DashboardIllustration() {
   const metrics = [
-    { label: 'Spending', value: '1,039€', Icon: ArrowUp, tint: 'rgba(255,105,97,0.16)', color: '#FF6961' },
-    { label: 'Income', value: '3,380€', Icon: ArrowDown, tint: 'rgba(48,209,88,0.16)', color: '#30D158' },
-    { label: 'Savings', value: '2,341€', Icon: Wallet, tint: 'rgba(100,160,255,0.16)', color: '#64A0FF', accent: '#30D158' },
-    { label: 'Saving Rate', value: '69%', Icon: Percent, tint: 'rgba(100,160,255,0.16)', color: '#64A0FF', accent: '#30D158' },
+    // Match the real hero: a red "−" for Spending and a green "+" for Income.
+    { label: 'Spending', value: '1,039€', Icon: Minus, tint: 'rgba(255,105,97,0.16)', color: '#FF6961', sw: 3 },
+    { label: 'Income', value: '3,380€', Icon: Plus, tint: 'rgba(48,209,88,0.16)', color: '#30D158', sw: 3 },
+    { label: 'Savings', value: '2,341€', Icon: Wallet, tint: 'rgba(100,160,255,0.16)', color: '#64A0FF', accent: '#30D158', sw: 2.5 },
+    { label: 'Saving Rate', value: '69%', Icon: Percent, tint: 'rgba(100,160,255,0.16)', color: '#64A0FF', accent: '#30D158', sw: 2.5 },
   ];
   const rows = [
     { name: 'Housing', Icon: Home, bg: '#E3EDFF', fg: '#3B6FE0', pct: 87, amt: '900€' },
@@ -138,7 +139,7 @@ function DashboardIllustration() {
           {metrics.map((m) => (
             <div key={m.label} className="flex items-center gap-2.5">
               <span className="flex items-center justify-center flex-shrink-0" style={{ width: 30, height: 30, borderRadius: 999, background: m.tint }}>
-                <m.Icon className="w-4 h-4" style={{ color: m.color }} strokeWidth={2.5} />
+                <m.Icon className="w-4 h-4" style={{ color: m.color }} strokeWidth={m.sw} />
               </span>
               <div>
                 <div className="text-[11px]" style={{ color: 'rgba(235,235,245,0.6)' }}>{m.label}</div>
@@ -314,7 +315,7 @@ export function WelcomeCarousel({ userName, onDone, onSetupCategories }: Welcome
     {
       illustration: <SettingsIllustration />,
       title: 'Make it yours',
-      desc: 'Start with your categories — tailor them to how you spend. You can set up your banks as sources anytime too.',
+      desc: 'Start with your categories — tailor them to how you spend. Add your banks as sources, and export a full backup of everything whenever you like.',
     },
   ];
 
