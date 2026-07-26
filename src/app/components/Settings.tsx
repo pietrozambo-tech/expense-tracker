@@ -1,7 +1,7 @@
 import { ChevronRight, ChevronLeft, UserCircle, Wallet, BellRing, HelpCircle, ShieldCheck, ScrollText, Layers, FlaskConical, Trash2, Landmark, Cloud, LogOut, Upload, Copy, Download, UserX, Mail, LifeBuoy } from 'lucide-react';
 
 // Where "Contact support" messages go. Easy to swap when the domain changes.
-const SUPPORT_EMAIL = 'support@trackylab.com';
+const SUPPORT_EMAIL = 'support@tracklylab.com';
 import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { Categories } from './Categories';
