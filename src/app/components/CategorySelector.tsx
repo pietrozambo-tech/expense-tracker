@@ -30,13 +30,18 @@ export function CategorySelector({
   selectedSubcategory = null,
   onSelectSubcategory
 }: CategorySelectorProps) {
+  // Show categories alphabetically; re-sorts live as categories are added/removed.
+  const sortedCategories = [...categories].sort((a, b) =>
+    a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
+  );
+
   // Insert the subcategory panel right after the row that holds the selected
   // category. With a 2-column grid, that row ends at the odd index of the pair.
-  const selectedIndex = categories.findIndex((c) => c.id === selectedCategory);
+  const selectedIndex = sortedCategories.findIndex((c) => c.id === selectedCategory);
   const panelAfterIndex =
     selectedIndex === -1
       ? -1
-      : Math.min(Math.floor(selectedIndex / 2) * 2 + 1, categories.length - 1);
+      : Math.min(Math.floor(selectedIndex / 2) * 2 + 1, sortedCategories.length - 1);
   const showSubcategoryPanel = selectedIndex !== -1 && subcategories.length > 0;
 
   return (
@@ -44,7 +49,7 @@ export function CategorySelector({
       <h3 className="text-neutral-700 font-semibold mb-2.5">Category</h3>
 
       <div className="grid grid-cols-2 gap-2.5">
-        {categories.map((category, index) => {
+        {sortedCategories.map((category, index) => {
           const Icon = getCategoryIcon(category.icon);
           const isSelected = selectedCategory === category.id;
 

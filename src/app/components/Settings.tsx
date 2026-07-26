@@ -1,4 +1,7 @@
-import { ChevronRight, ChevronLeft, UserCircle, Wallet, BellRing, HelpCircle, ShieldCheck, ScrollText, Layers, FlaskConical, Trash2, Landmark, Cloud, LogOut, Upload, Copy, Download, UserX } from 'lucide-react';
+import { ChevronRight, ChevronLeft, UserCircle, Wallet, BellRing, HelpCircle, ShieldCheck, ScrollText, Layers, FlaskConical, Trash2, Landmark, Cloud, LogOut, Upload, Copy, Download, UserX, Mail, LifeBuoy } from 'lucide-react';
+
+// Where "Contact support" messages go. Easy to swap when the domain changes.
+const SUPPORT_EMAIL = 'support@trackylab.com';
 import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { Categories } from './Categories';
@@ -102,9 +105,26 @@ export function Settings({
   const [categoryType, setCategoryType] = useState<'expense' | 'income'>('expense');
   const [showCurrencySelector, setShowCurrencySelector] = useState(false);
   const [showNameEditor, setShowNameEditor] = useState(false);
+  const [showSupport, setShowSupport] = useState(false);
+  const [supportMessage, setSupportMessage] = useState('');
   const [editedName, setEditedName] = useState(userName);
   const [confirmAction, setConfirmAction] = useState<'demo' | 'erase' | 'erase-demo' | 'restore' | 'delete-account' | null>(null);
   const [pendingBackup, setPendingBackup] = useState<ImportPayload | null>(null);
+
+  // Opening a Settings sub-screen (Categories, Sources, Currency, About,
+  // Import, Profile) should start it at the top rather than inheriting the
+  // scroll position of the main Settings list.
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [showCategories, showSources, showAbout, showImport, showCurrencySelector, showNameEditor, showSupport]);
+
+  // Open the user's mail app with a pre-filled message to support. No backend
+  // needed; works from the web app and the installed PWA.
+  const sendSupportEmail = () => {
+    const body = `${supportMessage.trim()}\n\n\nSent from Trackly v0.1${userEmail ? ` (${userEmail})` : ''}`;
+    const href = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent('Trackly support')}&body=${encodeURIComponent(body)}`;
+    window.location.href = href;
+  };
 
   // Deep-link from the Add screen's "Manage" link opens Sources directly
   useEffect(() => {
@@ -736,6 +756,63 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
     );
   }
 
+  // Show Support subpage — a simple form that composes an email to support.
+  if (showSupport) {
+    return (
+      <div className="h-screen flex flex-col" style={{ backgroundColor: '#F5F5F7' }}>
+        <div style={{ backgroundColor: '#F5F5F7' }}>
+          <div className="px-6 pb-4 pt-0">
+            <div className="flex items-center justify-center relative">
+              <button
+                onClick={() => setShowSupport(false)}
+                className="absolute left-0 -ml-2 px-2 py-1 rounded-lg active:bg-neutral-200 transition-colors"
+              >
+                <ChevronLeft size={24} style={{ color: '#007AFF' }} />
+              </button>
+              <h1 style={{ color: '#1C1C1E', fontSize: '20px', fontWeight: '600', letterSpacing: '-0.3px' }}>Support</h1>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-6 pb-28">
+          <div className="pt-2 pb-5">
+            <h2 style={{ color: '#1C1C1E', fontSize: 22, fontWeight: 700, letterSpacing: '-0.02em' }}>
+              How can we help?
+            </h2>
+            <p style={{ color: '#6B6B75', fontSize: 15, lineHeight: 1.5, marginTop: 8 }}>
+              Questions, feedback or a bug? Send us a message and we'll get back to you by email.
+            </p>
+          </div>
+
+          <p style={{ color: '#8E8E93', fontSize: 13, fontWeight: 500, marginBottom: 8 }}>YOUR MESSAGE</p>
+          <textarea
+            value={supportMessage}
+            onChange={(e) => setSupportMessage(e.target.value)}
+            placeholder="Tell us what's going on…"
+            rows={7}
+            // 16px keeps iOS from auto-zooming on focus
+            className="w-full p-4 rounded-2xl bg-white shadow-sm outline-none resize-none focus:ring-2 focus:ring-blue-500"
+            style={{ fontSize: 16, color: '#1C1C1E', lineHeight: 1.5 }}
+          />
+
+          <button
+            onClick={sendSupportEmail}
+            disabled={!supportMessage.trim()}
+            className="w-full mt-4 py-4 rounded-xl font-medium text-base flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-40"
+            style={{ backgroundColor: '#007AFF', color: '#FFFFFF', boxShadow: '0 2px 8px rgba(0,122,255,0.25)' }}
+          >
+            <Mail className="w-4 h-4" /> Send message
+          </button>
+
+          <p className="text-center mt-4" style={{ color: '#8E8E93', fontSize: 13, lineHeight: 1.5 }}>
+            Or email us directly at{' '}
+            <a href={`mailto:${SUPPORT_EMAIL}`} style={{ color: '#007AFF', fontWeight: 500 }}>{SUPPORT_EMAIL}</a>
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   // Show Settings list
   return (
     // No min-h-screen here: the page ends just below the signature. The small
@@ -870,6 +947,16 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
           >
             <BellRing className="w-5 h-5" style={{ color: '#8E8E93' }} strokeWidth={2} />
             <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '16px' }}>Notifications</span>
+            <ChevronRight className="w-5 h-5" style={{ color: '#C7C7CC' }} />
+          </button>
+
+          <button
+            onClick={() => setShowSupport(true)}
+            className="w-full flex items-center gap-3 px-5 py-4 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
+            style={{ borderBottom: '1px solid #F2F2F7' }}
+          >
+            <LifeBuoy className="w-5 h-5" style={{ color: '#8E8E93' }} strokeWidth={2} />
+            <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '16px' }}>Support</span>
             <ChevronRight className="w-5 h-5" style={{ color: '#C7C7CC' }} />
           </button>
 
