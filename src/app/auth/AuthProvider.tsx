@@ -17,6 +17,7 @@ interface AuthContextValue {
   signInWithGoogle: () => Promise<{ error: string | null }>;
   signInWithApple: () => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
+  deleteAccount: () => Promise<{ error: string | null }>; // permanently deletes the account + data
   continueAsGuest: () => void;
   leaveGuest: () => void;
 }
@@ -123,6 +124,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setSession(null);
   };
 
+  // Permanently delete the account. The server-side Edge Function (which holds
+  // the service-role key) deletes the user's data row and their auth identity;
+  // supabase.functions.invoke forwards the current session's JWT so the
+  // function knows who is calling. On success we tear down the local session.
+  const deleteAccount = async () => {
+    try {
+      const { error } = await supabase.functions.invoke('delete-account', { method: 'POST' });
+      if (error) return { error: error.message || 'Could not delete your account' };
+    } catch (e) {
+      return { error: e instanceof Error ? e.message : 'Could not delete your account' };
+    }
+    track('account_deleted');
+    resetAnalytics();
+    await supabase.auth.signOut();
+    setSession(null);
+    return { error: null };
+  };
+
   const continueAsGuest = () => {
     try {
       localStorage.setItem(GUEST_KEY, 'true');
@@ -155,6 +174,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         signInWithGoogle,
         signInWithApple,
         signOut,
+        deleteAccount,
         continueAsGuest,
         leaveGuest,
       }}

@@ -89,7 +89,7 @@ export default function App() {
   const [openCategoriesOnSettings, setOpenCategoriesOnSettings] = useState(false); // deep-link Settings → Categories
 
   // Auth + cloud sync
-  const { session, loading: authLoading, guest, signOut, leaveGuest } = useAuth();
+  const { session, loading: authLoading, guest, signOut, deleteAccount, leaveGuest } = useAuth();
   const userId = session?.user?.id ?? null;
   const userEmail = session?.user?.email ?? null;
   // Google (and other OAuth providers) put the profile photo in user_metadata.
@@ -718,15 +718,9 @@ export default function App() {
   // Full reset: wipe everything and return to a fresh first-login. Deletes the
   // cloud record and signs out (so the next sign-in is a clean first login) —
   // handy for re-testing onboarding with a test account.
-  const handleEraseAllData = async () => {
-    if (userId) {
-      setCloudHydrated(false); // stop write-through from re-saving during teardown
-      try {
-        await deleteCloud(userId);
-      } catch {
-        /* ignore — proceed with local reset regardless */
-      }
-    }
+  // Wipe local storage + in-memory state back to a fresh first-login. Shared by
+  // "Erase all data" and account deletion.
+  const resetLocalState = () => {
     clearAllData();
     setExpenses([]);
     setCategories(initialCategories);
@@ -740,9 +734,36 @@ export default function App() {
     setCurrentTab('dashboard');
     setHasCompletedOnboarding(false);
     setHasSeenIntro(false);
+  };
+
+  const handleEraseAllData = async () => {
+    if (userId) {
+      setCloudHydrated(false); // stop write-through from re-saving during teardown
+      try {
+        await deleteCloud(userId);
+      } catch {
+        /* ignore — proceed with local reset regardless */
+      }
+    }
+    resetLocalState();
     // Return to the sign-in screen for a clean first-login next time
     leaveGuest();
     if (userId) await signOut();
+  };
+
+  // Permanently delete the account (Apple 5.1.1(v)). The Edge Function removes
+  // the cloud data + auth user and signs out; we then wipe local state so a
+  // future sign-in never rehydrates the deleted account's data. On failure the
+  // user stays signed in and the error is surfaced by Settings.
+  const handleDeleteAccount = async (): Promise<{ error: string | null }> => {
+    setCloudHydrated(false); // stop write-through during teardown
+    const res = await deleteAccount();
+    if (res.error) {
+      setCloudHydrated(true); // still signed in — resume syncing
+      return res;
+    }
+    resetLocalState();
+    return { error: null };
   };
 
   // Source CRUD + defaults (managed in Settings › Sources)
@@ -934,6 +955,7 @@ export default function App() {
                 userAvatar={userAvatar}
                 isGuest={guest}
                 onSignOut={async () => { await signOut(); }}
+                onDeleteAccount={handleDeleteAccount}
                 onSignInToSync={leaveGuest}
               />
             )}

@@ -1,4 +1,4 @@
-import { ChevronRight, ChevronLeft, UserCircle, Wallet, BellRing, HelpCircle, ShieldCheck, ScrollText, Layers, FlaskConical, Trash2, Landmark, Cloud, LogOut, Upload, Copy, Download } from 'lucide-react';
+import { ChevronRight, ChevronLeft, UserCircle, Wallet, BellRing, HelpCircle, ShieldCheck, ScrollText, Layers, FlaskConical, Trash2, Landmark, Cloud, LogOut, Upload, Copy, Download, UserX } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { Categories } from './Categories';
@@ -47,6 +47,7 @@ interface SettingsProps {
   userAvatar?: string | null;
   isGuest?: boolean;
   onSignOut?: () => void;
+  onDeleteAccount?: () => Promise<{ error: string | null }>;
   onSignInToSync?: () => void;
 }
 
@@ -88,10 +89,12 @@ export function Settings({
   userAvatar,
   isGuest,
   onSignOut,
+  onDeleteAccount,
   onSignInToSync
 }: SettingsProps) {
   // Falls back to the name initial if the avatar image can't be loaded.
   const [avatarBroken, setAvatarBroken] = useState(false);
+  const [deletingAccount, setDeletingAccount] = useState(false);
   const [showCategories, setShowCategories] = useState(false);
   const [showSources, setShowSources] = useState(false);
   const [showAbout, setShowAbout] = useState(false);
@@ -100,7 +103,7 @@ export function Settings({
   const [showCurrencySelector, setShowCurrencySelector] = useState(false);
   const [showNameEditor, setShowNameEditor] = useState(false);
   const [editedName, setEditedName] = useState(userName);
-  const [confirmAction, setConfirmAction] = useState<'demo' | 'erase' | 'erase-demo' | 'restore' | null>(null);
+  const [confirmAction, setConfirmAction] = useState<'demo' | 'erase' | 'erase-demo' | 'restore' | 'delete-account' | null>(null);
   const [pendingBackup, setPendingBackup] = useState<ImportPayload | null>(null);
 
   // Deep-link from the Add screen's "Manage" link opens Sources directly
@@ -138,9 +141,25 @@ export function Settings({
     }
   };
 
-  const openConfirm = (action: 'demo' | 'erase' | 'erase-demo' | 'restore') => {
+  const openConfirm = (action: 'demo' | 'erase' | 'erase-demo' | 'restore' | 'delete-account') => {
     setConfirmAction(action);
     onModalOpenChange(true);
+  };
+
+  // Account deletion is async (server round-trip), so it gets its own handler
+  // rather than the synchronous handleConfirm. On success the app returns to the
+  // sign-in screen on its own; on failure the user stays signed in.
+  const handleDeleteAccountConfirm = async () => {
+    setConfirmAction(null);
+    setDeletingAccount(true);
+    const toastId = toast.loading('Deleting your account…');
+    const res = await onDeleteAccount?.();
+    toast.dismiss(toastId);
+    setDeletingAccount(false);
+    onModalOpenChange(false);
+    if (res?.error) {
+      toast.error('Could not delete account', { description: res.error, duration: 3500 });
+    }
   };
 
   const closeConfirm = () => {
@@ -758,10 +777,21 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
               <button
                 onClick={onSignOut}
                 className="w-full flex items-center gap-3 px-5 py-4 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
+                style={{ borderBottom: '1px solid #F2F2F7' }}
               >
                 <LogOut className="w-5 h-5" style={{ color: '#8E8E93' }} strokeWidth={2} />
                 <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '16px' }}>Sign out</span>
               </button>
+              {onDeleteAccount && (
+                <button
+                  onClick={() => openConfirm('delete-account')}
+                  disabled={deletingAccount}
+                  className="w-full flex items-center gap-3 px-5 py-4 hover:bg-neutral-50 active:bg-neutral-100 transition-colors disabled:opacity-50"
+                >
+                  <UserX className="w-5 h-5" style={{ color: '#EF4444' }} strokeWidth={2} />
+                  <span className="flex-1 text-left" style={{ color: '#EF4444', fontSize: '16px' }}>Delete account</span>
+                </button>
+              )}
             </>
           )}
         </div>
@@ -957,6 +987,15 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
           confirmLabel="Restore"
           onConfirm={handleConfirm}
           onCancel={() => { setPendingBackup(null); closeConfirm(); }}
+        />
+      )}
+      {confirmAction === 'delete-account' && (
+        <ConfirmDialog
+          title="Delete your account?"
+          message="This permanently deletes your Trackly account and all your data - transactions, categories, sources and settings - from our servers and this device. This can't be undone."
+          confirmLabel="Delete account"
+          onConfirm={handleDeleteAccountConfirm}
+          onCancel={closeConfirm}
         />
       )}
     </div>
