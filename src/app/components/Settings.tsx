@@ -1025,6 +1025,7 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
           >
             <Trash2 className="w-5 h-5" style={{ color: '#EF4444' }} strokeWidth={2} />
             <span className="flex-1 text-left" style={{ color: '#EF4444', fontSize: '16px' }}>Erase all data</span>
+            {!isGuest && <span style={{ color: '#8E8E93', fontSize: '13px' }}>Keeps account</span>}
           </button>
         </div>
 
@@ -1061,7 +1062,11 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
       {confirmAction === 'erase' && (
         <ConfirmDialog
           title="Erase all data?"
-          message="This permanently deletes all transactions, categories and settings, and restarts the app from scratch."
+          message={
+            isGuest
+              ? "This permanently deletes all your transactions, categories, sources and settings, and restarts the app from scratch."
+              : "This deletes all your transactions, categories, sources and settings and starts the app fresh. Your account stays - sign back in anytime. To remove your account entirely, use Delete account instead."
+          }
           confirmLabel="Erase"
           onConfirm={handleConfirm}
           onCancel={closeConfirm}
