@@ -1,7 +1,9 @@
-import { ChevronRight, ChevronLeft, UserCircle, Wallet, BellRing, HelpCircle, ShieldCheck, ScrollText, Layers, FlaskConical, Trash2, Landmark, Cloud, LogOut, Upload, Copy, Download, UserX, Mail, LifeBuoy } from 'lucide-react';
+import { ChevronRight, ChevronLeft, UserCircle, Wallet, BellRing, HelpCircle, ShieldCheck, ScrollText, Layers, FlaskConical, Trash2, Landmark, Cloud, LogOut, Upload, Copy, Download, UserX, Mail, LifeBuoy, CheckCircle2 } from 'lucide-react';
+import { sendSupportMessage } from '../lib/support';
 
 // Where "Contact support" messages go. Easy to swap when the domain changes.
 const SUPPORT_EMAIL = 'support@tracklylab.com';
+const isValidEmail = (e: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e.trim());
 import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { Categories } from './Categories';
@@ -107,6 +109,9 @@ export function Settings({
   const [showNameEditor, setShowNameEditor] = useState(false);
   const [showSupport, setShowSupport] = useState(false);
   const [supportMessage, setSupportMessage] = useState('');
+  const [supportEmail, setSupportEmail] = useState(userEmail || '');
+  const [sendingSupport, setSendingSupport] = useState(false);
+  const [supportSent, setSupportSent] = useState(false);
   const [editedName, setEditedName] = useState(userName);
   const [confirmAction, setConfirmAction] = useState<'demo' | 'erase' | 'erase-demo' | 'restore' | 'delete-account' | null>(null);
   const [pendingBackup, setPendingBackup] = useState<ImportPayload | null>(null);
@@ -118,12 +123,35 @@ export function Settings({
     window.scrollTo(0, 0);
   }, [showCategories, showSources, showAbout, showImport, showCurrencySelector, showNameEditor, showSupport]);
 
-  // Open the user's mail app with a pre-filled message to support. No backend
-  // needed; works from the web app and the installed PWA.
-  const sendSupportEmail = () => {
-    const body = `${supportMessage.trim()}\n\n\nSent from Trackly v0.1${userEmail ? ` (${userEmail})` : ''}`;
-    const href = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent('Trackly support')}&body=${encodeURIComponent(body)}`;
-    window.location.href = href;
+  const openSupport = () => {
+    setSupportSent(false);
+    setSupportEmail((cur) => cur || userEmail || '');
+    setShowSupport(true);
+  };
+  const closeSupport = () => {
+    setShowSupport(false);
+    setSupportSent(false);
+  };
+
+  // Send the message straight from the app (posts to the send-support Edge
+  // Function). No redirect to the user's mail app.
+  const canSendSupport = supportMessage.trim().length > 0 && isValidEmail(supportEmail);
+  const submitSupport = async () => {
+    if (!canSendSupport || sendingSupport) return;
+    setSendingSupport(true);
+    const res = await sendSupportMessage({
+      message: supportMessage.trim(),
+      email: supportEmail.trim(),
+      name: userName,
+      isGuest,
+    });
+    setSendingSupport(false);
+    if (res.error) {
+      toast.error("Couldn't send your message", { description: res.error, duration: 3500 });
+      return;
+    }
+    setSupportMessage('');
+    setSupportSent(true);
   };
 
   // Deep-link from the Add screen's "Manage" link opens Sources directly
@@ -756,7 +784,7 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
     );
   }
 
-  // Show Support subpage — a simple form that composes an email to support.
+  // Show Support subpage — a form that sends a message straight from the app.
   if (showSupport) {
     return (
       <div className="h-screen flex flex-col" style={{ backgroundColor: '#F5F5F7' }}>
@@ -764,7 +792,7 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
           <div className="px-6 pb-4 pt-0">
             <div className="flex items-center justify-center relative">
               <button
-                onClick={() => setShowSupport(false)}
+                onClick={closeSupport}
                 className="absolute left-0 -ml-2 px-2 py-1 rounded-lg active:bg-neutral-200 transition-colors"
               >
                 <ChevronLeft size={24} style={{ color: '#007AFF' }} />
@@ -774,41 +802,74 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-6 pb-28">
-          <div className="pt-2 pb-5">
-            <h2 style={{ color: '#1C1C1E', fontSize: 22, fontWeight: 700, letterSpacing: '-0.02em' }}>
-              How can we help?
-            </h2>
-            <p style={{ color: '#6B6B75', fontSize: 15, lineHeight: 1.5, marginTop: 8 }}>
-              Questions, feedback or a bug? Send us a message and we'll get back to you by email.
+        {supportSent ? (
+          // Success confirmation
+          <div className="flex-1 flex flex-col items-center justify-center px-8 text-center" style={{ marginTop: -40 }}>
+            <CheckCircle2 className="w-16 h-16 mb-4" style={{ color: '#30D158' }} strokeWidth={1.75} />
+            <h2 style={{ color: '#1C1C1E', fontSize: 22, fontWeight: 700 }}>Message sent</h2>
+            <p style={{ color: '#6B6B75', fontSize: 15, lineHeight: 1.5, marginTop: 8, maxWidth: 300 }}>
+              Thanks! We've got your message and will reply to{' '}
+              <span style={{ color: '#1C1C1E', fontWeight: 500 }}>{supportEmail}</span> by email.
+            </p>
+            <button
+              onClick={closeSupport}
+              className="mt-8 px-8 py-3 rounded-xl font-medium text-base active:scale-[0.98] transition-transform"
+              style={{ backgroundColor: '#007AFF', color: '#FFFFFF', boxShadow: '0 2px 8px rgba(0,122,255,0.25)' }}
+            >
+              Done
+            </button>
+          </div>
+        ) : (
+          <div className="flex-1 overflow-y-auto px-6 pb-28">
+            <div className="pt-2 pb-5">
+              <h2 style={{ color: '#1C1C1E', fontSize: 22, fontWeight: 700, letterSpacing: '-0.02em' }}>
+                How can we help?
+              </h2>
+              <p style={{ color: '#6B6B75', fontSize: 15, lineHeight: 1.5, marginTop: 8 }}>
+                Questions, feedback or a bug? Send us a message and we'll reply by email.
+              </p>
+            </div>
+
+            <p style={{ color: '#8E8E93', fontSize: 13, fontWeight: 500, marginBottom: 8 }}>YOUR EMAIL</p>
+            <input
+              type="email"
+              inputMode="email"
+              autoCapitalize="off"
+              autoCorrect="off"
+              value={supportEmail}
+              onChange={(e) => setSupportEmail(e.target.value)}
+              placeholder="you@example.com"
+              className="w-full px-4 py-3.5 rounded-2xl bg-white shadow-sm outline-none focus:ring-2 focus:ring-blue-500"
+              style={{ fontSize: 16, color: '#1C1C1E' }}
+            />
+            <p style={{ color: '#B0B0B5', fontSize: 12, marginTop: 6, marginBottom: 16 }}>So we can reply to you.</p>
+
+            <p style={{ color: '#8E8E93', fontSize: 13, fontWeight: 500, marginBottom: 8 }}>YOUR MESSAGE</p>
+            <textarea
+              value={supportMessage}
+              onChange={(e) => setSupportMessage(e.target.value)}
+              placeholder="Tell us what's going on…"
+              rows={6}
+              // 16px keeps iOS from auto-zooming on focus
+              className="w-full p-4 rounded-2xl bg-white shadow-sm outline-none resize-none focus:ring-2 focus:ring-blue-500"
+              style={{ fontSize: 16, color: '#1C1C1E', lineHeight: 1.5 }}
+            />
+
+            <button
+              onClick={submitSupport}
+              disabled={!canSendSupport || sendingSupport}
+              className="w-full mt-4 py-4 rounded-xl font-medium text-base flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-40"
+              style={{ backgroundColor: '#007AFF', color: '#FFFFFF', boxShadow: '0 2px 8px rgba(0,122,255,0.25)' }}
+            >
+              <Mail className="w-4 h-4" /> {sendingSupport ? 'Sending…' : 'Send message'}
+            </button>
+
+            <p className="text-center mt-4" style={{ color: '#8E8E93', fontSize: 13, lineHeight: 1.5 }}>
+              Or email us directly at{' '}
+              <a href={`mailto:${SUPPORT_EMAIL}`} style={{ color: '#007AFF', fontWeight: 500 }}>{SUPPORT_EMAIL}</a>
             </p>
           </div>
-
-          <p style={{ color: '#8E8E93', fontSize: 13, fontWeight: 500, marginBottom: 8 }}>YOUR MESSAGE</p>
-          <textarea
-            value={supportMessage}
-            onChange={(e) => setSupportMessage(e.target.value)}
-            placeholder="Tell us what's going on…"
-            rows={7}
-            // 16px keeps iOS from auto-zooming on focus
-            className="w-full p-4 rounded-2xl bg-white shadow-sm outline-none resize-none focus:ring-2 focus:ring-blue-500"
-            style={{ fontSize: 16, color: '#1C1C1E', lineHeight: 1.5 }}
-          />
-
-          <button
-            onClick={sendSupportEmail}
-            disabled={!supportMessage.trim()}
-            className="w-full mt-4 py-4 rounded-xl font-medium text-base flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-40"
-            style={{ backgroundColor: '#007AFF', color: '#FFFFFF', boxShadow: '0 2px 8px rgba(0,122,255,0.25)' }}
-          >
-            <Mail className="w-4 h-4" /> Send message
-          </button>
-
-          <p className="text-center mt-4" style={{ color: '#8E8E93', fontSize: 13, lineHeight: 1.5 }}>
-            Or email us directly at{' '}
-            <a href={`mailto:${SUPPORT_EMAIL}`} style={{ color: '#007AFF', fontWeight: 500 }}>{SUPPORT_EMAIL}</a>
-          </p>
-        </div>
+        )}
       </div>
     );
   }
@@ -951,7 +1012,7 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
           </button>
 
           <button
-            onClick={() => setShowSupport(true)}
+            onClick={openSupport}
             className="w-full flex items-center gap-3 px-5 py-4 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
             style={{ borderBottom: '1px solid #F2F2F7' }}
           >

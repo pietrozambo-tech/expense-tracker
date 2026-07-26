@@ -1,0 +1,117 @@
+// Supabase Edge Function: send-support
+//
+// Sends a support message from the in-app form directly (no mailto / no
+// redirect to the user's mail app). Delivers via Resend's HTTP API using an
+// API key held server-side.
+//
+// Secrets to set once:
+//   supabase secrets set RESEND_API_KEY=re_xxx
+//   (optional) supabase secrets set SUPPORT_TO=support@tracklylab.com
+//   (optional) supabase secrets set SUPPORT_FROM="Trackly <support@tracklylab.com>"
+//   NOTE: the FROM domain must be verified in Resend. Before the domain is
+//   verified you can test with SUPPORT_FROM="onboarding@resend.dev" (Resend only
+//   delivers that to the account owner's address).
+//
+// Deploy:  supabase functions deploy send-support
+// The client calls it via supabase.functions.invoke('send-support', { body }).
+
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+};
+
+function json(status: number, body: unknown): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  });
+}
+
+const escapeHtml = (s: string) =>
+  s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+Deno.serve(async (req: Request) => {
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
+  if (req.method !== 'POST') return json(405, { error: 'Method not allowed' });
+
+  let payload: Record<string, unknown>;
+  try {
+    payload = await req.json();
+  } catch {
+    return json(400, { error: 'Invalid request body' });
+  }
+
+  const message = String(payload.message ?? '').trim();
+  const replyEmail = String(payload.email ?? '').trim();
+  const name = String(payload.name ?? '').trim();
+  const isGuest = Boolean(payload.isGuest);
+  const appVersion = String(payload.appVersion ?? '?');
+  const userAgent = String(payload.userAgent ?? '');
+  if (!message) return json(400, { error: 'Message is empty' });
+
+  // The signed-in account email straight from the JWT is authoritative (the
+  // form email could be anything). Guests have no account.
+  let accountEmail = '';
+  let accountId = '';
+  const authHeader = req.headers.get('Authorization');
+  if (authHeader) {
+    try {
+      const authClient = createClient(
+        Deno.env.get('SUPABASE_URL')!,
+        Deno.env.get('SUPABASE_ANON_KEY')!,
+        { global: { headers: { Authorization: authHeader } } },
+      );
+      const { data } = await authClient.auth.getUser();
+      if (data?.user && data.user.role !== 'anon') {
+        accountEmail = data.user.email ?? '';
+        accountId = data.user.id ?? '';
+      }
+    } catch {
+      /* anon / no user — treat as guest */
+    }
+  }
+
+  const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
+  if (!RESEND_API_KEY) return json(500, { error: 'Email is not configured yet' });
+  const FROM = Deno.env.get('SUPPORT_FROM') || 'Trackly <support@tracklylab.com>';
+  const TO = Deno.env.get('SUPPORT_TO') || 'support@tracklylab.com';
+
+  const meta = [
+    `Name: ${name || '—'}`,
+    `Reply-to: ${replyEmail || '—'}`,
+    `Account: ${accountEmail || (isGuest ? 'guest (no account)' : 'unknown')}`,
+    `Account ID: ${accountId || '—'}`,
+    `Status: ${isGuest ? 'guest' : 'signed in'}`,
+    `App: Trackly v${appVersion}`,
+    `Device: ${userAgent || '—'}`,
+  ].join('\n');
+
+  const text = `${message}\n\n---\n${meta}`;
+  const html =
+    `<div style="white-space:pre-wrap;font-family:system-ui,sans-serif;font-size:14px;color:#1c1c1e">${escapeHtml(message)}</div>` +
+    `<hr style="border:none;border-top:1px solid #eee;margin:16px 0"/>` +
+    `<pre style="font-family:ui-monospace,monospace;font-size:12px;color:#8e8e93">${escapeHtml(meta)}</pre>`;
+
+  const res = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      from: FROM,
+      to: [TO],
+      // Reply straight to the user. Prefer the form email; fall back to account.
+      reply_to: replyEmail || accountEmail || undefined,
+      subject: `Trackly support${name ? ` — ${name}` : ''}`,
+      text,
+      html,
+    }),
+  });
+
+  if (!res.ok) {
+    const detail = await res.text().catch(() => '');
+    return json(502, { error: `Email send failed: ${detail || res.status}` });
+  }
+  return json(200, { ok: true });
+});
