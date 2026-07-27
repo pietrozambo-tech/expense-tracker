@@ -95,6 +95,7 @@ export default function App() {
   const [userName, setUserName] = useState(() => loadSettings().userName);
   const [userCurrency, setUserCurrency] = useState(() => loadSettings().currency);
   const [monthlyBudget, setMonthlyBudget] = useState<number | undefined>(() => loadSettings().monthlyBudget);
+  const [budgetNudgeDismissed, setBudgetNudgeDismissed] = useState<boolean>(() => !!loadSettings().budgetNudgeDismissed);
   const [selectedTransactionCurrency, setSelectedTransactionCurrency] = useState('EUR'); // Currency for current transaction being added/edited
   const [currentTab, setCurrentTab] = useState<'dashboard' | 'activity' | 'add' | 'trend' | 'settings'>('dashboard');
   // The shared scroll container for the non-activity tabs. Switching tabs must
@@ -204,11 +205,12 @@ export default function App() {
       userName,
       currency: userCurrency,
       monthlyBudget,
+      budgetNudgeDismissed,
       hasSeenIntro,
       defaultSourceExpense,
       defaultSourceIncome,
     });
-  }, [hasCompletedOnboarding, userName, userCurrency, monthlyBudget, hasSeenIntro, defaultSourceExpense, defaultSourceIncome]);
+  }, [hasCompletedOnboarding, userName, userCurrency, monthlyBudget, budgetNudgeDismissed, hasSeenIntro, defaultSourceExpense, defaultSourceIncome]);
 
   // When opening a NEW transaction, pre-select the current default source for
   // the active type — so changing the default in Settings takes effect
@@ -232,6 +234,7 @@ export default function App() {
       userName,
       currency: userCurrency,
       monthlyBudget,
+      budgetNudgeDismissed,
       hasSeenIntro,
       defaultSourceExpense,
       defaultSourceIncome,
@@ -261,6 +264,7 @@ export default function App() {
           setUserName(s.userName ?? '');
           setUserCurrency(s.currency ?? 'EUR');
           setMonthlyBudget(s.monthlyBudget);
+          setBudgetNudgeDismissed(!!s.budgetNudgeDismissed);
           setHasSeenIntro(!!s.hasSeenIntro);
           setDefaultSourceExpense(s.defaultSourceExpense ?? DEFAULT_SOURCE_EXPENSE);
           setDefaultSourceIncome(s.defaultSourceIncome ?? DEFAULT_SOURCE_INCOME);
@@ -1014,6 +1018,7 @@ export default function App() {
     setUserName('');
     setUserCurrency('EUR');
     setMonthlyBudget(undefined);
+    setBudgetNudgeDismissed(false);
     setCurrentTab('dashboard');
     setHasCompletedOnboarding(false);
     setHasSeenIntro(false);
@@ -1203,6 +1208,9 @@ export default function App() {
                 initialPeriod={dashboardInitialPeriod}
                 viewStateRef={dashboardViewRef}
                 monthlyBudget={monthlyBudget}
+                budgetNudgeDismissed={budgetNudgeDismissed}
+                onSetMonthlyBudget={setMonthlyBudget}
+                onDismissBudgetNudge={() => setBudgetNudgeDismissed(true)}
               />
             )}
             {currentTab === 'trend' && (

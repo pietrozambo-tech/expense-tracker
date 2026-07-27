@@ -16,6 +16,7 @@ export interface SyncPayload {
     userName: string;
     currency: string;
     monthlyBudget?: number;
+    budgetNudgeDismissed?: boolean;
     hasSeenIntro: boolean;
     defaultSourceExpense?: string;
     defaultSourceIncome?: string;

@@ -70,6 +70,9 @@ export interface UserSettings {
   currency: string;
   // Monthly spending limit in `currency`; undefined/0 = no budget set
   monthlyBudget?: number;
+  // Set once the user dismisses the Dashboard's "set a budget" card, so it
+  // stays gone until a budget actually exists
+  budgetNudgeDismissed?: boolean;
   // Whether the first-run feature carousel has been shown
   hasSeenIntro?: boolean;
   // Source pre-selected on new transactions, separately for each direction
