@@ -1,4 +1,4 @@
-import { Suspense, lazy, useCallback, useEffect, useRef, useState } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useRef, useState, type ComponentType } from 'react';
 import { toast } from 'sonner';
 import { Toaster } from './components/ui/sonner';
 import { BarChart3, Plus, List, X, Settings as SettingsIcon, TrendingUp, ChevronDown, Repeat } from 'lucide-react';
@@ -39,10 +39,50 @@ import { RecurringScopeDialog } from './components/RecurringScopeDialog';
 // The heavyweight screens load on demand so the initial bundle stays small.
 // (Named exports wrapped for React.lazy's default-export contract.)
 import type { DashboardViewState } from './components/Dashboard';
-const Dashboard = lazy(() => import('./components/Dashboard').then((m) => ({ default: m.Dashboard })));
-const Settings = lazy(() => import('./components/Settings').then((m) => ({ default: m.Settings })));
-const WelcomeCarousel = lazy(() => import('./components/WelcomeCarousel').then((m) => ({ default: m.WelcomeCarousel })));
-const SignIn = lazy(() => import('./auth/SignIn').then((m) => ({ default: m.SignIn })));
+
+// Loading a lazy chunk can fail when the app has been open across a deploy:
+// the running page references content-hashed filenames (Settings-abc123.js)
+// that no longer exist on the server. That is a dead end on an installed PWA,
+// which can stay open for days - so reload once to pick up the fresh
+// index.html and its new chunk names instead of showing the error screen. The
+// sessionStorage flag stops a reload loop if the chunk is genuinely missing
+// (e.g. offline and not cached); the second failure falls through to the
+// error boundary.
+function lazyWithRetry<T extends ComponentType<any>>(
+  factory: () => Promise<{ default: T }>,
+  key: string,
+) {
+  const flag = `trackly.chunk-reload.${key}`;
+  return lazy(async () => {
+    try {
+      const mod = await factory();
+      try {
+        sessionStorage.removeItem(flag);
+      } catch {
+        /* storage unavailable */
+      }
+      return mod;
+    } catch (err) {
+      let alreadyRetried = false;
+      try {
+        alreadyRetried = sessionStorage.getItem(flag) === '1';
+        if (!alreadyRetried) sessionStorage.setItem(flag, '1');
+      } catch {
+        /* storage unavailable - fall through to the error boundary */
+      }
+      if (!alreadyRetried && typeof window !== 'undefined') {
+        window.location.reload();
+        return new Promise<never>(() => {}); // hold until the reload takes over
+      }
+      throw err;
+    }
+  });
+}
+
+const Dashboard = lazyWithRetry(() => import('./components/Dashboard').then((m) => ({ default: m.Dashboard })), 'dashboard');
+const Settings = lazyWithRetry(() => import('./components/Settings').then((m) => ({ default: m.Settings })), 'settings');
+const WelcomeCarousel = lazyWithRetry(() => import('./components/WelcomeCarousel').then((m) => ({ default: m.WelcomeCarousel })), 'carousel');
+const SignIn = lazyWithRetry(() => import('./auth/SignIn').then((m) => ({ default: m.SignIn })), 'signin');
 import { TracklyLogo } from './components/TracklyLogo';
 import { loadCloud, saveCloud, deleteCloud, type SyncPayload } from './lib/cloud';
 import { track } from './lib/analytics';
