@@ -17,6 +17,11 @@ function figmaAssetResolver() {
   }
 }
 
+// The native (Capacitor) build serves its assets from inside the app bundle, so
+// a service worker adds nothing and only complicates updates. `pnpm build:native`
+// sets CAP_BUILD=1 to skip it. The default (PWA) build is unaffected.
+const isNativeBuild = process.env.CAP_BUILD === '1';
+
 export default defineConfig({
   // Relative base so the build works both at the domain root and under a
   // subpath (GitHub Pages serves at /expense-tracker/)
@@ -29,7 +34,7 @@ export default defineConfig({
       fastRefresh: true,
     }),
     tailwindcss(),
-    VitePWA({
+    ...(isNativeBuild ? [] : [VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['icons/apple-touch-icon.png'],
       manifest: {
@@ -51,7 +56,7 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,html,woff2,png}'],
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
       },
-    }),
+    })]),
   ],
   resolve: {
     alias: {

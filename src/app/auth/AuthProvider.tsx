@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from '
 import type { Session, User } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import { identifyUser, track, resetAnalytics } from '../lib/analytics';
+import { isNative, NATIVE_AUTH_REDIRECT } from '../lib/platform';
 
 const GUEST_KEY = 'expense-tracker.v1.guest';
 
@@ -82,6 +83,44 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => sub.subscription.unsubscribe();
   }, []);
 
+  // Native only: finish an OAuth sign-in when the provider redirects back into
+  // the app via our custom URL scheme. The implicit flow returns the tokens in
+  // the URL fragment, so we hand them to Supabase and close the system browser.
+  // No-op (and imports nothing) on web.
+  useEffect(() => {
+    if (!isNative()) return;
+    let remove: (() => void) | undefined;
+    let cancelled = false;
+
+    (async () => {
+      const { App: CapApp } = await import('@capacitor/app');
+      const handle = await CapApp.addListener('appUrlOpen', async ({ url }) => {
+        if (!url.startsWith(NATIVE_AUTH_REDIRECT)) return;
+        try {
+          const params = new URLSearchParams(url.split('#')[1] ?? '');
+          const access_token = params.get('access_token');
+          const refresh_token = params.get('refresh_token');
+          if (access_token && refresh_token) {
+            await supabase.auth.setSession({ access_token, refresh_token });
+          } else {
+            const err = params.get('error_description') || params.get('error');
+            if (err) setAuthError(err);
+          }
+        } finally {
+          const { Browser } = await import('@capacitor/browser');
+          await Browser.close().catch(() => {});
+        }
+      });
+      if (cancelled) handle.remove();
+      else remove = () => handle.remove();
+    })();
+
+    return () => {
+      cancelled = true;
+      remove?.();
+    };
+  }, []);
+
   // Email one-time code: sends a 6-digit code (no link to click, so it works
   // even when the email is opened in a different browser / mail app).
   const sendEmailCode = async (email: string) => {
@@ -101,21 +140,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error: error ? error.message : null };
   };
 
-  const signInWithGoogle = async () => {
+  // OAuth works differently on web and in the native shell:
+  //
+  // - Web/PWA: hand the browser over to the provider and let Supabase pick the
+  //   session back up from the redirect URL (detectSessionInUrl).
+  // - Native: Apple rejects OAuth inside an embedded webview, so we open the
+  //   provider in a system browser (ASWebAuthenticationSession via
+  //   @capacitor/browser) and it redirects back into the app through our custom
+  //   URL scheme; the appUrlOpen listener below completes the sign-in.
+  //
+  // Capacitor modules are imported dynamically so the PWA bundle never loads
+  // them.
+  const signInWithProvider = async (provider: 'google' | 'apple') => {
+    if (isNative()) {
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider,
+        options: { redirectTo: NATIVE_AUTH_REDIRECT, skipBrowserRedirect: true },
+      });
+      if (error) return { error: error.message };
+      if (!data?.url) return { error: 'Could not start sign-in' };
+      const { Browser } = await import('@capacitor/browser');
+      await Browser.open({ url: data.url, presentationStyle: 'popover' });
+      return { error: null };
+    }
+
     const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
+      provider,
       options: { redirectTo: `${window.location.origin}${window.location.pathname}` },
     });
     return { error: error ? error.message : null };
   };
 
-  const signInWithApple = async () => {
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'apple',
-      options: { redirectTo: `${window.location.origin}${window.location.pathname}` },
-    });
-    return { error: error ? error.message : null };
-  };
+  const signInWithGoogle = () => signInWithProvider('google');
+  const signInWithApple = () => signInWithProvider('apple');
 
   const signOut = async () => {
     track('signed_out');
