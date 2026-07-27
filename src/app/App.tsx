@@ -593,8 +593,11 @@ export default function App() {
     track('onboarding_completed', { currency });
   };
 
-  // Demo data (for testing) — replaces current transactions with date-shifted
-  // samples, assigning each a random source so the field is populated
+  // Demo data (for testing) — date-shifted samples, each with a random source
+  // so the field is populated. Added ON TOP of the user's own data (never
+  // replacing it): demo rows carry a `demo-` id prefix, so "Erase demo data"
+  // removes only them and the real data is untouched. Re-loading first drops any
+  // existing demo rows so it stays idempotent.
   const handleLoadDemoData = () => {
     const demo = getDemoTransactions(userCurrency).map((t) => ({
       ...t,
@@ -602,13 +605,13 @@ export default function App() {
         ? sources[Math.floor(Math.random() * sources.length)].id
         : undefined,
     }));
-    setExpenses(demo);
+    setExpenses((prev) => [...demo, ...prev.filter((e) => !e.id.startsWith('demo-'))]);
     setRefreshKey(prev => prev + 1);
     setCurrentTab('dashboard');
     track('demo_loaded');
     toast.success('Demo data loaded', {
-      description: 'Sample transactions for testing the app',
-      duration: 1400,
+      description: 'Added on top of your data — remove it anytime',
+      duration: 1600,
     });
   };
 

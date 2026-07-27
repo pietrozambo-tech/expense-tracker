@@ -1095,7 +1095,7 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
       {confirmAction === 'demo' && (
         <ConfirmDialog
           title="Load demo data?"
-          message="This replaces your current transactions with sample data so you can explore the app. Use 'Erase all data' to start clean again."
+          message="This adds sample transactions on top of your data so you can explore the app. Your own data stays - remove the samples anytime with 'Erase demo data'."
           confirmLabel="Load"
           variant="neutral"
           onConfirm={handleConfirm}
