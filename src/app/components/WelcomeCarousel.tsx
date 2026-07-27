@@ -2,11 +2,10 @@ import { useRef, useState, type ReactNode } from 'react';
 import {
   Minus, Plus, Wallet, Percent, Calendar, Repeat, ChevronDown, ChevronRight,
   ShoppingCart, Car, Home, Clapperboard, TrendingUp, Landmark, Layers,
-  FlaskConical, Trash2,
+  FlaskConical, Trash2, PiggyBank,
 } from 'lucide-react';
 import type { Source } from '../types';
 import { SourceLogo } from './SourceLogo';
-import { SavingsJar } from './SavingsJar';
 import { TracklyLogo } from './TracklyLogo';
 import { DEFAULT_SOURCES } from './sources';
 
@@ -264,7 +263,7 @@ function SavingsIllustration() {
       <div className="grid grid-cols-2 gap-3">
         <div className="rounded-2xl px-4 py-3" style={{ background: '#FFFFFF', boxShadow: '0 8px 24px rgba(0,0,0,0.06)', border: '1px solid #EEEEF1' }}>
           <div className="flex items-center gap-1.5 mb-1">
-            <SavingsJar className="w-3.5 h-3.5" style={{ color: '#10B981' }} />
+            <PiggyBank className="w-3.5 h-3.5" style={{ color: '#10B981' }} />
             <span className="text-[11px]" style={{ color: '#8E8E93' }}>Total savings</span>
           </div>
           <div className="text-2xl font-bold tabular-nums" style={{ color: '#10B981' }}>9,016€</div>
