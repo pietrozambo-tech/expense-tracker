@@ -54,6 +54,20 @@ interface Expense {
   sourceId?: string;
 }
 
+// Snapshot of the Overview's user selections, kept in a ref by App so the view
+// survives the remount that happens when a transaction is edited (the tab
+// switch unmounts Dashboard and refreshKey remounts it on return).
+export interface DashboardViewState {
+  timePeriodType: 'month' | 'quarter' | 'year';
+  selectedMonth: number;
+  selectedQuarter: number;
+  selectedYear: number;
+  transactionType: 'expense' | 'income' | 'savings';
+  expandedCategory: string | null;
+  drilldownContext: { categoryName: string; subcategoryName: string | null } | null;
+  drilldownSortBy: 'time' | 'amount';
+}
+
 interface DashboardProps {
   expenses: Expense[];
   categories: any[];
@@ -67,6 +81,7 @@ interface DashboardProps {
   // Trend months link back to the Overview tab with that period selected
   onShowOverview?: (period: { month: number; year: number; type: 'expense' | 'income' }) => void;
   initialPeriod?: { month: number; year: number; type: 'expense' | 'income' } | null;
+  viewStateRef?: React.MutableRefObject<DashboardViewState | null>;
 }
 
 // Sentinel drilldown target: only the transactions with no subcategory
@@ -74,9 +89,12 @@ interface DashboardProps {
 // subcategory name. (A null subcategory already means "all transactions".)
 const UNCATEGORIZED = '__uncategorized__';
 
-export function Dashboard({ expenses, categories, incomeCategories, sources = [], userName, currency, onEditExpense, onDeleteExpense, view = 'overview', onShowOverview, initialPeriod }: DashboardProps) {
+export function Dashboard({ expenses, categories, incomeCategories, sources = [], userName, currency, onEditExpense, onDeleteExpense, view = 'overview', onShowOverview, initialPeriod, viewStateRef }: DashboardProps) {
+  // Restore the previous view (period + drilldown) unless a Trend->Overview
+  // link supplied an explicit period - that must win and start clean.
+  const savedView = view === 'overview' && !initialPeriod ? viewStateRef?.current ?? null : null;
   const viewType: ViewType = view === 'trend' ? 'trend' : 'current-month';
-  const [timePeriodType, setTimePeriodType] = useState<TimePeriodType>('month');
+  const [timePeriodType, setTimePeriodType] = useState<TimePeriodType>(savedView?.timePeriodType ?? 'month');
   // Measure the cumulative chart's real pixel width so its SVG renders 1:1
   // (no aspect-ratio stretching that would deform the line dot / axis text).
   const chartBoxRef = useRef<HTMLDivElement | null>(null);
@@ -89,13 +107,13 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
     window.addEventListener('resize', measure);
     return () => window.removeEventListener('resize', measure);
   });
-  const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
+  const [expandedCategory, setExpandedCategory] = useState<string | null>(savedView?.expandedCategory ?? null);
   const [trendExpandedCategory, setTrendExpandedCategory] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [selectedSubcategory, setSelectedSubcategory] = useState<string>('All');
   const [categorySortBy, setCategorySortBy] = useState<CategorySortType>('alphabetical');
-  const [drilldownSortBy, setDrilldownSortBy] = useState<'time' | 'amount'>('time');
-  const [transactionType, setTransactionType] = useState<TransactionType>(initialPeriod?.type || 'expense');
+  const [drilldownSortBy, setDrilldownSortBy] = useState<'time' | 'amount'>(savedView?.drilldownSortBy ?? 'time');
+  const [transactionType, setTransactionType] = useState<TransactionType>(initialPeriod?.type || savedView?.transactionType || 'expense');
   const [isTrendCategoryModalOpen, setIsTrendCategoryModalOpen] = useState(false);
   const [isTrendSubcategoryModalOpen, setIsTrendSubcategoryModalOpen] = useState(false);
   
@@ -103,7 +121,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
   const [drilldownContext, setDrilldownContext] = useState<{
     categoryName: string;
     subcategoryName: string | null;
-  } | null>(null);
+  } | null>(savedView?.drilldownContext ?? null);
   
   // State for recurrence donut chart
   const [recurrenceLayer, setRecurrenceLayer] = useState<'overview' | 'detail'>('overview');
@@ -119,9 +137,25 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
   
   // Track the specific period (month, quarter, or year)
   const now = new Date();
-  const [selectedMonth, setSelectedMonth] = useState<number>(initialPeriod?.month ?? now.getMonth()); // 0-11
-  const [selectedQuarter, setSelectedQuarter] = useState<number>(Math.floor((initialPeriod?.month ?? now.getMonth()) / 3)); // 0-3
-  const [selectedYear, setSelectedYear] = useState<number>(initialPeriod?.year ?? now.getFullYear());
+  const [selectedMonth, setSelectedMonth] = useState<number>(initialPeriod?.month ?? savedView?.selectedMonth ?? now.getMonth()); // 0-11
+  const [selectedQuarter, setSelectedQuarter] = useState<number>(savedView?.selectedQuarter ?? Math.floor((initialPeriod?.month ?? now.getMonth()) / 3)); // 0-3
+  const [selectedYear, setSelectedYear] = useState<number>(initialPeriod?.year ?? savedView?.selectedYear ?? now.getFullYear());
+
+  // Keep the snapshot current on every selection change (ref write - no
+  // re-render). Trend view has its own instance and never touches it.
+  useEffect(() => {
+    if (view !== 'overview' || !viewStateRef) return;
+    viewStateRef.current = {
+      timePeriodType,
+      selectedMonth,
+      selectedQuarter,
+      selectedYear,
+      transactionType,
+      expandedCategory,
+      drilldownContext,
+      drilldownSortBy,
+    };
+  }, [view, viewStateRef, timePeriodType, selectedMonth, selectedQuarter, selectedYear, transactionType, expandedCategory, drilldownContext, drilldownSortBy]);
 
 
   // Prevent background scroll when drilldown is open

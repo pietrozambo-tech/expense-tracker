@@ -38,6 +38,7 @@ import { RecurringScopeDialog } from './components/RecurringScopeDialog';
 
 // The heavyweight screens load on demand so the initial bundle stays small.
 // (Named exports wrapped for React.lazy's default-export contract.)
+import type { DashboardViewState } from './components/Dashboard';
 const Dashboard = lazy(() => import('./components/Dashboard').then((m) => ({ default: m.Dashboard })));
 const Settings = lazy(() => import('./components/Settings').then((m) => ({ default: m.Settings })));
 const WelcomeCarousel = lazy(() => import('./components/WelcomeCarousel').then((m) => ({ default: m.WelcomeCarousel })));
@@ -84,6 +85,9 @@ export default function App() {
   const [returnToTab, setReturnToTab] = useState<'dashboard' | 'activity' | 'trend' | 'settings' | 'add'>('dashboard'); // Track which tab to return to after editing
   // Set when a Trend month is tapped so the Overview opens on that period
   const [dashboardInitialPeriod, setDashboardInitialPeriod] = useState<{ month: number; year: number; type: 'expense' | 'income' } | null>(null);
+  // The Overview's last view (period + drilldown), restored after an edit
+  // round-trip; cleared by a deliberate tap on the Dashboard nav button.
+  const dashboardViewRef = useRef<DashboardViewState | null>(null);
   const [categories, setCategories] = useState(loadCategories);
   const [incomeCategories, setIncomeCategories] = useState(loadIncomeCategories);
   // Payment sources (Cash / banks) + the source pre-selected per direction
@@ -952,6 +956,7 @@ export default function App() {
   // "Erase all data" and account deletion.
   const resetLocalState = () => {
     clearAllData();
+    dashboardViewRef.current = null;
     setExpenses([]);
     setRecurringRules([]);
     setCategories(initialCategories);
@@ -1144,6 +1149,7 @@ export default function App() {
                 onDeleteExpense={handleDeleteExpense}
                 view="overview"
                 initialPeriod={dashboardInitialPeriod}
+                viewStateRef={dashboardViewRef}
               />
             )}
             {currentTab === 'trend' && (
@@ -1236,6 +1242,7 @@ export default function App() {
               <button
                 onClick={() => {
                   setDashboardInitialPeriod(null); // direct visits start on the current month
+                  dashboardViewRef.current = null; // ...and from the top-level view
                   setCurrentTab('dashboard');
                 }}
                 className="flex flex-col items-center gap-1 transition-all pointer-events-auto justify-self-center"
