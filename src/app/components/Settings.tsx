@@ -10,7 +10,8 @@ import { Categories } from './Categories';
 import { SourcesManager } from './SourcesManager';
 import { TracklyLogo } from './TracklyLogo';
 import { ConfirmDialog } from './ConfirmDialog';
-import { CURRENCIES } from '../utils/currency';
+import { CURRENCIES, MAIN_CURRENCY_CODES } from '../utils/currency';
+import { CurrencySearchList } from './CurrencySearchList';
 import type { Source } from '../types';
 import type { ImportPayload } from '../lib/importData';
 import { isBackupFile } from '../lib/backup';
@@ -111,6 +112,7 @@ export function Settings({
   const [showImport, setShowImport] = useState(false);
   const [categoryType, setCategoryType] = useState<'expense' | 'income'>('expense');
   const [showCurrencySelector, setShowCurrencySelector] = useState(false);
+  const [showAllCurrencies, setShowAllCurrencies] = useState(false);
   const [showNameEditor, setShowNameEditor] = useState(false);
   const [showSupport, setShowSupport] = useState(false);
   const [supportMessage, setSupportMessage] = useState('');
@@ -182,16 +184,19 @@ export function Settings({
     }
   }, [openCategoriesOnMount, onCategoriesOpened]);
 
+  // The four main currencies, plus the user's current one when it isn't a
+  // main - so a CHF user always sees their selection at the top.
   const currencies = [
-    { code: 'EUR', symbol: '€', name: 'Euro', flag: '🇪🇺' },
-    { code: 'USD', symbol: '$', name: 'US Dollar', flag: '🇺🇸' },
-    { code: 'GBP', symbol: '£', name: 'British Pound', flag: '🇬🇧' },
-    { code: 'AED', symbol: 'AED', name: 'UAE Dirham', flag: '🇦🇪' }
-  ];
+    ...MAIN_CURRENCY_CODES,
+    ...(MAIN_CURRENCY_CODES.includes(userCurrency) ? [] : [userCurrency]),
+  ]
+    .map((code) => CURRENCIES[code])
+    .filter(Boolean);
 
   const handleCurrencyChange = (newCurrency: string) => {
     onCurrencyChange(newCurrency);
     setShowCurrencySelector(false);
+    setShowAllCurrencies(false);
   };
 
   const handleNameSave = () => {
@@ -300,7 +305,10 @@ export function Settings({
           <div className="px-6 pb-4 pt-0">
             <div className="flex items-center justify-center relative">
               <button
-                onClick={() => setShowCurrencySelector(false)}
+                onClick={() => {
+                  if (showAllCurrencies) setShowAllCurrencies(false);
+                  else setShowCurrencySelector(false);
+                }}
                 className="absolute left-0 -ml-2 px-2 py-1 rounded-lg active:bg-neutral-200 transition-colors"
               >
                 <ChevronLeft size={24} style={{ color: '#007AFF' }} />
@@ -319,6 +327,10 @@ export function Settings({
           </div>
 
           <div className="px-6">
+            {showAllCurrencies ? (
+              <CurrencySearchList selected={userCurrency} onSelect={handleCurrencyChange} />
+            ) : (
+            <>
             <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
               {currencies.map((currency, index) => (
                 <button
@@ -373,6 +385,17 @@ export function Settings({
                 </button>
               ))}
             </div>
+
+            {/* Every other currency, searchable */}
+            <button
+              onClick={() => setShowAllCurrencies(true)}
+              className="w-full flex items-center justify-between px-5 py-4 mt-3 rounded-2xl bg-white shadow-sm active:bg-neutral-100 transition-colors"
+            >
+              <span className="font-medium text-neutral-700" style={{ fontSize: '16px' }}>Others</span>
+              <ChevronRight className="w-5 h-5 text-neutral-400" />
+            </button>
+            </>
+            )}
           </div>
         </div>
       </div>
@@ -1018,7 +1041,7 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
             <Wallet className="w-5 h-5" style={{ color: '#8E8E93' }} strokeWidth={2} />
             <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '16px' }}>Main Currency</span>
             <span style={{ color: '#8E8E93', fontSize: '15px' }}>
-              {currencies.find(c => c.code === userCurrency)?.flag} {userCurrency}
+              {CURRENCIES[userCurrency]?.flag} {userCurrency}
             </span>
             <ChevronRight className="w-5 h-5" style={{ color: '#C7C7CC' }} />
           </button>
