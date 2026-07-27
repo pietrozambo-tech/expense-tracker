@@ -42,13 +42,19 @@ export function BudgetBar({ spent, budget, currency, daysLeft, monthProgress }: 
   const aheadOfPace = isLive && ratio > (monthProgress as number) + 0.1;
 
   const tone = over ? TONES.over : aheadOfPace ? TONES.warn : TONES.good;
+  // A finished month gets a verdict, not a forecast: "on track" is meaningless
+  // once there is nothing left to track, and restating the percentage next to
+  // "N% used" just says the same thing twice.
+  const settled = Math.round(Math.abs(budget - spent)) === 0;
   const status = over
     ? `Over by ${formatAmountListView(spent - budget, currency, 0)}`
-    : !isLive
-      ? `${pct}% of budget`
-      : aheadOfPace
-        ? 'Spending faster than usual'
-        : 'On track';
+    : settled
+      ? 'Right on budget'
+      : !isLive
+        ? `Under by ${formatAmountListView(budget - spent, currency, 0)}`
+        : aheadOfPace
+          ? 'Spending faster than usual'
+          : 'On track';
 
   return (
     <div className="px-6 mb-4">
