@@ -40,6 +40,7 @@ export interface Transaction {
   // Optional for older data / same-currency entries.
   baseAmount?: number;
   recurrence?: string; // 'Never repeat', 'Every month', ...
+  recurrenceOf?: string; // id of the seed transaction this occurrence was materialized from
   sourceId?: string; // id into the sources list (optional for older data)
 }
 
