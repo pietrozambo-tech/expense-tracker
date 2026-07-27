@@ -4,7 +4,7 @@ import { TrendCategoryBreakdown } from './TrendCategoryBreakdown';
 import React from 'react';
 import { formatAmount, formatCompactAmount, formatSummaryAmount, formatAmountListView, CURRENCIES, homeAmount } from '../utils/currency';
 import { getCategoryIcon } from './categoryIcons';
-import { BudgetBar } from './BudgetBar';
+import { PaceCard } from './PaceCard';
 import { parseLocalDate } from '../lib/dates';
 import { CategoryFilterModal } from './CategoryFilterModal';
 import { SubcategoryFilterModal } from './SubcategoryFilterModal';
@@ -480,25 +480,77 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
   }, 0);
   const savings = totalIncome - totalSpending;
 
-  // Budget bar: the limit is monthly, so it only makes sense on the month view
-  // and for expenses. For the month in progress we also pass how far through it
-  // we are, so the bar can say whether spending is ahead of pace; past months
-  // just show the final result.
-  const budgetView = (() => {
-    if (!monthlyBudget || monthlyBudget <= 0) return null;
-    if (timePeriodType !== 'month' || transactionType !== 'expense') return null;
-    const isCurrentMonth = selectedYear === now.getFullYear() && selectedMonth === now.getMonth();
-    const isFuture =
-      selectedYear > now.getFullYear() ||
-      (selectedYear === now.getFullYear() && selectedMonth > now.getMonth());
-    if (isFuture) return null;
-    if (!isCurrentMonth) return { daysLeft: null, monthProgress: null };
-    const daysInMonth = new Date(selectedYear, selectedMonth + 1, 0).getDate();
-    const today = now.getDate();
-    return {
-      daysLeft: daysInMonth - today,
-      monthProgress: today / daysInMonth,
-    };
+  // Pace card: the strip between the hero and the Expenses/Income toggle.
+  //
+  // It is deliberately independent of transactionType and of whether a budget
+  // exists - it either shows for both directions or for neither, so switching
+  // Expenses/Income never moves the rest of the page. Only a period that has
+  // not started yet hides it (there is nothing to pace against).
+  const paceView = (() => {
+    let start: Date;
+    let end: Date;
+    let months: number;
+    switch (timePeriodType) {
+      case 'month':
+        start = new Date(selectedYear, selectedMonth, 1);
+        end = new Date(selectedYear, selectedMonth + 1, 0);
+        months = 1;
+        break;
+      case 'quarter':
+        start = new Date(selectedYear, selectedQuarter * 3, 1);
+        end = new Date(selectedYear, selectedQuarter * 3 + 3, 0);
+        months = 3;
+        break;
+      default:
+        start = new Date(selectedYear, 0, 1);
+        end = new Date(selectedYear, 11, 31);
+        months = 12;
+        break;
+    }
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    if (start > today) return null;
+
+    const dayMs = 24 * 60 * 60 * 1000;
+    // Rounded because a DST change makes the span a few hours short of a whole
+    // number of days.
+    const totalDays = Math.round((end.getTime() - start.getTime()) / dayMs) + 1;
+    const isLive = end >= today;
+    if (!isLive) return { start, months, daysLeft: null, periodProgress: null };
+
+    const elapsed = Math.round((today.getTime() - start.getTime()) / dayMs) + 1;
+    return { start, months, daysLeft: totalDays - elapsed, periodProgress: elapsed / totalDays };
+  })();
+
+  // What a month usually looks like, from up to a year of completed months
+  // before the selected period. Months without any transaction of that kind are
+  // skipped rather than counted as zero, so one gap does not halve the average.
+  const usualPerMonth = (() => {
+    if (!paceView) return { expense: null as number | null, income: null as number | null };
+    const buckets = new Map<string, { expense: number; income: number }>();
+    for (const t of expenses) {
+      const d = parseLocalDate(t.date);
+      const key = `${d.getFullYear()}-${d.getMonth()}`;
+      let bucket = buckets.get(key);
+      if (!bucket) {
+        bucket = { expense: 0, income: 0 };
+        buckets.set(key, bucket);
+      }
+      const converted = homeAmount(t, currency);
+      if (t.type === 'income') bucket.income += converted;
+      else bucket.expense += converted;
+    }
+    const expenseMonths: number[] = [];
+    const incomeMonths: number[] = [];
+    for (let back = 1; back <= 12; back++) {
+      const d = new Date(paceView.start.getFullYear(), paceView.start.getMonth() - back, 1);
+      const bucket = buckets.get(`${d.getFullYear()}-${d.getMonth()}`);
+      if (!bucket) continue;
+      if (bucket.expense > 0) expenseMonths.push(bucket.expense);
+      if (bucket.income > 0) incomeMonths.push(bucket.income);
+    }
+    const average = (values: number[]) =>
+      values.length ? values.reduce((sum, v) => sum + v, 0) / values.length : null;
+    return { expense: average(expenseMonths), income: average(incomeMonths) };
   })();
 
   // Filter by transaction type for category display
@@ -1261,15 +1313,22 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
             </div>
           </div>
 
-          {budgetView && (
-            <BudgetBar
-              spent={totalSpending}
-              budget={monthlyBudget!}
-              currency={currency}
-              daysLeft={budgetView.daysLeft}
-              monthProgress={budgetView.monthProgress}
-            />
-          )}
+          {paceView && expenses.length > 0 && (() => {
+            const isIncome = transactionType === 'income';
+            const perMonth = isIncome ? usualPerMonth.income : usualPerMonth.expense;
+            return (
+              <PaceCard
+                direction={isIncome ? 'income' : 'expense'}
+                periodType={timePeriodType}
+                amount={isIncome ? totalIncome : totalSpending}
+                budget={!isIncome && monthlyBudget && monthlyBudget > 0 ? monthlyBudget * paceView.months : null}
+                usual={perMonth === null ? null : perMonth * paceView.months}
+                currency={currency}
+                daysLeft={paceView.daysLeft}
+                periodProgress={paceView.periodProgress}
+              />
+            );
+          })()}
 
           {/* Transaction Type Selector */}
           <div className="px-6 mb-4">

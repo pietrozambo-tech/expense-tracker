@@ -22,6 +22,7 @@ Track every expense in seconds - with clear insights into where your money goes.
 Your money at a glance, for any period.
 
 - **Hero card** - Spending (red **-**), Income (green **+**), Savings and Saving Rate for the selected period, with a month / quarter / year selector and arrows to step through time.
+- **Pace strip** - one line that tells you whether this period is going well. Set a **monthly budget** in Profile and you get a progress bar with a marker for where you *should* be today ("75% used · On track", "142% used · Over by 1,357€"). No budget? It compares the period with what you usually spend. On the Income side it shows how much of your usual income has landed - and, once the period is over, whether you came in above or below.
 - **Categories breakdown** - every category with its share bar and total; sort A-Z or by amount.
 - **Dive deep** - tap a category to see its **subcategory breakdown**, then tap any subcategory (or *Other* / *View all*) to open the full **transaction list** behind the number - sortable by time or amount, and you can open and edit any transaction right there. When you save, you land **exactly where you were** (same period, same list).
 - **Cumulative spending chart** - how the period's spending built up day by day (weekly/monthly granularity for quarter and year views).
@@ -72,7 +73,7 @@ The long view.
 
 Make it yours.
 
-- **Profile** - your name; with Google sign-in, your account photo.
+- **Profile** - your name and an optional **monthly budget** (which drives the Dashboard pace strip); with Google sign-in, your account photo.
 - **Categories** - fully editable expense and income categories: 30+ icons, a 22-color palette, unlimited subcategories. Renames update your history; deleting a category safely moves its transactions to *Others*.
 - **Sources** - your accounts and cards: a library of 14 banks plus cash, or create custom ones with your own color and monogram. Defaults per direction (expense/income).
 - **Main currency** - switch anytime, from all ~150; every chart re-expresses instantly.

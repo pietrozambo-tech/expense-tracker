@@ -22,7 +22,7 @@ Sign in with Google to sync across devices, or just use it as a guest - your cal
 
 *What to try*
 
-📊 *Dashboard* - spending, income, savings and saving rate for any month, quarter or year. Tap a category → see its subcategories → tap one → the actual transactions behind the number. Plus charts for cumulative spending, recurring vs one-off, and spending by bank/card.
+📊 *Dashboard* - spending, income, savings and saving rate for any month, quarter or year. Set a monthly budget in Profile and a bar tells you if you're on track or burning it too fast. Tap a category → see its subcategories → tap one → the actual transactions behind the number. Plus charts for cumulative spending, recurring vs one-off, and spending by bank/card.
 
 🧾 *Activity* - every transaction grouped by day. Filter by month, category, source or recurring, or just search. Tap to edit, swipe left to delete, export to CSV.
 
