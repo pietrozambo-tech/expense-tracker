@@ -22,6 +22,7 @@ import { SourceLogo } from './components/SourceLogo';
 import { SourceSelectorModal } from './components/SourceSelectorModal';
 import { getDemoTransactions } from './lib/demoData';
 import { buildImport, type ImportPayload } from './lib/importData';
+import { isBackupFile } from './lib/backup';
 import { Dashboard } from './components/Dashboard';
 import { Activity } from './components/Activity';
 import { Settings } from './components/Settings';
@@ -688,7 +689,7 @@ export default function App() {
   const handleImportData = (payload: ImportPayload) => {
     // Full backup? Restore everything rather than appending.
     const p = payload as any;
-    if (p && (p.kind === 'backup' || Array.isArray(p.categories) || Array.isArray(p.sources))) {
+    if (isBackupFile(p)) {
       restoreBackup(p);
       return { added: 0, defaulted: 0, skipped: [] };
     }

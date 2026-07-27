@@ -28,6 +28,22 @@ interface BackupInput {
   defaultSourceIncome?: string;
 }
 
+// Is this parsed JSON a full backup (from Export) rather than a lightweight
+// import file? Restoring a backup REPLACES everything, so this must only be
+// true for files we actually wrote: every backup carries app:'expense-tracker'.
+// (`kind:'backup'` is accepted defensively for hand-written files.)
+//
+// Deliberately does NOT sniff for a `categories`/`sources` array: an
+// AI-generated import file can easily contain one, and misreading that as a
+// backup would wipe the user's data instead of adding to it.
+export function isBackupFile(payload: unknown): boolean {
+  if (!payload || typeof payload !== 'object') return false;
+  const o = payload as Record<string, unknown>;
+  // `kind:'backup'` + `app:'trackly'` are what handleExportData writes;
+  // 'expense-tracker' covers the BackupFile shape in this module.
+  return o.kind === 'backup' || o.app === 'trackly' || o.app === 'expense-tracker';
+}
+
 export function buildBackup(data: BackupInput): BackupFile {
   return {
     app: 'expense-tracker',

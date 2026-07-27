@@ -13,6 +13,7 @@ import { ConfirmDialog } from './ConfirmDialog';
 import { CURRENCIES } from '../utils/currency';
 import type { Source } from '../types';
 import type { ImportPayload } from '../lib/importData';
+import { isBackupFile } from '../lib/backup';
 
 interface SettingsProps {
   categories: any[];
@@ -242,7 +243,7 @@ export function Settings({
       if (!payload || !Array.isArray(payload.transactions)) {
         throw new Error('bad format');
       }
-      const isBackup = payload.kind === 'backup' || Array.isArray(payload.categories) || Array.isArray(payload.sources);
+      const isBackup = isBackupFile(payload);
       if (isBackup) {
         // Leave the Import subpage so the confirm dialog (rendered in the main
         // Settings view) can mount.
