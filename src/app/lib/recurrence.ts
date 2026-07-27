@@ -1,34 +1,34 @@
-import type { Transaction } from '../types';
+import type { RecurringRule, Transaction } from '../types';
 import { parseLocalDate } from './dates';
 import { convertAmount, BASE_CURRENCY } from '../utils/currency';
 
 // Materialization engine for recurring transactions.
 //
-// A transaction saved with a recurrence rule is the SEED of a chain. Nothing is
-// created ahead of time: each occurrence appears only once its scheduled day
-// arrives (running the engine on app open / foregrounding also back-fills any
-// occurrences missed while the app was closed).
+// Schedules live in RecurringRule objects, decoupled from transaction history:
+// the rule's template is what future occurrences are stamped from, so editing a
+// past transaction never changes the schedule, and updating the schedule never
+// rewrites history. Nothing is created ahead of time - each occurrence appears
+// once its scheduled day arrives (or is back-filled on the next open).
 //
-// Semantics:
-// - Occurrences are clones of the seed's *current* values, so editing the seed
-//   (e.g. the rent goes up) changes future occurrences, never past ones.
-// - Clones carry `recurrenceOf: seed.id`; only seeds (no recurrenceOf) generate.
-// - Deleting the seed stops the chain; already-created occurrences remain.
-// - Clone ids are deterministic (`rec-<seedId>-<date>`), so re-running the
-//   engine can never duplicate an occurrence.
-// - Monthly/yearly schedules are anchored to the seed's day-of-month: the 31st
-//   clamps to a short month's last day but returns to the 31st afterwards.
-// - Demo data is skipped: its chains would outlive "Erase demo data".
+// - Occurrence ids are deterministic (`rec-<ruleId>-<date>`), so re-running the
+//   engine can never duplicate one, and the id keeps encoding the original due
+//   date even if the user later edits the occurrence's date.
+// - `skipDates` records individually deleted occurrences so they are not
+//   regenerated; `endedAt` (exclusive) stops a chain from a date onward.
+// - Legacy chains (from the earlier seed-based engine) are migrated in place:
+//   a seed transaction carrying a rule becomes a RecurringRule with the same
+//   chain id, so already-materialized occurrence ids keep matching.
+// - Demo data never generates rules or occurrences.
 
 const daysInMonth = (year: number, month0: number) => new Date(year, month0 + 1, 0).getDate();
 
-const toDateStr = (d: Date) =>
+export const toDateStr = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
-// All due dates for `rule`, strictly after the seed date, up to `today`.
-// Capped defensively so a years-old daily seed cannot generate unbounded rows.
-export function dueDatesSince(seedDateStr: string, rule: string, today: Date, cap = 750): string[] {
-  const seed = parseLocalDate(seedDateStr);
+// All due dates for `rule`, strictly after the anchor date, up to `today`.
+// Capped defensively so a years-old daily rule cannot generate unbounded rows.
+export function dueDatesSince(anchorDateStr: string, rule: string, today: Date, cap = 750): string[] {
+  const seed = parseLocalDate(anchorDateStr);
   const end = new Date(today.getFullYear(), today.getMonth(), today.getDate()); // local midnight
   const out: string[] = [];
 
@@ -68,7 +68,8 @@ export function dueDatesSince(seedDateStr: string, rule: string, today: Date, ca
       break;
     }
     case 'Every month': {
-      // Anchored to the seed's day-of-month, clamped per month.
+      // Anchored to the anchor's day-of-month, clamped per month (the 31st
+      // becomes Feb 28 but returns to the 31st in March).
       const anchorDay = seed.getDate();
       for (let k = 1; out.length < cap; k++) {
         const y = seed.getFullYear() + Math.floor((seed.getMonth() + k) / 12);
@@ -95,36 +96,115 @@ export function dueDatesSince(seedDateStr: string, rule: string, today: Date, ca
   return out;
 }
 
-// Returns the occurrences that are due but missing. Pure - the caller decides
-// how to merge/persist them.
-export function materializeRecurring(transactions: Transaction[], today: Date = new Date()): Transaction[] {
-  const seeds = transactions.filter(
+export const isActiveRule = (r: RecurringRule) => !r.endedAt;
+
+export function buildRuleTemplate(t: Transaction): RecurringRule['template'] {
+  return {
+    description: t.description,
+    amount: t.amount,
+    currency: t.currency,
+    category: t.category,
+    subcategory: t.subcategory,
+    sourceId: t.sourceId,
+    type: t.type,
+  };
+}
+
+export function newRuleId(): string {
+  return `rule-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+// One pass over the data: migrate legacy seed-based chains into rules, then
+// materialize every occurrence that is due. Pure - returns new arrays (or the
+// original references when nothing changed).
+export function processRecurrence(
+  transactions: Transaction[],
+  rules: RecurringRule[],
+  today: Date = new Date(),
+): {
+  transactions: Transaction[];
+  rules: RecurringRule[];
+  txnsChanged: boolean;
+  rulesChanged: boolean;
+  createdCount: number;
+} {
+  let txns = transactions;
+  let nextRules = rules;
+  let txnsChanged = false;
+  let rulesChanged = false;
+
+  // --- Migration: legacy seeds (recurrence label, no chain link) become rules.
+  // The rule id reuses the seed's id so occurrence ids from the old engine
+  // (`rec-<seedId>-<date>`) keep matching and are not regenerated.
+  const legacySeeds = txns.filter(
     (t) =>
       t.recurrence &&
       t.recurrence !== 'Never repeat' &&
       !t.recurrenceOf &&
       !t.id.startsWith('demo-'),
   );
-  if (seeds.length === 0) return [];
+  if (legacySeeds.length > 0) {
+    const existingRuleIds = new Set(nextRules.map((r) => r.id));
+    const created: RecurringRule[] = [];
+    for (const seed of legacySeeds) {
+      if (!existingRuleIds.has(seed.id)) {
+        created.push({
+          id: seed.id,
+          rule: seed.recurrence!,
+          anchorDate: seed.date,
+          template: buildRuleTemplate(seed),
+        });
+      }
+    }
+    if (created.length > 0) {
+      nextRules = [...nextRules, ...created];
+      rulesChanged = true;
+    }
+    const seedIds = new Set(legacySeeds.map((s) => s.id));
+    txns = txns.map((t) => (seedIds.has(t.id) ? { ...t, recurrenceOf: t.id } : t));
+    txnsChanged = true;
+  }
 
-  const created: Transaction[] = [];
-  const existingIds = new Set(transactions.map((t) => t.id));
-
-  for (const seed of seeds) {
-    for (const dateStr of dueDatesSince(seed.date, seed.recurrence!, today)) {
-      const id = `rec-${seed.id}-${dateStr}`;
-      if (existingIds.has(id)) continue; // already materialized
+  // --- Materialization.
+  const existingIds = new Set(txns.map((t) => t.id));
+  const createdTxns: Transaction[] = [];
+  for (const rule of nextRules) {
+    const skip = new Set(rule.skipDates ?? []);
+    for (const dateStr of dueDatesSince(rule.anchorDate, rule.rule, today)) {
+      if (rule.endedAt && dateStr >= rule.endedAt) continue;
+      if (skip.has(dateStr)) continue;
+      const id = `rec-${rule.id}-${dateStr}`;
+      if (existingIds.has(id)) continue;
       existingIds.add(id);
-      created.push({
-        ...seed,
+      createdTxns.push({
         id,
         date: dateStr,
-        recurrenceOf: seed.id,
+        recurrence: rule.rule,
+        recurrenceOf: rule.id,
+        ...rule.template,
         // Lock the FX value at the day the occurrence is created, like any
         // other transaction saved on that day.
-        baseAmount: convertAmount(seed.amount, seed.currency, BASE_CURRENCY),
+        baseAmount: convertAmount(rule.template.amount, rule.template.currency, BASE_CURRENCY),
       });
     }
   }
-  return created;
+  if (createdTxns.length > 0) {
+    txns = [...createdTxns, ...txns];
+    txnsChanged = true;
+  }
+
+  return {
+    transactions: txns,
+    rules: nextRules,
+    txnsChanged,
+    rulesChanged,
+    createdCount: createdTxns.length,
+  };
+}
+
+// The original due date of an occurrence (encoded in its id), used for
+// skip/ended bookkeeping even if the user has edited the visible date since.
+export function occurrenceDueDate(t: Transaction, rule: RecurringRule): string {
+  const prefix = `rec-${rule.id}-`;
+  return t.id.startsWith(prefix) ? t.id.slice(prefix.length) : t.date;
 }

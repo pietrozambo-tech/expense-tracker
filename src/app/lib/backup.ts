@@ -1,4 +1,4 @@
-import type { Category, Source, Transaction } from '../types';
+import type { Category, RecurringRule, Source, Transaction } from '../types';
 
 // The single source of truth for Trackly's full-backup file format - written by
 // Settings > Export data and recognised again on Import (which restores it
@@ -19,6 +19,7 @@ export interface BackupFile {
   incomeCategories: Category[];
   sources: Source[];
   transactions: Transaction[];
+  recurringRules?: RecurringRule[]; // optional: older backups predate recurring rules
 }
 
 export function buildBackup(data: {
@@ -30,6 +31,7 @@ export function buildBackup(data: {
   incomeCategories: Category[];
   sources: Source[];
   transactions: Transaction[];
+  recurringRules?: RecurringRule[];
 }): BackupFile {
   return {
     app: 'trackly',
@@ -46,6 +48,7 @@ export function buildBackup(data: {
     incomeCategories: data.incomeCategories,
     sources: data.sources,
     transactions: data.transactions,
+    recurringRules: data.recurringRules ?? [],
   };
 }
 

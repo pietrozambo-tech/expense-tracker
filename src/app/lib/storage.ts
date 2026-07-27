@@ -1,4 +1,4 @@
-import type { Category, Source, Transaction, UserSettings } from '../types';
+import type { Category, RecurringRule, Source, Transaction, UserSettings } from '../types';
 import {
   categories as defaultCategories,
   incomeCategories as defaultIncomeCategories,
@@ -18,6 +18,7 @@ const KEYS = {
   incomeCategories: key('income-categories'),
   sources: key('sources'),
   settings: key('settings'),
+  recurringRules: key('recurring-rules'),
 };
 
 function read<T>(storageKey: string, fallback: T): T {
@@ -53,6 +54,9 @@ export const loadSources = () => read<Source[]>(KEYS.sources, DEFAULT_SOURCES);
 export const saveSources = (sources: Source[]) => write(KEYS.sources, sources);
 
 export const loadTransactions = () => read<Transaction[]>(KEYS.transactions, []);
+
+export const loadRecurringRules = () => read<RecurringRule[]>(KEYS.recurringRules, []);
+export const saveRecurringRules = (rules: RecurringRule[]) => write(KEYS.recurringRules, rules);
 export const saveTransactions = (transactions: Transaction[]) =>
   write(KEYS.transactions, transactions);
 

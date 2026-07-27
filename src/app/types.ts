@@ -26,6 +26,26 @@ export interface Source {
   mark?: 'banknote' | 'monogram'; // which glyph the tile draws
 }
 
+// A recurring schedule, decoupled from the transactions it creates: the
+// template holds the values future occurrences are stamped from, so editing
+// past transactions never rewrites the schedule and vice versa.
+export interface RecurringRule {
+  id: string; // chain key; occurrences point back via Transaction.recurrenceOf
+  rule: string; // 'Every month', ... (same vocabulary as Transaction.recurrence)
+  anchorDate: string; // YYYY-MM-DD the cadence is anchored to (occurrences start after it)
+  endedAt?: string; // exclusive cutoff: no occurrences on/after this date
+  skipDates?: string[]; // occurrence dates the user deleted individually
+  template: {
+    description: string;
+    amount: number;
+    currency: string;
+    category: Category;
+    subcategory?: string;
+    sourceId?: string;
+    type: TransactionType;
+  };
+}
+
 export interface Transaction {
   id: string;
   description: string;
@@ -40,7 +60,7 @@ export interface Transaction {
   // Optional for older data / same-currency entries.
   baseAmount?: number;
   recurrence?: string; // 'Never repeat', 'Every month', ...
-  recurrenceOf?: string; // id of the seed transaction this occurrence was materialized from
+  recurrenceOf?: string; // id of the RecurringRule chain this transaction belongs to
   sourceId?: string; // id into the sources list (optional for older data)
 }
 

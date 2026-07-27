@@ -1,4 +1,4 @@
-import type { Category, Source, Transaction } from '../types';
+import type { Category, RecurringRule, Source, Transaction } from '../types';
 import { supabase } from './supabase';
 
 // The whole app dataset for one user. Stored as a single JSON record per user
@@ -7,6 +7,7 @@ import { supabase } from './supabase';
 // devices. It can be normalised into queryable tables later (e.g. for sharing).
 export interface SyncPayload {
   transactions: Transaction[];
+  recurringRules?: RecurringRule[]; // optional: older records predate recurring rules
   categories: Category[];
   incomeCategories: Category[];
   sources: Source[];

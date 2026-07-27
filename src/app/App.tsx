@@ -3,7 +3,7 @@ import { toast } from 'sonner';
 import { Toaster } from './components/ui/sonner';
 import { BarChart3, Plus, List, X, Settings as SettingsIcon, TrendingUp, ChevronDown, Repeat } from 'lucide-react';
 import { CURRENCIES, convertAmount, BASE_CURRENCY } from './utils/currency';
-import type { Transaction, Source } from './types';
+import type { Transaction, Source, RecurringRule } from './types';
 import {
   clearAllData,
   loadCategories,
@@ -11,6 +11,8 @@ import {
   loadSettings,
   loadSources,
   loadTransactions,
+  loadRecurringRules,
+  saveRecurringRules,
   saveCategories,
   saveIncomeCategories,
   saveSettings,
@@ -31,7 +33,8 @@ import { SaveButton } from './components/SaveButton';
 import { DescriptionInput } from './components/DescriptionInput';
 import { Onboarding } from './components/Onboarding';
 import { useAuth } from './auth/AuthProvider';
-import { materializeRecurring } from './lib/recurrence';
+import { processRecurrence, buildRuleTemplate, newRuleId, occurrenceDueDate, isActiveRule } from './lib/recurrence';
+import { RecurringScopeDialog } from './components/RecurringScopeDialog';
 
 // The heavyweight screens load on demand so the initial bundle stays small.
 // (Named exports wrapped for React.lazy's default-export contract.)
@@ -73,6 +76,11 @@ export default function App() {
   const [expenses, setExpenses] = useState<Transaction[]>(loadTransactions);
   const [refreshKey, setRefreshKey] = useState(0);
   const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null);
+  const [recurringRules, setRecurringRules] = useState<RecurringRule[]>(() => loadRecurringRules());
+  // Pending scope choices for edits/deletes of transactions in a recurring
+  // chain ("only this one" vs "this and future ones").
+  const [pendingRecurringEdit, setPendingRecurringEdit] = useState<{ id: string; values: Partial<Transaction> } | null>(null);
+  const [pendingRecurringDelete, setPendingRecurringDelete] = useState<Transaction | null>(null);
   const [returnToTab, setReturnToTab] = useState<'dashboard' | 'activity' | 'trend' | 'settings' | 'add'>('dashboard'); // Track which tab to return to after editing
   // Set when a Trend month is tapped so the Overview opens on that period
   const [dashboardInitialPeriod, setDashboardInitialPeriod] = useState<{ month: number; year: number; type: 'expense' | 'income' } | null>(null);
@@ -135,6 +143,9 @@ export default function App() {
   useEffect(() => {
     saveSources(sources);
   }, [sources]);
+  useEffect(() => {
+    saveRecurringRules(recurringRules);
+  }, [recurringRules]);
   // Start each tab from the top when switching in the nav bar, rather than
   // inheriting the previous tab's scroll position. Reset both the shared
   // scroll container and the window (whichever actually scrolls).
@@ -166,6 +177,7 @@ export default function App() {
   // Snapshot the whole app state into the cloud payload shape
   const buildPayload = (): SyncPayload => ({
     transactions: expenses,
+    recurringRules,
     categories,
     incomeCategories,
     sources,
@@ -193,6 +205,7 @@ export default function App() {
         if (cancelled) return;
         if (cloud) {
           setExpenses(cloud.transactions ?? []);
+          setRecurringRules(cloud.recurringRules ?? []);
           setCategories(cloud.categories ?? initialCategories);
           setIncomeCategories(cloud.incomeCategories ?? initialIncomeCategories);
           setSources(cloud.sources?.length ? cloud.sources : DEFAULT_SOURCES);
@@ -240,7 +253,7 @@ export default function App() {
     }, 800);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userId, cloudHydrated, syncRetryTick, expenses, categories, incomeCategories, sources, hasCompletedOnboarding, userName, userCurrency, hasSeenIntro, defaultSourceExpense, defaultSourceIncome]);
+  }, [userId, cloudHydrated, syncRetryTick, expenses, recurringRules, categories, incomeCategories, sources, hasCompletedOnboarding, userName, userCurrency, hasSeenIntro, defaultSourceExpense, defaultSourceIncome]);
 
   // Coming back online (or refocusing after a failed save) retries the sync.
   useEffect(() => {
@@ -263,14 +276,22 @@ export default function App() {
   useEffect(() => {
     expensesRef.current = expenses;
   }, [expenses]);
+  const rulesRef = useRef(recurringRules);
+  useEffect(() => {
+    rulesRef.current = recurringRules;
+  }, [recurringRules]);
   const runRecurrence = useCallback(() => {
-    const created = materializeRecurring(expensesRef.current);
-    if (created.length === 0) return;
-    setExpenses((prev) => [...created, ...prev]);
-    setRefreshKey((prev) => prev + 1);
-    toast.success(`${created.length} recurring transaction${created.length === 1 ? '' : 's'} added`, {
-      duration: 2000,
-    });
+    const res = processRecurrence(expensesRef.current, rulesRef.current);
+    if (res.rulesChanged) setRecurringRules(res.rules);
+    if (res.txnsChanged) {
+      setExpenses(res.transactions);
+      setRefreshKey((prev) => prev + 1);
+    }
+    if (res.createdCount > 0) {
+      toast.success(`${res.createdCount} recurring transaction${res.createdCount === 1 ? '' : 's'} added`, {
+        duration: 2000,
+      });
+    }
   }, []);
   const recurrenceReady = userId ? cloudHydrated : guest;
   useEffect(() => {
@@ -371,25 +392,51 @@ export default function App() {
     const wasEditing = !!editingExpenseId;
     
     if (editingExpenseId) {
-      // Update existing expense (now updates currency if changed)
-      setExpenses(expenses.map(expense => 
-        expense.id === editingExpenseId
-          ? {
-              ...expense,
-              description: description || categoryData?.name || (transactionType === 'expense' ? 'Expense' : 'Income'),
-              amount: parseFloat(amount),
-              category: categoryData!,
-              subcategory: selectedSubcategory || undefined,
-              date: date,
-              type: transactionType,
-              currency: selectedTransactionCurrency, // Update currency when editing
-              baseAmount: convertAmount(parseFloat(amount), selectedTransactionCurrency, BASE_CURRENCY), // lock FX value
-              recurrence: recurrence, // Add recurrence
-              sourceId: selectedSourceId || undefined
-            }
-          : expense
-      ));
-      
+      const values: Partial<Transaction> = {
+        description: description || categoryData?.name || (transactionType === 'expense' ? 'Expense' : 'Income'),
+        amount: parseFloat(amount),
+        category: categoryData!,
+        subcategory: selectedSubcategory || undefined,
+        date: date,
+        type: transactionType,
+        currency: selectedTransactionCurrency, // Update currency when editing
+        baseAmount: convertAmount(parseFloat(amount), selectedTransactionCurrency, BASE_CURRENCY), // lock FX value
+        recurrence: recurrence,
+        sourceId: selectedSourceId || undefined
+      };
+      const current = expenses.find((e) => e.id === editingExpenseId);
+      const chainRule = current?.recurrenceOf
+        ? recurringRules.find((r) => r.id === current.recurrenceOf && isActiveRule(r))
+        : undefined;
+
+      if (current && chainRule) {
+        if (recurrence !== chainRule.rule) {
+          // Changing the schedule itself is inherently a "from here on" edit.
+          applyRecurringFuture(current, chainRule, values);
+        } else {
+          // Ask: only this occurrence, or this and future ones?
+          setPendingRecurringEdit({ id: current.id, values });
+          setIsSaving(false);
+          return; // stay on the edit screen until the user chooses
+        }
+      } else {
+        setExpenses(expenses.map(expense =>
+          expense.id === editingExpenseId ? { ...expense, ...values } : expense
+        ));
+        // A plain transaction can be given a schedule via editing: that makes
+        // it the first occurrence of a brand-new chain.
+        if (recurrence !== 'Never repeat') {
+          const rule: RecurringRule = {
+            id: newRuleId(),
+            rule: recurrence,
+            anchorDate: date,
+            template: templateFromValues(values),
+          };
+          setRecurringRules((prev) => [...prev, rule]);
+          setExpenses((prev) => prev.map((e) => (e.id === editingExpenseId ? { ...e, recurrenceOf: rule.id } : e)));
+        }
+      }
+
       // Force refresh
       setRefreshKey(prev => prev + 1);
       
@@ -412,6 +459,19 @@ export default function App() {
         sourceId: selectedSourceId || undefined
       };
 
+      // A recurrence choice on a new transaction starts a chain: the rule's
+      // template is stamped onto future occurrences by the engine.
+      if (recurrence !== 'Never repeat') {
+        const rule: RecurringRule = {
+          id: newRuleId(),
+          rule: recurrence,
+          anchorDate: date,
+          template: buildRuleTemplate(newExpense),
+        };
+        newExpense.recurrenceOf = rule.id;
+        setRecurringRules((prev) => [...prev, rule]);
+      }
+
       // Add to expenses list
       setExpenses([newExpense, ...expenses]);
       track('transaction_added', { type: transactionType, hasSource: !!selectedSourceId });
@@ -433,7 +493,13 @@ export default function App() {
       });
     }
     
-    // Return to the tab we came from when editing, or go to dashboard for new transactions
+    finishAddFlow(wasEditing);
+  };
+
+  // Return to the tab we came from when editing, or go to dashboard for new
+  // transactions; then reset the form. Shared by the direct save path and the
+  // recurring scope dialog.
+  const finishAddFlow = (wasEditing: boolean) => {
     setTimeout(() => {
       setCurrentTab(wasEditing ? returnToTab : 'dashboard');
       setIsModalOpen(false);
@@ -607,6 +673,15 @@ export default function App() {
   };
 
   const handleDeleteExpense = (id: string) => {
+    const t = expenses.find((e) => e.id === id);
+    const chainRule = t?.recurrenceOf
+      ? recurringRules.find((r) => r.id === t.recurrenceOf && isActiveRule(r))
+      : undefined;
+    if (t && chainRule) {
+      // Recurring: ask whether to delete just this occurrence or stop the chain.
+      setPendingRecurringDelete(t);
+      return;
+    }
     setExpenses(expenses.filter(expense => expense.id !== id));
     setRefreshKey(prev => prev + 1);
     toast.success('Expense deleted', {
@@ -650,7 +725,99 @@ export default function App() {
   // True when editing an occurrence the recurrence engine created (not the
   // seed) - the edit screen shows a small provenance hint for these.
   const editingAutoOccurrence =
-    !!editingExpenseId && !!expenses.find((e) => e.id === editingExpenseId)?.recurrenceOf;
+    !!editingExpenseId &&
+    editingExpenseId.startsWith('rec-') &&
+    !!expenses.find((e) => e.id === editingExpenseId)?.recurrenceOf;
+
+  // ---- Recurring-chain edit/delete helpers (calendar-style scopes) ----
+
+  const templateFromValues = (v: Partial<Transaction>) => buildRuleTemplate(v as Transaction);
+
+  // "Only this transaction": the row changes, the schedule doesn't.
+  const applyRecurringOnlyThis = (id: string, values: Partial<Transaction>) => {
+    setExpenses((prev) => prev.map((e) => (e.id === id ? { ...e, ...values } : e)));
+  };
+
+  // "This and future ones": end the old chain at this occurrence, start a new
+  // rule from the edited values, and restamp any already-materialized later
+  // occurrences (they keep their own dates). Past occurrences are untouched.
+  const applyRecurringFuture = (current: Transaction, rule: RecurringRule, values: Partial<Transaction>) => {
+    const cutoff = occurrenceDueDate(current, rule);
+    const stopping = values.recurrence === 'Never repeat';
+    const nextRule: RecurringRule | null = stopping
+      ? null
+      : { id: newRuleId(), rule: values.recurrence!, anchorDate: values.date!, template: templateFromValues(values) };
+    setRecurringRules((prev) => [
+      ...prev.map((r) => (r.id === rule.id ? { ...r, endedAt: cutoff } : r)),
+      ...(nextRule ? [nextRule] : []),
+    ]);
+    const isLaterInChain = (e: Transaction) =>
+      e.id !== current.id && e.recurrenceOf === rule.id && occurrenceDueDate(e, rule) > cutoff;
+    setExpenses((prev) => {
+      if (stopping) {
+        // Stopping the schedule from here on also removes the auto-created
+        // later occurrences - the user just said they shouldn't exist.
+        return prev
+          .filter((e) => !isLaterInChain(e))
+          .map((e) => (e.id === current.id ? { ...e, ...values, recurrenceOf: undefined } : e));
+      }
+      return prev.map((e) => {
+        if (e.id === current.id) return { ...e, ...values, recurrenceOf: nextRule!.id };
+        if (isLaterInChain(e))
+          return {
+            ...e,
+            ...templateFromValues(values),
+            recurrence: values.recurrence,
+            recurrenceOf: nextRule!.id,
+            baseAmount: convertAmount(values.amount!, values.currency!, BASE_CURRENCY),
+          };
+        return e;
+      });
+    });
+  };
+
+  const confirmRecurringEdit = (scope: 'one' | 'future') => {
+    const pending = pendingRecurringEdit;
+    if (!pending) return;
+    const current = expenses.find((e) => e.id === pending.id);
+    const rule = current?.recurrenceOf ? recurringRules.find((r) => r.id === current.recurrenceOf) : undefined;
+    if (current && rule) {
+      if (scope === 'one') applyRecurringOnlyThis(pending.id, pending.values);
+      else applyRecurringFuture(current, rule, pending.values);
+    }
+    setPendingRecurringEdit(null);
+    setRefreshKey((prev) => prev + 1);
+    toast.success('Transaction updated', { duration: 1400 });
+    finishAddFlow(true);
+  };
+
+  const confirmRecurringDelete = (scope: 'one' | 'future') => {
+    const t = pendingRecurringDelete;
+    if (!t) return;
+    const rule = recurringRules.find((r) => r.id === t.recurrenceOf);
+    if (rule) {
+      const cutoff = occurrenceDueDate(t, rule);
+      if (scope === 'one') {
+        // Remember the deleted occurrence so the engine never regenerates it.
+        if (t.id.startsWith(`rec-${rule.id}-`)) {
+          setRecurringRules((prev) =>
+            prev.map((r) => (r.id === rule.id ? { ...r, skipDates: [...(r.skipDates ?? []), cutoff] } : r)),
+          );
+        }
+        setExpenses((prev) => prev.filter((e) => e.id !== t.id));
+      } else {
+        setRecurringRules((prev) => prev.map((r) => (r.id === rule.id ? { ...r, endedAt: cutoff } : r)));
+        setExpenses((prev) =>
+          prev.filter((e) => !(e.id === t.id || (e.recurrenceOf === rule.id && occurrenceDueDate(e, rule) >= cutoff))),
+        );
+      }
+    } else {
+      setExpenses((prev) => prev.filter((e) => e.id !== t.id));
+    }
+    setPendingRecurringDelete(null);
+    setRefreshKey((prev) => prev + 1);
+    toast.success(scope === 'one' ? 'Transaction deleted' : 'Deleted - schedule stopped', { duration: 1600 });
+  };
 
   const handleOnboardingComplete = (name: string, currency: string) => {
     setUserName(name);
@@ -705,6 +872,7 @@ export default function App() {
           incomeCategories,
           sources,
           transactions: expenses,
+          recurringRules,
         })
       );
       track('data_exported', { count: expenses.length });
@@ -721,6 +889,7 @@ export default function App() {
   const restoreBackup = (b: any) => {
     const count = Array.isArray(b.transactions) ? b.transactions.length : 0;
     if (Array.isArray(b.transactions)) setExpenses(b.transactions);
+    setRecurringRules(Array.isArray(b.recurringRules) ? b.recurringRules : []);
     if (Array.isArray(b.categories)) setCategories(b.categories);
     if (Array.isArray(b.incomeCategories)) setIncomeCategories(b.incomeCategories);
     if (Array.isArray(b.sources)) setSources(b.sources);
@@ -784,6 +953,7 @@ export default function App() {
   const resetLocalState = () => {
     clearAllData();
     setExpenses([]);
+    setRecurringRules([]);
     setCategories(initialCategories);
     setIncomeCategories(initialIncomeCategories);
     setSources(DEFAULT_SOURCES);
@@ -1281,6 +1451,36 @@ export default function App() {
           </div>
         )}
       </div>
+
+      {/* Recurring scope dialogs - rendered last so they stack above the add
+          screen's composited (translateZ) layers. */}
+      {pendingRecurringEdit && (
+        <div className="relative z-[60]">
+          <RecurringScopeDialog
+            title="Save changes?"
+            message="This transaction repeats. Apply your changes to just this one, or to this one and the future ones?"
+            onlyThisLabel="Only this transaction"
+            futureLabel="This and future ones"
+            onOnlyThis={() => confirmRecurringEdit('one')}
+            onFuture={() => confirmRecurringEdit('future')}
+            onCancel={() => setPendingRecurringEdit(null)}
+          />
+        </div>
+      )}
+      {pendingRecurringDelete && (
+        <div className="relative z-[60]">
+          <RecurringScopeDialog
+            variant="danger"
+            title="Delete recurring transaction?"
+            message="This transaction repeats. Delete just this one, or this one and stop the schedule from here on?"
+            onlyThisLabel="Only this transaction"
+            futureLabel="This and future ones"
+            onOnlyThis={() => confirmRecurringDelete('one')}
+            onFuture={() => confirmRecurringDelete('future')}
+            onCancel={() => setPendingRecurringDelete(null)}
+          />
+        </div>
+      )}
     </div>
   );
 }
