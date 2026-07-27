@@ -1,7 +1,7 @@
 import { Suspense, lazy, useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { Toaster } from './components/ui/sonner';
-import { BarChart3, Plus, List, X, Settings as SettingsIcon, TrendingUp, ChevronDown } from 'lucide-react';
+import { BarChart3, Plus, List, X, Settings as SettingsIcon, TrendingUp, ChevronDown, Repeat } from 'lucide-react';
 import { CURRENCIES, convertAmount, BASE_CURRENCY } from './utils/currency';
 import type { Transaction, Source } from './types';
 import {
@@ -647,6 +647,11 @@ export default function App() {
   
   const canSave = amount && parseFloat(amount) > 0 && selectedCategory && hasChanges;
 
+  // True when editing an occurrence the recurrence engine created (not the
+  // seed) - the edit screen shows a small provenance hint for these.
+  const editingAutoOccurrence =
+    !!editingExpenseId && !!expenses.find((e) => e.id === editingExpenseId)?.recurrenceOf;
+
   const handleOnboardingComplete = (name: string, currency: string) => {
     setUserName(name);
     setUserCurrency(currency);
@@ -1230,6 +1235,17 @@ export default function App() {
                 recurrence={recurrence}
                 onRecurrenceChange={setRecurrence}
               />
+
+              {/* Provenance hint for auto-created occurrences. Deliberately not
+                  in the Activity list - the repeat icon covers it there. */}
+              {editingAutoOccurrence && (
+                <div className="px-6 -mt-2 pb-4 flex items-center gap-1.5">
+                  <Repeat className="w-3.5 h-3.5 flex-shrink-0" style={{ color: '#8E8E93' }} strokeWidth={2} />
+                  <span style={{ color: '#8E8E93', fontSize: 12.5, lineHeight: 1.4 }}>
+                    Added automatically by your recurring schedule. Edits change only this occurrence.
+                  </span>
+                </div>
+              )}
               
               <CategorySelector
                 selectedCategory={selectedCategory}
