@@ -2,6 +2,17 @@ import { useState } from 'react';
 import { X } from 'lucide-react';
 import { formatAmountListView, CURRENCIES } from '../utils/currency';
 
+// Softer than the iOS system colours the rest of the app uses for accents. A
+// full-width bar is a lot more pixels than an icon, so #FF3B30/#30D158 at full
+// saturation shout from a white card. Each state pairs a muted fill with a
+// deeper, darker text tone - which also gets the 12px status line to ~5:1 on
+// white, where the vivid colours sat at 2:1 and were genuinely hard to read.
+const TONES = {
+  good: { fill: '#5FC08C', text: '#2C7A54' },
+  warn: { fill: '#EFB264', text: '#96631A' },
+  over: { fill: '#E8837A', text: '#B44A40' },
+};
+
 interface BudgetBarProps {
   spent: number; // period spending, already in the user's main currency
   budget: number; // monthly limit, in the user's main currency
@@ -30,7 +41,7 @@ export function BudgetBar({ spent, budget, currency, daysLeft, monthProgress }: 
   // On pace = spending no faster than the month is passing (with a little slack).
   const aheadOfPace = isLive && ratio > (monthProgress as number) + 0.1;
 
-  const color = over ? '#FF3B30' : aheadOfPace ? '#FF9F0A' : '#30D158';
+  const tone = over ? TONES.over : aheadOfPace ? TONES.warn : TONES.good;
   const status = over
     ? `Over by ${formatAmountListView(spent - budget, currency, 0)}`
     : !isLive
@@ -45,7 +56,7 @@ export function BudgetBar({ spent, budget, currency, daysLeft, monthProgress }: 
         <div className="flex items-baseline justify-between mb-2">
           <span style={{ color: '#1C1C1E', fontSize: 13, fontWeight: 600 }}>Monthly budget</span>
           <span className="tabular-nums" style={{ color: '#8E8E93', fontSize: 13 }}>
-            <span style={{ color: over ? '#FF3B30' : '#1C1C1E', fontWeight: 600 }}>
+            <span style={{ color: over ? tone.text : '#1C1C1E', fontWeight: 600 }}>
               {formatAmountListView(spent, currency, 0)}
             </span>
             {' of '}
@@ -57,7 +68,7 @@ export function BudgetBar({ spent, budget, currency, daysLeft, monthProgress }: 
         <div className="relative h-2 rounded-full overflow-hidden" style={{ backgroundColor: '#F2F2F7' }}>
           <div
             className="h-full rounded-full transition-all"
-            style={{ width: `${Math.min(100, Math.max(ratio * 100, spent > 0 ? 2 : 0))}%`, backgroundColor: color }}
+            style={{ width: `${Math.min(100, Math.max(ratio * 100, spent > 0 ? 2 : 0))}%`, backgroundColor: tone.fill }}
           />
         </div>
         {/* Expected-pace marker, drawn outside the clipped track so it stays visible */}
@@ -70,7 +81,7 @@ export function BudgetBar({ spent, budget, currency, daysLeft, monthProgress }: 
                 top: -12,
                 width: 2,
                 height: 12,
-                backgroundColor: 'rgba(0,0,0,0.28)',
+                backgroundColor: 'rgba(0,0,0,0.22)',
                 borderRadius: 1,
               }}
               aria-hidden="true"
@@ -79,7 +90,7 @@ export function BudgetBar({ spent, budget, currency, daysLeft, monthProgress }: 
         )}
 
         <div className="flex items-baseline justify-between mt-2">
-          <span style={{ color, fontSize: 12, fontWeight: 600 }}>
+          <span style={{ color: tone.text, fontSize: 12, fontWeight: 600 }}>
             {pct}% used · {status}
           </span>
           {isLive && (
