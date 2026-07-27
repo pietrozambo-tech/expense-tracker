@@ -15,6 +15,7 @@ export interface SyncPayload {
     onboarded: boolean;
     userName: string;
     currency: string;
+    monthlyBudget?: number;
     hasSeenIntro: boolean;
     defaultSourceExpense?: string;
     defaultSourceIncome?: string;

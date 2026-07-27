@@ -94,6 +94,7 @@ export default function App() {
   const [hasSeenIntro, setHasSeenIntro] = useState(() => loadSettings().hasSeenIntro ?? false);
   const [userName, setUserName] = useState(() => loadSettings().userName);
   const [userCurrency, setUserCurrency] = useState(() => loadSettings().currency);
+  const [monthlyBudget, setMonthlyBudget] = useState<number | undefined>(() => loadSettings().monthlyBudget);
   const [selectedTransactionCurrency, setSelectedTransactionCurrency] = useState('EUR'); // Currency for current transaction being added/edited
   const [currentTab, setCurrentTab] = useState<'dashboard' | 'activity' | 'add' | 'trend' | 'settings'>('dashboard');
   // The shared scroll container for the non-activity tabs. Switching tabs must
@@ -202,11 +203,12 @@ export default function App() {
       onboarded: hasCompletedOnboarding,
       userName,
       currency: userCurrency,
+      monthlyBudget,
       hasSeenIntro,
       defaultSourceExpense,
       defaultSourceIncome,
     });
-  }, [hasCompletedOnboarding, userName, userCurrency, hasSeenIntro, defaultSourceExpense, defaultSourceIncome]);
+  }, [hasCompletedOnboarding, userName, userCurrency, monthlyBudget, hasSeenIntro, defaultSourceExpense, defaultSourceIncome]);
 
   // When opening a NEW transaction, pre-select the current default source for
   // the active type — so changing the default in Settings takes effect
@@ -229,6 +231,7 @@ export default function App() {
       onboarded: hasCompletedOnboarding,
       userName,
       currency: userCurrency,
+      monthlyBudget,
       hasSeenIntro,
       defaultSourceExpense,
       defaultSourceIncome,
@@ -257,6 +260,7 @@ export default function App() {
           setHasCompletedOnboarding(!!s.onboarded);
           setUserName(s.userName ?? '');
           setUserCurrency(s.currency ?? 'EUR');
+          setMonthlyBudget(s.monthlyBudget);
           setHasSeenIntro(!!s.hasSeenIntro);
           setDefaultSourceExpense(s.defaultSourceExpense ?? DEFAULT_SOURCE_EXPENSE);
           setDefaultSourceIncome(s.defaultSourceIncome ?? DEFAULT_SOURCE_INCOME);
@@ -297,7 +301,7 @@ export default function App() {
     }, 800);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userId, cloudHydrated, syncRetryTick, expenses, recurringRules, categories, incomeCategories, sources, hasCompletedOnboarding, userName, userCurrency, hasSeenIntro, defaultSourceExpense, defaultSourceIncome]);
+  }, [userId, cloudHydrated, syncRetryTick, expenses, recurringRules, categories, incomeCategories, sources, hasCompletedOnboarding, userName, userCurrency, monthlyBudget, hasSeenIntro, defaultSourceExpense, defaultSourceIncome]);
 
   // Coming back online (or refocusing after a failed save) retries the sync.
   useEffect(() => {
@@ -910,6 +914,7 @@ export default function App() {
         buildBackup({
           userName,
           currency: userCurrency,
+          monthlyBudget,
           defaultSourceExpense,
           defaultSourceIncome,
           categories,
@@ -939,6 +944,7 @@ export default function App() {
     if (Array.isArray(b.sources)) setSources(b.sources);
     if (b.settings) {
       if (typeof b.settings.currency === 'string') setUserCurrency(b.settings.currency);
+      setMonthlyBudget(typeof b.settings.monthlyBudget === 'number' ? b.settings.monthlyBudget : undefined);
       if (typeof b.settings.userName === 'string') setUserName(b.settings.userName);
       if (typeof b.settings.defaultSourceExpense === 'string') setDefaultSourceExpense(b.settings.defaultSourceExpense);
       if (typeof b.settings.defaultSourceIncome === 'string') setDefaultSourceIncome(b.settings.defaultSourceIncome);
@@ -1007,6 +1013,7 @@ export default function App() {
     setSelectedSourceId(DEFAULT_SOURCE_EXPENSE);
     setUserName('');
     setUserCurrency('EUR');
+    setMonthlyBudget(undefined);
     setCurrentTab('dashboard');
     setHasCompletedOnboarding(false);
     setHasSeenIntro(false);
@@ -1088,6 +1095,11 @@ export default function App() {
   const handleCurrencyChange = (newCurrency: string) => {
     // Only update the currency preference for NEW transactions
     // Existing transactions keep their original currency
+    // The budget is an amount in the main currency, so convert it - otherwise a
+    // 3,000 EUR limit would silently become 3,000 JPY.
+    if (monthlyBudget && newCurrency !== userCurrency) {
+      setMonthlyBudget(Math.round(convertAmount(monthlyBudget, userCurrency, newCurrency)));
+    }
     setUserCurrency(newCurrency);
     setRefreshKey(prev => prev + 1); // Force refresh of dashboard
     
@@ -1190,6 +1202,7 @@ export default function App() {
                 view="overview"
                 initialPeriod={dashboardInitialPeriod}
                 viewStateRef={dashboardViewRef}
+                monthlyBudget={monthlyBudget}
               />
             )}
             {currentTab === 'trend' && (
@@ -1226,6 +1239,8 @@ export default function App() {
                 onModalOpenChange={setIsModalOpen}
                 userCurrency={userCurrency}
                 onCurrencyChange={handleCurrencyChange}
+                monthlyBudget={monthlyBudget}
+                onMonthlyBudgetChange={setMonthlyBudget}
                 userName={userName}
                 onUserNameChange={handleUserNameChange}
                 onLoadDemoData={handleLoadDemoData}

@@ -12,6 +12,7 @@ export interface BackupFile {
   settings: {
     userName: string;
     currency: string;
+    monthlyBudget?: number;
     defaultSourceExpense?: string;
     defaultSourceIncome?: string;
   };
@@ -25,6 +26,7 @@ export interface BackupFile {
 export function buildBackup(data: {
   userName: string;
   currency: string;
+  monthlyBudget?: number;
   defaultSourceExpense?: string;
   defaultSourceIncome?: string;
   categories: Category[];
@@ -41,6 +43,7 @@ export function buildBackup(data: {
     settings: {
       userName: data.userName,
       currency: data.currency,
+      monthlyBudget: data.monthlyBudget,
       defaultSourceExpense: data.defaultSourceExpense,
       defaultSourceIncome: data.defaultSourceIncome,
     },

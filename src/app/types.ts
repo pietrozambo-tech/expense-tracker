@@ -68,6 +68,8 @@ export interface UserSettings {
   onboarded: boolean;
   userName: string;
   currency: string;
+  // Monthly spending limit in `currency`; undefined/0 = no budget set
+  monthlyBudget?: number;
   // Whether the first-run feature carousel has been shown
   hasSeenIntro?: boolean;
   // Source pre-selected on new transactions, separately for each direction

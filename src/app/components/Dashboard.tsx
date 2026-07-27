@@ -4,6 +4,7 @@ import { TrendCategoryBreakdown } from './TrendCategoryBreakdown';
 import React from 'react';
 import { formatAmount, formatCompactAmount, formatSummaryAmount, formatAmountListView, CURRENCIES, homeAmount } from '../utils/currency';
 import { getCategoryIcon } from './categoryIcons';
+import { BudgetBar } from './BudgetBar';
 import { parseLocalDate } from '../lib/dates';
 import { CategoryFilterModal } from './CategoryFilterModal';
 import { SubcategoryFilterModal } from './SubcategoryFilterModal';
@@ -82,6 +83,7 @@ interface DashboardProps {
   onShowOverview?: (period: { month: number; year: number; type: 'expense' | 'income' }) => void;
   initialPeriod?: { month: number; year: number; type: 'expense' | 'income' } | null;
   viewStateRef?: React.MutableRefObject<DashboardViewState | null>;
+  monthlyBudget?: number;
 }
 
 // Sentinel drilldown target: only the transactions with no subcategory
@@ -89,7 +91,7 @@ interface DashboardProps {
 // subcategory name. (A null subcategory already means "all transactions".)
 const UNCATEGORIZED = '__uncategorized__';
 
-export function Dashboard({ expenses, categories, incomeCategories, sources = [], userName, currency, onEditExpense, onDeleteExpense, view = 'overview', onShowOverview, initialPeriod, viewStateRef }: DashboardProps) {
+export function Dashboard({ expenses, categories, incomeCategories, sources = [], userName, currency, onEditExpense, onDeleteExpense, view = 'overview', onShowOverview, initialPeriod, viewStateRef, monthlyBudget }: DashboardProps) {
   // Restore the previous view (period + drilldown) unless a Trend->Overview
   // link supplied an explicit period - that must win and start clean.
   const savedView = view === 'overview' && !initialPeriod ? viewStateRef?.current ?? null : null;
@@ -477,6 +479,27 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
     return sum + convertedAmount;
   }, 0);
   const savings = totalIncome - totalSpending;
+
+  // Budget bar: the limit is monthly, so it only makes sense on the month view
+  // and for expenses. For the month in progress we also pass how far through it
+  // we are, so the bar can say whether spending is ahead of pace; past months
+  // just show the final result.
+  const budgetView = (() => {
+    if (!monthlyBudget || monthlyBudget <= 0) return null;
+    if (timePeriodType !== 'month' || transactionType !== 'expense') return null;
+    const isCurrentMonth = selectedYear === now.getFullYear() && selectedMonth === now.getMonth();
+    const isFuture =
+      selectedYear > now.getFullYear() ||
+      (selectedYear === now.getFullYear() && selectedMonth > now.getMonth());
+    if (isFuture) return null;
+    if (!isCurrentMonth) return { daysLeft: null, monthProgress: null };
+    const daysInMonth = new Date(selectedYear, selectedMonth + 1, 0).getDate();
+    const today = now.getDate();
+    return {
+      daysLeft: daysInMonth - today,
+      monthProgress: today / daysInMonth,
+    };
+  })();
 
   // Filter by transaction type for category display
   const filteredTransactions = transactionType === 'expense' 
@@ -1237,6 +1260,16 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
               </div>
             </div>
           </div>
+
+          {budgetView && (
+            <BudgetBar
+              spent={totalSpending}
+              budget={monthlyBudget!}
+              currency={currency}
+              daysLeft={budgetView.daysLeft}
+              monthProgress={budgetView.monthProgress}
+            />
+          )}
 
           {/* Transaction Type Selector */}
           <div className="px-6 mb-4">

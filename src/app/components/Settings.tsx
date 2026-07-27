@@ -31,6 +31,8 @@ interface SettingsProps {
   onModalOpenChange: (isOpen: boolean) => void;
   userCurrency: string;
   onCurrencyChange: (currency: string) => void;
+  monthlyBudget?: number;
+  onMonthlyBudgetChange?: (budget: number | undefined) => void;
   userName: string;
   onUserNameChange: (name: string) => void;
   onLoadDemoData: () => void;
@@ -75,6 +77,8 @@ export function Settings({
   onModalOpenChange,
   userCurrency,
   onCurrencyChange,
+  monthlyBudget,
+  onMonthlyBudgetChange,
   userName,
   onUserNameChange,
   onLoadDemoData,
@@ -120,6 +124,7 @@ export function Settings({
   const [sendingSupport, setSendingSupport] = useState(false);
   const [supportSent, setSupportSent] = useState(false);
   const [editedName, setEditedName] = useState(userName);
+  const [editedBudget, setEditedBudget] = useState(monthlyBudget ? String(monthlyBudget) : '');
   const [confirmAction, setConfirmAction] = useState<'demo' | 'erase' | 'erase-demo' | 'restore' | 'delete-account' | null>(null);
   const [pendingBackup, setPendingBackup] = useState<ImportPayload | null>(null);
 
@@ -200,10 +205,13 @@ export function Settings({
   };
 
   const handleNameSave = () => {
-    if (editedName.trim()) {
-      onUserNameChange(editedName.trim());
-      setShowNameEditor(false);
-    }
+    if (!editedName.trim()) return;
+    onUserNameChange(editedName.trim());
+    // An empty budget field means "no budget" and hides the Dashboard bar.
+    const raw = editedBudget.trim().replace(',', '.');
+    const parsed = raw === '' ? undefined : Math.max(0, parseFloat(raw));
+    onMonthlyBudgetChange?.(parsed && isFinite(parsed) && parsed > 0 ? parsed : undefined);
+    setShowNameEditor(false);
   };
 
   const openConfirm = (action: 'demo' | 'erase' | 'erase-demo' | 'restore' | 'delete-account') => {
@@ -429,11 +437,12 @@ export function Settings({
         <div className="flex-1 overflow-y-auto pb-24">
           <div className="px-6 pb-6">
             <p style={{ color: '#8E8E93', fontSize: '13px' }}>
-              Update your display name
+              Your name and your monthly spending limit
             </p>
           </div>
 
           <div className="px-6">
+            <p style={{ color: '#8E8E93', fontSize: 13, fontWeight: 500, marginBottom: 8 }}>NAME</p>
             <input
               type="text"
               value={editedName}
@@ -456,6 +465,31 @@ export function Settings({
                 e.target.style.boxShadow = '0 1px 3px rgba(0, 0, 0, 0.04)';
               }}
             />
+
+            <p style={{ color: '#8E8E93', fontSize: 13, fontWeight: 500, margin: '24px 0 8px' }}>
+              MONTHLY BUDGET
+            </p>
+            <div
+              className="flex items-center gap-2 px-4 rounded-xl"
+              style={{ backgroundColor: '#FFFFFF', border: '1px solid #E5E5EA', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}
+            >
+              <span style={{ color: '#8E8E93', fontSize: 16 }}>{CURRENCIES[userCurrency]?.symbol ?? ''}</span>
+              <input
+                type="text"
+                inputMode="decimal"
+                value={editedBudget}
+                onChange={(e) => {
+                  const v = e.target.value.replace(',', '.');
+                  if (v === '' || /^\d*\.?\d{0,2}$/.test(v)) setEditedBudget(v);
+                }}
+                placeholder="No limit"
+                className="flex-1 py-4 bg-transparent outline-none tabular-nums"
+                style={{ fontSize: 16, color: '#1C1C1E' }}
+              />
+            </div>
+            <p style={{ color: '#B0B0B5', fontSize: 12, marginTop: 6, lineHeight: 1.45 }}>
+              Shows a progress bar on your Dashboard for the current month. Leave empty for no limit.
+            </p>
 
             <button
               onClick={handleNameSave}
@@ -982,7 +1016,11 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
       <div className="px-6">
         <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
           <button
-            onClick={() => setShowNameEditor(true)}
+            onClick={() => {
+              setEditedName(userName);
+              setEditedBudget(monthlyBudget ? String(monthlyBudget) : '');
+              setShowNameEditor(true);
+            }}
             className="w-full flex items-center gap-3 px-5 py-4 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
             style={{ borderBottom: '1px solid #F2F2F7' }}
           >
