@@ -912,24 +912,15 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
                   {userEmail && <div className="truncate" style={{ color: '#8E8E93', fontSize: '13px' }}>{userEmail}</div>}
                 </div>
               </div>
+              {/* Deleting the account lives with "Erase all data" at the bottom,
+                  so the two destructive options can be compared side by side. */}
               <button
                 onClick={onSignOut}
                 className="w-full flex items-center gap-3 px-5 py-4 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
-                style={{ borderBottom: '1px solid #F2F2F7' }}
               >
                 <LogOut className="w-5 h-5" style={{ color: '#8E8E93' }} strokeWidth={2} />
                 <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '16px' }}>Sign out</span>
               </button>
-              {onDeleteAccount && (
-                <button
-                  onClick={() => openConfirm('delete-account')}
-                  disabled={deletingAccount}
-                  className="w-full flex items-center gap-3 px-5 py-4 hover:bg-neutral-50 active:bg-neutral-100 transition-colors disabled:opacity-50"
-                >
-                  <UserX className="w-5 h-5" style={{ color: '#EF4444' }} strokeWidth={2} />
-                  <span className="flex-1 text-left" style={{ color: '#EF4444', fontSize: '16px' }}>Delete account</span>
-                </button>
-              )}
             </>
           )}
         </div>
@@ -1053,7 +1044,7 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
           <button
             onClick={() => openConfirm('demo')}
             className="w-full flex items-center gap-3 px-5 py-4 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
-            style={{ borderBottom: '1px solid #F2F2F7' }}
+            style={hasDemoData && onEraseDemoData ? { borderBottom: '1px solid #F2F2F7' } : undefined}
           >
             <FlaskConical className="w-5 h-5" style={{ color: '#8E8E93' }} strokeWidth={2} />
             <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '16px' }}>Load demo data</span>
@@ -1064,22 +1055,51 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
             <button
               onClick={() => openConfirm('erase-demo')}
               className="w-full flex items-center gap-3 px-5 py-4 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
-              style={{ borderBottom: '1px solid #F2F2F7' }}
             >
               <Trash2 className="w-5 h-5" style={{ color: '#8E8E93' }} strokeWidth={2} />
               <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '16px' }}>Erase demo data</span>
-              <span style={{ color: '#8E8E93', fontSize: '13px' }}>Keep my data</span>
+              <span style={{ color: '#8E8E93', fontSize: '13px' }}>Removes samples</span>
             </button>
           )}
+        </div>
 
+        {/* Destructive actions, grouped so the difference between wiping your
+            data and removing your whole account is obvious at a glance. */}
+        <p className="mt-8 mb-2 px-1" style={{ color: '#8E8E93', fontSize: '13px' }}>
+          Danger zone
+        </p>
+        <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
           <button
             onClick={() => openConfirm('erase')}
-            className="w-full flex items-center gap-3 px-5 py-4 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
+            className="w-full flex items-start gap-3 px-5 py-4 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
+            style={onDeleteAccount && !isGuest ? { borderBottom: '1px solid #F2F2F7' } : undefined}
           >
-            <Trash2 className="w-5 h-5" style={{ color: '#EF4444' }} strokeWidth={2} />
-            <span className="flex-1 text-left" style={{ color: '#EF4444', fontSize: '16px' }}>Erase all data</span>
-            {!isGuest && <span style={{ color: '#8E8E93', fontSize: '13px' }}>Keeps account</span>}
+            <Trash2 className="w-5 h-5 flex-shrink-0 mt-0.5" style={{ color: '#EF4444' }} strokeWidth={2} />
+            <div className="flex-1 text-left">
+              <div style={{ color: '#EF4444', fontSize: '16px' }}>Erase all data</div>
+              <div style={{ color: '#8E8E93', fontSize: '13px', marginTop: 2 }}>
+                {isGuest
+                  ? 'Deletes your transactions and settings'
+                  : 'Starts fresh. You keep your account'}
+              </div>
+            </div>
           </button>
+
+          {onDeleteAccount && !isGuest && (
+            <button
+              onClick={() => openConfirm('delete-account')}
+              disabled={deletingAccount}
+              className="w-full flex items-start gap-3 px-5 py-4 hover:bg-neutral-50 active:bg-neutral-100 transition-colors disabled:opacity-50"
+            >
+              <UserX className="w-5 h-5 flex-shrink-0 mt-0.5" style={{ color: '#EF4444' }} strokeWidth={2} />
+              <div className="flex-1 text-left">
+                <div style={{ color: '#EF4444', fontSize: '16px' }}>Delete account</div>
+                <div style={{ color: '#8E8E93', fontSize: '13px', marginTop: 2 }}>
+                  Deletes your data and your account
+                </div>
+              </div>
+            </button>
+          )}
         </div>
 
         {/* Signature */}
