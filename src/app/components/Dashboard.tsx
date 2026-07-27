@@ -4,6 +4,7 @@ import { TrendCategoryBreakdown } from './TrendCategoryBreakdown';
 import React from 'react';
 import { formatAmount, formatCompactAmount, formatSummaryAmount, formatAmountListView, CURRENCIES, homeAmount } from '../utils/currency';
 import { getCategoryIcon } from './categoryIcons';
+import { parseLocalDate } from '../lib/dates';
 import { CategoryFilterModal } from './CategoryFilterModal';
 import { SubcategoryFilterModal } from './SubcategoryFilterModal';
 import { SourceLogo } from './SourceLogo';
@@ -122,11 +123,6 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
   const [selectedQuarter, setSelectedQuarter] = useState<number>(Math.floor((initialPeriod?.month ?? now.getMonth()) / 3)); // 0-3
   const [selectedYear, setSelectedYear] = useState<number>(initialPeriod?.year ?? now.getFullYear());
 
-  // Helper to parse YYYY-MM-DD to local Date object safely
-  const parseLocalDate = (dateStr: string) => {
-    const [year, month, day] = dateStr.split('-').map(Number);
-    return new Date(year, month - 1, day);
-  };
 
   // Prevent background scroll when drilldown is open
   useEffect(() => {
@@ -434,7 +430,6 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
   };
 
   const currentMonthExpenses = getCurrentMonthExpenses();
-  const currentTotal = currentMonthExpenses.reduce((sum, expense) => sum + expense.amount, 0);
 
   // Calculate spending, income, and savings for the period (with currency conversion)
   const periodExpenses = currentMonthExpenses.filter(e => e.type !== 'income');
@@ -818,7 +813,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
             const expenseDate = parseLocalDate(e.date);
             return expenseDate >= periodStart && expenseDate <= dayEnd;
           })
-          .reduce((sum, e) => sum + e.amount, 0);
+          .reduce((sum, e) => sum + homeAmount(e, currency), 0);
         
         data.push({
           label: day.toString(),
@@ -851,10 +846,10 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
         const isFutureWeek = isCurrentQuarter && currentDate > now;
         const cumulativeAmount = isFutureWeek ? null : periodFilteredExpenses
           .filter(e => {
-            const expenseDate = new Date(e.date);
+            const expenseDate = parseLocalDate(e.date);
             return expenseDate >= periodStart && expenseDate <= actualWeekEnd;
           })
-          .reduce((sum, e) => sum + e.amount, 0);
+          .reduce((sum, e) => sum + homeAmount(e, currency), 0);
         
         data.push({
           label: `W${weekNumber}`,
@@ -880,10 +875,10 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
         const isFutureMonth = isCurrentYear && month > now.getMonth();
         const cumulativeAmount = isFutureMonth ? null : periodFilteredExpenses
           .filter(e => {
-            const expenseDate = new Date(e.date);
+            const expenseDate = parseLocalDate(e.date);
             return expenseDate >= yearStart && expenseDate <= monthEnd;
           })
-          .reduce((sum, e) => sum + e.amount, 0);
+          .reduce((sum, e) => sum + homeAmount(e, currency), 0);
         
         data.push({
           label: monthNames[month],
@@ -921,7 +916,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
     
     // Filter transactions by period and type
     const periodTransactions = expenses.filter(expense => {
-      const expenseDate = new Date(expense.date);
+      const expenseDate = parseLocalDate(expense.date);
       const typeMatch = transactionType === 'expense' 
         ? expense.type !== 'income'
         : transactionType === 'income'
@@ -2264,7 +2259,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
         
         // Filter transactions for Trend view based on trendYearFilter and transaction type
         const trendFilteredTransactions = expenses.filter(expense => {
-          const expenseDate = new Date(expense.date);
+          const expenseDate = parseLocalDate(expense.date);
           const yearMatch = expenseDate.getFullYear() === trendYearFilter;
           const typeMatch = transactionType === 'expense' 
             ? expense.type !== 'income'
@@ -2277,7 +2272,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
         // Filter trend categories to only show those with data
         const trendCategoryTotals = trendFilteredTransactions.reduce((acc, expense) => {
           const categoryName = expense.category.name;
-          acc[categoryName] = (acc[categoryName] || 0) + expense.amount;
+          acc[categoryName] = (acc[categoryName] || 0) + homeAmount(expense, currency);
           return acc;
         }, {} as Record<string, number>);
         
@@ -2543,12 +2538,12 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                   const monthEnd = new Date(month.year, getMonthNumber(month.month) + 1, 0, 23, 59, 59, 999);
                   
                   const monthExpenses = expenses.filter(expense => {
-                    const expenseDate = new Date(expense.date);
+                    const expenseDate = parseLocalDate(expense.date);
                     return expenseDate >= monthStart && expenseDate <= monthEnd;
                   });
                   
-                  const monthIncome = monthExpenses.filter(e => e.type === 'income').reduce((sum, e) => sum + e.amount, 0);
-                  const monthSpending = monthExpenses.filter(e => e.type !== 'income').reduce((sum, e) => sum + e.amount, 0);
+                  const monthIncome = monthExpenses.filter(e => e.type === 'income').reduce((sum, e) => sum + homeAmount(e, currency), 0);
+                  const monthSpending = monthExpenses.filter(e => e.type !== 'income').reduce((sum, e) => sum + homeAmount(e, currency), 0);
                   
                   totalIncome += monthIncome;
                   totalSpending += monthSpending;
@@ -2882,12 +2877,12 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                     const monthEnd = new Date(item.year, getMonthNumber(item.month) + 1, 0, 23, 59, 59, 999);
                     
                     const monthExpenses = expenses.filter(expense => {
-                      const expenseDate = new Date(expense.date);
+                      const expenseDate = parseLocalDate(expense.date);
                       return expenseDate >= monthStart && expenseDate <= monthEnd;
                     });
                     
-                    const monthIncome = monthExpenses.filter(e => e.type === 'income').reduce((sum, e) => sum + e.amount, 0);
-                    const monthSpending = monthExpenses.filter(e => e.type !== 'income').reduce((sum, e) => sum + e.amount, 0);
+                    const monthIncome = monthExpenses.filter(e => e.type === 'income').reduce((sum, e) => sum + homeAmount(e, currency), 0);
+                    const monthSpending = monthExpenses.filter(e => e.type !== 'income').reduce((sum, e) => sum + homeAmount(e, currency), 0);
                     
                     if (monthIncome > 0) {
                       monthlySavingRate = ((monthIncome - monthSpending) / monthIncome) * 100;

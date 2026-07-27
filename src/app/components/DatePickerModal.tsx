@@ -1,4 +1,5 @@
 import React from 'react';
+import { parseLocalDate } from '../lib/dates';
 
 interface DatePickerModalProps {
   expenses: any[];
@@ -22,7 +23,7 @@ export function DatePickerModal({
   // Get all months with transactions
   const monthsWithTransactions = new Set<string>();
   expenses.forEach(expense => {
-    const date = new Date(expense.date);
+    const date = parseLocalDate(expense.date);
     const key = `${date.getFullYear()}-${date.getMonth()}`;
     monthsWithTransactions.add(key);
   });

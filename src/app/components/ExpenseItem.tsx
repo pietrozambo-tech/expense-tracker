@@ -3,6 +3,7 @@ import { formatAmountListView, homeAmount } from '../utils/currency';
 import { useState } from 'react';
 import { getCategoryIcon } from './categoryIcons';
 import { useSwipeToDelete } from '../lib/useSwipeToDelete';
+import { parseLocalDate } from '../lib/dates';
 
 interface ExpenseItemProps {
   expense: {
@@ -29,7 +30,7 @@ interface ExpenseItemProps {
 
 // Compact date like "1 Jul" for inline row use
 const formatShortDate = (dateString: string) => {
-  const parsed = new Date(dateString);
+  const parsed = parseLocalDate(dateString);
   if (isNaN(parsed.getTime())) return dateString;
   return parsed.toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
 };

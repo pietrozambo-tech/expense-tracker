@@ -9,6 +9,7 @@ import { formatAmount, CURRENCIES, homeAmount } from '../utils/currency';
 import { Download } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Transaction, Source } from '../types';
+import { parseLocalDate } from '../lib/dates';
 
 type ActivityTypeFilter = 'all' | 'expense' | 'income';
 
@@ -51,11 +52,6 @@ export function Activity({
   const [isSourceModalOpen, setIsSourceModalOpen] = useState(false);
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
 
-  // Helper to parse YYYY-MM-DD to local Date object safely
-  const parseLocalDate = (dateStr: string) => {
-    const [year, month, day] = dateStr.split('-').map(Number);
-    return new Date(year, month - 1, day);
-  };
 
   // Transactions narrowed by the All/Expenses/Income control — every other
   // filter and the header totals work off this set
@@ -195,7 +191,10 @@ export function Activity({
     // Escape any cell that contains a comma, quote or newline. Amounts use a
     // comma decimal separator, so they're always quoted by this rule too.
     const esc = (v: string | number) => {
-      const s = String(v ?? '');
+      let s = String(v ?? '');
+      // Formula-injection guard: a cell starting with = + @ or tab would be
+      // executed by Excel/Sheets. Prefix with ' so it renders as text.
+      if (/^[=+@\t]/.test(s)) s = `'${s}`;
       return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
     };
     const money = (n: number) => esc(n.toFixed(2).replace('.', ','));

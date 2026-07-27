@@ -2,6 +2,7 @@ import { ExpenseItem } from './ExpenseItem';
 import { IncomeItem } from './IncomeItem';
 import { formatAmountListView, homeAmount } from '../utils/currency';
 import type { Transaction } from '../types';
+import { parseLocalDate } from '../lib/dates';
 
 interface ActivityDayGroupProps {
   date: string;
@@ -19,7 +20,7 @@ export function ActivityDayGroup({
   currency
 }: ActivityDayGroupProps) {
   const formatDate = (dateString: string) => {
-    const parsed = new Date(dateString);
+    const parsed = parseLocalDate(dateString);
     if (isNaN(parsed.getTime())) return dateString;
 
     const today = new Date();

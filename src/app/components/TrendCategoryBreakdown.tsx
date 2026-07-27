@@ -2,6 +2,7 @@ import { ChevronRight, TrendingUp, ArrowUpDown } from 'lucide-react';
 import { getCategoryIcon } from './categoryIcons';
 import { useState } from 'react';
 import { formatSummaryAmount, CURRENCIES, homeAmount } from '../utils/currency';
+import { parseLocalDate } from '../lib/dates';
 
 interface TrendCategoryBreakdownProps {
   trendFilteredTransactions: any[];
@@ -31,7 +32,7 @@ export function TrendCategoryBreakdown({
     // Calculate number of months with data for this category
     const monthsWithData = new Set(
       categoryTransactions.map(t => {
-        const date = new Date(t.date);
+        const date = parseLocalDate(t.date);
         return `${date.getFullYear()}-${date.getMonth()}`;
       })
     ).size;
@@ -51,7 +52,7 @@ export function TrendCategoryBreakdown({
         }
         const convertedAmount = homeAmount(t, currency);
         acc[t.subcategory].amount += convertedAmount;
-        const date = new Date(t.date);
+        const date = parseLocalDate(t.date);
         acc[t.subcategory].months.add(`${date.getFullYear()}-${date.getMonth()}`);
       }
       return acc;
