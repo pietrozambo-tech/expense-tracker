@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { Toaster } from './components/ui/sonner';
 import { BarChart3, Plus, List, X, Settings as SettingsIcon, TrendingUp, ChevronDown } from 'lucide-react';
@@ -22,19 +22,23 @@ import { SourceLogo } from './components/SourceLogo';
 import { SourceSelectorModal } from './components/SourceSelectorModal';
 import { getDemoTransactions } from './lib/demoData';
 import { buildImport, type ImportPayload } from './lib/importData';
-import { isBackupFile } from './lib/backup';
-import { Dashboard } from './components/Dashboard';
+import { buildBackup, downloadBackup, isBackupFile } from './lib/backup';
 import { Activity } from './components/Activity';
-import { Settings } from './components/Settings';
 import { AmountInput } from './components/AmountInput';
 import { DateInput } from './components/DateInput';
 import { CategorySelector } from './components/CategorySelector';
 import { SaveButton } from './components/SaveButton';
 import { DescriptionInput } from './components/DescriptionInput';
 import { Onboarding } from './components/Onboarding';
-import { WelcomeCarousel } from './components/WelcomeCarousel';
 import { useAuth } from './auth/AuthProvider';
-import { SignIn } from './auth/SignIn';
+import { materializeRecurring } from './lib/recurrence';
+
+// The heavyweight screens load on demand so the initial bundle stays small.
+// (Named exports wrapped for React.lazy's default-export contract.)
+const Dashboard = lazy(() => import('./components/Dashboard').then((m) => ({ default: m.Dashboard })));
+const Settings = lazy(() => import('./components/Settings').then((m) => ({ default: m.Settings })));
+const WelcomeCarousel = lazy(() => import('./components/WelcomeCarousel').then((m) => ({ default: m.WelcomeCarousel })));
+const SignIn = lazy(() => import('./auth/SignIn').then((m) => ({ default: m.SignIn })));
 import { TracklyLogo } from './components/TracklyLogo';
 import { loadCloud, saveCloud, deleteCloud, type SyncPayload } from './lib/cloud';
 import { track } from './lib/analytics';
@@ -97,6 +101,11 @@ export default function App() {
   const userMeta = (session?.user?.user_metadata ?? {}) as Record<string, any>;
   const userAvatar: string | null = userMeta.avatar_url || userMeta.picture || null;
   const [cloudHydrated, setCloudHydrated] = useState(false);
+  // Honest sync indicator: pending while a write is debounced/in flight,
+  // offline/error when the last attempt could not reach the server.
+  const [syncStatus, setSyncStatus] = useState<'synced' | 'pending' | 'offline' | 'error'>('synced');
+  const [lastSyncedAt, setLastSyncedAt] = useState<number | null>(null);
+  const [syncRetryTick, setSyncRetryTick] = useState(0);
   const [isModalOpen, setIsModalOpen] = useState(false); // Track if any modal is open
   const [isSaving, setIsSaving] = useState(false); // Track if save is in progress to prevent duplicate submissions
   
@@ -215,13 +224,64 @@ export default function App() {
   // Write changes back to the cloud (debounced), once hydrated
   useEffect(() => {
     if (!userId || !cloudHydrated) return;
+    setSyncStatus('pending');
     const payload = buildPayload();
     const t = setTimeout(() => {
-      saveCloud(userId, payload).catch(() => {});
+      if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+        setSyncStatus('offline');
+        return; // the 'online' listener below retries automatically
+      }
+      saveCloud(userId, payload)
+        .then(() => {
+          setSyncStatus('synced');
+          setLastSyncedAt(Date.now());
+        })
+        .catch(() => setSyncStatus('error'));
     }, 800);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userId, cloudHydrated, expenses, categories, incomeCategories, sources, hasCompletedOnboarding, userName, userCurrency, hasSeenIntro, defaultSourceExpense, defaultSourceIncome]);
+  }, [userId, cloudHydrated, syncRetryTick, expenses, categories, incomeCategories, sources, hasCompletedOnboarding, userName, userCurrency, hasSeenIntro, defaultSourceExpense, defaultSourceIncome]);
+
+  // Coming back online (or refocusing after a failed save) retries the sync.
+  useEffect(() => {
+    const retry = () => setSyncRetryTick((t) => t + 1);
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') retry();
+    };
+    window.addEventListener('online', retry);
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      window.removeEventListener('online', retry);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, []);
+
+  // Recurring transactions: materialize any occurrence whose scheduled day has
+  // arrived - on open (after the data source is settled) and whenever the app
+  // returns to the foreground, so missed days are back-filled.
+  const expensesRef = useRef(expenses);
+  useEffect(() => {
+    expensesRef.current = expenses;
+  }, [expenses]);
+  const runRecurrence = useCallback(() => {
+    const created = materializeRecurring(expensesRef.current);
+    if (created.length === 0) return;
+    setExpenses((prev) => [...created, ...prev]);
+    setRefreshKey((prev) => prev + 1);
+    toast.success(`${created.length} recurring transaction${created.length === 1 ? '' : 's'} added`, {
+      duration: 2000,
+    });
+  }, []);
+  const recurrenceReady = userId ? cloudHydrated : guest;
+  useEffect(() => {
+    if (!recurrenceReady) return;
+    runRecurrence();
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') runRecurrence();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, [recurrenceReady, runRecurrence]);
 
   const handleCategorySelect = (categoryId: string) => {
     setSelectedCategory(categoryId);
@@ -629,27 +689,19 @@ export default function App() {
   // Export everything as a single backup file: settings, categories,
   // subcategories, sources and all transactions. Re-importable via restore.
   const handleExportData = () => {
-    const backup = {
-      app: 'trackly',
-      kind: 'backup' as const,
-      version: 1,
-      exportedAt: new Date().toISOString(),
-      settings: { userName, currency: userCurrency, defaultSourceExpense, defaultSourceIncome },
-      categories,
-      incomeCategories,
-      sources,
-      transactions: expenses,
-    };
     try {
-      const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `trackly-backup-${new Date().toISOString().slice(0, 10)}.json`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
+      downloadBackup(
+        buildBackup({
+          userName,
+          currency: userCurrency,
+          defaultSourceExpense,
+          defaultSourceIncome,
+          categories,
+          incomeCategories,
+          sources,
+          transactions: expenses,
+        })
+      );
       track('data_exported', { count: expenses.length });
       toast.success('Backup exported', {
         description: `${expenses.length} transaction${expenses.length === 1 ? '' : 's'} saved to a file`,
@@ -742,11 +794,25 @@ export default function App() {
 
   const handleEraseAllData = async () => {
     if (userId) {
+      // Erasing must clear the cloud copy too, or the next sign-in silently
+      // resurrects the "erased" data. Refuse rather than half-erase.
+      if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+        toast.error("You're offline", {
+          description: 'Erasing also clears your cloud backup, which needs a connection. Try again when back online.',
+          duration: 3200,
+        });
+        return;
+      }
       setCloudHydrated(false); // stop write-through from re-saving during teardown
       try {
         await deleteCloud(userId);
       } catch {
-        /* ignore — proceed with local reset regardless */
+        setCloudHydrated(true);
+        toast.error("Couldn't erase your cloud data", {
+          description: 'Check your connection and try again.',
+          duration: 3200,
+        });
+        return;
       }
     }
     resetLocalState();
@@ -830,7 +896,7 @@ export default function App() {
   if (authLoading) return splash();
 
   // Not signed in and not using the app locally → sign-in screen
-  if (!session && !guest) return <SignIn />;
+  if (!session && !guest) return <Suspense fallback={splash()}><SignIn /></Suspense>;
 
   // Signed in but the account's data hasn't loaded yet
   if (session && !cloudHydrated) return splash('Loading your data…');
@@ -846,6 +912,7 @@ export default function App() {
   // First run after name + currency: show the feature carousel once
   if (!hasSeenIntro) {
     return (
+      <Suspense fallback={splash()}>
       <WelcomeCarousel
         userName={userName}
         onDone={() => setHasSeenIntro(true)}
@@ -856,6 +923,7 @@ export default function App() {
         }}
         onLoadDemo={handleLoadDemoData} // loads samples in place; carousel then advances to the last slide
       />
+      </Suspense>
     );
   }
 
@@ -887,6 +955,7 @@ export default function App() {
         ) : (
           // Other tabs - Parent scrollable
           <div ref={mainScrollRef} className="flex-1 overflow-y-auto pb-32">
+            <Suspense fallback={null}>
             {currentTab === 'dashboard' && (
               <Dashboard
                 key={refreshKey}
@@ -957,12 +1026,15 @@ export default function App() {
                 onCategoriesOpened={() => setOpenCategoriesOnSettings(false)}
                 userEmail={userEmail}
                 userAvatar={userAvatar}
+                syncStatus={syncStatus}
+                lastSyncedAt={lastSyncedAt}
                 isGuest={guest}
                 onSignOut={async () => { await signOut(); }}
                 onDeleteAccount={handleDeleteAccount}
                 onSignInToSync={leaveGuest}
               />
             )}
+            </Suspense>
           </div>
         )}
         

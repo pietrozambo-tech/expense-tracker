@@ -1,5 +1,5 @@
 import { ChevronRight, ChevronLeft, UserCircle, Wallet, HelpCircle, ShieldCheck, ScrollText, Layers, FlaskConical, Trash2, Landmark, Cloud, LogOut, Upload, Copy, Download, UserX, Mail, LifeBuoy, CheckCircle2 } from 'lucide-react';
-import { sendSupportMessage } from '../lib/support';
+import { sendSupportMessage, supportLimitReached } from '../lib/support';
 
 // Where "Contact support" messages go. Easy to swap when the domain changes.
 const SUPPORT_EMAIL = 'support@tracklylab.com';
@@ -51,6 +51,8 @@ interface SettingsProps {
   onCategoriesOpened?: () => void;
   userEmail?: string | null;
   userAvatar?: string | null;
+  syncStatus?: 'synced' | 'pending' | 'offline' | 'error';
+  lastSyncedAt?: number | null;
   isGuest?: boolean;
   onSignOut?: () => void;
   onDeleteAccount?: () => Promise<{ error: string | null }>;
@@ -93,6 +95,8 @@ export function Settings({
   onCategoriesOpened,
   userEmail,
   userAvatar,
+  syncStatus = 'synced',
+  lastSyncedAt = null,
   isGuest,
   onSignOut,
   onDeleteAccount,
@@ -139,6 +143,13 @@ export function Settings({
   const canSendSupport = supportMessage.trim().length > 0 && isValidEmail(supportEmail);
   const submitSupport = async () => {
     if (!canSendSupport || sendingSupport) return;
+    if (supportLimitReached()) {
+      toast.error('Daily limit reached', {
+        description: `You can send up to 10 messages a day - or email us directly at ${SUPPORT_EMAIL}.`,
+        duration: 3500,
+      });
+      return;
+    }
     setSendingSupport(true);
     const res = await sendSupportMessage({
       message: supportMessage.trim(),
@@ -261,6 +272,23 @@ export function Settings({
       });
     }
   };
+
+  // Coarse relative time for the sync row ("just now", "5m ago", ...)
+  const relTime = (ts: number) => {
+    const s = Math.floor((Date.now() - ts) / 1000);
+    if (s < 60) return 'just now';
+    if (s < 3600) return `${Math.floor(s / 60)}m ago`;
+    if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
+    return new Date(ts).toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
+  };
+  const syncMeta =
+    syncStatus === 'pending'
+      ? { label: 'Syncing…', color: '#8E8E93' }
+      : syncStatus === 'offline'
+        ? { label: 'Offline - will sync when back online', color: '#FF9F0A' }
+        : syncStatus === 'error'
+          ? { label: "Sync issue - retrying automatically", color: '#FF3B30' }
+          : { label: lastSyncedAt ? `Synced · ${relTime(lastSyncedAt)}` : 'Synced', color: '#30D158' };
 
   // Show Currency Selector
   if (showCurrencySelector) {
@@ -907,9 +935,9 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
           ) : (
             <>
               <div className="w-full flex items-center gap-3 px-5 py-4" style={{ borderBottom: '1px solid #F2F2F7' }}>
-                <Cloud className="w-5 h-5" style={{ color: '#30D158' }} strokeWidth={2} />
+                <Cloud className="w-5 h-5" style={{ color: syncMeta.color }} strokeWidth={2} />
                 <div className="flex-1 min-w-0">
-                  <div style={{ color: '#1C1C1E', fontSize: '16px' }}>Synced</div>
+                  <div style={{ color: '#1C1C1E', fontSize: '16px' }}>{syncMeta.label}</div>
                   {userEmail && <div className="truncate" style={{ color: '#8E8E93', fontSize: '13px' }}>{userEmail}</div>}
                 </div>
               </div>
