@@ -434,13 +434,15 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
   const getPreviousPeriodExpenses = () => {
     let periodStart: Date;
     let periodEnd: Date;
-    
+    let currentStart: Date;
+
     switch (timePeriodType) {
       case 'month':
         const prevMonth = selectedMonth === 0 ? 11 : selectedMonth - 1;
         const prevYear = selectedMonth === 0 ? selectedYear - 1 : selectedYear;
         periodStart = new Date(prevYear, prevMonth, 1);
         periodEnd = new Date(prevYear, prevMonth + 1, 0, 23, 59, 59, 999);
+        currentStart = new Date(selectedYear, selectedMonth, 1);
         break;
       case 'quarter':
         const prevQuarter = selectedQuarter === 0 ? 3 : selectedQuarter - 1;
@@ -448,13 +450,29 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
         const prevQuarterStartMonth = prevQuarter * 3;
         periodStart = new Date(prevQuarterYear, prevQuarterStartMonth, 1);
         periodEnd = new Date(prevQuarterYear, prevQuarterStartMonth + 3, 0, 23, 59, 59, 999);
+        currentStart = new Date(selectedYear, selectedQuarter * 3, 1);
         break;
       case 'year':
         periodStart = new Date(selectedYear - 1, 0, 1);
         periodEnd = new Date(selectedYear - 1, 11, 31, 23, 59, 59, 999);
+        currentStart = new Date(selectedYear, 0, 1);
         break;
     }
-    
+
+    // The period in progress is only partly spent, so comparing it against a
+    // complete previous one made almost everything look like a fall: on the 8th
+    // of the month that is 8 days against 30. Cut the previous period to the
+    // same number of days elapsed so the two halves of the comparison mean the
+    // same thing. A finished period is compared in full, as before.
+    if (isAtCurrentPeriod()) {
+      const today = new Date();
+      const day = 24 * 60 * 60 * 1000;
+      const elapsed = Math.floor((today.getTime() - currentStart.getTime()) / day);
+      const cutoff = new Date(periodStart.getTime() + elapsed * day);
+      cutoff.setHours(23, 59, 59, 999);
+      if (cutoff < periodEnd) periodEnd = cutoff;
+    }
+
     return expenses.filter(expense => {
       const expenseDate = parseLocalDate(expense.date);
       return expenseDate >= periodStart && expenseDate <= periodEnd;
@@ -703,8 +721,16 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
     };
   };
 
-  // Calculate trend for categories and subcategories
-  const calculateTrend = (categoryName: string, subcategoryName?: string): 'up' | 'down' | 'neutral' => {
+  // Calculate trend for categories and subcategories.
+  //
+  // 'new' and 'neutral' used to be the same answer, which made a category you
+  // had never spent on look identical to one that matched last month exactly -
+  // and left a first-time user with a column of dashes, since on their first
+  // month everything is new.
+  const calculateTrend = (
+    categoryName: string,
+    subcategoryName?: string,
+  ): 'up' | 'down' | 'neutral' | 'new' => {
     const previousPeriodExpenses = getPreviousPeriodExpenses();
     const previousFilteredTransactions = transactionType === 'expense' 
       ? previousPeriodExpenses.filter(e => e.type !== 'income')
@@ -752,19 +778,39 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
         }, 0);
     }
 
-    // If no previous data, it's a new category/subcategory
+    // Nothing to compare against: this is the first time anything landed here.
     if (previousAmount === 0) {
-      return 'neutral';
+      return currentAmount === 0 ? 'neutral' : 'new';
     }
 
     // Calculate percentage change (5% threshold to avoid showing trend for tiny changes)
     const percentageChange = ((currentAmount - previousAmount) / previousAmount) * 100;
-    
+
     if (Math.abs(percentageChange) < 5) {
       return 'neutral';
     }
-    
+
     return currentAmount > previousAmount ? 'up' : 'down';
+  };
+
+  // What the arrows are measured against, for the label above the list. Says
+  // "so far" while the period is still running, because the previous one is
+  // being cut to the same point rather than taken whole.
+  const comparisonLabel = () => {
+    const partial = isAtCurrentPeriod() ? ' so far' : '';
+    switch (timePeriodType) {
+      case 'month': {
+        const prev = new Date(selectedYear, selectedMonth - 1, 1);
+        return `vs. ${prev.toLocaleDateString('en-US', { month: 'long' })}${partial}`;
+      }
+      case 'quarter': {
+        const prevQ = selectedQuarter === 0 ? 4 : selectedQuarter;
+        const prevY = selectedQuarter === 0 ? selectedYear - 1 : selectedYear;
+        return `vs. Q${prevQ}${prevY !== selectedYear ? ` ${prevY}` : ''}${partial}`;
+      }
+      case 'year':
+        return `vs. ${selectedYear - 1}${partial}`;
+    }
   };
 
   // Get trend data for overall spending, category, or subcategory (Year-to-Date)
@@ -1460,7 +1506,16 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
             }}>
               <div className="px-4 py-4">
                 <div className="flex items-center justify-between mb-3 px-1">
-                  <h2 style={{ color: '#1C1C1E', fontWeight: '600' }}>Categories</h2>
+                  {/* The arrows on each row are a comparison, and nothing said
+                      against what. One label answers it for the whole list. */}
+                  <div className="flex items-baseline gap-2 min-w-0">
+                    <h2 style={{ color: '#1C1C1E', fontWeight: '600' }}>Categories</h2>
+                    {/* Below ~360px the heading, this label and the sort button
+                        do not fit on one line and it runs under the button. */}
+                    <span className="hidden min-[360px]:inline text-[11px] whitespace-nowrap" style={{ color: '#8E8E93' }}>
+                      {comparisonLabel()}
+                    </span>
+                  </div>
                   <button
                     onClick={() => setCategorySortBy(categorySortBy === 'alphabetical' ? 'amount' : 'alphabetical')}
                     className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition-colors"
@@ -1537,7 +1592,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                                 {formatRowAmount(item.amount)}
                               </div>
                               {/* Trend Indicator */}
-                              <div className="w-3.5 flex items-center justify-center ml-1.5">
+                              <div className="w-8 flex items-center justify-center ml-1.5">
                                 {trend === 'up' && (
                                   <TrendingUp className="w-3.5 h-3.5" style={{ color: transactionType === 'expense' ? '#FF3B30' : '#34C759', strokeWidth: 2.5 }} />
                                 )}
@@ -1546,6 +1601,11 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                                 )}
                                 {trend === 'neutral' && (
                                   <Minus className="w-3.5 h-3.5" style={{ color: '#8E8E93', strokeWidth: 2.5 }} />
+                                )}
+                                {/* A word rather than another arrow: nothing went up or
+                                    down, there simply is no earlier figure. */}
+                                {trend === 'new' && (
+                                  <span className="text-[9px] font-semibold" style={{ color: '#6B6B75' }}>New</span>
                                 )}
                               </div>
                             </div>
@@ -1577,7 +1637,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                                         {formatRowAmount(sub.amount)}
                                       </div>
                                       {/* Trend Indicator */}
-                                      <div className="w-3.5 flex items-center justify-center ml-1.5">
+                                      <div className="w-8 flex items-center justify-center ml-1.5">
                                         {subTrend === 'up' && (
                                           <TrendingUp className="w-3 h-3" style={{ color: transactionType === 'expense' ? '#FF3B30' : '#34C759', strokeWidth: 2.5 }} />
                                         )}
@@ -1586,6 +1646,9 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                                         )}
                                         {subTrend === 'neutral' && (
                                           <Minus className="w-3 h-3" style={{ color: '#8E8E93', strokeWidth: 2.5 }} />
+                                        )}
+                                        {subTrend === 'new' && (
+                                          <span className="text-[8px] font-semibold" style={{ color: '#6B6B75' }}>New</span>
                                         )}
                                       </div>
                                     </div>
