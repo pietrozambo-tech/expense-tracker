@@ -1464,6 +1464,7 @@ export default function App() {
                 onChange={setAmount}
                 currency={selectedTransactionCurrency}
                 onCurrencyChange={setSelectedTransactionCurrency}
+                autoFocus={!editingExpenseId}
                 rightSlot={
                   <button
                     type="button"

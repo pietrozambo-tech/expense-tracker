@@ -8,9 +8,14 @@ interface AmountInputProps {
   currency: string;
   onCurrencyChange?: (currency: string) => void;
   rightSlot?: React.ReactNode; // e.g. the source selector pill, aligned to the amount line
+  // Raise the keyboard on mount. True when adding - the amount is always the
+  // next thing typed. False when editing: the reason for opening an existing
+  // transaction is just as often the category or the source, and a keyboard
+  // covering half the form costs a tap to dismiss before reaching them.
+  autoFocus?: boolean;
 }
 
-export function AmountInput({ value, onChange, currency, onCurrencyChange, rightSlot }: AmountInputProps) {
+export function AmountInput({ value, onChange, currency, onCurrencyChange, rightSlot, autoFocus = true }: AmountInputProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [showCurrencySelector, setShowCurrencySelector] = useState(false);
   const [showAllCurrencies, setShowAllCurrencies] = useState(false);
@@ -31,8 +36,10 @@ export function AmountInput({ value, onChange, currency, onCurrencyChange, right
   });
 
   useEffect(() => {
-    // Auto-focus on mount
-    inputRef.current?.focus();
+    if (autoFocus) inputRef.current?.focus();
+    // Mount only: re-focusing mid-edit would yank the caret back from
+    // whatever field the user had moved to.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
