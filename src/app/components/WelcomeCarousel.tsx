@@ -1,8 +1,8 @@
 import { useRef, useState, type ReactNode } from 'react';
 import {
   Minus, Plus, Wallet, Percent, Calendar, Repeat, ChevronDown, ChevronRight,
-  ShoppingCart, Car, Home, Clapperboard, TrendingUp, Landmark, Layers,
-  FlaskConical, Trash2, PiggyBank,
+  ShoppingCart, Car, Home, Clapperboard, Landmark, Layers,
+  FlaskConical, Trash2,
 } from 'lucide-react';
 import type { Source } from '../types';
 import { SourceLogo } from './SourceLogo';
@@ -214,6 +214,48 @@ function DashboardIllustration() {
   );
 }
 
+// The Trend tab's headline card, reproduced at carousel scale: same dark
+// gradient, same label/value/footnote stack. `rate` swaps the plain footnote
+// for the tinted Saving Rate panel the Savings toggle shows.
+function StatCard({
+  label,
+  value,
+  footnote,
+  valueColor = '#FFFFFF',
+  rate,
+}: {
+  label: string;
+  value: string;
+  footnote?: string;
+  valueColor?: string;
+  rate?: string;
+}) {
+  return (
+    <div
+      className="rounded-xl px-3 py-2.5 flex flex-col"
+      style={{
+        background: 'linear-gradient(150deg, #2E2E32 0%, #1C1C1E 100%)',
+        boxShadow: '0 8px 20px rgba(28, 28, 30, 0.18)',
+        border: '1px solid rgba(255, 255, 255, 0.06)',
+      }}
+    >
+      <div className="text-[10px] leading-tight mb-1" style={{ color: 'rgba(235,235,245,0.6)' }}>{label}</div>
+      <div className="text-[15px] font-bold tabular-nums leading-none" style={{ color: valueColor }}>{value}</div>
+      {rate ? (
+        <div
+          className="flex items-baseline justify-between gap-2 rounded-md px-1.5 py-1 -mx-1.5 mt-1.5 text-[9px]"
+          style={{ backgroundColor: 'rgba(48,209,88,0.12)' }}
+        >
+          <span style={{ color: 'rgba(235,235,245,0.75)' }}>Saving Rate</span>
+          <span className="font-semibold tabular-nums" style={{ color: '#30D158' }}>{rate}</span>
+        </div>
+      ) : (
+        footnote && <div className="text-[9px] leading-tight mt-1.5" style={{ color: 'rgba(235,235,245,0.55)' }}>{footnote}</div>
+      )}
+    </div>
+  );
+}
+
 function TrendIllustration() {
   // Line Trend — mirrors the top of the real Trend tab (stat cards + line).
   const tLabels = recentMonthLabels(7);
@@ -234,24 +276,13 @@ function TrendIllustration() {
   const areaPath = `M 0,${H} ${trend.map((v, i) => `L ${px(i)},${py(v)}`).join(' ')} L ${W},${H} Z`;
   const avgY = py(avg);
 
-  const tiles = [
-    { label: 'Total Spent', value: '24,731€', sub: '7 months' },
-    { label: 'Monthly Avg', value: '3,533€', sub: '' },
-    { label: 'Transactions', value: '405', sub: '7 months' },
-  ];
-
   return (
     <div className="flex flex-col gap-3">
-      {/* Trend tab top: stat cards + Line Trend chart */}
+      {/* Trend tab top: the two dark stat cards + the monthly line */}
       <div className="rounded-2xl p-4" style={{ background: '#FFFFFF', boxShadow: '0 8px 24px rgba(0,0,0,0.06)', border: '1px solid #EEEEF1' }}>
-        <div className="grid grid-cols-3 gap-2 mb-4">
-          {tiles.map((t) => (
-            <div key={t.label} className="rounded-lg px-2 py-2" style={{ background: '#F5F5F7' }}>
-              <div className="text-[9px] leading-tight" style={{ color: '#8E8E93' }}>{t.label}</div>
-              <div className="text-[15px] font-bold tabular-nums leading-tight mt-0.5" style={{ color: '#1C1C1E' }}>{t.value}</div>
-              {t.sub && <div className="text-[8px] mt-0.5" style={{ color: '#B0B0B5' }}>{t.sub}</div>}
-            </div>
-          ))}
+        <div className="grid grid-cols-2 gap-2 mb-4">
+          <StatCard label="Total Spent" value="24,731€" footnote="7 months · 405 transactions" />
+          <StatCard label="Monthly Average" value="3,533€" footnote="58 transactions" />
         </div>
 
         <div className="text-[13px] font-semibold mb-2" style={{ color: '#1C1C1E' }}>Monthly Spending</div>
@@ -300,27 +331,16 @@ function SavingsIllustration() {
 
   return (
     <div className="flex flex-col gap-3">
-      {/* Stat tiles */}
+      {/* The same two cards as the other toggles - savings just colours the
+          numbers and swaps the footnote for the rate panel. */}
       <div className="grid grid-cols-2 gap-3">
-        <div className="rounded-2xl px-4 py-3" style={{ background: '#FFFFFF', boxShadow: '0 8px 24px rgba(0,0,0,0.06)', border: '1px solid #EEEEF1' }}>
-          <div className="flex items-center gap-1.5 mb-1">
-            <PiggyBank className="w-3.5 h-3.5" style={{ color: '#10B981' }} />
-            <span className="text-[11px]" style={{ color: '#8E8E93' }}>Total savings</span>
-          </div>
-          <div className="text-2xl font-bold tabular-nums" style={{ color: '#10B981' }}>9,016€</div>
-        </div>
-        <div className="rounded-2xl px-4 py-3" style={{ background: '#FFFFFF', boxShadow: '0 8px 24px rgba(0,0,0,0.06)', border: '1px solid #EEEEF1' }}>
-          <div className="flex items-center gap-1.5 mb-1">
-            <TrendingUp className="w-3.5 h-3.5" style={{ color: '#10B981' }} />
-            <span className="text-[11px]" style={{ color: '#8E8E93' }}>Saving Rate</span>
-          </div>
-          <div className="text-2xl font-bold tabular-nums" style={{ color: '#10B981' }}>38%</div>
-        </div>
+        <StatCard label="Total Saved" value="9,016€" valueColor="#30D158" footnote="7 months" />
+        <StatCard label="Monthly Average" value="1,288€" valueColor="#30D158" rate="38%" />
       </div>
 
       {/* Savings line trend (crosses zero) */}
       <div className="rounded-2xl px-4 pt-4 pb-3" style={{ background: '#FFFFFF', boxShadow: '0 8px 24px rgba(0,0,0,0.06)', border: '1px solid #EEEEF1' }}>
-        <div className="text-sm font-semibold mb-3" style={{ color: '#1C1C1E' }}>Savings trend</div>
+        <div className="text-sm font-semibold mb-3" style={{ color: '#1C1C1E' }}>Monthly Savings</div>
         <svg viewBox={`0 0 ${W} ${H}`} width="100%" height={H} style={{ display: 'block' }}>
           {/* zero baseline */}
           <line x1={pad} y1={zeroY} x2={W - pad} y2={zeroY} stroke="#E5E5EA" strokeWidth="1" strokeDasharray="3 3" />

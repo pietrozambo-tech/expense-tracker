@@ -14,6 +14,10 @@ export interface BackupFile {
     userName: string;
     currency: string;
     monthlyBudget?: number;
+    // Carried so a restore does not re-nag a user who dismissed the budget
+    // card. Only matters when no budget is set - with one, the card is gone
+    // anyway - which is exactly the case a restore would otherwise reset.
+    budgetNudgeDismissed?: boolean;
     defaultSourceExpense?: string;
     defaultSourceIncome?: string;
   };
@@ -28,6 +32,7 @@ export function buildBackup(data: {
   userName: string;
   currency: string;
   monthlyBudget?: number;
+  budgetNudgeDismissed?: boolean;
   defaultSourceExpense?: string;
   defaultSourceIncome?: string;
   categories: Category[];
@@ -45,6 +50,7 @@ export function buildBackup(data: {
       userName: data.userName,
       currency: data.currency,
       monthlyBudget: data.monthlyBudget,
+      budgetNudgeDismissed: data.budgetNudgeDismissed,
       defaultSourceExpense: data.defaultSourceExpense,
       defaultSourceIncome: data.defaultSourceIncome,
     },

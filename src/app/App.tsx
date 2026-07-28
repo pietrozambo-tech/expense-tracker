@@ -919,6 +919,7 @@ export default function App() {
           userName,
           currency: userCurrency,
           monthlyBudget,
+          budgetNudgeDismissed,
           defaultSourceExpense,
           defaultSourceIncome,
           categories,
@@ -949,6 +950,9 @@ export default function App() {
     if (b.settings) {
       if (typeof b.settings.currency === 'string') setUserCurrency(b.settings.currency);
       setMonthlyBudget(typeof b.settings.monthlyBudget === 'number' ? b.settings.monthlyBudget : undefined);
+      // Absent in backups written before this was tracked, which is the same
+      // thing as "never dismissed" - so the plain coercion is the right read.
+      setBudgetNudgeDismissed(!!b.settings.budgetNudgeDismissed);
       if (typeof b.settings.userName === 'string') setUserName(b.settings.userName);
       if (typeof b.settings.defaultSourceExpense === 'string') setDefaultSourceExpense(b.settings.defaultSourceExpense);
       if (typeof b.settings.defaultSourceIncome === 'string') setDefaultSourceIncome(b.settings.defaultSourceIncome);
