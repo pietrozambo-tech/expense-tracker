@@ -161,8 +161,13 @@ const savingsColor = (value: number) => (value < 0 ? '#FF6961' : value > 0 ? '#3
 // 0.16 the red-on-red contrast lands just under 4.5:1, and this text is small.
 function StatChip({ label, value, tone }: { label: React.ReactNode; value: string; tone: number }) {
   return (
+    // The negative margin is exactly the horizontal padding, so the label
+    // inside the panel starts on the card's own content edge - lined up with
+    // the card label above it, and with the plain-text footnote in the card
+    // alongside. Without it the panel's padding indents the text by 8px and
+    // the two cards read as misaligned.
     <span
-      className="flex items-baseline justify-between gap-2 rounded-md px-2 py-1"
+      className="flex items-baseline justify-between gap-2 rounded-md px-2 py-1 -mx-2"
       style={{
         backgroundColor:
           tone < 0 ? 'rgba(255,105,97,0.12)' : tone > 0 ? 'rgba(48,209,88,0.12)' : 'rgba(255,255,255,0.08)',
