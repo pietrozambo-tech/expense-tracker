@@ -1992,27 +1992,29 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
             
             if (totalValue === 0) return null;
             
-            // Color schemes based on transaction type and layer
+            // One indigo family, whatever the transaction type.
+            //
+            // This split is categorical - neither half is good or bad - so it
+            // must not borrow the reds, ambers and greens that mean "over
+            // budget" and "on track" elsewhere on this screen. Cool hues also
+            // sit apart from the category tiles, which own the warm end.
+            //
+            // One-off is the paler of the pair: it is usually the bigger share,
+            // and the larger area wants the lighter ink.
             const colorScheme = recurrenceLayer === 'overview'
-              ? (transactionType === 'expense' 
-                  ? {
-                      primary: 'rgba(239, 68, 68, 0.65)',     // Lighter red
-                      secondary: 'rgba(251, 146, 60, 0.6)',   // Lighter orange
-                      tertiary: 'rgba(252, 211, 77, 0.55)',   // Lighter yellow
-                      quaternary: 'rgba(254, 202, 202, 0.5)'  // Lightest
-                    }
-                  : {
-                      primary: 'rgba(16, 185, 129, 0.65)',    // Lighter green
-                      secondary: 'rgba(52, 211, 153, 0.6)',   // Lighter teal
-                      tertiary: 'rgba(110, 231, 183, 0.55)',  // Lighter mint
-                      quaternary: 'rgba(167, 243, 208, 0.5)'  // Lightest
-                    })
+              ? {
+                  primary: '#A5A2F6',    // One-off
+                  secondary: '#4F46E5',  // Recurring
+                  tertiary: '#7C6DF2',
+                  quaternary: '#C9C7FA',
+                }
               : {
-                  // Detail layer: distinct neutral colors with different hues
-                  primary: 'rgba(100, 116, 139, 0.55)',     // Muted slate blue
-                  secondary: 'rgba(139, 92, 246, 0.35)',    // Muted purple
-                  tertiary: 'rgba(245, 158, 11, 0.35)',     // Muted amber
-                  quaternary: 'rgba(16, 185, 129, 0.35)'    // Muted teal
+                  // Detail layer: one schedule per colour, stepping down the
+                  // same ramp so they read as parts of "Recurring".
+                  primary: '#4F46E5',
+                  secondary: '#7C6DF2',
+                  tertiary: '#A5A2F6',
+                  quaternary: '#C9C7FA',
                 };
             
             // Assign colors to slices
