@@ -11,3 +11,38 @@
 .app-top-inset {
   height: 8px;
 }
+
+/*
+ * Placeholder shown while a tab's code chunk is still downloading.
+ *
+ * Held invisible for 250ms first: most switches resolve faster than that, and
+ * a spinner that flashes for one frame reads as a glitch. Past 250ms the wait
+ * is long enough that the user needs to be told something is happening -
+ * before this, the content area simply went blank and stayed blank.
+ */
+.tab-loading {
+  opacity: 0;
+  animation: tab-loading-in 180ms ease-out 250ms forwards;
+}
+
+@keyframes tab-loading-in {
+  to {
+    opacity: 1;
+  }
+}
+
+.tab-loading-spinner {
+  animation: tab-loading-spin 800ms linear infinite;
+}
+
+@keyframes tab-loading-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tab-loading-spinner {
+    animation: none;
+  }
+}

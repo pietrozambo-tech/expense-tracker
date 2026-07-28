@@ -81,6 +81,22 @@ function lazyWithRetry<T extends ComponentType<any>>(
 
 const Dashboard = lazyWithRetry(() => import('./components/Dashboard').then((m) => ({ default: m.Dashboard })), 'dashboard');
 const Settings = lazyWithRetry(() => import('./components/Settings').then((m) => ({ default: m.Settings })), 'settings');
+
+// Fetch the tab chunks before they are needed. Each tab is a separate file
+// (Settings is ~77 kB) that is otherwise not requested until the tab is
+// tapped - which puts a network round trip in the middle of a tap, on
+// whatever connection the user happens to be on. Warming them once the app is
+// idle turns that into a cache hit.
+//
+// Same specifiers as the lazy() factories above, so these resolve to the same
+// chunks and the module registry hands the cached copy to React later.
+function prefetchTabs() {
+  const nav = navigator as Navigator & { connection?: { saveData?: boolean } };
+  // Data Saver means the user has asked not to spend bytes on maybes.
+  if (nav.connection?.saveData) return;
+  void import('./components/Dashboard');
+  void import('./components/Settings');
+}
 const WelcomeCarousel = lazyWithRetry(() => import('./components/WelcomeCarousel').then((m) => ({ default: m.WelcomeCarousel })), 'carousel');
 const SignIn = lazyWithRetry(() => import('./auth/SignIn').then((m) => ({ default: m.SignIn })), 'signin');
 import { TracklyLogo } from './components/TracklyLogo';
@@ -211,6 +227,23 @@ export default function App() {
       defaultSourceIncome,
     });
   }, [hasCompletedOnboarding, userName, userCurrency, monthlyBudget, budgetNudgeDismissed, hasSeenIntro, defaultSourceExpense, defaultSourceIncome]);
+
+  // Warm the tab chunks once the first screen has settled. Deliberately on an
+  // idle callback with a timeout rather than straight after mount: the point
+  // is to use spare time, not to compete with the render the user is waiting
+  // for. The timeout is the floor for a device that never goes idle.
+  useEffect(() => {
+    const w = window as Window & {
+      requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number;
+      cancelIdleCallback?: (handle: number) => void;
+    };
+    if (w.requestIdleCallback) {
+      const id = w.requestIdleCallback(prefetchTabs, { timeout: 4000 });
+      return () => w.cancelIdleCallback?.(id);
+    }
+    const id = window.setTimeout(prefetchTabs, 2000);
+    return () => window.clearTimeout(id);
+  }, []);
 
   // When opening a NEW transaction, pre-select the current default source for
   // the active type — so changing the default in Settings takes effect
@@ -1127,6 +1160,17 @@ export default function App() {
 
   // While the session (and, when signed in, the cloud data) is resolving, show
   // a minimal splash so we don't flash the sign-in or onboarding screens.
+  // Shown only if a tab's chunk is slow enough to notice - the CSS holds it
+  // invisible for the first 250ms, so a normal switch still shows nothing.
+  const tabFallback = (
+    <div className="tab-loading flex justify-center pt-24" role="status" aria-label="Loading">
+      <div
+        className="tab-loading-spinner w-6 h-6 rounded-full border-2"
+        style={{ borderColor: '#E5E5EA', borderTopColor: '#8E8E93' }}
+      />
+    </div>
+  );
+
   const splash = (label?: string) => (
     <div className="min-h-screen flex flex-col items-center justify-center gap-3" style={{ backgroundColor: '#F5F5F7' }}>
       <TracklyLogo size={64} />
@@ -1200,7 +1244,7 @@ export default function App() {
         ) : (
           // Other tabs - Parent scrollable
           <div ref={mainScrollRef} className="flex-1 overflow-y-auto pb-32">
-            <Suspense fallback={null}>
+            <Suspense fallback={tabFallback}>
             {currentTab === 'dashboard' && (
               <Dashboard
                 key={refreshKey}
