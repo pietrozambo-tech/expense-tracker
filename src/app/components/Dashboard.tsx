@@ -1682,9 +1682,13 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                                   <div className="flex items-center gap-1.5 flex-shrink-0 ml-1">
                                     <div className="text-neutral-400 text-[10px] tabular-nums text-right w-8">{extras.otherPercentage.toFixed(0)}%</div>
                                     <div className="text-neutral-600 font-normal text-xs tabular-nums text-right whitespace-nowrap min-w-[60px]">
-                                      {formatAmountListView(extras.otherAmount, currency, 0)}
+                                      {formatRowAmount(extras.otherAmount)}
                                     </div>
-                                    <div className="w-3.5 ml-1.5" />
+                                    {/* Empty, but the same width as the trend
+                                        column on every other row - otherwise
+                                        this row's figures sit out of line with
+                                        the named subcategories above it. */}
+                                    <div className="w-8 ml-1.5" />
                                   </div>
                                 </button>
                               )}
