@@ -25,12 +25,21 @@ export interface SyncPayload {
 
 const TABLE = 'user_data';
 
+// The record as it exists on the server: the data, plus the stamp identifying
+// which version of it we are holding. The stamp is what makes a write safe -
+// see saveCloudChecked.
+export interface CloudRecord {
+  payload: SyncPayload;
+  // null when the account has no row yet.
+  version: string | null;
+}
+
 // Load the signed-in user's data. Returns null when the account has no record
 // yet (a brand-new account, or one that hasn't synced).
-export async function loadCloud(userId: string): Promise<SyncPayload | null> {
+export async function loadCloud(userId: string): Promise<CloudRecord | null> {
   const { data, error } = await supabase
     .from(TABLE)
-    .select('data')
+    .select('data, updated_at')
     .eq('user_id', userId)
     .maybeSingle();
 
@@ -39,19 +48,144 @@ export async function loadCloud(userId: string): Promise<SyncPayload | null> {
     throw error;
   }
   if (!data || !data.data) return null;
-  return data.data as SyncPayload;
+  return { payload: data.data as SyncPayload, version: (data.updated_at as string) ?? null };
 }
 
-// Upsert the user's whole dataset.
-export async function saveCloud(userId: string, payload: SyncPayload): Promise<void> {
-  const { error } = await supabase
+// Just the version stamp - a few bytes rather than the whole dataset. Used to
+// answer "has anything changed since I last looked?" without paying for a
+// download that is usually unnecessary.
+export async function loadCloudVersion(userId: string): Promise<string | null> {
+  const { data, error } = await supabase
     .from(TABLE)
-    .upsert({ user_id: userId, data: payload, updated_at: new Date().toISOString() });
+    .select('updated_at')
+    .eq('user_id', userId)
+    .maybeSingle();
+
+  if (error) {
+    console.error('[cloud] version check failed', error.message);
+    throw error;
+  }
+  return (data?.updated_at as string) ?? null;
+}
+
+// The stamp for the next write. It must be strictly later than the one being
+// replaced, and a plain `new Date()` is not enough: two devices writing in the
+// same millisecond produce identical stamps, and then the version check passes
+// for a device whose data is already stale - which is the exact bug this whole
+// mechanism exists to prevent. Rare in the wild, but the failure is silent
+// data loss, so it is worth the two lines.
+//
+// Because every write is conditioned on the previous version, only one device
+// can ever succeed from a given stamp - so bumping by a millisecond here makes
+// the sequence strictly increasing rather than merely usually increasing.
+function nextVersion(expectedVersion: string | null): string {
+  const now = Date.now();
+  const previous = expectedVersion ? Date.parse(expectedVersion) : NaN;
+  const ms = Number.isNaN(previous) ? now : Math.max(now, previous + 1);
+  return new Date(ms).toISOString();
+}
+
+export type SaveResult =
+  | { ok: true; version: string }
+  // Someone else wrote since we last looked. Our data is untouched on the
+  // server - the caller has to reconcile and try again.
+  | { ok: false; conflict: true };
+
+// Write the dataset, but only if the server still holds the version we last
+// saw. The check happens inside the write, as part of the same statement, so
+// this is still a single round trip - no slower than the unconditional upsert
+// it replaces.
+//
+// The previous version of this simply upserted, which meant a device holding a
+// stale snapshot silently erased whatever it had not seen. Two phones on one
+// account could destroy each other's transactions with the sync indicator
+// showing green throughout.
+export async function saveCloudChecked(
+  userId: string,
+  payload: SyncPayload,
+  expectedVersion: string | null,
+): Promise<SaveResult> {
+  const version = nextVersion(expectedVersion);
+
+  // No row yet: insert. If someone else got there first the primary key
+  // rejects it, which is the same conflict by another name.
+  if (expectedVersion === null) {
+    const { error } = await supabase
+      .from(TABLE)
+      .insert({ user_id: userId, data: payload, updated_at: version });
+    if (error) {
+      if (error.code === '23505') return { ok: false, conflict: true }; // unique violation
+      console.error('[cloud] save failed', error.message);
+      throw error;
+    }
+    return { ok: true, version };
+  }
+
+  const { data, error } = await supabase
+    .from(TABLE)
+    .update({ data: payload, updated_at: version })
+    .eq('user_id', userId)
+    .eq('updated_at', expectedVersion)
+    .select('updated_at');
 
   if (error) {
     console.error('[cloud] save failed', error.message);
     throw error;
   }
+  // No rows matched: the stamp moved, so somebody else wrote first.
+  if (!data || data.length === 0) return { ok: false, conflict: true };
+  return { ok: true, version };
+}
+
+// Three-way merge of two versions of the dataset that diverged from a common
+// starting point.
+//
+// `base` is what the server held when this device last agreed with it, and it
+// is what makes deletions work: an item missing from one side was either
+// deleted there (it exists in base) or added on the other side (it does not).
+// Without base we could only union, and every merge would resurrect whatever
+// the other device had deleted.
+//
+// Concurrent edits to the SAME item resolve to `local` - the device doing the
+// merge is the one in the user's hand.
+export function mergePayloads(
+  base: SyncPayload | null,
+  local: SyncPayload,
+  remote: SyncPayload,
+): SyncPayload {
+  const mergeList = <T extends { id: string }>(
+    baseList: T[] | undefined,
+    localList: T[] | undefined,
+    remoteList: T[] | undefined,
+  ): T[] => {
+    const b = new Set((baseList ?? []).map((x) => x.id));
+    const l = new Map((localList ?? []).map((x) => [x.id, x]));
+    const r = new Map((remoteList ?? []).map((x) => [x.id, x]));
+    const out: T[] = [];
+
+    for (const [id, item] of l) {
+      if (r.has(id)) out.push(item); // in both - local wins
+      else if (!b.has(id)) out.push(item); // we added it
+      // else: it was in base and is gone remotely -> deleted there
+    }
+    for (const [id, item] of r) {
+      if (l.has(id)) continue; // already handled
+      if (!b.has(id)) out.push(item); // they added it
+      // else: it was in base and is gone locally -> we deleted it
+    }
+    return out;
+  };
+
+  return {
+    transactions: mergeList(base?.transactions, local.transactions, remote.transactions),
+    recurringRules: mergeList(base?.recurringRules, local.recurringRules, remote.recurringRules),
+    categories: mergeList(base?.categories, local.categories, remote.categories),
+    incomeCategories: mergeList(base?.incomeCategories, local.incomeCategories, remote.incomeCategories),
+    sources: mergeList(base?.sources, local.sources, remote.sources),
+    // Settings are single values with no id to merge on. The device in the
+    // user's hand is the one whose name, currency and budget they just set.
+    settings: local.settings,
+  };
 }
 
 // Delete the user's whole dataset (used by "Erase all data").

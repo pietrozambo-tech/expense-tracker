@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "build:native": "CAP_BUILD=1 vite build",
     "sync:ios": "pnpm build:native && cap sync ios",
-    "site": "node scripts/build-site.mjs"
+    "site": "node scripts/build-site.mjs",
+    "test:sync": "node scripts/test-sync.mjs"
   },
   "dependencies": {
     "@capacitor/app": "^8.1.1",

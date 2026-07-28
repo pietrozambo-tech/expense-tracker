@@ -100,7 +100,14 @@ function prefetchTabs() {
 const WelcomeCarousel = lazyWithRetry(() => import('./components/WelcomeCarousel').then((m) => ({ default: m.WelcomeCarousel })), 'carousel');
 const SignIn = lazyWithRetry(() => import('./auth/SignIn').then((m) => ({ default: m.SignIn })), 'signin');
 import { TracklyLogo } from './components/TracklyLogo';
-import { loadCloud, saveCloud, deleteCloud, type SyncPayload } from './lib/cloud';
+import {
+  loadCloud,
+  loadCloudVersion,
+  saveCloudChecked,
+  deleteCloud,
+  mergePayloads,
+  type SyncPayload,
+} from './lib/cloud';
 import { track } from './lib/analytics';
 import { categories as initialCategories, incomeCategories as initialIncomeCategories } from './components/categories';
 import { reassignToOthers } from './lib/categoryOps';
@@ -255,6 +262,20 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentTab]);
 
+  // What the server held the last time this device agreed with it, and the
+  // stamp identifying that version. Together they let a write say "only if
+  // nothing has changed since", and give the merge a starting point to tell an
+  // addition apart from a deletion.
+  const cloudBaseRef = useRef<SyncPayload | null>(null);
+  const cloudVersionRef = useRef<string | null>(null);
+  // Current local state, readable from callbacks that are not re-created on
+  // every render (the visibility listener below).
+  const localPayloadRef = useRef<SyncPayload | null>(null);
+  const cloudHydratedRef = useRef(false);
+  const pullingRef = useRef(false);
+  const userIdRef = useRef<string | null>(null);
+  userIdRef.current = userId;
+
   // Snapshot the whole app state into the cloud payload shape
   const buildPayload = (): SyncPayload => ({
     transactions: expenses,
@@ -274,11 +295,41 @@ export default function App() {
     },
   });
 
+  // Push a payload into React state. Used both by the initial hydrate and by
+  // the foreground refresh, so the two can never drift apart.
+  const applyPayload = useCallback((p: SyncPayload) => {
+    setExpenses(p.transactions ?? []);
+    setRecurringRules(p.recurringRules ?? []);
+    setCategories(p.categories ?? initialCategories);
+    setIncomeCategories(p.incomeCategories ?? initialIncomeCategories);
+    setSources(p.sources?.length ? p.sources : DEFAULT_SOURCES);
+    const s = p.settings ?? ({} as SyncPayload['settings']);
+    setHasCompletedOnboarding(!!s.onboarded);
+    setUserName(s.userName ?? '');
+    setUserCurrency(s.currency ?? 'EUR');
+    setMonthlyBudget(s.monthlyBudget);
+    setBudgetNudgeDismissed(!!s.budgetNudgeDismissed);
+    setHasSeenIntro(!!s.hasSeenIntro);
+    setDefaultSourceExpense(s.defaultSourceExpense ?? DEFAULT_SOURCE_EXPENSE);
+    setDefaultSourceIncome(s.defaultSourceIncome ?? DEFAULT_SOURCE_INCOME);
+  }, []);
+
+  // Keep the ref holding current local state fresh, for the listeners below
+  // that are registered once and never see a later render's closure.
+  useEffect(() => {
+    localPayloadRef.current = buildPayload();
+  });
+  useEffect(() => {
+    cloudHydratedRef.current = cloudHydrated;
+  }, [cloudHydrated]);
+
   // On sign-in: load the user's cloud data into state; if the account has none
   // yet, push the current (local) data up — a one-time migration on first login.
   useEffect(() => {
     if (!userId) {
       setCloudHydrated(false);
+      cloudBaseRef.current = null;
+      cloudVersionRef.current = null;
       return;
     }
     let cancelled = false;
@@ -287,22 +338,19 @@ export default function App() {
         const cloud = await loadCloud(userId);
         if (cancelled) return;
         if (cloud) {
-          setExpenses(cloud.transactions ?? []);
-          setRecurringRules(cloud.recurringRules ?? []);
-          setCategories(cloud.categories ?? initialCategories);
-          setIncomeCategories(cloud.incomeCategories ?? initialIncomeCategories);
-          setSources(cloud.sources?.length ? cloud.sources : DEFAULT_SOURCES);
-          const s = cloud.settings ?? ({} as SyncPayload['settings']);
-          setHasCompletedOnboarding(!!s.onboarded);
-          setUserName(s.userName ?? '');
-          setUserCurrency(s.currency ?? 'EUR');
-          setMonthlyBudget(s.monthlyBudget);
-          setBudgetNudgeDismissed(!!s.budgetNudgeDismissed);
-          setHasSeenIntro(!!s.hasSeenIntro);
-          setDefaultSourceExpense(s.defaultSourceExpense ?? DEFAULT_SOURCE_EXPENSE);
-          setDefaultSourceIncome(s.defaultSourceIncome ?? DEFAULT_SOURCE_INCOME);
+          applyPayload(cloud.payload);
+          cloudBaseRef.current = cloud.payload;
+          cloudVersionRef.current = cloud.version;
         } else {
-          await saveCloud(userId, buildPayload());
+          const local = buildPayload();
+          const res = await saveCloudChecked(userId, local, null);
+          if (res.ok) {
+            cloudBaseRef.current = local;
+            cloudVersionRef.current = res.version;
+          }
+          // A conflict here means another device created the row a moment ago.
+          // Leave the refs empty; the first save will see the mismatch, pull
+          // and merge rather than overwrite.
         }
       } catch {
         // Sync unavailable (offline / policy) — fall back to local data
@@ -319,32 +367,107 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);
 
-  // Write changes back to the cloud (debounced), once hydrated
+  // Write changes back to the cloud (debounced), once hydrated.
+  //
+  // The write is conditional on the server still holding the version we last
+  // saw. If it doesn't, another device wrote in the meantime: pull what it
+  // wrote, merge, and try again - rather than overwriting it, which is what
+  // this used to do.
   useEffect(() => {
     if (!userId || !cloudHydrated) return;
     setSyncStatus('pending');
-    const payload = buildPayload();
+    let cancelled = false;
+
+    const push = async () => {
+      // Up to three passes: a busy second device can win the race more than
+      // once, but each pass starts from its newer data, so this converges.
+      for (let attempt = 0; attempt < 3 && !cancelled; attempt++) {
+        const payload = buildPayload();
+        const res = await saveCloudChecked(userId, payload, cloudVersionRef.current);
+        if (res.ok) {
+          cloudBaseRef.current = payload;
+          cloudVersionRef.current = res.version;
+          return true;
+        }
+        const remote = await loadCloud(userId);
+        if (cancelled) return false;
+        if (!remote) {
+          cloudVersionRef.current = null; // row vanished (erased elsewhere)
+          continue;
+        }
+        const merged = mergePayloads(cloudBaseRef.current, payload, remote.payload);
+        cloudBaseRef.current = remote.payload;
+        cloudVersionRef.current = remote.version;
+        // Applying the merge re-runs this effect, which writes it back.
+        applyPayload(merged);
+        setRefreshKey((prev) => prev + 1);
+        return true;
+      }
+      return false;
+    };
+
     const t = setTimeout(() => {
       if (typeof navigator !== 'undefined' && navigator.onLine === false) {
         setSyncStatus('offline');
         return; // the 'online' listener below retries automatically
       }
-      saveCloud(userId, payload)
-        .then(() => {
-          setSyncStatus('synced');
-          setLastSyncedAt(Date.now());
+      push()
+        .then((done) => {
+          if (cancelled) return;
+          if (done) {
+            setSyncStatus('synced');
+            setLastSyncedAt(Date.now());
+          } else {
+            setSyncStatus('error');
+          }
         })
-        .catch(() => setSyncStatus('error'));
+        .catch(() => {
+          if (!cancelled) setSyncStatus('error');
+        });
     }, 800);
-    return () => clearTimeout(t);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId, cloudHydrated, syncRetryTick, expenses, recurringRules, categories, incomeCategories, sources, hasCompletedOnboarding, userName, userCurrency, monthlyBudget, hasSeenIntro, defaultSourceExpense, defaultSourceIncome]);
+
+  // Coming back to the app pulls anything another device wrote while we were
+  // away. Previously returning to the foreground only ever pushed, so a device
+  // left open for days kept writing over newer data it had never seen.
+  //
+  // Costs one small request: the version stamp alone, a few bytes. The dataset
+  // itself is only downloaded when that stamp has actually moved.
+  const pullRemote = useCallback(async () => {
+    const uid = userIdRef.current;
+    if (!uid || !cloudHydratedRef.current || pullingRef.current) return;
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
+    pullingRef.current = true;
+    try {
+      const version = await loadCloudVersion(uid);
+      if (!version || version === cloudVersionRef.current) return; // nothing new
+      const remote = await loadCloud(uid);
+      if (!remote) return;
+      const local = localPayloadRef.current ?? remote.payload;
+      const merged = mergePayloads(cloudBaseRef.current, local, remote.payload);
+      cloudBaseRef.current = remote.payload;
+      cloudVersionRef.current = remote.version;
+      applyPayload(merged);
+      setRefreshKey((prev) => prev + 1);
+    } catch {
+      // Offline or unreachable - keep using local data, try again next time.
+    } finally {
+      pullingRef.current = false;
+    }
+  }, [applyPayload]);
 
   // Coming back online (or refocusing after a failed save) retries the sync.
   useEffect(() => {
     const retry = () => setSyncRetryTick((t) => t + 1);
     const onVisible = () => {
-      if (document.visibilityState === 'visible') retry();
+      if (document.visibilityState !== 'visible') return;
+      void pullRemote();
+      retry();
     };
     window.addEventListener('online', retry);
     document.addEventListener('visibilitychange', onVisible);
@@ -352,7 +475,7 @@ export default function App() {
       window.removeEventListener('online', retry);
       document.removeEventListener('visibilitychange', onVisible);
     };
-  }, []);
+  }, [pullRemote]);
 
   // Recurring transactions: materialize any occurrence whose scheduled day has
   // arrived - on open (after the data source is settled) and whenever the app
