@@ -1,6 +1,6 @@
 import { useRef, useState, type ReactNode } from 'react';
 import {
-  Minus, Plus, Wallet, Percent, Calendar, Repeat, ChevronDown, ChevronRight,
+  Minus, Plus, Wallet, Percent, Calendar, Repeat, ChevronDown, ChevronRight, TrendingDown,
   ShoppingCart, Car, Home, Clapperboard, Landmark, Layers,
   FlaskConical, Trash2,
 } from 'lucide-react';
@@ -137,6 +137,12 @@ function currentMonthLabel(): string {
   return new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 }
 
+/** "Aug" - what the Dashboard's category trends are measured against. */
+function previousMonthLabel(): string {
+  const now = new Date();
+  return monthShortNames[new Date(now.getFullYear(), now.getMonth() - 1, 1).getMonth()];
+}
+
 function DashboardIllustration() {
   const metrics = [
     // Match the real hero: a red "−" for Spending and a green "+" for Income.
@@ -145,10 +151,13 @@ function DashboardIllustration() {
     { label: 'Savings', value: '2,341€', Icon: Wallet, tint: 'rgba(100,160,255,0.16)', color: '#64A0FF', accent: '#30D158', sw: 2.5 },
     { label: 'Saving Rate', value: '69%', Icon: Percent, tint: 'rgba(100,160,255,0.16)', color: '#64A0FF', accent: '#30D158', sw: 2.5 },
   ];
+  // `trend` mirrors the real rows: flat when the month matches the last one,
+  // an arrow when it does not, and the word when there is no earlier figure to
+  // compare against at all.
   const rows = [
-    { name: 'Housing', Icon: Home, bg: '#E3EDFF', fg: '#3B6FE0', pct: 87, amt: '900€' },
-    { name: 'Groceries', Icon: ShoppingCart, bg: '#E7F6EC', fg: '#2E9E5B', pct: 8, amt: '84€' },
-    { name: 'Transport', Icon: Car, bg: '#E3EDFF', fg: '#4589D6', pct: 5, amt: '55€' },
+    { name: 'Housing', Icon: Home, bg: '#E3EDFF', fg: '#3B6FE0', pct: 87, amt: '900€', trend: 'flat' as const },
+    { name: 'Groceries', Icon: ShoppingCart, bg: '#E7F6EC', fg: '#2E9E5B', pct: 8, amt: '84€', trend: 'down' as const },
+    { name: 'Transport', Icon: Car, bg: '#E3EDFF', fg: '#4589D6', pct: 5, amt: '55€', trend: 'new' as const },
   ];
   return (
     <div className="flex flex-col gap-3">
@@ -193,7 +202,12 @@ function DashboardIllustration() {
 
       {/* Category breakdown */}
       <div className="rounded-2xl px-4 py-3" style={{ background: '#FFFFFF', boxShadow: '0 8px 24px rgba(0,0,0,0.06)', border: '1px solid #EEEEF1' }}>
-        <div className="text-sm font-semibold mb-1.5" style={{ color: '#1C1C1E' }}>Categories</div>
+        <div className="flex items-baseline justify-between mb-1.5">
+          <span className="text-sm font-semibold" style={{ color: '#1C1C1E' }}>Categories</span>
+          {/* Sits over the last column, as it does in the app - it labels the
+              trend markers and nothing else. */}
+          <span className="text-[9px]" style={{ color: '#A0A0A8' }}>vs. {previousMonthLabel()}</span>
+        </div>
         {rows.map((r) => (
           <div key={r.name} className="flex items-center gap-2.5 py-1.5">
             <span className="flex items-center justify-center flex-shrink-0" style={{ width: 28, height: 28, borderRadius: 8, background: r.bg }}>
@@ -207,6 +221,11 @@ function DashboardIllustration() {
             </div>
             <span className="text-[11px] tabular-nums" style={{ color: '#B0B0B5' }}>{r.pct}%</span>
             <span className="text-[13px] font-bold tabular-nums w-12 text-right" style={{ color: '#1C1C1E' }}>{r.amt}</span>
+            <span className="w-7 flex items-center justify-center flex-shrink-0">
+              {r.trend === 'down' && <TrendingDown className="w-3.5 h-3.5" style={{ color: '#34C759' }} strokeWidth={2.5} />}
+              {r.trend === 'flat' && <Minus className="w-3.5 h-3.5" style={{ color: '#8E8E93' }} strokeWidth={2.5} />}
+              {r.trend === 'new' && <span className="text-[9px] font-semibold" style={{ color: '#6B6B75' }}>New</span>}
+            </span>
           </div>
         ))}
       </div>
