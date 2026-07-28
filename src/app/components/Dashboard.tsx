@@ -119,7 +119,7 @@ function TrendStatCard({
   label: string;
   value: string;
   compact: string;
-  footnote?: string;
+  footnote?: React.ReactNode;
   valueColor?: string;
 }) {
   return (
@@ -152,6 +152,32 @@ function TrendStatCard({
 // Savings can be negative, and the sign is the whole point - so it is carried
 // by colour as well as the minus, in the shades the Overview hero already uses.
 const savingsColor = (value: number) => (value < 0 ? '#FF6961' : value > 0 ? '#30D158' : '#FFFFFF');
+
+// Chip inside a TrendStatCard: a second, smaller number that rides along with
+// the headline one. As plain footnote text the saving rate disappeared - the
+// tinted panel gives it a frame of its own without competing with the total.
+//
+// Tint is kept at 0.12 rather than the 0.16 used for the Overview icons: at
+// 0.16 the red-on-red contrast lands just under 4.5:1, and this text is small.
+function StatChip({ label, value, tone }: { label: React.ReactNode; value: string; tone: number }) {
+  return (
+    <span
+      className="flex items-baseline justify-between gap-2 rounded-md px-2 py-1"
+      style={{
+        backgroundColor:
+          tone < 0 ? 'rgba(255,105,97,0.12)' : tone > 0 ? 'rgba(48,209,88,0.12)' : 'rgba(255,255,255,0.08)',
+      }}
+    >
+      {/* Full width rather than hugging its content: on a narrow phone
+          "Saving Rate -45%" does not fit on one line as a hugging chip, and
+          wrapping mid-label looks broken. Split across the panel it fits. */}
+      <span className="truncate" style={{ color: 'rgba(235,235,245,0.75)' }}>{label}</span>
+      <span className="font-semibold tabular-nums flex-shrink-0" style={{ color: savingsColor(tone) }}>
+        {value}
+      </span>
+    </span>
+  );
+}
 
 export function Dashboard({ expenses, categories, incomeCategories, sources = [], userName, currency, onEditExpense, onDeleteExpense, view = 'overview', onShowOverview, initialPeriod, viewStateRef, monthlyBudget, budgetNudgeDismissed, onSetMonthlyBudget, onDismissBudgetNudge }: DashboardProps) {
   // Restore the previous view (period + drilldown) unless a Trend->Overview
@@ -2703,9 +2729,18 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                       // is nothing to report, and "0%" would read as "you saved
                       // nothing" - which is a different statement entirely.
                       footnote={
-                        monthlySavingRates.length > 0
-                          ? `Saving rate ${Math.round(avgMonthlySavingRate)}%`
-                          : "No income recorded"
+                        monthlySavingRates.length > 0 ? (
+                          <StatChip
+                            // Below ~360px the full label would be truncated to
+                            // "Saving ..."; dropping the first word is a better
+                            // reading of the same thing.
+                            label={<><span className="max-[359px]:hidden">Saving </span>Rate</>}
+                            value={`${Math.round(avgMonthlySavingRate)}%`}
+                            tone={Math.round(avgMonthlySavingRate)}
+                          />
+                        ) : (
+                          'No income recorded'
+                        )
                       }
                     />
                   </div>
@@ -2901,25 +2936,40 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
             <div className="px-6 py-3 bg-white mb-2">
               <h3 className="text-neutral-900 font-semibold text-sm mb-2">Monthly Breakdown</h3>
               
-              {/* Column headers - only shown when category is selected */}
-              {selectedCategory !== 'All' && (
+              {/* Column headers. Shown whenever a row carries more than one
+                  number - a category drilldown (weight + count) or the savings
+                  view (rate), where an unlabelled "-12%" next to an unlabelled
+                  amount left the reader to guess which was which.
+                  Widths mirror the row below exactly; both branch on the same
+                  two conditions. */}
+              {(selectedCategory !== 'All' || transactionType === 'savings') && (
                 <div className="flex items-center gap-2.5 pb-1.5 mt-2 mb-1 border-b border-neutral-100">
                   {/* Month spacer */}
                   <div className="w-12 flex-shrink-0"></div>
                   {/* Bar chart spacer */}
-                  <div className="w-32 min-w-0"></div>
+                  <div className={`${selectedCategory === 'All' ? 'flex-1' : 'w-32'} min-w-0`}></div>
                   {/* Amount header */}
-                  <div className="w-14 flex-shrink-0 text-right text-[9px] text-neutral-400 uppercase tracking-wide">
-                    Amount
+                  <div className={`${selectedCategory === 'All' ? 'w-16' : 'w-14'} flex-shrink-0 text-right text-[9px] text-neutral-400 uppercase tracking-wide`}>
+                    {transactionType === 'savings' ? 'Saved' : 'Amount'}
                   </div>
-                  {/* Weight header */}
-                  <div className="w-10 flex-shrink-0 text-right text-[9px] text-neutral-400 uppercase tracking-wide">
-                    Weight
-                  </div>
-                  {/* Transaction count header */}
-                  <div className="w-8 flex-shrink-0 text-center text-[9px] text-neutral-400 uppercase tracking-wide">
-                    #
-                  </div>
+                  {selectedCategory !== 'All' && (
+                    <>
+                      {/* Weight header */}
+                      <div className="w-10 flex-shrink-0 text-right text-[9px] text-neutral-400 uppercase tracking-wide">
+                        Weight
+                      </div>
+                      {/* Transaction count header */}
+                      <div className="w-8 flex-shrink-0 text-center text-[9px] text-neutral-400 uppercase tracking-wide">
+                        #
+                      </div>
+                    </>
+                  )}
+                  {/* Saving rate header */}
+                  {transactionType === 'savings' && (
+                    <div className="w-10 flex-shrink-0 text-right text-[9px] text-neutral-400 uppercase tracking-wide">
+                      Rate
+                    </div>
+                  )}
                   {/* Badges spacer */}
                   <div className="w-11 flex-shrink-0"></div>
                 </div>

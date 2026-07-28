@@ -312,7 +312,7 @@ function SavingsIllustration() {
         <div className="rounded-2xl px-4 py-3" style={{ background: '#FFFFFF', boxShadow: '0 8px 24px rgba(0,0,0,0.06)', border: '1px solid #EEEEF1' }}>
           <div className="flex items-center gap-1.5 mb-1">
             <TrendingUp className="w-3.5 h-3.5" style={{ color: '#10B981' }} />
-            <span className="text-[11px]" style={{ color: '#8E8E93' }}>Saving rate</span>
+            <span className="text-[11px]" style={{ color: '#8E8E93' }}>Saving Rate</span>
           </div>
           <div className="text-2xl font-bold tabular-nums" style={{ color: '#10B981' }}>38%</div>
         </div>
