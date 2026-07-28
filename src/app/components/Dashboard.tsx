@@ -2025,6 +2025,34 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
               };
             });
             
+            // With a single slice the donut is a plain ring and the legend
+            // repeats it at 100% - half a screen to say one thing. State it in a
+            // line instead; the card keeps its place so the page does not jump
+            // once a second kind of expense appears.
+            if (recurrenceLayer === 'overview' && dataWithColors.length === 1) {
+              const only = dataWithColors[0];
+              return (
+                <div className="px-6 mb-4">
+                  <div className="rounded-2xl px-6 py-4 bg-white" style={{ boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)' }}>
+                    <h3 className="text-sm mb-1.5" style={{ color: '#1C1C1E', fontWeight: '600' }}>
+                      One-off vs Recurring
+                    </h3>
+                    <div className="flex items-center gap-2">
+                      <span
+                        className="w-2 h-2 rounded-full flex-shrink-0"
+                        style={{ backgroundColor: only.color }}
+                        aria-hidden="true"
+                      />
+                      <span style={{ color: '#8E8E93', fontSize: 13 }}>
+                        All {formatAmountListView(only.value, currency, 0)} was{' '}
+                        {only.name.toLowerCase()}.
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              );
+            }
+
             // SVG donut parameters - reduced size
             const size = 130;
             const strokeWidth = 28;
@@ -2448,16 +2476,33 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
             yMax = maxAbsolute;
           }
         } else {
-          // Original logic for positive-only charts (expenses/income)
-          const hasZeroValues = trendData.some(t => t.amount === 0);
+          // Positive-only charts (expenses/income).
+          //
+          // The axis used to start just under the smallest month, which let a
+          // steady year - say 3,329 to 3,931, an 18% spread - fill the whole
+          // chart and read as a dramatic peak and collapse. A zero baseline
+          // would be honest but flattens most real data into a straight line,
+          // so instead the axis may zoom in only so far: it never starts above
+          // half the top of the scale. Volatile data still lands on zero on its
+          // own, because the padded minimum falls below that cap.
           const nonZeroAmounts = allAmounts.filter(a => a > 0);
           const minAmount = nonZeroAmounts.length > 0 ? Math.min(...nonZeroAmounts) : 0;
           const maxAmount = nonZeroAmounts.length > 0 ? Math.max(...nonZeroAmounts) : 1;
-          const range = maxAmount - minAmount;
-          const useMinScale = !hasZeroValues && nonZeroAmounts.length > 0 && range > 0 && minAmount > range * 0.2;
-          
-          yMin = useMinScale ? Math.max(0, minAmount - range * 0.15) : 0;
-          yMax = maxAmount > 0 ? maxAmount : 1;
+
+          // Round both ends to friendly numbers so the labels read as ticks
+          // rather than as three of the data's own values.
+          const niceStep = (raw: number) => {
+            if (!(raw > 0)) return 1;
+            const magnitude = 10 ** Math.floor(Math.log10(raw));
+            const n = raw / magnitude;
+            return (n <= 1 ? 1 : n <= 2 ? 2 : n <= 5 ? 5 : 10) * magnitude;
+          };
+          const step = niceStep(maxAmount / 4);
+          const upper = Math.ceil(maxAmount / step) * step;
+          const zoomFloor = upper / 2; // the axis may not start above this
+          const padded = minAmount - (maxAmount - minAmount) * 0.15;
+          yMin = Math.max(0, Math.floor(Math.max(0, Math.min(padded, zoomFloor)) / step) * step);
+          yMax = upper;
         }
         
         const yRange = yMax - yMin;
@@ -2810,7 +2855,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
             {/* Line Chart */}
             <div className="px-6 py-4 bg-white mb-2">
               <h3 className="text-neutral-900 font-semibold text-sm mb-3">
-                Line Trend
+                {transactionType === 'income' ? 'Monthly income' : transactionType === 'savings' ? 'Monthly savings' : 'Monthly spending'}
               </h3>
               
               {trendData.length === 0 ? (
@@ -3016,47 +3061,22 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                     }
                   }
                   
-                  // Calculate bar width with minimum 5% for non-zero values
+                  // Bar length is a share of the biggest month, measured from
+                  // zero. Scaling the smallest month to an empty bar instead
+                  // (as this did) turns a 3,329 / 3,931 spread - 18% - into the
+                  // difference between nothing and a full bar, which reads as
+                  // wild volatility in a steady year.
                   let barWidth = 0;
-                  if (transactionType === 'savings') {
-                    // For savings: only show bars for positive amounts
-                    if (item.amount > 0) {
-                      const positiveAmounts = allAmounts.filter(a => a > 0);
-                      if (positiveAmounts.length > 0) {
-                        const maxPositive = Math.max(...positiveAmounts);
-                        const minPositive = Math.min(...positiveAmounts);
-                        
-                        if (maxPositive === minPositive) {
-                          // All positive values are the same
-                          barWidth = 100;
-                        } else {
-                          // Scale between 5% (min positive) and 100% (max positive)
-                          const minBarWidth = 5;
-                          const maxBarWidth = 100;
-                          const range = maxPositive - minPositive;
-                          barWidth = minBarWidth + ((item.amount - minPositive) / range) * (maxBarWidth - minBarWidth);
-                        }
-                      }
-                    }
-                    // If amount is negative or zero, barWidth stays 0
-                  } else {
-                    // Original logic for expense/income
-                    if (item.amount !== 0) {
-                      const absAmount = Math.abs(item.amount);
-                      const absMax = Math.max(...allAmounts.map(a => Math.abs(a)));
-                      const absMin = Math.min(...allAmounts.filter(a => a !== 0).map(a => Math.abs(a)));
-                      
-                      if (absMax === absMin) {
-                        // All non-zero values are the same
-                        barWidth = 100;
-                      } else {
-                        // Scale between 5% (min) and 100% (max)
-                        const minBarWidth = 5;
-                        const maxBarWidth = 100;
-                        const range = absMax - absMin;
-                        barWidth = minBarWidth + ((absAmount - absMin) / range) * (maxBarWidth - minBarWidth);
-                      }
-                    }
+                  const barMax = Math.max(
+                    ...allAmounts
+                      .filter(a => (transactionType === 'savings' ? a > 0 : a !== 0))
+                      .map(a => Math.abs(a)),
+                    0,
+                  );
+                  // Savings only draws bars for months that ended up positive.
+                  const barValue = transactionType === 'savings' ? item.amount : Math.abs(item.amount);
+                  if (barMax > 0 && barValue > 0) {
+                    barWidth = Math.max(2, (barValue / barMax) * 100);
                   }
                   
                   const maxColor = transactionType === 'expense' ? 'red' : 'green';
