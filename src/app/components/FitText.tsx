@@ -4,25 +4,48 @@ interface FitTextProps {
   children: React.ReactNode;
   /** Preferred size, used whenever the text fits. */
   max: number;
-  /** Never shrink past this - below it, the text ellipsises instead. */
+  /** Never shrink past this - below it, `compact` takes over (or ellipsis). */
   min: number;
+  /** Shorter rendering of the same value, e.g. "86.4K CHF" for "86,420 CHF". */
+  compact?: string;
   className?: string;
   style?: React.CSSProperties;
 }
 
-// Shrinks its text just enough to fit the width it is given.
+// Fits an amount into the width it is given, in that order of preference:
+//
+//   1. the full number at full size
+//   2. the full number, shrunk - but only mildly
+//   3. the abbreviated number ("86.4K CHF"), shrunk if it still needs it
 //
 // Amounts are the one thing in the app whose length we do not control: a
 // currency rendered as a symbol is one character ("4,252€") but as a code it is
-// four ("4,252 CHF"), and a bad month adds a digit and a minus sign on top. At a
-// fixed size those overflow and get cut to "-4,252 C...", which is worse than
-// small text - the number is the whole point of the card.
+// four ("4,252 CHF"), and a bad month adds a digit and a minus sign on top.
+// Below a certain size the number stops being readable, which defeats the
+// purpose of the card - so past that point we drop precision instead of pixels.
 //
 // Measured rather than guessed from character counts, because glyph widths vary
 // (a comma is not a digit) and the available width depends on the viewport.
-export function FitText({ children, max, min, className = '', style }: FitTextProps) {
+export function FitText({ children, max, min, compact, className = '', style }: FitTextProps) {
   const ref = useRef<HTMLSpanElement>(null);
+  // Width of the full text at `max`, remembered so we can tell whether it would
+  // fit again after a resize without having to render it to find out.
+  const fullWidth = useRef<number | null>(null);
   const [size, setSize] = useState(max);
+  const [abbreviated, setAbbreviated] = useState(false);
+
+  // A new value invalidates everything we measured about the old one, and we
+  // start again from the full text.
+  //
+  // Keyed on `compact` rather than `children`: children may be styled JSX whose
+  // identity changes on every render, which would reset the flag that fitting
+  // had just set and leave the two effects flipping it back and forth forever.
+  // `compact` is a string derived from the same value, so it changes when - and
+  // only when - the number does.
+  useLayoutEffect(() => {
+    fullWidth.current = null;
+    setAbbreviated(false);
+  }, [compact]);
 
   useLayoutEffect(() => {
     const el = ref.current;
@@ -35,9 +58,26 @@ export function FitText({ children, max, min, className = '', style }: FitTextPr
       const available = box.clientWidth;
       if (!available) return;
 
+      // `min` is the point at which shortening the number beats shrinking it.
+      // Once shortened there is nothing further to fall back to, so let the
+      // abbreviated form go smaller rather than clip it.
+      const floor = abbreviated ? Math.min(min, 11) : min;
+
       // The span is overflow-hidden, so scrollWidth is exactly the text width.
       el.style.fontSize = `${max}px`;
       const wanted = el.scrollWidth;
+
+      if (abbreviated) {
+        // Room for the full number again (wider screen, smaller total)? Width
+        // scales with font size closely enough to answer without re-rendering.
+        if (fullWidth.current && fullWidth.current * (min / max) <= available) {
+          setAbbreviated(false);
+          return;
+        }
+      } else {
+        fullWidth.current = wanted;
+      }
+
       if (wanted <= available) {
         setSize(max);
         return;
@@ -45,13 +85,21 @@ export function FitText({ children, max, min, className = '', style }: FitTextPr
 
       // Width scales close enough to linearly with font size to land in one
       // step; the loop then only ever nudges half a pixel for rounding.
-      let next = Math.max(min, Math.floor(((max * available) / wanted) * 2) / 2);
+      let next = Math.max(floor, Math.floor(((max * available) / wanted) * 2) / 2);
       el.style.fontSize = `${next}px`;
       let guard = 8;
-      while (next > min && el.scrollWidth > available && guard-- > 0) {
+      while (next > floor && el.scrollWidth > available && guard-- > 0) {
         next -= 0.5;
         el.style.fontSize = `${next}px`;
       }
+
+      // Still overflowing at the smallest size we are willing to use: shorten
+      // the number rather than shrink it into illegibility.
+      if (!abbreviated && compact && el.scrollWidth > available) {
+        setAbbreviated(true);
+        return;
+      }
+
       // Leave the measured size on the node. setSize keeps React in sync, but it
       // bails out when the value is unchanged - and then no render would come
       // along to re-apply a size we had cleared.
@@ -68,15 +116,11 @@ export function FitText({ children, max, min, className = '', style }: FitTextPr
       cancelled = true;
       observer.disconnect();
     };
-  }, [children, max, min]);
+  }, [children, compact, abbreviated, max, min]);
 
   return (
-    <span
-      ref={ref}
-      className={`block truncate ${className}`}
-      style={{ ...style, fontSize: size }}
-    >
-      {children}
+    <span ref={ref} className={`block truncate ${className}`} style={{ ...style, fontSize: size }}>
+      {abbreviated && compact ? compact : children}
     </span>
   );
 }

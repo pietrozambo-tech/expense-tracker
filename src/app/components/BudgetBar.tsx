@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { X } from 'lucide-react';
-import { formatAmountListView, CURRENCIES } from '../utils/currency';
+import { formatAmountListView, formatAbbreviatedAmount, CURRENCIES } from '../utils/currency';
 import { FitText } from './FitText';
 
 // Softer than the iOS system colours the rest of the app uses for accents. A
@@ -67,7 +67,13 @@ export function BudgetBar({ spent, budget, currency, daysLeft, monthProgress }: 
           {/* Two amounts and a currency code can outgrow the row - let them
               shrink rather than ellipsise the number the card exists to show. */}
           <div className="min-w-0 flex-1 text-right">
-            <FitText max={13} min={10} className="tabular-nums" style={{ color: '#8E8E93' }}>
+            <FitText
+              max={13}
+              min={11}
+              compact={`${formatAbbreviatedAmount(spent, currency)} of ${formatAbbreviatedAmount(budget, currency)}`}
+              className="tabular-nums"
+              style={{ color: '#8E8E93' }}
+            >
               <span style={{ color: over ? tone.text : '#1C1C1E', fontWeight: 600 }}>
                 {formatAmountListView(spent, currency, 0)}
               </span>

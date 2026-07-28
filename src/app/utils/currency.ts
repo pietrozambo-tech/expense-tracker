@@ -144,6 +144,25 @@ export const formatSummaryAmount = (amount: number, currencyCode: string): strin
     : `${withSign}${sep}${currency.symbol}`;
 };
 
+// The shortest honest rendering of an amount: "86.4K CHF", "1.2MM CHF".
+//
+// Only for the fallback in FitText, when the full number cannot fit the space
+// available - abbreviating loses precision, so it is never the first choice.
+// "MM" for millions matches the Trend tab's existing notation.
+export const formatAbbreviatedAmount = (amount: number, currencyCode: string): string => {
+  if (amount === null || amount === undefined) amount = 0;
+
+  const abs = Math.abs(amount);
+  if (abs < 10000) return formatAmountListView(amount, currencyCode, 0);
+
+  const currency = CURRENCIES[currencyCode] || CURRENCIES.EUR;
+  const [scaled, suffix] = abs >= 1000000 ? [amount / 1000000, 'MM'] : [amount / 1000, 'K'];
+  // One decimal, but "86.0K" reads worse than "86K".
+  const number = scaled.toFixed(1).replace(/\.0$/, '');
+  const sep = currency.symbol.length > 1 ? ' ' : '';
+  return `${number}${suffix}${sep}${currency.symbol}`;
+};
+
 // Format amount with currency symbol ALWAYS after the number (for list views)
 export const formatAmountListView = (amount: number, currencyCode: string, decimals: number = 2): string => {
   // Handle null/undefined amounts

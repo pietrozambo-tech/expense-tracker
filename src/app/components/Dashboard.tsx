@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { ChevronRight, ArrowUpDown, TrendingUp, TrendingDown, Minus, Plus, Calendar, Receipt, ChevronLeft, ChevronDown, X, Clock, Wallet, Percent, PiggyBank } from 'lucide-react';
 import { TrendCategoryBreakdown } from './TrendCategoryBreakdown';
 import React from 'react';
-import { formatAmount, formatCompactAmount, formatSummaryAmount, formatAmountListView, CURRENCIES, homeAmount } from '../utils/currency';
+import { formatAmount, formatCompactAmount, formatSummaryAmount, formatAmountListView, formatAbbreviatedAmount, CURRENCIES, homeAmount } from '../utils/currency';
 import { getCategoryIcon } from './categoryIcons';
 import { BudgetBar, BudgetNudge } from './BudgetBar';
 import { FitText } from './FitText';
@@ -1216,7 +1216,13 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="text-[11px] leading-tight mb-1" style={{ color: 'rgba(235,235,245,0.6)' }}>Spending</div>
-                        <FitText max={17} min={11} className="font-bold leading-none tabular-nums" style={{ color: '#FFFFFF' }}>
+                        <FitText
+                          max={17}
+                          min={14}
+                          compact={formatAbbreviatedAmount(totalSpending, currency)}
+                          className="font-bold leading-none tabular-nums"
+                          style={{ color: '#FFFFFF' }}
+                        >
                           {formatAmountListView(totalSpending, currency, 0)}
                         </FitText>
                       </div>
@@ -1228,7 +1234,13 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="text-[11px] leading-tight mb-1" style={{ color: 'rgba(235,235,245,0.6)' }}>Income</div>
-                        <FitText max={17} min={11} className="font-bold leading-none tabular-nums" style={{ color: '#FFFFFF' }}>
+                        <FitText
+                          max={17}
+                          min={14}
+                          compact={formatAbbreviatedAmount(totalIncome, currency)}
+                          className="font-bold leading-none tabular-nums"
+                          style={{ color: '#FFFFFF' }}
+                        >
                           {formatAmountListView(totalIncome, currency, 0)}
                         </FitText>
                       </div>
@@ -1248,7 +1260,8 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                         <div className="text-[11px] leading-tight mb-1" style={{ color: 'rgba(235,235,245,0.6)' }}>Savings</div>
                         <FitText
                           max={17}
-                          min={11}
+                          min={14}
+                          compact={formatAbbreviatedAmount(savings, currency)}
                           className="font-bold leading-none tabular-nums"
                           style={{ color: savings < 0 ? '#FF6961' : savings > 0 ? '#30D158' : '#FFFFFF' }}
                         >
