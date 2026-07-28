@@ -6,9 +6,13 @@
 // collecting something new, or drops a provider, this file has to change with
 // it - it is a promise, not decoration.
 //
-// NOT LEGAL ADVICE. A lawyer should read this before launch, and two clauses
-// still need facts only the owner has: the legal entity behind "Zambop", and
-// the governing law / jurisdiction for disputes.
+// NOT LEGAL ADVICE. A lawyer should read this before launch. One clause is
+// still missing: the governing law and jurisdiction for disputes, which depends
+// on where the owner is resident.
+//
+// Trackly is run by one person, not a company. Naming him matters: data
+// protection law requires whoever decides how personal data is used to be
+// identifiable, and "Zambop" is a nickname, not a legal identity.
 
 export interface LegalSection {
   heading: string;
@@ -24,6 +28,7 @@ export interface LegalDoc {
 }
 
 export const SUPPORT_EMAIL = 'support@tracklylab.com';
+export const OWNER_NAME = 'Pietro Zamboni';
 const UPDATED = '28 July 2026';
 
 export const PRIVACY_POLICY: LegalDoc = {
@@ -33,6 +38,13 @@ export const PRIVACY_POLICY: LegalDoc = {
   intro:
     'Trackly is built device-first. If you use it without an account, what you record never leaves your phone. This policy explains exactly what is stored, where, and who can see it.',
   sections: [
+    {
+      heading: 'Who is responsible',
+      body: [
+        `Trackly is made and run by ${OWNER_NAME}, an individual developer, who also goes by Zambop. It is not operated by a company.`,
+        `For anything about your data, or about this policy, write to ${SUPPORT_EMAIL}.`,
+      ],
+    },
     {
       heading: 'The short version',
       body: [
@@ -120,6 +132,12 @@ export const TERMS_OF_SERVICE: LegalDoc = {
   updated: UPDATED,
   intro: 'These terms cover your use of Trackly. Using the app means you accept them.',
   sections: [
+    {
+      heading: 'Who you are agreeing with',
+      body: [
+        `These terms are an agreement between you and ${OWNER_NAME}, the individual who makes and runs Trackly. There is no company behind it.`,
+      ],
+    },
     {
       heading: 'What Trackly is',
       body: [
