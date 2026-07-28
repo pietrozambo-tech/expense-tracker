@@ -1627,7 +1627,12 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                                   <button
                                     key={`${sub.name}-${subIdx}`}
                                     onClick={() => setDrilldownContext({ categoryName: item.name, subcategoryName: sub.name })}
-                                    className="flex items-center justify-between gap-3 py-1 w-full text-left active:bg-neutral-100 rounded-md px-1 transition-colors"
+                                    // pr-0, not px-1: the left padding gives the
+                                    // label clearance from the vertical rule, but
+                                    // padding on the right would inset the figures
+                                    // 4px from the parent row's, which is visible
+                                    // as soon as the two are stacked.
+                                    className="flex items-center justify-between gap-3 py-1 w-full text-left active:bg-neutral-100 rounded-md pl-1 pr-0 transition-colors"
                                   >
                                     <div className="flex-1 min-w-0">
                                       <div className="text-neutral-500 text-xs truncate">{sub.name}</div>
@@ -1668,7 +1673,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                               {extras.otherCount > 0 && (
                                 <button
                                   onClick={() => setDrilldownContext({ categoryName: item.name, subcategoryName: UNCATEGORIZED })}
-                                  className="flex items-center justify-between gap-3 py-1 w-full text-left active:bg-neutral-100 rounded-md px-1 transition-colors"
+                                  className="flex items-center justify-between gap-3 py-1 w-full text-left active:bg-neutral-100 rounded-md pl-1 pr-0 transition-colors"
                                 >
                                   <div className="flex-1 min-w-0">
                                     <div className="text-neutral-400 text-xs truncate italic">Other</div>
