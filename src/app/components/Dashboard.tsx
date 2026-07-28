@@ -793,23 +793,27 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
     return currentAmount > previousAmount ? 'up' : 'down';
   };
 
-  // What the arrows are measured against, for the label above the list. Says
-  // "so far" while the period is still running, because the previous one is
-  // being cut to the same point rather than taken whole.
+  // What the arrows are measured against, for the label above the last column.
+  // Kept as short as it can be said: the shorter it is, the more it reads as a
+  // heading for that one column rather than a note about the whole card.
+  //
+  // No "so far" qualifier on a period in progress. It was there to admit the
+  // comparison was lopsided; now that the previous period is cut to the same
+  // number of days elapsed, "vs. Jun" is simply true.
   const comparisonLabel = () => {
-    const partial = isAtCurrentPeriod() ? ' so far' : '';
     switch (timePeriodType) {
       case 'month': {
         const prev = new Date(selectedYear, selectedMonth - 1, 1);
-        return `vs. ${prev.toLocaleDateString('en-US', { month: 'long' })}${partial}`;
+        return `vs. ${prev.toLocaleDateString('en-US', { month: 'short' })}`;
       }
       case 'quarter': {
         const prevQ = selectedQuarter === 0 ? 4 : selectedQuarter;
         const prevY = selectedQuarter === 0 ? selectedYear - 1 : selectedYear;
-        return `vs. Q${prevQ}${prevY !== selectedYear ? ` ${prevY}` : ''}${partial}`;
+        // The year only when the quarter belongs to a different one.
+        return `vs. Q${prevQ}${prevY !== selectedYear ? ` ${prevY}` : ''}`;
       }
       case 'year':
-        return `vs. ${selectedYear - 1}${partial}`;
+        return `vs. ${selectedYear - 1}`;
     }
   };
 
@@ -1524,10 +1528,8 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                       </span>
                     </button>
                   </div>
-                  {/* Below ~360px the heading, the sort button and this label
-                      do not fit on one line. */}
                   <span
-                    className="hidden min-[360px]:inline text-[10px] whitespace-nowrap text-right"
+                    className="text-[10px] whitespace-nowrap text-right flex-shrink-0"
                     style={{ color: '#A0A0A8' }}
                   >
                     {comparisonLabel()}
