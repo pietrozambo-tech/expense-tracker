@@ -89,7 +89,7 @@ export function TrendCategoryBreakdown({
     <div className="px-6 py-4 bg-white">
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-neutral-900 font-semibold text-sm">
-          Monthly average by category
+          Monthly Average by Category
         </h3>
         <button
           onClick={() => setCategorySortBy(categorySortBy === 'alphabetical' ? 'amount' : 'alphabetical')}

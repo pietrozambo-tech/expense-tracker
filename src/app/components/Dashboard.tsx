@@ -2053,33 +2053,6 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
               );
             }
 
-            // SVG donut parameters - reduced size
-            const size = 130;
-            const strokeWidth = 28;
-            const radius = (size - strokeWidth) / 2;
-            const circumference = 2 * Math.PI * radius;
-            const centerX = size / 2;
-            const centerY = size / 2;
-            
-            // Calculate segments
-            let currentAngle = -90; // Start at top
-            let cumulativeOffset = 0;
-            const segments = dataWithColors.map(item => {
-              const angle = (item.percentage / 100) * 360;
-              const dashArray = (item.percentage / 100) * circumference;
-              const segment = {
-                ...item,
-                startAngle: currentAngle,
-                endAngle: currentAngle + angle,
-                angle,
-                dashArray,
-                dashOffset: cumulativeOffset
-              };
-              currentAngle += angle;
-              cumulativeOffset += dashArray;
-              return segment;
-            });
-            
             return (
               <div className="px-6 mb-4">
                 <div className="rounded-2xl overflow-hidden" style={{ 
@@ -2092,7 +2065,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                       <h3 className="text-sm" style={{ color: '#1C1C1E', fontWeight: '600' }}>
                         One-off vs Recurring
                       </h3>
-                      {recurrenceLayer === 'detail' && (
+                      {recurrenceLayer === 'detail' ? (
                         <button
                           onClick={() => {
                             setRecurrenceLayer('overview');
@@ -2108,119 +2081,47 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                           <ChevronLeft size={14} />
                           <span>Back</span>
                         </button>
+                      ) : (
+                        /* The donut used to carry the total in its hole. */
+                        <span className="tabular-nums" style={{ color: '#8E8E93', fontSize: '12px' }}>
+                          {formatAmountListView(totalValue, currency, 0)}
+                        </span>
                       )}
                     </div>
                     
-                    {/* Donut Chart */}
-                    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '150px' }}>
-                      <div style={{ position: 'relative', width: size, height: size }}>
-                        <svg width={size} height={size} style={{ transform: 'rotate(0deg)' }}>
-                          {segments.map((segment, index) => {
-
-                            
-                            const isSelected = selectedRecurrenceSlice === segment.name;
-                            const opacity = selectedRecurrenceSlice === null || isSelected ? 1 : 0.3;
-                            
-                            return (
-                              <circle
-                                key={`${segment.name}-${index}`}
-                                cx={centerX}
-                                cy={centerY}
-                                r={radius}
-                                fill="none"
-                                stroke={segment.color}
-                                strokeWidth={isSelected ? strokeWidth + 4 : strokeWidth}
-                                strokeDasharray={`${segment.dashArray} ${circumference}`}
-                                strokeDashoffset={-segment.dashOffset}
-                                style={{
-                                  transform: `rotate(-90deg)`,
-                                  transformOrigin: `${centerX}px ${centerY}px`,
-                                  transition: 'all 0.3s ease',
-                                  cursor: 'pointer',
-                                  opacity
-                                }}
-                                onClick={() => {
-                                  if (segment.name === 'Recurring' && recurrenceLayer === 'overview') {
-                                    setRecurrenceLayer('detail');
-                                  } else {
-                                    setSelectedRecurrenceSlice(isSelected ? null : segment.name);
-                                  }
-                                }}
-                                strokeLinecap="butt"
-                              />
-                            );
-                          })}
-                        </svg>
-                        
-                        {/* Center Label */}
-                        <div
-                          style={{
-                            position: 'absolute',
-                            top: '50%',
-                            left: '50%',
-                            transform: 'translate(-50%, -50%)',
-                            textAlign: 'center',
-                            pointerEvents: 'none',
-                            transition: 'all 0.3s ease'
-                          }}
-                        >
-                          {selectedRecurrenceSlice ? (
-                            <>
-                              <p style={{ 
-                                color: '#1C1C1E', 
-                                fontSize: '13px', 
-                                fontWeight: '600', 
-                                marginTop: 0,
-                                marginLeft: 0,
-                                marginRight: 0,
-                                marginBottom: '2px'
-                              }}>
-                                {formatAmountListView(
-                                  dataWithColors.find(d => d.name === selectedRecurrenceSlice)?.value || 0,
-                                  currency,
-                                  0
-                                )}
-                              </p>
-                              <p style={{ 
-                                color: '#8E8E93', 
-                                fontSize: '10px', 
-                                marginTop: 0,
-                                marginLeft: 0,
-                                marginRight: 0,
-                                marginBottom: 0
-                              }}>
-                                {dataWithColors.find(d => d.name === selectedRecurrenceSlice)?.percentage.toFixed(0)}%
-                              </p>
-                            </>
-                          ) : (
-                            <>
-                              <p style={{ 
-                                color: '#8E8E93', 
-                                fontSize: '10px', 
-                                marginTop: 0,
-                                marginLeft: 0,
-                                marginRight: 0,
-                                marginBottom: '2px'
-                              }}>
-                                Total
-                              </p>
-                              <p style={{ 
-                                color: '#1C1C1E', 
-                                fontSize: '13px', 
-                                fontWeight: '600', 
-                                marginTop: 0,
-                                marginLeft: 0,
-                                marginRight: 0,
-                                marginBottom: 0
-                              }}>
-                                {formatAmountListView(totalValue, currency, 0)}
-                              </p>
-                            </>
-                          )}
-                        </div>
-                      </div>
+                    {/* Composition bar. A donut spent ~150px of height on a
+                        two-way split and repeated every number in the legend
+                        under it; the bar says the same thing in ten pixels and
+                        lines up with that legend. Segments stay clickable, so
+                        tapping Recurring still opens the breakdown. */}
+                    <div
+                      className="flex gap-0.5 h-2.5 rounded-full overflow-hidden mb-1"
+                      style={{ backgroundColor: '#F2F2F7' }}
+                    >
+                      {dataWithColors.map((item, index) => {
+                        const isSelected = selectedRecurrenceSlice === item.name;
+                        return (
+                          <button
+                            key={`bar-${item.name}-${index}`}
+                            aria-label={`${item.name}, ${item.percentage.toFixed(0)}%`}
+                            onClick={() => {
+                              if (item.name === 'Recurring' && recurrenceLayer === 'overview') {
+                                setRecurrenceLayer('detail');
+                              } else {
+                                setSelectedRecurrenceSlice(isSelected ? null : item.name);
+                              }
+                            }}
+                            style={{
+                              width: `${item.percentage}%`,
+                              backgroundColor: item.color,
+                              opacity: selectedRecurrenceSlice === null || isSelected ? 1 : 0.35,
+                              transition: 'opacity 0.2s',
+                            }}
+                          />
+                        );
+                      })}
                     </div>
-                    
+
                     {/* Legend */}
                     <div style={{ marginTop: '8px' }}>
                       {dataWithColors.map((item, index) => (
@@ -2855,7 +2756,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
             {/* Line Chart */}
             <div className="px-6 py-4 bg-white mb-2">
               <h3 className="text-neutral-900 font-semibold text-sm mb-3">
-                {transactionType === 'income' ? 'Monthly income' : transactionType === 'savings' ? 'Monthly savings' : 'Monthly spending'}
+                {transactionType === 'income' ? 'Monthly Income' : transactionType === 'savings' ? 'Monthly Savings' : 'Monthly Spending'}
               </h3>
               
               {trendData.length === 0 ? (
