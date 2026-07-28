@@ -34,5 +34,5 @@ export function platform(): string {
 // Custom URL scheme the native app registers, used as the OAuth redirect
 // target. Must match CFBundleURLSchemes in ios/App/App/Info.plist and be
 // allow-listed in Supabase → Authentication → URL Configuration.
-export const NATIVE_URL_SCHEME = 'com.tracklylab.trackly';
+export const NATIVE_URL_SCHEME = 'com.tracklylab.app';
 export const NATIVE_AUTH_REDIRECT = `${NATIVE_URL_SCHEME}://auth`;

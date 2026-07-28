@@ -1,4 +1,4 @@
-# Trackly - Your Expense Lens
+# TracklyLab - Your Expense Lens
 
 Track every expense in seconds - with clear insights into where your money goes.
 
@@ -78,7 +78,7 @@ Make it yours.
 - **Sources** - your accounts and cards: a library of 14 banks plus cash, or create custom ones with your own color and monogram. Defaults per direction (expense/income).
 - **Main currency** - switch anytime, from all ~150; every chart re-expresses instantly.
 - **Support** - send us a message **from inside the app**; we reply by email.
-- **Import data** - bring your history from anywhere: a ready-made **AI prompt** (personalized with *your* categories, sources and currency) turns any spreadsheet, bank statement, PDF or even screenshots into a Trackly file via ChatGPT/Claude/Gemini. Unmatched rows fall back to *Others* instead of being lost; mixed currencies supported.
+- **Import data** - bring your history from anywhere: a ready-made **AI prompt** (personalized with *your* categories, sources and currency) turns any spreadsheet, bank statement, PDF or even screenshots into a TracklyLab file via ChatGPT/Claude/Gemini. Unmatched rows fall back to *Others* instead of being lost; mixed currencies supported.
 - **Export data** - one-tap full backup (transactions, categories, sources, schedules, settings) as a file you own. Restoring it later brings everything back.
 - **Load demo data** - the same sample data as the tour, always removable without touching your own records.
 - **Danger zone** - *Erase all data* (start fresh, keep your account) vs *Delete account* (remove everything, everywhere) - clearly separated.
@@ -119,4 +119,4 @@ pnpm preview    # serve the production build
 
 App data lives in localStorage under versioned keys (`expense-tracker.v1.*`) with optional cloud sync to Supabase (one JSON record per user, RLS-protected). Storage layer: `src/app/lib/storage.ts` · types: `src/app/types.ts` · backup format: `src/app/lib/backup.ts` · recurrence engine: `src/app/lib/recurrence.ts` · FX engine: `src/app/lib/fx.ts`.
 
-Brought to you by **Zambop** · © Trackly
+Brought to you by **Zambop** · © TracklyLab

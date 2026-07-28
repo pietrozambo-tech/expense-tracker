@@ -23,7 +23,7 @@ export function renderLegalHtml(doc: LegalDoc): string {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${escapeHtml(doc.title)} - Trackly</title>
+<title>${escapeHtml(doc.title)} - TracklyLab</title>
 <style>
   :root { color-scheme: light dark; }
   body { margin: 0 auto; padding: 40px 24px 80px; max-width: 680px;
@@ -48,13 +48,13 @@ export function renderLegalHtml(doc: LegalDoc): string {
 </head>
 <body>
   <header>
-    <div class="brand">Trackly</div>
+    <div class="brand">TracklyLab</div>
     <h1>${escapeHtml(doc.title)}</h1>
     <p class="updated">Last updated ${escapeHtml(doc.updated)}</p>
   </header>
   <p class="intro">${escapeHtml(doc.intro)}</p>
 ${sections}
-  <footer>&copy; ${new Date().getFullYear()} Trackly &middot; <a href="./">Back to the app</a></footer>
+  <footer>&copy; ${new Date().getFullYear()} TracklyLab &middot; <a href="./">Back to the app</a></footer>
 </body>
 </html>
 `;

@@ -58,7 +58,7 @@ export function LegalScreen({ doc, onBack }: LegalScreenProps) {
           </div>
 
           <p style={{ color: '#B0B0B5', fontSize: 12, textAlign: 'center', margin: '16px 0 0' }}>
-            © {new Date().getFullYear()} Trackly
+            © {new Date().getFullYear()} TracklyLab
           </p>
         </div>
       </div>

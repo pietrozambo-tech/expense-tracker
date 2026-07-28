@@ -7,7 +7,7 @@
 // Secrets to set once:
 //   supabase secrets set RESEND_API_KEY=re_xxx
 //   (optional) supabase secrets set SUPPORT_TO=support@tracklylab.com
-//   (optional) supabase secrets set SUPPORT_FROM="Trackly <support@tracklylab.com>"
+//   (optional) supabase secrets set SUPPORT_FROM="TracklyLab <support@tracklylab.com>"
 //   NOTE: the FROM domain must be verified in Resend. Before the domain is
 //   verified you can test with SUPPORT_FROM="onboarding@resend.dev" (Resend only
 //   delivers that to the account owner's address).
@@ -76,7 +76,7 @@ Deno.serve(async (req: Request) => {
 
   const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
   if (!RESEND_API_KEY) return json(500, { error: 'Email is not configured yet' });
-  const FROM = Deno.env.get('SUPPORT_FROM') || 'Trackly <support@tracklylab.com>';
+  const FROM = Deno.env.get('SUPPORT_FROM') || 'TracklyLab <support@tracklylab.com>';
   const TO = Deno.env.get('SUPPORT_TO') || 'support@tracklylab.com';
 
   const meta = [
@@ -85,7 +85,7 @@ Deno.serve(async (req: Request) => {
     `Account: ${accountEmail || (isGuest ? 'guest (no account)' : 'unknown')}`,
     `Account ID: ${accountId || '—'}`,
     `Status: ${isGuest ? 'guest' : 'signed in'}`,
-    `App: Trackly v${appVersion}`,
+    `App: TracklyLab v${appVersion}`,
     `Device: ${userAgent || '—'}`,
   ].join('\n');
 
@@ -103,7 +103,7 @@ Deno.serve(async (req: Request) => {
       to: [TO],
       // Reply straight to the user. Prefer the form email; fall back to account.
       reply_to: replyEmail || accountEmail || undefined,
-      subject: `Trackly support${name ? ` — ${name}` : ''}`,
+      subject: `TracklyLab support${name ? ` — ${name}` : ''}`,
       text,
       html,
     }),

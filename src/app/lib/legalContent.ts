@@ -10,7 +10,7 @@
 // still missing: the governing law and jurisdiction for disputes, which depends
 // on where the owner is resident.
 //
-// Trackly is run by one person, not a company. Naming him matters: data
+// TracklyLab is run by one person, not a company. Naming him matters: data
 // protection law requires whoever decides how personal data is used to be
 // identifiable, and "Zambop" is a nickname, not a legal identity.
 
@@ -36,12 +36,12 @@ export const PRIVACY_POLICY: LegalDoc = {
   title: 'Privacy Policy',
   updated: UPDATED,
   intro:
-    'Trackly is built device-first. If you use it without an account, what you record never leaves your phone. This policy explains exactly what is stored, where, and who can see it.',
+    'TracklyLab is built device-first. If you use it without an account, what you record never leaves your phone. This policy explains exactly what is stored, where, and who can see it.',
   sections: [
     {
       heading: 'Who is responsible',
       body: [
-        `Trackly is made and run by ${OWNER_NAME}, an individual developer, who also goes by Zambop. It is not operated by a company.`,
+        `TracklyLab is made and run by ${OWNER_NAME}, an individual developer, who also goes by Zambop. It is not operated by a company.`,
         `For anything about your data, or about this policy, write to ${SUPPORT_EMAIL}.`,
       ],
     },
@@ -55,7 +55,7 @@ export const PRIVACY_POLICY: LegalDoc = {
       ],
     },
     {
-      heading: 'Using Trackly without an account',
+      heading: 'Using TracklyLab without an account',
       body: [
         'In guest mode, your transactions, categories, sources and settings are saved in your browser or app storage on your own device. They are not sent to us and we cannot read them.',
         'Because that data lives only on your device, clearing your browser storage, deleting the app, or losing the device will lose it. Settings > Export data saves a full copy you keep yourself.',
@@ -65,16 +65,16 @@ export const PRIVACY_POLICY: LegalDoc = {
       heading: 'When you sign in',
       body: [
         'Signing in with Google shares your name, email address and profile photo with us, so we can identify your account and show your picture in Settings. We never receive your Google password.',
-        'Once signed in, your Trackly data is stored in our database as a single record belonging to your account, so it can follow you across devices.',
-        `Row-level security means no other Trackly user can read that record. It is not, however, encrypted in a way that hides it from us: as the person who runs the service, ${OWNER_NAME} holds the administrative keys to the database, because operating, backing up and supporting it requires them. Your transactions are not read, and are never used for anything other than making the app work for you.`,
-        'If you would rather nothing of yours ever left your device, use Trackly without signing in - guest mode keeps everything local, where we genuinely cannot reach it.',
+        'Once signed in, your TracklyLab data is stored in our database as a single record belonging to your account, so it can follow you across devices.',
+        `Row-level security means no other TracklyLab user can read that record. It is not, however, encrypted in a way that hides it from us: as the person who runs the service, ${OWNER_NAME} holds the administrative keys to the database, because operating, backing up and supporting it requires them. Your transactions are not read, and are never used for anything other than making the app work for you.`,
+        'If you would rather nothing of yours ever left your device, use TracklyLab without signing in - guest mode keeps everything local, where we genuinely cannot reach it.',
       ],
     },
     {
       heading: 'What we collect',
       body: [
         'Account details: your name, email address and profile photo from the sign-in provider you choose.',
-        'Your Trackly data, but only if you are signed in: transactions, categories, sources, recurring schedules, budget and preferences.',
+        'Your TracklyLab data, but only if you are signed in: transactions, categories, sources, recurring schedules, budget and preferences.',
         'Usage analytics: which screens are opened and which features are used, plus general technical information such as device type, browser and approximate region derived from your IP address. These events never include transaction descriptions, amounts, categories, sources or your budget.',
         'Support messages: if you write to us from Settings > Support, we receive your message and the email address you give us so we can reply.',
       ],
@@ -111,7 +111,7 @@ export const PRIVACY_POLICY: LegalDoc = {
     },
     {
       heading: 'Children',
-      body: ['Trackly is not intended for children, and we do not knowingly collect their data.'],
+      body: ['TracklyLab is not intended for children, and we do not knowingly collect their data.'],
     },
     {
       heading: 'Changes to this policy',
@@ -132,45 +132,45 @@ export const TERMS_OF_SERVICE: LegalDoc = {
   slug: 'terms',
   title: 'Terms of Service',
   updated: UPDATED,
-  intro: 'These terms cover your use of Trackly. Using the app means you accept them.',
+  intro: 'These terms cover your use of TracklyLab. Using the app means you accept them.',
   sections: [
     {
       heading: 'Who you are agreeing with',
       body: [
-        `These terms are an agreement between you and ${OWNER_NAME}, the individual who makes and runs Trackly. There is no company behind it.`,
+        `These terms are an agreement between you and ${OWNER_NAME}, the individual who makes and runs TracklyLab. There is no company behind it.`,
       ],
     },
     {
-      heading: 'What Trackly is',
+      heading: 'What TracklyLab is',
       body: [
-        'Trackly is a personal expense tracker. It records what you tell it and shows you summaries, charts and trends based on that.',
+        'TracklyLab is a personal expense tracker. It records what you tell it and shows you summaries, charts and trends based on that.',
         'It is an informational tool, not financial, tax, investment or legal advice. Every figure it shows depends on what you enter, and converted amounts rely on third-party exchange rates that are indicative rather than exact. Please do not treat its output as a substitute for your bank statements or professional advice.',
       ],
     },
     {
       heading: 'Your account',
       body: [
-        'You may use Trackly without an account. If you create one, keep access to it secure - anyone who can use your sign-in can see your data.',
+        'You may use TracklyLab without an account. If you create one, keep access to it secure - anyone who can use your sign-in can see your data.',
         'You are responsible for what happens under your account.',
       ],
     },
     {
       heading: 'Your data belongs to you',
       body: [
-        'The transactions and other content you put into Trackly are yours. You give us permission only to store, process and sync them so the app can work for you.',
+        'The transactions and other content you put into TracklyLab are yours. You give us permission only to store, process and sync them so the app can work for you.',
         'You can take a full copy with you at any time from Settings > Export data.',
       ],
     },
     {
       heading: 'Acceptable use',
       body: [
-        'Please do not use Trackly for anything unlawful, attempt to break, overload or gain unauthorised access to it, try to reach other people\'s data, or resell the service as your own.',
+        'Please do not use TracklyLab for anything unlawful, attempt to break, overload or gain unauthorised access to it, try to reach other people\'s data, or resell the service as your own.',
       ],
     },
     {
       heading: 'Availability',
       body: [
-        'Trackly is provided as it is and as available. It is offered free of charge, without any guarantee of uptime, and features may change or be withdrawn as it develops.',
+        'TracklyLab is provided as it is and as available. It is offered free of charge, without any guarantee of uptime, and features may change or be withdrawn as it develops.',
         'We back up your synced data, but you should keep your own exports of anything you cannot afford to lose.',
       ],
     },
@@ -184,14 +184,14 @@ export const TERMS_OF_SERVICE: LegalDoc = {
     {
       heading: 'Ending your use',
       body: [
-        'You can stop using Trackly at any time, and delete your account and data from Settings.',
+        'You can stop using TracklyLab at any time, and delete your account and data from Settings.',
         'We may suspend or end access if these terms are seriously or repeatedly broken.',
       ],
     },
     {
       heading: 'Changes to these terms',
       body: [
-        'We may update these terms as the app changes. The date at the top shows the current version, and continuing to use Trackly after a change means you accept it.',
+        'We may update these terms as the app changes. The date at the top shows the current version, and continuing to use TracklyLab after a change means you accept it.',
       ],
     },
     {

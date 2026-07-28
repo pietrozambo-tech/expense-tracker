@@ -5,7 +5,7 @@ interface TracklyLogoProps {
   className?: string;
 }
 
-// Placeholder Trackly mark: a rounded gradient tile with an upward "tracking"
+// Placeholder TracklyLab mark: a rounded gradient tile with an upward "tracking"
 // spark. Designed to be easily swapped for a final logo later.
 export function TracklyLogo({ size = 56, className }: TracklyLogoProps) {
   const gid = useId();

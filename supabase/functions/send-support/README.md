@@ -15,7 +15,7 @@ guests; guests provide a reply email in the form.
 supabase secrets set RESEND_API_KEY=re_xxxxxxxx
 # optional overrides (defaults shown):
 supabase secrets set SUPPORT_TO="support@tracklylab.com"
-supabase secrets set SUPPORT_FROM="Trackly <support@tracklylab.com>"
+supabase secrets set SUPPORT_FROM="TracklyLab <support@tracklylab.com>"
 
 supabase functions deploy send-support
 ```

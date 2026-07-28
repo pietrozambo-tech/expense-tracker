@@ -8,8 +8,8 @@ import type { CapacitorConfig } from '@capacitor/cli';
 // (build:native skips the service worker, which is pointless when the assets
 // are bundled inside the app.)
 const config: CapacitorConfig = {
-  appId: 'com.tracklylab.trackly',
-  appName: 'Trackly',
+  appId: 'com.tracklylab.app',
+  appName: 'TracklyLab',
   webDir: 'dist',
   ios: {
     // Let the web app own the full screen; we already handle safe-area insets

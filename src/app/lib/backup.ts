@@ -1,11 +1,12 @@
 import type { Category, RecurringRule, Source, Transaction } from '../types';
 
-// The single source of truth for Trackly's full-backup file format - written by
+// The single source of truth for TracklyLab's full-backup file format - written by
 // Settings > Export data and recognised again on Import (which restores it
 // instead of appending). `version` lets a future import migrate or reject
 // older/newer files instead of silently corrupting data.
 export interface BackupFile {
-  app: 'trackly';
+  // 'trackly' is the pre-rename value; old exports must restore forever.
+  app: 'tracklylab' | 'trackly';
   kind: 'backup';
   version: 1;
   exportedAt: string;
@@ -36,7 +37,7 @@ export function buildBackup(data: {
   recurringRules?: RecurringRule[];
 }): BackupFile {
   return {
-    app: 'trackly',
+    app: 'tracklylab',
     kind: 'backup',
     version: 1,
     exportedAt: new Date().toISOString(),
@@ -61,7 +62,7 @@ export function downloadBackup(backup: BackupFile) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `trackly-backup-${new Date().toISOString().slice(0, 10)}.json`;
+  a.download = `tracklylab-backup-${new Date().toISOString().slice(0, 10)}.json`;
   document.body.appendChild(a);
   a.click();
   a.remove();
@@ -79,5 +80,5 @@ export function isBackupFile(payload: unknown): boolean {
   if (!payload || typeof payload !== 'object') return false;
   const o = payload as Record<string, unknown>;
   // 'expense-tracker' kept for files exported before the format was consolidated.
-  return o.kind === 'backup' || o.app === 'trackly' || o.app === 'expense-tracker';
+  return o.kind === 'backup' || o.app === 'tracklylab' || o.app === 'trackly' || o.app === 'expense-tracker';
 }

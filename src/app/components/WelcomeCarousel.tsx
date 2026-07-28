@@ -419,11 +419,11 @@ export function WelcomeCarousel({ userName, onDone, onSetupCategories, onLoadDem
       illustration: (
         <div className="flex flex-col items-center justify-center" style={{ minHeight: 220 }}>
           <TracklyLogo size={92} />
-          <h2 style={{ color: '#1C1C1E', fontSize: 30, fontWeight: 700, letterSpacing: '-0.03em', marginTop: 18 }}>Trackly</h2>
+          <h2 style={{ color: '#1C1C1E', fontSize: 30, fontWeight: 700, letterSpacing: '-0.03em', marginTop: 18 }}>TracklyLab</h2>
           <p style={{ color: '#007AFF', fontSize: 15, fontWeight: 600, marginTop: 4, letterSpacing: '0.02em' }}>Your Expense Lens</p>
         </div>
       ),
-      title: userName ? `Welcome, ${userName} 👋` : 'Welcome to Trackly 👋',
+      title: userName ? `Welcome, ${userName} 👋` : 'Welcome to TracklyLab 👋',
       desc: 'A quick look at what you can do - it takes 20 seconds.',
     },
     {

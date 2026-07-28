@@ -90,7 +90,7 @@ export function SignIn() {
             {/* Brand hero */}
             <div className="flex flex-col items-center text-center pt-20 pb-8">
               <TracklyLogo size={64} className="mb-4" />
-              <h1 style={{ color: '#1C1C1E', fontSize: 34, fontWeight: 700, letterSpacing: '-0.03em', lineHeight: 1 }}>Trackly</h1>
+              <h1 style={{ color: '#1C1C1E', fontSize: 34, fontWeight: 700, letterSpacing: '-0.03em', lineHeight: 1 }}>TracklyLab</h1>
               <p className="mt-2.5" style={{ color: '#6B6B75', fontSize: 16, lineHeight: 1.4, maxWidth: 300 }}>{TAGLINE}</p>
             </div>
 

@@ -283,7 +283,7 @@ export function Settings({
       }
     } catch {
       toast.error("Couldn't read that file", {
-        description: 'Expected a Trackly import file (.json)',
+        description: 'Expected a TracklyLab import file (.json)',
         duration: 2400,
       });
     }
@@ -616,7 +616,7 @@ export function Settings({
           {/* Brand */}
           <div className="flex flex-col items-center text-center px-6 pt-6 pb-8">
             <TracklyLogo size={80} className="mb-4" />
-            <h2 style={{ color: '#1C1C1E', fontSize: '28px', fontWeight: 700, letterSpacing: '-0.03em' }}>Trackly</h2>
+            <h2 style={{ color: '#1C1C1E', fontSize: '28px', fontWeight: 700, letterSpacing: '-0.03em' }}>TracklyLab</h2>
             <p style={{ color: '#007AFF', fontSize: '14px', fontWeight: 600, marginTop: '4px', letterSpacing: '0.02em' }}>Your Expense Lens</p>
             <p style={{ color: '#8E8E93', fontSize: '13px', marginTop: '6px' }}>Version 0.1</p>
             <p style={{ color: '#6B6B75', fontSize: '15px', marginTop: '12px', maxWidth: 300, lineHeight: 1.5 }}>
@@ -650,7 +650,7 @@ export function Settings({
           {/* Privacy note */}
           <div className="px-6 mt-4">
             <p style={{ color: '#8E8E93', fontSize: '12px', lineHeight: 1.5, textAlign: 'center', maxWidth: 320, margin: '0 auto' }}>
-              Trackly uses privacy-friendly analytics to understand how the app is
+              TracklyLab uses privacy-friendly analytics to understand how the app is
               used and improve it. This never includes your transactions, amounts, or
               category details.
             </p>
@@ -659,7 +659,7 @@ export function Settings({
           {/* Signature */}
           <div className="mt-10 text-center px-6">
             <p style={{ color: '#B0B0B5', fontSize: '13px', fontStyle: 'italic' }}>Brought to you by Zambop</p>
-            <p style={{ color: '#C7C7CC', fontSize: '12px', marginTop: '4px' }}>© {new Date().getFullYear()} Trackly</p>
+            <p style={{ color: '#C7C7CC', fontSize: '12px', marginTop: '4px' }}>© {new Date().getFullYear()} TracklyLab</p>
           </div>
         </div>
       </div>
@@ -667,7 +667,7 @@ export function Settings({
   }
 
   // Show Import subpage — guides the user to turn their own spreadsheet into
-  // Trackly's import format using an AI assistant, then pick the file.
+  // TracklyLab's import format using an AI assistant, then pick the file.
   if (showImport) {
     const expList = categories
       .map((c: any) => `- ${c.name}${c.subcategories?.length ? ` (subcategories: ${c.subcategories.join(', ')})` : ''}`)
@@ -702,7 +702,7 @@ export function Settings({
     const fallbackLine = catchAll
       ? `- If nothing fits at all, use "${catchAll.name}" - never drop the row or leave the category blank.`
       : `- If nothing fits at all, pick my closest general category - never drop the row or leave it blank.`;
-    const importPrompt = `I want to import my expense & income history into an app called "Trackly".
+    const importPrompt = `I want to import my expense & income history into an app called "TracklyLab".
 
 I'll give you my data in whatever form I have it - an Excel/CSV spreadsheet, a bank or credit-card statement (PDF, CSV, or screenshots), photos or screenshots of a transaction list, or just a pasted table. Read ALL of it and turn EVERY transaction into ONE JSON file in EXACTLY this format:
 
@@ -721,7 +721,7 @@ FORMAT
 - "type": "expense" for money going out, "income" for money coming in.
 - A refund, cashback or money returned on a card: keep "type":"expense" but make "amount" NEGATIVE.
 - File "currency": "${userCurrency}" (my home currency) - the default for every row. Most statements are entirely in ${userCurrency}, so you leave it as is.
-- Per-row "currency": add this to a row ONLY when it's in a DIFFERENT currency (e.g. a foreign purchase). Put the amount exactly as shown in that currency plus its ISO code - do NOT convert it; Trackly does the conversion.
+- Per-row "currency": add this to a row ONLY when it's in a DIFFERENT currency (e.g. a foreign purchase). Put the amount exactly as shown in that currency plus its ISO code - do NOT convert it; TracklyLab does the conversion.
 - "description": a short, readable label. Clean up cryptic statement text (e.g. "SQ *BLUE BOTTLE 1234" → "Blue Bottle").
 ${sourceRule}
 
@@ -794,7 +794,7 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
             </h2>
             <p style={{ color: '#6B6B75', fontSize: 15, lineHeight: 1.5, marginTop: 8 }}>
               Got a spreadsheet, a bank statement, or even screenshots of your transactions? An AI assistant can
-              turn any of them into a Trackly file in seconds - no manual re-entry.
+              turn any of them into a TracklyLab file in seconds - no manual re-entry.
             </p>
           </div>
 
@@ -862,7 +862,7 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
             Choose file
           </button>
           <p style={{ color: '#A5A5AD', fontSize: 12, lineHeight: 1.5, marginTop: 10, textAlign: 'center' }}>
-            Imported transactions are added to your current data. Choosing a Trackly
+            Imported transactions are added to your current data. Choosing a TracklyLab
             backup file (from Export) restores it instead.
           </p>
         </div>
@@ -1210,7 +1210,7 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
 
         {/* Signature */}
         <div className="mt-8 mb-1 text-center">
-          <p style={{ color: '#B0B0B5', fontSize: '12px', fontWeight: 500 }}>Trackly · v0.1</p>
+          <p style={{ color: '#B0B0B5', fontSize: '12px', fontWeight: 500 }}>TracklyLab · v0.1</p>
           <p style={{ color: '#B0B0B5', fontSize: '12px', fontStyle: 'italic', marginTop: '2px' }}>
             Brought to you by Zambop
           </p>
@@ -1263,7 +1263,7 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
       {confirmAction === 'delete-account' && (
         <ConfirmDialog
           title="Delete your account?"
-          message="This permanently deletes your Trackly account and all your data - transactions, categories, sources and settings - from our servers and this device. This can't be undone."
+          message="This permanently deletes your TracklyLab account and all your data - transactions, categories, sources and settings - from our servers and this device. This can't be undone."
           confirmLabel="Delete account"
           onConfirm={handleDeleteAccountConfirm}
           onCancel={closeConfirm}

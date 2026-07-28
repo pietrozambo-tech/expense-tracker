@@ -1,6 +1,6 @@
 # delete-account
 
-Server-side account deletion for Trackly. Deletes the calling user's
+Server-side account deletion for TracklyLab. Deletes the calling user's
 `public.user_data` row **and** their `auth.users` identity. Runs with the
 service-role key (auto-provided by the Edge Function runtime), which is why it
 can't be done from the browser.

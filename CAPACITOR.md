@@ -1,4 +1,4 @@
-# Trackly on iOS (Capacitor)
+# TracklyLab on iOS (Capacitor)
 
 The native iOS app wraps the **same** web build that ships as the PWA. One
 codebase, two outputs — the PWA build is untouched by anything here.
@@ -55,7 +55,7 @@ through a custom URL scheme. Wire it up once:
 <array>
   <dict>
     <key>CFBundleURLSchemes</key>
-    <array><string>com.tracklylab.trackly</string></array>
+    <array><string>com.tracklylab.app</string></array>
   </dict>
 </array>
 ```
@@ -63,7 +63,7 @@ through a custom URL scheme. Wire it up once:
 **2. Supabase** → Authentication → URL Configuration → **Redirect URLs**, add:
 
 ```
-com.tracklylab.trackly://auth
+com.tracklylab.app://auth
 ```
 
 **3. Google Cloud Console** → the OAuth client → keep the existing Supabase

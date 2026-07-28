@@ -8,7 +8,7 @@ For the full, formatted version see [README.md](./README.md).
 
 ---
 
-📱 *Trackly - Your Expense Lens*
+📱 *TracklyLab - Your Expense Lens*
 Track every expense in seconds.
 
 👉 *Try it:* https://pietrozambo-tech.github.io/expense-tracker/
