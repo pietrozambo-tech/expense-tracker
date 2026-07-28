@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { ChevronRight, ArrowUpDown, TrendingUp, TrendingDown, Minus, Plus, Calendar, Receipt, ChevronLeft, ChevronDown, X, Clock, Wallet, Percent, PiggyBank } from 'lucide-react';
+import { ChevronRight, ArrowUpDown, TrendingUp, TrendingDown, Minus, Plus, Receipt, ChevronLeft, ChevronDown, X, Clock, Wallet, Percent } from 'lucide-react';
 import { TrendCategoryBreakdown } from './TrendCategoryBreakdown';
 import React from 'react';
 import { formatAmount, formatCompactAmount, formatSummaryAmount, formatAmountListView, formatAbbreviatedAmount, CURRENCIES, homeAmount } from '../utils/currency';
@@ -103,6 +103,55 @@ const TREND_STAT_CARD: React.CSSProperties = {
   boxShadow: '0 12px 30px rgba(28, 28, 30, 0.22)',
   border: '1px solid rgba(255, 255, 255, 0.06)',
 };
+
+// Headline number on the Trend tab. All three toggles use a pair of these, so
+// switching between Expenses, Income and Savings moves nothing but the values.
+//
+// The footnote is where the supporting count goes (months, transactions,
+// saving rate) - small, but at the same 10px as everywhere else in the app.
+function TrendStatCard({
+  label,
+  value,
+  compact,
+  footnote,
+  valueColor = '#FFFFFF',
+}: {
+  label: string;
+  value: string;
+  compact: string;
+  footnote?: string;
+  valueColor?: string;
+}) {
+  return (
+    <div className="rounded-2xl px-4 py-3.5 flex flex-col min-w-0" style={TREND_STAT_CARD}>
+      <div className="text-[11px] leading-tight mb-1.5" style={{ color: 'rgba(235,235,245,0.6)' }}>
+        {label}
+      </div>
+      {/* No padding on this wrapper: FitText measures its parent's clientWidth,
+          which would include the card's own padding. */}
+      <div className="min-w-0">
+        <FitText
+          max={17}
+          min={14}
+          compact={compact}
+          className="font-bold leading-none tabular-nums"
+          style={{ color: valueColor }}
+        >
+          {value}
+        </FitText>
+      </div>
+      {footnote && (
+        <div className="text-[10px] leading-tight mt-2" style={{ color: 'rgba(235,235,245,0.55)' }}>
+          {footnote}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Savings can be negative, and the sign is the whole point - so it is carried
+// by colour as well as the minus, in the shades the Overview hero already uses.
+const savingsColor = (value: number) => (value < 0 ? '#FF6961' : value > 0 ? '#30D158' : '#FFFFFF');
 
 export function Dashboard({ expenses, categories, incomeCategories, sources = [], userName, currency, onEditExpense, onDeleteExpense, view = 'overview', onShowOverview, initialPeriod, viewStateRef, monthlyBudget, budgetNudgeDismissed, onSetMonthlyBudget, onDismissBudgetNudge }: DashboardProps) {
   // Restore the previous view (period + drilldown) unless a Trend->Overview
@@ -2610,11 +2659,11 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
             {/* Summary Cards */}
             <div className="px-6 py-4 bg-white mb-2">
               {transactionType === 'savings' ? (() => {
-                // Calculate total income and spending across all months
-                let totalIncome = 0;
-                let totalSpending = 0;
+                // The saving rate is averaged across months rather than taken
+                // over the totals, so one unusually fat month cannot speak for
+                // all the others.
                 const monthlySavingRates: number[] = [];
-                
+
                 trendData.forEach(month => {
                   const monthStart = new Date(month.year, getMonthNumber(month.month), 1);
                   const monthEnd = new Date(month.year, getMonthNumber(month.month) + 1, 0, 23, 59, 59, 999);
@@ -2626,154 +2675,67 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                   
                   const monthIncome = monthExpenses.filter(e => e.type === 'income').reduce((sum, e) => sum + homeAmount(e, currency), 0);
                   const monthSpending = monthExpenses.filter(e => e.type !== 'income').reduce((sum, e) => sum + homeAmount(e, currency), 0);
-                  
-                  totalIncome += monthIncome;
-                  totalSpending += monthSpending;
-                  
+
                   if (monthIncome > 0) {
                     monthlySavingRates.push(((monthIncome - monthSpending) / monthIncome) * 100);
                   }
                 });
-                
-                const totalSavingRate = totalIncome > 0 ? ((totalIncome - totalSpending) / totalIncome) * 100 : 0;
-                const avgMonthlySavingRate = monthlySavingRates.length > 0 
-                  ? monthlySavingRates.reduce((sum, rate) => sum + rate, 0) / monthlySavingRates.length 
-                  : 0;
-                
-                return (
-                  <div className="grid grid-cols-[38%_62%] gap-2">
-                    {/* Total Savings Card */}
-                    <div className="bg-neutral-50 rounded-lg p-3 min-h-[88px] flex flex-col">
-                      <div className="flex items-center gap-1 mb-1">
-                        <PiggyBank className="w-3.5 h-3.5 flex-shrink-0 text-neutral-500" />
-                        <div className="text-neutral-500 text-[10px]">Total Savings</div>
-                      </div>
-                      <div className="flex-1 flex items-center">
-                        <div 
-                          className="font-bold text-2xl tabular-nums"
-                          style={{ 
-                            color: totalSpent < 0 ? '#EF4444' : totalSpent > 0 ? '#10B981' : '#1C1C1E'
-                          }}
-                        >
-                          {formatAmountListView(totalSpent, currency, 0)}
-                        </div>
-                      </div>
-                    </div>
 
-                    {/* Monthly Avg Card */}
-                    <div className="bg-neutral-50 rounded-lg p-3 flex flex-col justify-center min-h-[88px]">
-                      <div className="flex items-center justify-between gap-1 mb-1">
-                        <div className="flex items-center gap-1">
-                          <Calendar className="w-3 h-3 text-neutral-500" />
-                          <div className="text-neutral-500 text-[9px] whitespace-nowrap">Monthly Average</div>
-                        </div>
-                        <div className="text-neutral-400 text-[8px] whitespace-nowrap mr-1.5">Saving Rate</div>
-                      </div>
-                      
-                      <div className="flex items-center justify-between gap-3">
-                        <div 
-                          className="font-bold text-xl tabular-nums"
-                          style={{ 
-                            color: avgAmount < 0 ? '#EF4444' : avgAmount > 0 ? '#10B981' : '#1C1C1E'
-                          }}
-                        >
-                          {formatAmountListView(avgAmount, currency, 0)}
-                        </div>
-                        
-                        {/* Donut Chart for Saving Rate */}
-                        <div className="flex items-center flex-shrink-0">
-                          <div className="relative w-14 h-14">
-                            <svg className="w-14 h-14 transform -rotate-90" viewBox="0 0 36 36">
-                              {/* Background circle */}
-                              <circle
-                                cx="18"
-                                cy="18"
-                                r="15.5"
-                                fill="none"
-                                stroke="#E5E5E5"
-                                strokeWidth="3"
-                              />
-                              {/* Progress circle - only show if positive */}
-                              {avgMonthlySavingRate > 0 && (
-                                <circle
-                                  cx="18"
-                                  cy="18"
-                                  r="15.5"
-                                  fill="none"
-                                  stroke="#10B981"
-                                  strokeWidth="3"
-                                  strokeDasharray={`${Math.min(avgMonthlySavingRate, 100) * 0.974} 97.4`}
-                                  strokeLinecap="round"
-                                />
-                              )}
-                            </svg>
-                            {/* Percentage in the center */}
-                            <div className="absolute inset-0 flex items-center justify-center">
-                              <span 
-                                className="font-semibold text-[13px] tabular-nums"
-                                style={{ 
-                                  color: avgMonthlySavingRate < 0 ? '#EF4444' : avgMonthlySavingRate > 0 ? '#10B981' : '#1C1C1E'
-                                }}
-                              >
-                                {Math.round(avgMonthlySavingRate)}%
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })() : (() => {
-                // Two cards, styled after the Dashboard hero so the two tabs
-                // read as one app. What used to be a third "Transactions" tile
-                // is now a footnote on the total, where it belongs: it counts
-                // the same transactions the total is made of.
-                const months = trendData.length === 1 ? 'This month' : `${trendData.length} months`;
-                const txCount = trendData.reduce((sum, month) => sum + month.count, 0);
-                const footnote =
-                  transactionType === 'expense'
-                    ? `${months} · ${txCount} ${txCount === 1 ? 'transaction' : 'transactions'}`
-                    : months;
+                const avgMonthlySavingRate = monthlySavingRates.length > 0
+                  ? monthlySavingRates.reduce((sum, rate) => sum + rate, 0) / monthlySavingRates.length
+                  : 0;
 
                 return (
                   <div className="grid grid-cols-2 gap-2">
-                    <div className="rounded-2xl px-4 py-3.5 flex flex-col min-w-0" style={TREND_STAT_CARD}>
-                      <div className="text-[11px] leading-tight mb-1.5" style={{ color: 'rgba(235,235,245,0.6)' }}>
-                        {transactionType === 'expense' ? 'Total Spent' : 'Total Earned'}
-                      </div>
-                      <div className="min-w-0">
-                        <FitText
-                          max={17}
-                          min={14}
-                          compact={formatAbbreviatedAmount(totalSpent, currency)}
-                          className="font-bold leading-none tabular-nums"
-                          style={{ color: '#FFFFFF' }}
-                        >
-                          {formatAmountListView(totalSpent, currency, 0)}
-                        </FitText>
-                      </div>
-                      <div className="text-[10px] leading-tight mt-2" style={{ color: 'rgba(235,235,245,0.55)' }}>
-                        {footnote}
-                      </div>
-                    </div>
+                    <TrendStatCard
+                      label="Total Saved"
+                      value={formatAmountListView(totalSpent, currency, 0)}
+                      compact={formatAbbreviatedAmount(totalSpent, currency)}
+                      valueColor={savingsColor(totalSpent)}
+                      footnote={trendData.length === 1 ? "This month" : `${trendData.length} months`}
+                    />
+                    <TrendStatCard
+                      label="Monthly Average"
+                      value={formatAmountListView(avgAmount, currency, 0)}
+                      compact={formatAbbreviatedAmount(avgAmount, currency)}
+                      valueColor={savingsColor(avgAmount)}
+                      // A rate needs income to divide by. With none recorded there
+                      // is nothing to report, and "0%" would read as "you saved
+                      // nothing" - which is a different statement entirely.
+                      footnote={
+                        monthlySavingRates.length > 0
+                          ? `Saving rate ${Math.round(avgMonthlySavingRate)}%`
+                          : "No income recorded"
+                      }
+                    />
+                  </div>
+                );
+              })() : (() => {
+                // What used to be a standalone "Transactions" tile is now a
+                // footnote under each number it belongs to: how many
+                // transactions make up the total, and how many make up a
+                // typical month. Income gets neither - a count of salary
+                // payments is not a thing anyone wonders about.
+                const isExpense = transactionType === "expense";
+                const months = trendData.length === 1 ? "This month" : `${trendData.length} months`;
+                const txCount = trendData.reduce((sum, month) => sum + month.count, 0);
+                const avgTxCount = trendData.length > 0 ? Math.round(txCount / trendData.length) : 0;
+                const transactions = (n: number) => `${n} ${n === 1 ? "transaction" : "transactions"}`;
 
-                    <div className="rounded-2xl px-4 py-3.5 flex flex-col min-w-0" style={TREND_STAT_CARD}>
-                      <div className="text-[11px] leading-tight mb-1.5" style={{ color: 'rgba(235,235,245,0.6)' }}>
-                        Monthly Average
-                      </div>
-                      <div className="min-w-0">
-                        <FitText
-                          max={17}
-                          min={14}
-                          compact={formatAbbreviatedAmount(avgAmount, currency)}
-                          className="font-bold leading-none tabular-nums"
-                          style={{ color: '#FFFFFF' }}
-                        >
-                          {formatAmountListView(avgAmount, currency, 0)}
-                        </FitText>
-                      </div>
-                    </div>
+                return (
+                  <div className="grid grid-cols-2 gap-2">
+                    <TrendStatCard
+                      label={isExpense ? "Total Spent" : "Total Earned"}
+                      value={formatAmountListView(totalSpent, currency, 0)}
+                      compact={formatAbbreviatedAmount(totalSpent, currency)}
+                      footnote={isExpense ? `${months} · ${transactions(txCount)}` : months}
+                    />
+                    <TrendStatCard
+                      label="Monthly Average"
+                      value={formatAmountListView(avgAmount, currency, 0)}
+                      compact={formatAbbreviatedAmount(avgAmount, currency)}
+                      footnote={isExpense ? transactions(avgTxCount) : undefined}
+                    />
                   </div>
                 );
               })()}
