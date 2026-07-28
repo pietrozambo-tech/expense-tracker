@@ -5,6 +5,7 @@ import React from 'react';
 import { formatAmount, formatCompactAmount, formatSummaryAmount, formatAmountListView, CURRENCIES, homeAmount } from '../utils/currency';
 import { getCategoryIcon } from './categoryIcons';
 import { BudgetBar, BudgetNudge } from './BudgetBar';
+import { FitText } from './FitText';
 import { parseLocalDate } from '../lib/dates';
 import { CategoryFilterModal } from './CategoryFilterModal';
 import { SubcategoryFilterModal } from './SubcategoryFilterModal';
@@ -1213,11 +1214,11 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                       <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: 'rgba(255,105,97,0.16)' }}>
                         <Minus className="w-4 h-4" style={{ color: '#FF6961' }} strokeWidth={3} />
                       </div>
-                      <div className="min-w-0">
+                      <div className="min-w-0 flex-1">
                         <div className="text-[11px] leading-tight mb-1" style={{ color: 'rgba(235,235,245,0.6)' }}>Spending</div>
-                        <div className="font-bold text-[17px] leading-none tabular-nums truncate" style={{ color: '#FFFFFF' }}>
+                        <FitText max={17} min={11} className="font-bold leading-none tabular-nums" style={{ color: '#FFFFFF' }}>
                           {formatAmountListView(totalSpending, currency, 0)}
-                        </div>
+                        </FitText>
                       </div>
                     </div>
                     <div className="w-px self-stretch mx-3" style={{ backgroundColor: 'rgba(255,255,255,0.07)' }} />
@@ -1225,11 +1226,11 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                       <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: 'rgba(48,209,88,0.16)' }}>
                         <Plus className="w-4 h-4" style={{ color: '#30D158' }} strokeWidth={3} />
                       </div>
-                      <div className="min-w-0">
+                      <div className="min-w-0 flex-1">
                         <div className="text-[11px] leading-tight mb-1" style={{ color: 'rgba(235,235,245,0.6)' }}>Income</div>
-                        <div className="font-bold text-[17px] leading-none tabular-nums truncate" style={{ color: '#FFFFFF' }}>
+                        <FitText max={17} min={11} className="font-bold leading-none tabular-nums" style={{ color: '#FFFFFF' }}>
                           {formatAmountListView(totalIncome, currency, 0)}
-                        </div>
+                        </FitText>
                       </div>
                     </div>
                   </div>
@@ -1243,14 +1244,16 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                       <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: 'rgba(100,160,255,0.16)' }}>
                         <Wallet className="w-4 h-4" style={{ color: '#64A0FF' }} strokeWidth={2.5} />
                       </div>
-                      <div className="min-w-0">
+                      <div className="min-w-0 flex-1">
                         <div className="text-[11px] leading-tight mb-1" style={{ color: 'rgba(235,235,245,0.6)' }}>Savings</div>
-                        <div
-                          className="font-bold text-[17px] leading-none tabular-nums truncate"
+                        <FitText
+                          max={17}
+                          min={11}
+                          className="font-bold leading-none tabular-nums"
                           style={{ color: savings < 0 ? '#FF6961' : savings > 0 ? '#30D158' : '#FFFFFF' }}
                         >
                           {formatAmountListView(savings, currency, 0)}
-                        </div>
+                        </FitText>
                       </div>
                     </div>
                     <div className="w-px self-stretch mx-3" style={{ backgroundColor: 'rgba(255,255,255,0.07)' }} />
@@ -1258,14 +1261,16 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                       <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: 'rgba(100,160,255,0.16)' }}>
                         <Percent className="w-4 h-4" style={{ color: '#64A0FF' }} strokeWidth={2.5} />
                       </div>
-                      <div className="min-w-0">
+                      <div className="min-w-0 flex-1">
                         <div className="text-[11px] leading-tight mb-1" style={{ color: 'rgba(235,235,245,0.6)' }}>Saving Rate</div>
-                        <div
-                          className="font-bold text-[17px] leading-none tabular-nums truncate"
+                        <FitText
+                          max={17}
+                          min={11}
+                          className="font-bold leading-none tabular-nums"
                           style={{ color: savings < 0 ? '#FF6961' : savings > 0 ? '#30D158' : '#FFFFFF' }}
                         >
                           {totalIncome > 0 ? `${Math.round((savings / totalIncome) * 100)}%` : '-'}
-                        </div>
+                        </FitText>
                       </div>
                     </div>
                   </div>

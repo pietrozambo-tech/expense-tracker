@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { X } from 'lucide-react';
 import { formatAmountListView, CURRENCIES } from '../utils/currency';
+import { FitText } from './FitText';
 
 // Softer than the iOS system colours the rest of the app uses for accents. A
 // full-width bar is a lot more pixels than an icon, so #FF3B30/#30D158 at full
@@ -59,15 +60,21 @@ export function BudgetBar({ spent, budget, currency, daysLeft, monthProgress }: 
   return (
     <div className="px-6 mb-4">
       <div className="rounded-2xl px-4 py-3.5 bg-white shadow-sm">
-        <div className="flex items-baseline justify-between mb-2">
-          <span style={{ color: '#1C1C1E', fontSize: 13, fontWeight: 600 }}>Monthly budget</span>
-          <span className="tabular-nums" style={{ color: '#8E8E93', fontSize: 13 }}>
-            <span style={{ color: over ? tone.text : '#1C1C1E', fontWeight: 600 }}>
-              {formatAmountListView(spent, currency, 0)}
-            </span>
-            {' of '}
-            {formatAmountListView(budget, currency, 0)}
+        <div className="flex items-baseline justify-between mb-2 gap-2">
+          <span className="flex-shrink-0" style={{ color: '#1C1C1E', fontSize: 13, fontWeight: 600 }}>
+            Monthly budget
           </span>
+          {/* Two amounts and a currency code can outgrow the row - let them
+              shrink rather than ellipsise the number the card exists to show. */}
+          <div className="min-w-0 flex-1 text-right">
+            <FitText max={13} min={10} className="tabular-nums" style={{ color: '#8E8E93' }}>
+              <span style={{ color: over ? tone.text : '#1C1C1E', fontWeight: 600 }}>
+                {formatAmountListView(spent, currency, 0)}
+              </span>
+              {' of '}
+              {formatAmountListView(budget, currency, 0)}
+            </FitText>
+          </div>
         </div>
 
         {/* Track */}
