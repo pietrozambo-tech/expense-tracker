@@ -12,6 +12,8 @@ import { TracklyLogo } from './TracklyLogo';
 import { ConfirmDialog } from './ConfirmDialog';
 import { CURRENCIES, MAIN_CURRENCY_CODES } from '../utils/currency';
 import { CurrencySearchList } from './CurrencySearchList';
+import { LegalScreen } from './LegalScreen';
+import { PRIVACY_POLICY, TERMS_OF_SERVICE, type LegalDoc } from '../lib/legalContent';
 import type { Source } from '../types';
 import type { ImportPayload } from '../lib/importData';
 import { isBackupFile } from '../lib/backup';
@@ -113,6 +115,7 @@ export function Settings({
   const [showCategories, setShowCategories] = useState(false);
   const [showSources, setShowSources] = useState(false);
   const [showAbout, setShowAbout] = useState(false);
+  const [legalDoc, setLegalDoc] = useState<LegalDoc | null>(null);
   const [showImport, setShowImport] = useState(false);
   const [categoryType, setCategoryType] = useState<'expense' | 'income'>('expense');
   const [showCurrencySelector, setShowCurrencySelector] = useState(false);
@@ -133,7 +136,7 @@ export function Settings({
   // scroll position of the main Settings list.
   useEffect(() => {
     window.scrollTo(0, 0);
-  }, [showCategories, showSources, showAbout, showImport, showCurrencySelector, showNameEditor, showSupport]);
+  }, [showCategories, showSources, showAbout, showImport, showCurrencySelector, showNameEditor, showSupport, legalDoc]);
 
   const openSupport = () => {
     setSupportSent(false);
@@ -585,6 +588,12 @@ export function Settings({
     );
   }
 
+  // Show a legal document. Checked before About so that closing it lands back
+  // on the About screen the link was tapped from.
+  if (legalDoc) {
+    return <LegalScreen doc={legalDoc} onBack={() => setLegalDoc(null)} />;
+  }
+
   // Show About subpage
   if (showAbout) {
     return (
@@ -618,12 +627,19 @@ export function Settings({
           {/* Links */}
           <div className="px-6">
             <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
-              <button className="w-full flex items-center gap-3 px-5 py-4 active:bg-neutral-100 transition-colors" style={{ borderBottom: '1px solid #F2F2F7' }}>
+              <button
+                onClick={() => setLegalDoc(PRIVACY_POLICY)}
+                className="w-full flex items-center gap-3 px-5 py-4 active:bg-neutral-100 transition-colors"
+                style={{ borderBottom: '1px solid #F2F2F7' }}
+              >
                 <ShieldCheck className="w-5 h-5" style={{ color: '#8E8E93' }} strokeWidth={2} />
                 <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '16px' }}>Privacy Policy</span>
                 <ChevronRight className="w-5 h-5" style={{ color: '#C7C7CC' }} />
               </button>
-              <button className="w-full flex items-center gap-3 px-5 py-4 active:bg-neutral-100 transition-colors">
+              <button
+                onClick={() => setLegalDoc(TERMS_OF_SERVICE)}
+                className="w-full flex items-center gap-3 px-5 py-4 active:bg-neutral-100 transition-colors"
+              >
                 <ScrollText className="w-5 h-5" style={{ color: '#8E8E93' }} strokeWidth={2} />
                 <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '16px' }}>Terms of Service</span>
                 <ChevronRight className="w-5 h-5" style={{ color: '#C7C7CC' }} />

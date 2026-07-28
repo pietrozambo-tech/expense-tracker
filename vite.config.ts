@@ -3,6 +3,8 @@ import path from 'path'
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
+import { LEGAL_DOCS } from './src/app/lib/legalContent'
+import { renderLegalHtml } from './src/app/lib/legalHtml'
 
 
 function figmaAssetResolver() {
@@ -12,6 +14,20 @@ function figmaAssetResolver() {
       if (id.startsWith('figma:asset/')) {
         const filename = id.replace('figma:asset/', '')
         return path.resolve(__dirname, 'src/assets', filename)
+      }
+    },
+  }
+}
+
+// Emit the Privacy Policy and Terms as standalone pages alongside the app, so
+// they have real URLs to give App Store Connect. Generated from the same module
+// the in-app screens render, which keeps the two versions identical.
+function legalPages() {
+  return {
+    name: 'legal-pages',
+    generateBundle() {
+      for (const doc of LEGAL_DOCS) {
+        this.emitFile({ type: 'asset', fileName: `${doc.slug}.html`, source: renderLegalHtml(doc) })
       }
     },
   }
@@ -28,6 +44,7 @@ export default defineConfig({
   base: './',
   plugins: [
     figmaAssetResolver(),
+    legalPages(),
     // The React and Tailwind plugins are both required for Make, even if
     // Tailwind is not being actively used – do not remove them
     react({
