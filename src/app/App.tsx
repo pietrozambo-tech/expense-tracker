@@ -1164,14 +1164,18 @@ export default function App() {
     );
   }
 
+  // On anything wider than a phone the app stays a phone-width column - but the
+  // page behind it goes a shade darker so the margins read as a frame rather
+  // than as space we forgot to fill. Every rule for that is md: only, so the
+  // phone rendering is untouched.
   return (
-    <div className="min-h-screen" style={{ backgroundColor: '#F5F5F7' }}>
+    <div className="min-h-screen bg-[#F5F5F7] md:bg-[#EBEBEF]">
       <Toaster position="top-center" />
-      
+
       {/* iPhone 14 Container — Activity needs an exact viewport height so only
           its transaction list scrolls; other tabs scroll as a whole page */}
       <div
-        className={`max-w-[430px] mx-auto flex flex-col ${currentTab === 'activity' ? 'overflow-hidden' : 'min-h-screen'}`}
+        className={`max-w-[430px] mx-auto flex flex-col md:shadow-[0_0_40px_rgba(0,0,0,0.07)] ${currentTab === 'activity' ? 'overflow-hidden' : 'min-h-screen'}`}
         style={{ backgroundColor: '#F5F5F7', ...(currentTab === 'activity' ? { height: '100dvh' } : {}) }}
       >
         {/* Status Bar Space — clears the iOS status bar when installed, minimal in a browser tab */}
@@ -1282,26 +1286,35 @@ export default function App() {
           </div>
         )}
         
-        {/* Bottom Navigation Bar - Only show when NOT in Add mode AND no modals are open */}
+        {/* Bottom Navigation Bar - Only show when NOT in Add mode AND no modals
+            are open.
+
+            Phone: the bar itself carries the dark surface, edge to edge. Wide
+            screens: the bar goes transparent and the layer inside it draws that
+            surface across the column only - stretched the full width it reads as
+            a desktop taskbar sitting under an unrelated app.
+
+            The phone styles are classes rather than inline so the md: variants
+            can switch them off. Keeping them on this element, rather than moving
+            them to the layer for both breakpoints, matters: backdrop-filter on
+            an ancestor changes how the labels inside it are antialiased, and
+            moving it shifted every label by a shade. */}
         {currentTab !== 'add' && !isModalOpen && (
           <div
-            className="fixed bottom-0 left-0 right-0 z-40"
+            className="fixed bottom-0 left-0 right-0 z-40 bg-[rgba(28,28,30,0.92)] backdrop-blur-[20px] shadow-[0_-2px_10px_rgba(0,0,0,0.1)] md:bg-transparent md:backdrop-blur-none md:shadow-none"
             style={{
-              background: 'rgba(28, 28, 30, 0.92)',
-              backdropFilter: 'blur(20px)',
-              WebkitBackdropFilter: 'blur(20px)',
               // Lift labels clear of the home indicator AND the rounded screen
               // corners (which otherwise clip the outer Dashboard/Settings labels)
               paddingBottom: 'max(32px, env(safe-area-inset-bottom))',
               paddingTop: '11px',
-              // Straight top edge (no rounded corners)
-              borderTopLeftRadius: '0px',
-              borderTopRightRadius: '0px',
-              boxShadow: '0 -2px 10px rgba(0, 0, 0, 0.1)'
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="w-full max-w-[430px] mx-auto grid grid-cols-5 items-center px-6">
+            <div
+              className="hidden md:block absolute inset-0 mx-auto max-w-[430px] rounded-t-2xl bg-[rgba(28,28,30,0.92)] backdrop-blur-[20px] shadow-[0_-2px_10px_rgba(0,0,0,0.1)]"
+              aria-hidden="true"
+            />
+            <div className="relative w-full max-w-[430px] mx-auto grid grid-cols-5 items-center px-6">
               <button
                 onClick={() => {
                   setDashboardInitialPeriod(null); // direct visits start on the current month
