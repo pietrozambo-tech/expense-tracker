@@ -96,6 +96,14 @@ interface DashboardProps {
 // subcategory name. (A null subcategory already means "all transactions".)
 const UNCATEGORIZED = '__uncategorized__';
 
+// Same treatment as the Overview hero card, so the headline numbers on both
+// tabs look like they belong to the same app.
+const TREND_STAT_CARD: React.CSSProperties = {
+  background: 'linear-gradient(150deg, #2E2E32 0%, #1C1C1E 100%)',
+  boxShadow: '0 12px 30px rgba(28, 28, 30, 0.22)',
+  border: '1px solid rgba(255, 255, 255, 0.06)',
+};
+
 export function Dashboard({ expenses, categories, incomeCategories, sources = [], userName, currency, onEditExpense, onDeleteExpense, view = 'overview', onShowOverview, initialPeriod, viewStateRef, monthlyBudget, budgetNudgeDismissed, onSetMonthlyBudget, onDismissBudgetNudge }: DashboardProps) {
   // Restore the previous view (period + drilldown) unless a Trend->Overview
   // link supplied an explicit period - that must win and start clean.
@@ -2716,42 +2724,59 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                     </div>
                   </div>
                 );
-              })() : (
-                <div className={`grid gap-2 ${transactionType === 'expense' ? 'grid-cols-3' : 'grid-cols-2'}`}>
-                  <div className="bg-neutral-50 rounded-lg p-3">
-                    <div className="text-neutral-500 text-[10px] mb-1">
-                      {transactionType === 'expense' ? 'Total Spent' : 'Total Earned'}
+              })() : (() => {
+                // Two cards, styled after the Dashboard hero so the two tabs
+                // read as one app. What used to be a third "Transactions" tile
+                // is now a footnote on the total, where it belongs: it counts
+                // the same transactions the total is made of.
+                const months = trendData.length === 1 ? 'This month' : `${trendData.length} months`;
+                const txCount = trendData.reduce((sum, month) => sum + month.count, 0);
+                const footnote =
+                  transactionType === 'expense'
+                    ? `${months} · ${txCount} ${txCount === 1 ? 'transaction' : 'transactions'}`
+                    : months;
+
+                return (
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="rounded-2xl px-4 py-3.5 flex flex-col min-w-0" style={TREND_STAT_CARD}>
+                      <div className="text-[11px] leading-tight mb-1.5" style={{ color: 'rgba(235,235,245,0.6)' }}>
+                        {transactionType === 'expense' ? 'Total Spent' : 'Total Earned'}
+                      </div>
+                      <div className="min-w-0">
+                        <FitText
+                          max={17}
+                          min={14}
+                          compact={formatAbbreviatedAmount(totalSpent, currency)}
+                          className="font-bold leading-none tabular-nums"
+                          style={{ color: '#FFFFFF' }}
+                        >
+                          {formatAmountListView(totalSpent, currency, 0)}
+                        </FitText>
+                      </div>
+                      <div className="text-[10px] leading-tight mt-2" style={{ color: 'rgba(235,235,245,0.55)' }}>
+                        {footnote}
+                      </div>
                     </div>
-                    <div className="text-neutral-900 font-bold text-lg tabular-nums">
-                      {formatAmountListView(totalSpent, currency, 0)}
-                    </div>
-                    <div className="text-neutral-400 text-[10px] mt-0.5">
-                      {trendData.length > 0 && trendData.length === 1
-                        ? 'This month'
-                        : `${trendData.length} months`}
+
+                    <div className="rounded-2xl px-4 py-3.5 flex flex-col min-w-0" style={TREND_STAT_CARD}>
+                      <div className="text-[11px] leading-tight mb-1.5" style={{ color: 'rgba(235,235,245,0.6)' }}>
+                        Monthly Average
+                      </div>
+                      <div className="min-w-0">
+                        <FitText
+                          max={17}
+                          min={14}
+                          compact={formatAbbreviatedAmount(avgAmount, currency)}
+                          className="font-bold leading-none tabular-nums"
+                          style={{ color: '#FFFFFF' }}
+                        >
+                          {formatAmountListView(avgAmount, currency, 0)}
+                        </FitText>
+                      </div>
                     </div>
                   </div>
-                  <div className="bg-neutral-50 rounded-lg p-3">
-                    <div className="text-neutral-500 text-[10px] mb-1 whitespace-nowrap">Monthly Average</div>
-                    <div className="text-neutral-900 font-bold text-lg tabular-nums">
-                      {formatAmountListView(avgAmount, currency, 0)}
-                    </div>
-                  </div>
-                  {transactionType === 'expense' && (
-                    <div className="bg-neutral-50 rounded-lg p-3">
-                      <div className="text-neutral-500 text-[10px] mb-1">Transactions</div>
-                      <div className="text-neutral-900 font-bold text-lg tabular-nums">
-                        {trendData.reduce((sum, month) => sum + month.count, 0)}
-                      </div>
-                      <div className="text-neutral-400 text-[10px] mt-0.5">
-                        {trendData.length > 0 && trendData.length === 1
-                          ? 'This month'
-                          : `${trendData.length} months`}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
+                );
+              })()}
             </div>
 
             {/* Line Chart */}
