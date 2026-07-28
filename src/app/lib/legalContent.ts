@@ -65,7 +65,9 @@ export const PRIVACY_POLICY: LegalDoc = {
       heading: 'When you sign in',
       body: [
         'Signing in with Google shares your name, email address and profile photo with us, so we can identify your account and show your picture in Settings. We never receive your Google password.',
-        'Once signed in, your Trackly data is stored in our database as a single record belonging to your account, so it can follow you across devices. That record is protected by row-level security, meaning it can only be read by your signed-in account.',
+        'Once signed in, your Trackly data is stored in our database as a single record belonging to your account, so it can follow you across devices.',
+        `Row-level security means no other Trackly user can read that record. It is not, however, encrypted in a way that hides it from us: as the person who runs the service, ${OWNER_NAME} holds the administrative keys to the database, because operating, backing up and supporting it requires them. Your transactions are not read, and are never used for anything other than making the app work for you.`,
+        'If you would rather nothing of yours ever left your device, use Trackly without signing in - guest mode keeps everything local, where we genuinely cannot reach it.',
       ],
     },
     {
