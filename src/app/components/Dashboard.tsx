@@ -2360,22 +2360,26 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
         const actualMin = allAmounts.length > 0 ? Math.min(...allAmounts) : 0;
         const actualMax = allAmounts.length > 0 ? Math.max(...allAmounts) : 0;
         
-        // For savings or when we have negative values, ensure yMin can be negative
+        // Round axis ends to friendly numbers so the labels read as ticks
+        // rather than as three of the data's own values.
+        const niceStep = (raw: number) => {
+          if (!(raw > 0)) return 1;
+          const magnitude = 10 ** Math.floor(Math.log10(raw));
+          const n = raw / magnitude;
+          return (n <= 1 ? 1 : n <= 2 ? 2 : n <= 5 ? 5 : 10) * magnitude;
+        };
+
         let yMin: number;
         let yMax: number;
-        
+
         if (transactionType === 'savings' || actualMin < 0) {
-          // Handle charts with negative values
-          yMin = actualMin < 0 ? actualMin * 1.1 : 0; // Add 10% padding for negative values
-          yMax = actualMax > 0 ? actualMax * 1.1 : 0; // Add 10% padding for positive values
-          
-          // Ensure we always show zero line if we have both positive and negative
-          if (actualMin < 0 && actualMax > 0) {
-            // Make the chart symmetric if values span zero
-            const maxAbsolute = Math.max(Math.abs(yMin), Math.abs(yMax));
-            yMin = -maxAbsolute;
-            yMax = maxAbsolute;
-          }
+          // Charts that cross zero stay symmetric around it, so the zero line
+          // sits in the middle and a loss reads as the mirror of a gain.
+          const bound = Math.max(Math.abs(actualMin), Math.abs(actualMax)) * 1.1;
+          const step = niceStep(bound / 2);
+          const rounded = bound > 0 ? Math.ceil(bound / step) * step : 1;
+          yMax = actualMax > 0 || actualMin >= 0 ? rounded : 0;
+          yMin = actualMin < 0 ? -rounded : 0;
         } else {
           // Positive-only charts (expenses/income).
           //
@@ -2390,18 +2394,13 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
           const minAmount = nonZeroAmounts.length > 0 ? Math.min(...nonZeroAmounts) : 0;
           const maxAmount = nonZeroAmounts.length > 0 ? Math.max(...nonZeroAmounts) : 1;
 
-          // Round both ends to friendly numbers so the labels read as ticks
-          // rather than as three of the data's own values.
-          const niceStep = (raw: number) => {
-            if (!(raw > 0)) return 1;
-            const magnitude = 10 ** Math.floor(Math.log10(raw));
-            const n = raw / magnitude;
-            return (n <= 1 ? 1 : n <= 2 ? 2 : n <= 5 ? 5 : 10) * magnitude;
-          };
           const step = niceStep(maxAmount / 4);
           const upper = Math.ceil(maxAmount / step) * step;
           const zoomFloor = upper / 2; // the axis may not start above this
-          const padded = minAmount - (maxAmount - minAmount) * 0.15;
+          // Months with nothing in them are still drawn, so the floor has to
+          // reach them - otherwise the line dives out through the bottom of the
+          // plot, which is what an empty current month used to do.
+          const padded = Math.min(actualMin, minAmount - (maxAmount - minAmount) * 0.15);
           yMin = Math.max(0, Math.floor(Math.max(0, Math.min(padded, zoomFloor)) / step) * step);
           yMax = upper;
         }
