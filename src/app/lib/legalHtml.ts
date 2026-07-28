@@ -54,7 +54,7 @@ export function renderLegalHtml(doc: LegalDoc): string {
   </header>
   <p class="intro">${escapeHtml(doc.intro)}</p>
 ${sections}
-  <footer>&copy; ${new Date().getFullYear()} TracklyLab &middot; <a href="./">Back to the app</a></footer>
+  <footer>&copy; ${new Date().getFullYear()} TracklyLab &middot; <a href="./">Home</a></footer>
 </body>
 </html>
 `;
