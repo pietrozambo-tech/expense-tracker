@@ -2969,17 +2969,25 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                   // difference between nothing and a full bar, which reads as
                   // wild volatility in a steady year.
                   let barWidth = 0;
-                  const barMax = Math.max(
-                    ...allAmounts
-                      .filter(a => (transactionType === 'savings' ? a > 0 : a !== 0))
-                      .map(a => Math.abs(a)),
-                    0,
-                  );
-                  // Savings only draws bars for months that ended up positive.
-                  const barValue = transactionType === 'savings' ? item.amount : Math.abs(item.amount);
+                  const barMax = Math.max(...allAmounts.map(a => Math.abs(a)), 0);
+                  const barValue = Math.abs(item.amount);
                   if (barMax > 0 && barValue > 0) {
                     barWidth = Math.max(2, (barValue / barMax) * 100);
                   }
+
+                  // One rule for all three toggles. Savings used to skip the bar
+                  // entirely on a negative month, so the worst month of the year
+                  // looked like an empty one; it now draws its size like any
+                  // other and carries the colour instead.
+                  const isLossMonth = transactionType === 'savings' && item.amount < 0;
+                  const onlyMonth = trendData.length === 1;
+                  const barClass = isLossMonth
+                    ? 'bg-red-400'
+                    : onlyMonth || (trendData.length > 1 && index === worstMonthIndex && transactionType === 'expense')
+                      ? (transactionType === 'expense' ? 'bg-red-400' : 'bg-green-400')
+                      : trendData.length > 1 && index === bestMonthIndex && transactionType !== 'expense' && item.amount > 0
+                        ? 'bg-green-400'
+                        : 'bg-neutral-400';
                   
                   const maxColor = transactionType === 'expense' ? 'red' : 'green';
                   
@@ -3004,17 +3012,9 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                       </div>
                       
                       {/* Visual indicator - mini bar */}
-                      <div className={`${selectedCategory === 'All' ? 'flex-1' : 'w-32'} min-w-0 ${transactionType === 'savings' ? 'h-1' : 'h-1.5'} bg-neutral-100 rounded-full overflow-hidden self-center`}>
+                      <div className={`${selectedCategory === 'All' ? 'flex-1' : 'w-32'} min-w-0 h-1.5 bg-neutral-100 rounded-full overflow-hidden self-center`}>
                         <div
-                          className={`h-full rounded-full transition-all ${
-                            transactionType === 'savings'
-                              ? (trendData.length > 1 && isMaxMonth ? 'bg-green-400' : 'bg-neutral-500')
-                              : trendData.length > 1 && isMaxAbsMonth 
-                                ? (transactionType === 'expense' ? 'bg-red-400' : 'bg-green-400')
-                                : trendData.length === 1
-                                  ? (transactionType === 'expense' ? 'bg-red-400' : 'bg-green-400')
-                                  : (transactionType === 'expense' ? 'bg-neutral-400' : 'bg-neutral-400')
-                          }`}
+                          className={`h-full rounded-full transition-all ${barClass}`}
                           style={{ width: `${barWidth}%` }}
                         />
                       </div>

@@ -118,6 +118,25 @@ function AddIllustration() {
   );
 }
 
+// The illustrations mimic real screens, so their dates have to move with the
+// calendar - a tour that says "July 2026" to someone signing up in September
+// looks like a stale screenshot of someone else's app.
+const monthShortNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+/** The last `count` month abbreviations, ending with the current one. */
+function recentMonthLabels(count: number): string[] {
+  const now = new Date();
+  return Array.from({ length: count }, (_, i) => {
+    const d = new Date(now.getFullYear(), now.getMonth() - (count - 1 - i), 1);
+    return monthShortNames[d.getMonth()];
+  });
+}
+
+/** "September 2026" for the month we are in. */
+function currentMonthLabel(): string {
+  return new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+}
+
 function DashboardIllustration() {
   const metrics = [
     // Match the real hero: a red "−" for Spending and a green "+" for Income.
@@ -135,7 +154,7 @@ function DashboardIllustration() {
     <div className="flex flex-col gap-3">
       {/* Hero summary */}
       <div className="rounded-2xl px-5 py-4" style={{ background: 'linear-gradient(150deg, #2E2E32 0%, #1C1C1E 100%)', boxShadow: '0 12px 30px rgba(28,28,30,0.28)' }}>
-        <div className="text-center mb-3.5 text-sm font-semibold" style={{ color: '#FFFFFF' }}>July 2026</div>
+        <div className="text-center mb-3.5 text-sm font-semibold" style={{ color: '#FFFFFF' }}>{currentMonthLabel()}</div>
         <div className="grid grid-cols-2 gap-x-3 gap-y-3.5">
           {metrics.map((m) => (
             <div key={m.label} className="flex items-center gap-2.5">
@@ -148,6 +167,27 @@ function DashboardIllustration() {
               </div>
             </div>
           ))}
+        </div>
+      </div>
+
+      {/* Monthly budget - the bar sits here on the real Dashboard too, between
+          the hero and the categories. */}
+      <div className="rounded-2xl px-4 py-3" style={{ background: '#FFFFFF', boxShadow: '0 8px 24px rgba(0,0,0,0.06)', border: '1px solid #EEEEF1' }}>
+        <div className="flex items-baseline justify-between mb-2">
+          <span className="text-[13px] font-semibold" style={{ color: '#1C1C1E' }}>Monthly budget</span>
+          <span className="text-[13px] tabular-nums" style={{ color: '#8E8E93' }}>
+            <span className="font-semibold" style={{ color: '#1C1C1E' }}>1,039€</span> of 1,500€
+          </span>
+        </div>
+        <div className="relative h-2 rounded-full overflow-hidden" style={{ backgroundColor: '#F2F2F7' }}>
+          <div className="h-full rounded-full" style={{ width: '69%', backgroundColor: '#5FC08C' }} />
+        </div>
+        <div className="relative" style={{ height: 0 }}>
+          <div className="absolute" style={{ left: '78%', top: -12, width: 2, height: 12, backgroundColor: 'rgba(0,0,0,0.22)', borderRadius: 1 }} />
+        </div>
+        <div className="flex items-baseline justify-between mt-2">
+          <span className="text-[12px] font-semibold" style={{ color: '#2C7A54' }}>69% used · On track</span>
+          <span className="text-[12px]" style={{ color: '#8E8E93' }}>7 days left</span>
         </div>
       </div>
 
@@ -176,9 +216,10 @@ function DashboardIllustration() {
 
 function TrendIllustration() {
   // Line Trend — mirrors the top of the real Trend tab (stat cards + line).
-  const tLabels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul'];
+  const tLabels = recentMonthLabels(7);
   const trend = [4475, 3620, 3280, 3010, 2920, 3480, 3800];
-  const yMax = 4475, yMin = 2773, yRange = yMax - yMin;
+  // Rounded bounds, as the real chart now uses.
+  const yMax = 6000, yMin = 2000, yRange = yMax - yMin;
   const avg = 3533;
   const W = 320, H = 84;
   const px = (i: number) => (i / (trend.length - 1)) * W;
@@ -213,13 +254,13 @@ function TrendIllustration() {
           ))}
         </div>
 
-        <div className="text-[13px] font-semibold mb-2" style={{ color: '#1C1C1E' }}>Line Trend</div>
+        <div className="text-[13px] font-semibold mb-2" style={{ color: '#1C1C1E' }}>Monthly Spending</div>
         <div className="flex">
           {/* Y-axis labels */}
           <div className="flex flex-col justify-between pr-2 text-[9px] tabular-nums font-medium" style={{ height: H, color: '#B0B0B5' }}>
-            <span>4,475€</span>
-            <span>3,624€</span>
-            <span>2,773€</span>
+            <span>6,000€</span>
+            <span>4,000€</span>
+            <span>2,000€</span>
           </div>
           <div className="flex-1 min-w-0">
             <svg viewBox={`0 0 ${W} ${H}`} width="100%" height={H} preserveAspectRatio="none" style={{ display: 'block' }}>
@@ -249,7 +290,7 @@ function TrendIllustration() {
 function SavingsIllustration() {
   // Sample monthly savings — dips below zero one month, like the real Savings view
   const vals = [1940, 1958, 1741, 1722, -2591, 1906, 2341];
-  const labels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul'];
+  const labels = recentMonthLabels(7);
   const W = 300, H = 120, pad = 12;
   const maxAbs = 2850;
   const zeroY = H / 2;
@@ -298,7 +339,7 @@ function SavingsIllustration() {
 
 function DemoIllustration() {
   const spark = [12, 18, 15, 24, 21, 30];
-  const labels = ['Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul'];
+  const labels = recentMonthLabels(6);
   return (
     <div className="flex flex-col gap-3">
       {/* A sample dashboard preview with a "Sample" badge */}
