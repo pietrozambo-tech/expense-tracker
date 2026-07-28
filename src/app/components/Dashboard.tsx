@@ -554,6 +554,28 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
       }
     });
 
+  // How to render the amounts in the category list.
+  //
+  // Same idea as the hero card - prefer the full number, abbreviate when it is
+  // too long - but decided once for the whole list rather than per row. These
+  // amounts share a column with the category names, so a long one (13,964,536
+  // Rp) does not clip, it just pushes "Food & Drinks" onto two lines. And in a
+  // list, "266,969 Rp" sitting next to "30MM Rp" reads worse than abbreviating
+  // every row alike, so the longest entry decides for all of them.
+  //
+  // Length rather than pixels: the choice is coarse (two options), every row
+  // shares one answer, and character count is stable across the layout changes
+  // a measured version would have to chase.
+  const abbreviateRowAmounts =
+    sortedCategories.reduce(
+      (longest, item) => Math.max(longest, formatAmountListView(item.amount, currency, 0).length),
+      0,
+    ) > 11;
+  const formatRowAmount = (amount: number) =>
+    abbreviateRowAmounts
+      ? formatAbbreviatedAmount(amount, currency)
+      : formatAmountListView(amount, currency, 0);
+
   // Get subcategory totals for a specific category
   const getSubcategoryTotals = (categoryName: string) => {
     const categoryExpenses = filteredTransactions.filter(e => e.category.name === categoryName);
@@ -1424,7 +1446,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                             <div className="flex items-center gap-1.5 flex-shrink-0 ml-1">
                               <div className="text-neutral-400 text-[11px] tabular-nums text-right w-8">{item.percentage.toFixed(0)}%</div>
                               <div className="text-neutral-900 font-semibold text-[14px] tabular-nums text-right whitespace-nowrap min-w-[60px]">
-                                {formatAmountListView(item.amount, currency, 0)}
+                                {formatRowAmount(item.amount)}
                               </div>
                               {/* Trend Indicator */}
                               <div className="w-3.5 flex items-center justify-center ml-1.5">
@@ -1464,7 +1486,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                                     <div className="flex items-center gap-1.5 flex-shrink-0 ml-1">
                                       <div className="text-neutral-400 text-[10px] tabular-nums text-right w-8">{sub.percentage.toFixed(0)}%</div>
                                       <div className="text-neutral-600 font-normal text-xs tabular-nums text-right whitespace-nowrap min-w-[60px]">
-                                        {formatAmountListView(sub.amount, currency, 0)}
+                                        {formatRowAmount(sub.amount)}
                                       </div>
                                       {/* Trend Indicator */}
                                       <div className="w-3.5 flex items-center justify-center ml-1.5">
