@@ -1506,27 +1506,32 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
             }}>
               <div className="px-4 py-4">
                 <div className="flex items-center justify-between mb-3 px-1">
-                  {/* The arrows on each row are a comparison, and nothing said
-                      against what. One label answers it for the whole list. */}
-                  <div className="flex items-baseline gap-2 min-w-0">
+                  {/* Sort belongs with the heading - it acts on the whole list.
+                      The comparison label does not: it describes the last
+                      column and nothing else, so it sits right-aligned above
+                      that column, like the column headers in Trend. */}
+                  <div className="flex items-center gap-2.5 min-w-0">
                     <h2 style={{ color: '#1C1C1E', fontWeight: '600' }}>Categories</h2>
-                    {/* Below ~360px the heading, this label and the sort button
-                        do not fit on one line and it runs under the button. */}
-                    <span className="hidden min-[360px]:inline text-[11px] whitespace-nowrap" style={{ color: '#8E8E93' }}>
-                      {comparisonLabel()}
-                    </span>
+                    <button
+                      onClick={() => setCategorySortBy(categorySortBy === 'alphabetical' ? 'amount' : 'alphabetical')}
+                      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition-colors flex-shrink-0"
+                      style={{ backgroundColor: '#F2F2F7' }}
+                      aria-label="Toggle sort order"
+                    >
+                      <ArrowUpDown className="w-3.5 h-3.5" style={{ color: '#8E8E93' }} />
+                      <span className="text-xs" style={{ color: '#8E8E93' }}>
+                        {categorySortBy === 'alphabetical' ? 'A-Z' : '€'}
+                      </span>
+                    </button>
                   </div>
-                  <button
-                    onClick={() => setCategorySortBy(categorySortBy === 'alphabetical' ? 'amount' : 'alphabetical')}
-                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition-colors"
-                    style={{ backgroundColor: '#F2F2F7' }}
-                    aria-label="Toggle sort order"
+                  {/* Below ~360px the heading, the sort button and this label
+                      do not fit on one line. */}
+                  <span
+                    className="hidden min-[360px]:inline text-[10px] whitespace-nowrap text-right"
+                    style={{ color: '#A0A0A8' }}
                   >
-                    <ArrowUpDown className="w-3.5 h-3.5" style={{ color: '#8E8E93' }} />
-                    <span className="text-xs" style={{ color: '#8E8E93' }}>
-                      {categorySortBy === 'alphabetical' ? 'A-Z' : '€'}
-                    </span>
-                  </button>
+                    {comparisonLabel()}
+                  </span>
                 </div>
                 {sortedCategories.length === 0 ? (
                   <div className="py-12 text-center">
