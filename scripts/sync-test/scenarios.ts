@@ -58,9 +58,14 @@ class Phone {
 
   async openApp() {
     const cloud = await loadCloud(USER);
-    this.transactions = cloud?.payload.transactions ?? [];
-    this.base = cloud?.payload ?? null;
-    this.version = cloud?.version ?? null;
+    if (cloud) {
+      // App.tsx: merge the cloud into whatever this device already holds,
+      // against the base persisted from the last agreement.
+      const merged = mergePayloads(this.base, this.payload(), cloud.payload);
+      this.transactions = merged.transactions;
+      this.base = cloud.payload;
+      this.version = cloud.version;
+    }
     say(`${this.name} opens the app  -> sees ${this.list()}`);
   }
 
@@ -268,6 +273,31 @@ async function scenarioRecurringNoDupes() {
   expect('exactly one Netflix survives the merge', serverList(), 'Netflix 13EUR');
 }
 
+
+async function scenarioOfflineThenRestart() {
+  heading('7. Offline edit, app closed before reconnecting, then reopened');
+  reset();
+  const phone = new Phone('Phone ');
+  await phone.openApp();
+  phone.add('t1', 'Rent 900EUR', 900);
+  await phone.sync();
+
+  console.log('');
+  say('Now offline. The user adds a transaction; the save cannot go out:');
+  phone.add('t2', 'Market 25EUR', 25);
+  say('...and closes the app before reconnecting.');
+
+  console.log('');
+  say('Next launch, back online - hydrate reads the cloud:');
+  const relaunch = new Phone('Phone ');
+  relaunch.transactions = phone.transactions; // localStorage survives the close
+  relaunch.base = phone.base;                 // and so does the persisted sync base
+  relaunch.version = phone.version;
+  await relaunch.openApp();
+
+  expect('the offline edit survives the relaunch', relaunch.list(), 'Rent 900EUR + Market 25EUR');
+}
+
 async function main() {
   console.log('\n================================================================');
   console.log(` Cloud sync - two devices, one account   [${OLD ? 'BEFORE the fix' : 'AFTER the fix'}]`);
@@ -280,6 +310,7 @@ async function main() {
   await scenarioDelete();
   await scenarioOffline();
   await scenarioRecurringNoDupes();
+  await scenarioOfflineThenRestart();
 
   console.log('\n================================================================');
   console.log(failures === 0 ? ' All checks passed - nothing lost.' : ` ${failures} check(s) FAILED.`);

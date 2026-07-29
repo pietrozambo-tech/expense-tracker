@@ -18,6 +18,8 @@ import {
   saveSettings,
   saveSources,
   saveTransactions,
+  loadSyncBase,
+  saveSyncBase,
 } from './lib/storage';
 import { DEFAULT_SOURCES, DEFAULT_SOURCE_EXPENSE, DEFAULT_SOURCE_INCOME } from './components/sources';
 import { SourceLogo } from './components/SourceLogo';
@@ -275,8 +277,15 @@ export default function App() {
   // stamp identifying that version. Together they let a write say "only if
   // nothing has changed since", and give the merge a starting point to tell an
   // addition apart from a deletion.
-  const cloudBaseRef = useRef<SyncPayload | null>(null);
-  const cloudVersionRef = useRef<string | null>(null);
+  const cloudBaseRef = useRef<SyncPayload | null>((loadSyncBase()?.payload as SyncPayload) ?? null);
+  const cloudVersionRef = useRef<string | null>(loadSyncBase()?.version ?? null);
+  // Keep the refs and their persisted copy in step - the persisted one is what
+  // makes the NEXT launch able to merge rather than overwrite.
+  const rememberSyncBase = useCallback((payload: SyncPayload | null, version: string | null) => {
+    cloudBaseRef.current = payload;
+    cloudVersionRef.current = version;
+    saveSyncBase(payload ? { payload, version } : null);
+  }, []);
   // Current local state, readable from callbacks that are not re-created on
   // every render (the visibility listener below).
   const localPayloadRef = useRef<SyncPayload | null>(null);
@@ -337,8 +346,7 @@ export default function App() {
   useEffect(() => {
     if (!userId) {
       setCloudHydrated(false);
-      cloudBaseRef.current = null;
-      cloudVersionRef.current = null;
+      rememberSyncBase(null, null);
       return;
     }
     let cancelled = false;
@@ -347,18 +355,19 @@ export default function App() {
         const cloud = await loadCloud(userId);
         if (cancelled) return;
         if (cloud) {
-          applyPayload(cloud.payload);
-          cloudBaseRef.current = cloud.payload;
-          cloudVersionRef.current = cloud.version;
+          // Merge, don't replace. This used to assign the cloud's payload
+          // straight into state, which silently threw away anything added
+          // while offline and never synced - the local copy was treated as
+          // disposable even though it is the one the user has been using.
+          const merged = mergePayloads(cloudBaseRef.current, buildPayload(), cloud.payload);
+          applyPayload(merged);
+          rememberSyncBase(cloud.payload, cloud.version);
         } else {
           const local = buildPayload();
           const res = await saveCloudChecked(userId, local, null);
-          if (res.ok) {
-            cloudBaseRef.current = local;
-            cloudVersionRef.current = res.version;
-          }
+          if (res.ok) rememberSyncBase(local, res.version);
           // A conflict here means another device created the row a moment ago.
-          // Leave the refs empty; the first save will see the mismatch, pull
+          // Leave the base empty; the first save will see the mismatch, pull
           // and merge rather than overwrite.
         }
       } catch {
@@ -394,8 +403,7 @@ export default function App() {
         const payload = buildPayload();
         const res = await saveCloudChecked(userId, payload, cloudVersionRef.current);
         if (res.ok) {
-          cloudBaseRef.current = payload;
-          cloudVersionRef.current = res.version;
+          rememberSyncBase(payload, res.version);
           return true;
         }
         const remote = await loadCloud(userId);
@@ -405,8 +413,7 @@ export default function App() {
           continue;
         }
         const merged = mergePayloads(cloudBaseRef.current, payload, remote.payload);
-        cloudBaseRef.current = remote.payload;
-        cloudVersionRef.current = remote.version;
+        rememberSyncBase(remote.payload, remote.version);
         // Applying the merge re-runs this effect, which writes it back.
         applyPayload(merged);
         setRefreshKey((prev) => prev + 1);
@@ -462,8 +469,7 @@ export default function App() {
       if (!remote) return;
       const local = localPayloadRef.current ?? remote.payload;
       const merged = mergePayloads(cloudBaseRef.current, local, remote.payload);
-      cloudBaseRef.current = remote.payload;
-      cloudVersionRef.current = remote.version;
+      rememberSyncBase(remote.payload, remote.version);
       applyPayload(merged);
       setRefreshKey((prev) => prev + 1);
     } catch {
@@ -1363,8 +1369,14 @@ export default function App() {
   // Not signed in and not using the app locally → sign-in screen
   if (!session && !guest) return <Suspense fallback={splash()}><SignIn /></Suspense>;
 
-  // Signed in but the account's data hasn't loaded yet
-  if (session && !cloudHydrated) return splash('Loading your data…');
+  // Signed in but the account's data hasn't loaded yet.
+  //
+  // Only wait when this device has nothing of its own to show - a fresh phone,
+  // where the splash is honest. With local data we render it immediately and
+  // let the cloud merge in behind: the app is offline-first, so blocking every
+  // launch on a network round trip made the whole UI hostage to the slowest
+  // connection (measured at 5.5s on a bad one, for data already on the device).
+  if (session && !cloudHydrated && expenses.length === 0) return splash('Loading your data…');
 
   // Show onboarding if not completed. Pre-fill the name with the first name
   // from the signed-in account (Google gives `given_name`), surname excluded.

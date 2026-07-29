@@ -19,6 +19,11 @@ const KEYS = {
   sources: key('sources'),
   settings: key('settings'),
   recurringRules: key('recurring-rules'),
+  // The last state this device and the cloud agreed on, plus that state's
+  // version stamp. Kept across launches so the next hydrate can three-way
+  // merge (and tell an offline addition apart from a remote deletion) instead
+  // of taking the cloud wholesale.
+  syncBase: key('sync-base'),
 };
 
 function read<T>(storageKey: string, fallback: T): T {
@@ -75,3 +80,23 @@ export function clearAllData() {
     // Ignore; nothing to clear if storage is unavailable.
   }
 }
+
+// ── Sync base ───────────────────────────────────────────────────────────────
+
+export interface SyncBase {
+  payload: unknown;
+  version: string | null;
+}
+
+export const loadSyncBase = (): SyncBase | null => read<SyncBase | null>(KEYS.syncBase, null);
+export const saveSyncBase = (base: SyncBase | null) => {
+  if (base === null) {
+    try {
+      localStorage.removeItem(KEYS.syncBase);
+    } catch {
+      /* storage unavailable */
+    }
+    return;
+  }
+  write(KEYS.syncBase, base);
+};
