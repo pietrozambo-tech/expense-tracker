@@ -1,4 +1,4 @@
-import { ChevronRight, ChevronLeft, UserCircle, Wallet, HelpCircle, ShieldCheck, ScrollText, Layers, FlaskConical, Trash2, Landmark, Cloud, LogOut, Upload, Copy, Download, FileSpreadsheet, UserX, Mail, LifeBuoy, CheckCircle2 } from 'lucide-react';
+import { ChevronRight, ChevronLeft, UserCircle, Wallet, HelpCircle, ShieldCheck, ScrollText, Layers, FlaskConical, Trash2, Landmark, Cloud, LogOut, Upload, Copy, Download, FileSpreadsheet, Palmtree, UserX, Mail, LifeBuoy, CheckCircle2 } from 'lucide-react';
 import { sendSupportMessage, supportLimitReached } from '../lib/support';
 
 // Where "Contact support" messages go. Easy to swap when the domain changes.
@@ -804,14 +804,37 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
 
         <div className="flex-1 overflow-y-auto px-6 pb-28">
           {/* Intro */}
-          <div className="pt-2 pb-5">
+          <div className="pt-2 pb-4">
             <h2 style={{ color: '#1C1C1E', fontSize: 22, fontWeight: 700, letterSpacing: '-0.02em' }}>
               Bring in your existing data
             </h2>
             <p style={{ color: '#6B6B75', fontSize: 15, lineHeight: 1.5, marginTop: 8 }}>
-              Got a spreadsheet, a bank statement, a Splitwise trip, or even screenshots of your transactions?
-              An AI assistant can turn any of them into a TracklyLab file in seconds - no manual re-entry.
+              An AI assistant turns almost anything into TracklyLab transactions - no manual re-entry.
             </p>
+          </div>
+
+          {/* The two jobs this screen does. Not buttons - the flow below is
+              the same for both - but the value has to be visible before the
+              user reads a single step. */}
+          <div className="grid grid-cols-2 gap-3 mb-5">
+            <div className="bg-white rounded-2xl shadow-sm p-4">
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-2.5" style={{ backgroundColor: '#E7F6EC' }}>
+                <FileSpreadsheet className="w-5 h-5" style={{ color: '#2E9E5B' }} strokeWidth={2} />
+              </div>
+              <div style={{ color: '#1C1C1E', fontSize: 14, fontWeight: 700, lineHeight: 1.3 }}>Banks &amp; spreadsheets</div>
+              <p style={{ color: '#6B6B75', fontSize: 12, lineHeight: 1.45, marginTop: 4 }}>
+                Statements (PDF or CSV), Excel files - even screenshots of a transaction list.
+              </p>
+            </div>
+            <div className="bg-white rounded-2xl shadow-sm p-4">
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-2.5" style={{ backgroundColor: '#E1F0FF' }}>
+                <Palmtree className="w-5 h-5" style={{ color: '#0A84FF' }} strokeWidth={2} />
+              </div>
+              <div style={{ color: '#1C1C1E', fontSize: 14, fontWeight: 700, lineHeight: 1.3 }}>Trips &amp; split expenses</div>
+              <p style={{ color: '#6B6B75', fontSize: 12, lineHeight: 1.45, marginTop: 4 }}>
+                A Splitwise trip export lands as your share only - settlements are skipped.
+              </p>
+            </div>
           </div>
 
           {/* Steps */}
