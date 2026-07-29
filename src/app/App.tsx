@@ -133,8 +133,11 @@ export default function App() {
   const [selectedSubcategory, setSelectedSubcategory] = useState<string | null>(null);
   const [description, setDescription] = useState('');
   // Post-import summary dialog - set only when the import has anything worth
-  // reading (fallbacks or skips); clean imports stay a toast.
+  // reading (uncategorized rows or unreadable ones); clean imports stay a toast.
   const [importSummary, setImportSummary] = useState<ImportResult | null>(null);
+  // One-shot filter preset for the Activity tab - the "Review in Activity"
+  // button lands the user on the imported rows, pre-filtered.
+  const [activityPresetFilter, setActivityPresetFilter] = useState<string | null>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [recurrence, setRecurrence] = useState('Never repeat');
   const [date, setDate] = useState(() => {
@@ -1185,8 +1188,9 @@ export default function App() {
       return { added: 0, defaulted: 0, skipped: [] };
     }
     const res = buildImport(payload, categories, incomeCategories, userCurrency);
+    const realSkips = res.skipped.filter((sk) => sk.reason !== 'zero amount');
     if (res.added === 0) {
-      if (res.skipped.length) setImportSummary(res);
+      if (realSkips.length) setImportSummary(res);
       else toast.error('Nothing imported', { description: 'No transactions found in the file', duration: 2200 });
       return res;
     }
@@ -1197,10 +1201,11 @@ export default function App() {
     setExpenses((prev) => [...res.transactions, ...prev]);
     setRefreshKey((prev) => prev + 1);
     setCurrentTab('dashboard');
-    track('data_imported', { count: res.added, defaulted: res.defaulted, skipped: res.skipped.length });
-    if (res.defaulted || res.skipped.length) {
+    track('data_imported', { count: res.added, uncategorized: res.uncategorized, skipped: res.skipped.length });
+    if (res.uncategorized || realSkips.length) {
       // Something needs the user's eyes - a dialog they dismiss, not a toast
-      // that dismisses itself.
+      // that dismisses itself. Zero-amount skips alone don't qualify: that
+      // guard is bookkeeping, not news.
       setImportSummary(res);
     } else {
       toast.success(`Imported ${res.added} transaction${res.added === 1 ? '' : 's'}`, {
@@ -1395,7 +1400,15 @@ export default function App() {
     <div className="min-h-screen bg-[#F5F5F7] md:bg-[#EBEBEF]">
       <Toaster position="top-center" />
       {importSummary && (
-        <ImportSummaryDialog result={importSummary} onClose={() => setImportSummary(null)} />
+        <ImportSummaryDialog
+          result={importSummary}
+          onClose={() => setImportSummary(null)}
+          onReview={() => {
+            setImportSummary(null);
+            setActivityPresetFilter('Imported');
+            setCurrentTab('activity');
+          }}
+        />
       )}
 
       {/* iPhone 14 Container — Activity needs an exact viewport height so only
@@ -1410,6 +1423,8 @@ export default function App() {
         {/* Content - Different structure for activity tab vs others */}
         {currentTab === 'activity' ? (
           <Activity
+            presetTypeFilter={activityPresetFilter ?? undefined}
+            onPresetConsumed={() => setActivityPresetFilter(null)}
             transactions={expenses}
             onEditTransaction={handleEditExpense}
             onDeleteTransaction={handleDeleteExpense}

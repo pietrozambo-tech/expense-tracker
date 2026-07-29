@@ -23,6 +23,11 @@ interface ActivityProps {
   incomeCategories: any[];
   currency: string;
   sources: Source[];
+  // One-shot: start with this type filter selected (e.g. 'Imported' from the
+  // post-import "Review in Activity" button). Consumed on mount so the next
+  // ordinary visit starts clean.
+  presetTypeFilter?: string;
+  onPresetConsumed?: () => void;
 }
 
 export function Activity({
@@ -33,7 +38,9 @@ export function Activity({
   categories,
   incomeCategories,
   currency,
-  sources
+  sources,
+  presetTypeFilter,
+  onPresetConsumed
 }: ActivityProps) {
   const now = new Date();
   const currentYear = String(now.getFullYear());
@@ -45,13 +52,20 @@ export function Activity({
   const [categoryFilter, setCategoryFilter] = useState('All');
   const [subcategoryFilter, setSubcategoryFilter] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
-  const [typeFilter, setTypeFilter] = useState('All'); // recurrence filter (All / One-off / Recurrent)
+  const [typeFilter, setTypeFilter] = useState(presetTypeFilter ?? 'All'); // All / One-off / Recurring / Imported
   const [sourceFilter, setSourceFilter] = useState('All'); // 'All' or a source id
 
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [isSubcategoryModalOpen, setIsSubcategoryModalOpen] = useState(false);
   const [isSourceModalOpen, setIsSourceModalOpen] = useState(false);
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
+
+  // The preset is applied via the useState initialiser above; report it
+  // consumed so the parent clears it and the next visit starts unfiltered.
+  useEffect(() => {
+    if (presetTypeFilter) onPresetConsumed?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
 
   // Transactions narrowed by the All/Expenses/Income control — every other

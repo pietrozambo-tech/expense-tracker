@@ -28,6 +28,11 @@ export interface ImportResult {
   incomeCategories: Category[]; // income categories (may gain new subcategories)
   added: number;
   defaulted: number; // rows whose category didn't match and fell back to a catch-all
+  // Rows that ended up in the catch-all bucket HOWEVER they got there - the
+  // app's own fallback, or an AI that pre-mapped them to "Others" before the
+  // file ever arrived. This is the number the user acts on: transactions
+  // waiting to be given a real category.
+  uncategorized: number;
   skipped: { record: ImportRecord; reason: string }[];
 }
 
@@ -71,6 +76,7 @@ export function buildImport(
   const transactions: Transaction[] = [];
   const skipped: { record: ImportRecord; reason: string }[] = [];
   let defaulted = 0;
+  let uncategorized = 0;
   // One stamp for the whole batch: "this import" is a thing the user can
   // find again as a group.
   const importedAt = new Date().toISOString();
@@ -105,6 +111,8 @@ export function buildImport(
       defaulted++;
     }
 
+    if (CATCHALL_RE.test(cat.name.trim())) uncategorized++;
+
     let subcategory: string | undefined;
     if (subHint && subHint.trim()) {
       const sub = subHint.trim();
@@ -138,5 +146,5 @@ export function buildImport(
     });
   }
 
-  return { transactions, categories: exp, incomeCategories: inc, added: transactions.length, defaulted, skipped };
+  return { transactions, categories: exp, incomeCategories: inc, added: transactions.length, defaulted, uncategorized, skipped };
 }
