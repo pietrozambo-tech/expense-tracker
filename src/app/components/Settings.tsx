@@ -702,8 +702,8 @@ export function Settings({
       /^(other|others|miscellaneous|misc|uncategori[sz]ed)$/i.test(String(c.name).trim()),
     );
     const fallbackLine = catchAll
-      ? `- If nothing fits at all, use "${catchAll.name}" - never drop the row or leave the category blank.`
-      : `- If nothing fits at all, pick my closest general category - never drop the row or leave it blank.`;
+      ? `- If nothing fits at all, use "${catchAll.name}" and put the ORIGINAL category name in "subcategory" (e.g. "Dining out") so I can re-sort later - never drop the row or leave the category blank.`
+      : `- If nothing fits at all, pick my closest general category and put the original category name in "subcategory" - never drop the row or leave it blank.`;
     // The AI needs to know WHO the account owner is the moment a file has one
     // column per person (Splitwise trips): every rule below about "my column"
     // hangs on this line.
@@ -750,7 +750,7 @@ READING A STATEMENT
 SPLIT EXPENSES (Splitwise and similar trip exports)
 Some files have one column per person. Those columns hold each person's BALANCE for the row - what they paid MINUS their share - not what anything cost them. Convert each row to MY personal cost:
 - My column negative: my cost is its absolute value (that was my share).
-- My column zero: skip the row - I wasn't part of that expense.
+- My column zero: skip the row - I wasn't part of that expense. Also skip any row where my cost works out to 0 (I was fully paid back): a zero-amount transaction is clutter, not spending.
 - My column positive: I paid for others too. My cost = (Cost − the sum of everyone's negative values taken as positive) ÷ (the number of people with positive values). The rest comes back to me, so it is NOT my spending.
 - Skip settlement rows entirely: Category "Payment", descriptions like "X paid Y", and any "Total balance" summary line. That is money moving between people, not spending.
 - Map their categories to mine as above (e.g. "Dining out" → my closest food category); use the trip context in descriptions where it helps ("Ferry a/r" stays "Ferry a/r").
