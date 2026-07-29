@@ -2623,11 +2623,6 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
         // - Savings: Worst = minimum (least saved/most lost)
         const worstMonthIndex = transactionType === 'expense' ? maxMonthIndex : minMonthIndex;
         
-        // For bar chart, find month with maximum absolute value
-        const absAmounts = allAmounts.map(a => Math.abs(a));
-        const maxAbsAmount = Math.max(...absAmounts);
-        const maxAbsMonthIndex = trendData.findIndex(t => Math.abs(t.amount) === maxAbsAmount && t.amount !== 0);
-        
         const selectedCat = selectedCategory !== 'All' ? trendSortedCategories.find(c => c.name === selectedCategory) : null;
         
         return (
@@ -3090,8 +3085,6 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
               <div className="space-y-0">
                 {trendData.map((item, index) => {
                   const isCurrentMonth = index === currentMonthIndex;
-                  const isMaxMonth = index === maxMonthIndex;
-                  const isMaxAbsMonth = index === maxAbsMonthIndex; // For bar visualization
                   
                   // Calculate saving rate for this month if in savings view
                   let monthlySavingRate = 0;
@@ -3131,21 +3124,16 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                   }
                   const budgetPct = showBudgetTick && barMax > 0 ? (monthlyBudget! / barMax) * 100 : 0;
 
-                  // One rule for all three toggles. Savings used to skip the bar
-                  // entirely on a negative month, so the worst month of the year
-                  // looked like an empty one; it now draws its size like any
-                  // other and carries the colour instead.
+                  // Colour carries STATUS, the pills carry RANKING - never
+                  // both. Bars used to also go red for the worst expense month
+                  // and green for the best savings month, and the max month's
+                  // name and amount were tinted on top: three systems saying
+                  // overlapping things on one row. Now the only coloured bar
+                  // is a negative savings month - a fact about the month
+                  // (money lost), not a comparison - and Best/Worst live in
+                  // the badge column alone.
                   const isLossMonth = transactionType === 'savings' && item.amount < 0;
-                  const onlyMonth = trendData.length === 1;
-                  const barClass = isLossMonth
-                    ? 'bg-red-400'
-                    : onlyMonth || (trendData.length > 1 && index === worstMonthIndex && transactionType === 'expense')
-                      ? (transactionType === 'expense' ? 'bg-red-400' : 'bg-green-400')
-                      : trendData.length > 1 && index === bestMonthIndex && transactionType !== 'expense' && item.amount > 0
-                        ? 'bg-green-400'
-                        : 'bg-neutral-400';
-                  
-                  const maxColor = transactionType === 'expense' ? 'red' : 'green';
+                  const barClass = isLossMonth ? 'bg-red-400' : 'bg-neutral-400';
                   
                   return (
                     <button
@@ -3160,10 +3148,8 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                       }}
                       className="w-full flex items-center gap-2.5 py-2.5 active:bg-neutral-50 transition-colors"
                     >
-                      {/* Month */}
-                      <div className={`w-12 flex-shrink-0 text-left text-[11px] tabular-nums self-center ${
-                        trendData.length > 1 && isMaxMonth ? `text-${maxColor}-600 font-medium` : 'text-neutral-600'
-                      }`}>
+                      {/* Month - always neutral; ranking lives in the badges */}
+                      <div className="w-12 flex-shrink-0 text-left text-[11px] tabular-nums self-center text-neutral-600">
                         {item.month}
                       </div>
                       
@@ -3186,9 +3172,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                       </div>
                       
                       {/* Amount */}
-                      <div className={`${selectedCategory === 'All' ? 'w-16' : 'w-14'} flex-shrink-0 text-xs font-semibold tabular-nums text-right self-center ${
-                        trendData.length > 1 && isMaxMonth ? `text-${maxColor}-900` : 'text-neutral-900'
-                      }`}>
+                      <div className={`${selectedCategory === 'All' ? 'w-16' : 'w-14'} flex-shrink-0 text-xs font-semibold tabular-nums text-right self-center text-neutral-900`}>
                         {formatAmountListView(item.amount, currency, 0)}
                       </div>
                       
