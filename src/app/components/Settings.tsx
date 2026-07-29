@@ -704,7 +704,13 @@ export function Settings({
     const fallbackLine = catchAll
       ? `- If nothing fits at all, use "${catchAll.name}" - never drop the row or leave the category blank.`
       : `- If nothing fits at all, pick my closest general category - never drop the row or leave it blank.`;
-    const importPrompt = `I want to import my expense & income history into an app called "TracklyLab".
+    // The AI needs to know WHO the account owner is the moment a file has one
+    // column per person (Splitwise trips): every rule below about "my column"
+    // hangs on this line.
+    const ownerLine = userName.trim()
+      ? `My name is ${userName.trim()} - if a file has one column per person, mine is the one matching that name (it may include a surname).`
+      : `If a file has one column per person, ask me which column is mine before converting.`;
+    const importPrompt = `I want to import my expense & income history into an app called "TracklyLab". ${ownerLine}
 
 I'll give you my data in whatever form I have it - an Excel/CSV spreadsheet, a bank or credit-card statement (PDF, CSV, or screenshots), photos or screenshots of a transaction list, or just a pasted table. Read ALL of it and turn EVERY transaction into ONE JSON file in EXACTLY this format:
 
@@ -740,6 +746,14 @@ READING A STATEMENT
 - Bank fees, interest charged and card charges ARE expenses - include them.
 - If debits and credits are in separate columns: debit = expense, credit = income.
 - Remove obvious duplicates.
+
+SPLIT EXPENSES (Splitwise and similar trip exports)
+Some files have one column per person. Those columns hold each person's BALANCE for the row - what they paid MINUS their share - not what anything cost them. Convert each row to MY personal cost:
+- My column negative: my cost is its absolute value (that was my share).
+- My column zero: skip the row - I wasn't part of that expense.
+- My column positive: I paid for others too. My cost = (Cost − the sum of everyone's negative values taken as positive) ÷ (the number of people with positive values). The rest comes back to me, so it is NOT my spending.
+- Skip settlement rows entirely: Category "Payment", descriptions like "X paid Y", and any "Total balance" summary line. That is money moving between people, not spending.
+- Map their categories to mine as above (e.g. "Dining out" → my closest food category); use the trip context in descriptions where it helps ("Ferry a/r" stays "Ferry a/r").
 
 MY EXPENSE categories (with their subcategories):
 ${expList}
@@ -795,8 +809,8 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
               Bring in your existing data
             </h2>
             <p style={{ color: '#6B6B75', fontSize: 15, lineHeight: 1.5, marginTop: 8 }}>
-              Got a spreadsheet, a bank statement, or even screenshots of your transactions? An AI assistant can
-              turn any of them into a TracklyLab file in seconds - no manual re-entry.
+              Got a spreadsheet, a bank statement, a Splitwise trip, or even screenshots of your transactions?
+              An AI assistant can turn any of them into a TracklyLab file in seconds - no manual re-entry.
             </p>
           </div>
 
@@ -804,7 +818,8 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
           <div className="bg-white rounded-2xl shadow-sm p-5 flex flex-col gap-4">
             <Step n={1}>
               Open any AI assistant (ChatGPT, Claude, Gemini…). Paste the prompt below and attach your file -
-              a spreadsheet, a bank/card statement (PDF or CSV), screenshots, or a pasted table.
+              a spreadsheet, a bank/card statement (PDF or CSV), a Splitwise trip export, screenshots, or a
+              pasted table. Split expenses come in as your share only - settlements between people are skipped.
             </Step>
             <Step n={2}>
               It returns a <span style={{ fontWeight: 600 }}>.json</span> file already matched to your categories
@@ -1145,8 +1160,8 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
               style={{ borderBottom: '1px solid #F2F2F7' }}
             >
               <Download className="w-5 h-5" style={{ color: '#8E8E93' }} strokeWidth={2} />
-              <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '16px' }}>Export data</span>
-              <span style={{ color: '#8E8E93', fontSize: '13px' }}>Backup</span>
+              <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '16px' }}>Export backup</span>
+              <span style={{ color: '#8E8E93', fontSize: '13px' }}>Full app data · JSON</span>
             </button>
           )}
           {onExportCsv && (
@@ -1157,7 +1172,7 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
             >
               <FileSpreadsheet className="w-5 h-5" style={{ color: '#8E8E93' }} strokeWidth={2} />
               <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '16px' }}>Export CSV</span>
-              <span style={{ color: '#8E8E93', fontSize: '13px' }}>Spreadsheet</span>
+              <span style={{ color: '#8E8E93', fontSize: '13px' }}>Transactions only</span>
             </button>
           )}
           <button
