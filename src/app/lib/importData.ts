@@ -77,6 +77,14 @@ export function buildImport(
       skipped.push({ record: rec, reason: 'missing required field' });
       continue;
     }
+    // The add form refuses a 0 amount, and the importer holds the same line:
+    // a zero-amount transaction moves no money and only clutters the list.
+    // (Split-expense exports produce these for rows that were fully paid
+    // back.) Negative stays allowed - that is how refunds are recorded.
+    if (rec.amount === 0) {
+      skipped.push({ record: rec, reason: 'zero amount' });
+      continue;
+    }
     // Resolve the category. If the name doesn't match one of the user's
     // categories, fall back to a catch-all ("Others") rather than dropping the
     // row — and remember the original label as a subcategory so the intent
