@@ -1,8 +1,7 @@
-import { ChevronRight, TrendingUp, ArrowUpDown } from 'lucide-react';
+import { ChevronRight, ArrowUpDown } from 'lucide-react';
 import { getCategoryIcon } from './categoryIcons';
 import { useState } from 'react';
 import { formatSummaryAmount, CURRENCIES, homeAmount } from '../utils/currency';
-import { parseLocalDate } from '../lib/dates';
 
 interface TrendCategoryBreakdownProps {
   trendFilteredTransactions: any[];
@@ -10,6 +9,10 @@ interface TrendCategoryBreakdownProps {
   trendExpandedCategory: string | null;
   setTrendExpandedCategory: (category: string | null) => void;
   currency: string;
+  // Months in the period with any activity for this type - the denominator the
+  // headline Monthly Average card uses, handed down so every average on the
+  // screen is a share of the same months.
+  monthCount: number;
 }
 
 export function TrendCategoryBreakdown({
@@ -17,7 +20,8 @@ export function TrendCategoryBreakdown({
   trendSortedCategories,
   trendExpandedCategory,
   setTrendExpandedCategory,
-  currency
+  currency,
+  monthCount
 }: TrendCategoryBreakdownProps) {
   const [categorySortBy, setCategorySortBy] = useState<'alphabetical' | 'amount'>('alphabetical');
   
@@ -29,15 +33,12 @@ export function TrendCategoryBreakdown({
       return sum + convertedAmount;
     }, 0);
     
-    // Calculate number of months with data for this category
-    const monthsWithData = new Set(
-      categoryTransactions.map(t => {
-        const date = parseLocalDate(t.date);
-        return `${date.getFullYear()}-${date.getMonth()}`;
-      })
-    ).size;
-    
-    const monthlyAvg = monthsWithData > 0 ? totalAmount / monthsWithData : 0;
+    // Averaged over the whole period's active months, NOT over the months this
+    // category happened to appear in. Dividing by the category's own months
+    // made a single tax refund - one transaction in one month out of seven -
+    // show its full amount as a "monthly average", and left the rows summing
+    // to more than the headline card they sit under.
+    const monthlyAvg = monthCount > 0 ? totalAmount / monthCount : 0;
     const totalSpending = trendFilteredTransactions.reduce((sum, t) => {
       const convertedAmount = homeAmount(t, currency);
       return sum + convertedAmount;
@@ -47,22 +48,17 @@ export function TrendCategoryBreakdown({
     // Get subcategories for this category
     const subcategoryTotals = categoryTransactions.reduce((acc, t) => {
       if (t.subcategory) {
-        if (!acc[t.subcategory]) {
-          acc[t.subcategory] = { amount: 0, months: new Set() };
-        }
         const convertedAmount = homeAmount(t, currency);
-        acc[t.subcategory].amount += convertedAmount;
-        const date = parseLocalDate(t.date);
-        acc[t.subcategory].months.add(`${date.getFullYear()}-${date.getMonth()}`);
+        acc[t.subcategory] = (acc[t.subcategory] ?? 0) + convertedAmount;
       }
       return acc;
-    }, {} as Record<string, { amount: number; months: Set<string> }>);
-    
-    const subcategories = Object.entries(subcategoryTotals).map(([name, data]: [string, { amount: number; months: Set<string> }]) => ({
+    }, {} as Record<string, number>);
+
+    const subcategories = Object.entries(subcategoryTotals).map(([name, amount]: [string, number]) => ({
       name,
-      amount: data.amount,
-      monthlyAvg: monthsWithData > 0 ? data.amount / monthsWithData : 0,
-      weightPercentage: totalAmount > 0 ? (data.amount / totalAmount) * 100 : 0
+      amount,
+      monthlyAvg: monthCount > 0 ? amount / monthCount : 0,
+      weightPercentage: totalAmount > 0 ? (amount / totalAmount) * 100 : 0
     }));
     
     return {

@@ -3200,6 +3200,12 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                 trendExpandedCategory={trendExpandedCategory}
                 setTrendExpandedCategory={setTrendExpandedCategory}
                 currency={currency}
+                // The same denominator as the Monthly Average card above:
+                // months where this type had any activity at all. Without it
+                // each category divided by its own active months, and a
+                // one-off (a tax refund, an annual bill) showed its whole
+                // amount as a "monthly average".
+                monthCount={trendData.filter(t => t.amount > 0).length}
               />
             )}
           </div>
