@@ -126,6 +126,7 @@ export function FilterBar({
             <option value="All">All</option>
             <option value="One-off">One-off</option>
             <option value="Recurring">Recurring</option>
+            <option value="Imported">Imported</option>
           </SelectPill>
         )}
 

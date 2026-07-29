@@ -62,6 +62,10 @@ export interface Transaction {
   recurrence?: string; // 'Never repeat', 'Every month', ...
   recurrenceOf?: string; // id of the RecurringRule chain this transaction belongs to
   sourceId?: string; // id into the sources list (optional for older data)
+  // Set (to the batch's timestamp) on transactions created by Import - so a
+  // big import can be reviewed in bulk from Activity's filter. Absent on
+  // everything added by hand.
+  importedAt?: string;
 }
 
 export interface UserSettings {

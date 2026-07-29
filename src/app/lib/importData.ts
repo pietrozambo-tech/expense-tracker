@@ -71,6 +71,9 @@ export function buildImport(
   const transactions: Transaction[] = [];
   const skipped: { record: ImportRecord; reason: string }[] = [];
   let defaulted = 0;
+  // One stamp for the whole batch: "this import" is a thing the user can
+  // find again as a group.
+  const importedAt = new Date().toISOString();
 
   for (const rec of payload.transactions || []) {
     if (!rec || typeof rec.amount !== 'number' || !rec.date || !rec.category || !rec.type) {
@@ -131,6 +134,7 @@ export function buildImport(
       baseAmount: convertAmount(rec.amount, rowCurrency, BASE_CURRENCY),
       recurrence: 'Never repeat',
       sourceId: rec.source || undefined,
+      importedAt,
     });
   }
 

@@ -131,6 +131,9 @@ export function Activity({
     const recurrence = t.recurrence || 'Never repeat';
     if (typeFilter === 'One-off' && recurrence !== 'Never repeat') return false;
     if (typeFilter === 'Recurring' && recurrence === 'Never repeat') return false;
+    // Everything a past Import created, as one reviewable group. No marker on
+    // the rows themselves - the flag only exists behind this filter.
+    if (typeFilter === 'Imported' && !t.importedAt) return false;
 
     return true;
   });
