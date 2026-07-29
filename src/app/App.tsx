@@ -1,4 +1,4 @@
-import { Suspense, lazy, useCallback, useEffect, useRef, useState, type ComponentType } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type ComponentType } from 'react';
 import { toast } from 'sonner';
 import { Toaster } from './components/ui/sonner';
 import { BarChart3, Plus, List, X, Settings as SettingsIcon, TrendingUp, ChevronDown, Repeat } from 'lucide-react';
@@ -26,6 +26,7 @@ import { getDemoTransactions } from './lib/demoData';
 import { buildImport, type ImportPayload } from './lib/importData';
 import { buildBackup, downloadBackup, isBackupFile } from './lib/backup';
 import { buildTransactionsCsv, downloadTransactionsCsv } from './lib/csv';
+import { buildDescriptionSuggestions, type DescriptionSuggestion } from './lib/suggestions';
 import { Activity } from './components/Activity';
 import { AmountInput } from './components/AmountInput';
 import { DateInput } from './components/DateInput';
@@ -1096,6 +1097,32 @@ export default function App() {
     }
   };
 
+  // Autocomplete under the Description field while ADDING (never editing -
+  // there the description is already what the user made it). Computed from
+  // existing transactions only; nothing new is stored.
+  const descriptionSuggestions = useMemo<DescriptionSuggestion[]>(() => {
+    if (editingExpenseId || currentTab !== 'add') return [];
+    return buildDescriptionSuggestions(
+      expenses,
+      transactionType,
+      description,
+      transactionType === 'income' ? incomeCategories : categories,
+      sources,
+    );
+  }, [editingExpenseId, currentTab, expenses, transactionType, description, categories, incomeCategories, sources]);
+
+  // A pick fills the description and repeats the merchant's usual
+  // category/subcategory/source. Amount, date, currency and recurrence are
+  // deliberately untouched - those genuinely vary visit to visit.
+  const handlePickSuggestion = (s: DescriptionSuggestion) => {
+    setDescription(s.description);
+    if (s.categoryId) {
+      setSelectedCategory(s.categoryId);
+      setSelectedSubcategory(s.subcategory);
+    }
+    if (s.sourceId) setSelectedSourceId(s.sourceId);
+  };
+
   // Spreadsheet export: every transaction as CSV, for Excel / Sheets. The
   // JSON backup above is for TracklyLab itself; this one is for leaving the
   // app's world with your data readable anywhere.
@@ -1669,6 +1696,8 @@ export default function App() {
                 value={description} 
                 onChange={setDescription}
                 transactionType={transactionType}
+                suggestions={descriptionSuggestions}
+                onPickSuggestion={handlePickSuggestion}
               />
               
               <DateInput 
