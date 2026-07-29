@@ -163,21 +163,27 @@ export const formatAbbreviatedAmount = (amount: number, currencyCode: string): s
   return `${number}${suffix}${sep}${currency.symbol}`;
 };
 
-// Format amount with currency symbol ALWAYS after the number (for list views)
+// Format amount with currency symbol ALWAYS after the number (for list views).
+//
+// `decimals` is a maximum, not a fixed width: cents that exist are information
+// ("-40.32"), cents that don't are filler ("-54.00"), and a list repeats that
+// filler on every row. Rounded first so a converted 53.999 shows as "54",
+// not "54.00".
 export const formatAmountListView = (amount: number, currencyCode: string, decimals: number = 2): string => {
   // Handle null/undefined amounts
   if (amount === null || amount === undefined) {
     amount = 0;
   }
-  
+
   const currency = CURRENCIES[currencyCode] || CURRENCIES.EUR;
-  
-  // Format the number with locale
-  const formattedNumber = amount.toLocaleString('en-US', {
-    minimumFractionDigits: decimals,
+  const factor = 10 ** decimals;
+  const rounded = Math.round(amount * factor) / factor;
+
+  const formattedNumber = rounded.toLocaleString('en-US', {
+    minimumFractionDigits: Number.isInteger(rounded) ? 0 : decimals,
     maximumFractionDigits: decimals
   });
-  
+
   // Always position symbol after the number for list views
   const sep = currency.symbol.length > 1 ? ' ' : '';
   return `${formattedNumber}${sep}${currency.symbol}`;

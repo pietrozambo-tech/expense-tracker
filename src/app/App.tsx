@@ -25,6 +25,7 @@ import { SourceSelectorModal } from './components/SourceSelectorModal';
 import { getDemoTransactions } from './lib/demoData';
 import { buildImport, type ImportPayload } from './lib/importData';
 import { buildBackup, downloadBackup, isBackupFile } from './lib/backup';
+import { buildTransactionsCsv, downloadTransactionsCsv } from './lib/csv';
 import { Activity } from './components/Activity';
 import { AmountInput } from './components/AmountInput';
 import { DateInput } from './components/DateInput';
@@ -1095,6 +1096,22 @@ export default function App() {
     }
   };
 
+  // Spreadsheet export: every transaction as CSV, for Excel / Sheets. The
+  // JSON backup above is for TracklyLab itself; this one is for leaving the
+  // app's world with your data readable anywhere.
+  const handleExportCsv = () => {
+    try {
+      downloadTransactionsCsv(buildTransactionsCsv(expenses, userCurrency, sources));
+      track('data_exported_csv', { count: expenses.length });
+      toast.success('CSV exported', {
+        description: `${expenses.length} transaction${expenses.length === 1 ? '' : 's'} - opens in any spreadsheet`,
+        duration: 2000,
+      });
+    } catch {
+      toast.error('Export failed');
+    }
+  };
+
   // Restore a full backup produced by Export — replaces all current data.
   const restoreBackup = (b: any) => {
     const count = Array.isArray(b.transactions) ? b.transactions.length : 0;
@@ -1399,6 +1416,7 @@ export default function App() {
                 currency={userCurrency}
                 onEditExpense={handleEditExpense}
                 onDeleteExpense={handleDeleteExpense}
+                monthlyBudget={monthlyBudget}
                 view="trend"
                 onShowOverview={(period) => {
                   setDashboardInitialPeriod(period);
@@ -1432,6 +1450,7 @@ export default function App() {
                 hasDemoData={hasDemoData}
                 onImportData={handleImportData}
                 onExportData={handleExportData}
+                onExportCsv={handleExportCsv}
                 sources={sources}
                 defaultSourceExpense={defaultSourceExpense}
                 defaultSourceIncome={defaultSourceIncome}

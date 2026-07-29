@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { ChevronRight, ArrowUpDown, TrendingUp, TrendingDown, Minus, Plus, Receipt, ChevronLeft, ChevronDown, X, Clock, Wallet, Percent } from 'lucide-react';
+import { ChevronRight, ArrowUpDown, TrendingUp, TrendingDown, Minus, Plus, Receipt, ChevronLeft, ChevronDown, X, Wallet, Percent } from 'lucide-react';
 import { TrendCategoryBreakdown } from './TrendCategoryBreakdown';
 import React from 'react';
 import { formatAmount, formatCompactAmount, formatSummaryAmount, formatAmountListView, formatAbbreviatedAmount, CURRENCIES, homeAmount } from '../utils/currency';
@@ -37,9 +37,13 @@ function niceAxis(maxValue: number, targetTicks = 5): { max: number; step: numbe
   return { max: Math.ceil(maxValue / step) * step, step };
 }
 
-// Compact y-axis tick label: full number with separators up to 10k, then "Nk".
-function formatAxisTick(value: number): string {
-  if (value >= 10000) return `${Math.round(value / 1000)}k`;
+// Y-axis tick label. One notation per axis, decided by its top tick: an axis
+// that reads "10k, 8,000, 6,000" is switching units halfway down.
+function formatAxisTick(value: number, axisMax: number): string {
+  if (value === 0) return '0'; // "0k" is nonsense in any notation
+  if (axisMax >= 10000) {
+    return `${(value / 1000).toFixed(1).replace(/\.0$/, '')}k`;
+  }
   return Math.round(value).toLocaleString('en-US');
 }
 
@@ -2020,7 +2024,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                                 fontSize={10}
                                 fill="#8E8E93"
                               >
-                                {formatAxisTick(t.value)}
+                                {formatAxisTick(t.value, axisMax)}
                               </text>
                             ))}
 
@@ -2586,12 +2590,26 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
         
         const totalSpent = trendData.reduce((sum, t) => sum + t.amount, 0);
         
-        // Find current month and max/min month indices
+        // Find current month and max/min month indices.
+        //
+        // The month still in progress cannot win Best or Worst: it is a
+        // part-finished figure competing against complete ones, so at the
+        // start of every month it was "Best" (barely any spending yet) and by
+        // the end it often flipped to "Worst" without anything unusual
+        // happening. It competes once it is over.
         const currentMonthIndex = trendData.length - 1;
-        const maxAmount = Math.max(...allAmounts);
-        const minAmount = Math.min(...allAmounts);
-        const maxMonthIndex = trendData.findIndex(t => t.amount === maxAmount && t.amount !== 0);
-        const minMonthIndex = trendData.findIndex(t => t.amount === minAmount && t.amount !== 0);
+        const rightNow = new Date();
+        const isRunningMonth = (t: { month: string; year: number }) =>
+          t.year === rightNow.getFullYear() && getMonthNumber(t.month) === rightNow.getMonth();
+        const badgeable = trendData
+          .map((t, i) => ({ amount: t.amount, i }))
+          .filter(({ amount, i }) => amount !== 0 && !isRunningMonth(trendData[i]));
+        const maxMonthIndex = badgeable.length
+          ? badgeable.reduce((a, b) => (b.amount > a.amount ? b : a)).i
+          : -1;
+        const minMonthIndex = badgeable.length
+          ? badgeable.reduce((a, b) => (b.amount < a.amount ? b : a)).i
+          : -1;
         
         // For "Best" badge logic:
         // - Expenses: Best = minimum (lowest spending)
@@ -3018,8 +3036,18 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
 
             {/* Monthly Breakdown - High Density */}
             <div className="px-6 py-3 bg-white mb-2">
-              <h3 className="text-neutral-900 font-semibold text-sm mb-2">Monthly Breakdown</h3>
-              
+              <div className="flex items-baseline justify-between mb-2">
+                <h3 className="text-neutral-900 font-semibold text-sm">Monthly Breakdown</h3>
+                {/* The tick on every bar below marks the same value; this names
+                    it once. Expenses only - the budget is a spending limit. */}
+                {transactionType === 'expense' && selectedCategory === 'All' && !!monthlyBudget && monthlyBudget > 0 && (
+                  <span className="flex items-baseline gap-1.5 text-[10px]" style={{ color: '#A0A0A8' }}>
+                    <span className="self-center w-0.5 h-2.5 rounded-full" style={{ backgroundColor: 'rgba(28,28,30,0.35)' }} />
+                    Budget {formatAmountListView(monthlyBudget, currency, 0)}
+                  </span>
+                )}
+              </div>
+
               {/* Column headers. Shown whenever a row carries more than one
                   number - a category drilldown (weight + count) or the savings
                   view (rate), where an unlabelled "-12%" next to an unlabelled
@@ -3089,12 +3117,19 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                   // (as this did) turns a 3,329 / 3,931 spread - 18% - into the
                   // difference between nothing and a full bar, which reads as
                   // wild volatility in a steady year.
+                  //
+                  // With a budget set, the scale stretches to include it, so
+                  // the budget tick always sits on the track - and every bar
+                  // falling short of the tick is a month that stayed under.
+                  const showBudgetTick =
+                    transactionType === 'expense' && selectedCategory === 'All' && !!monthlyBudget && monthlyBudget > 0;
                   let barWidth = 0;
-                  const barMax = Math.max(...allAmounts.map(a => Math.abs(a)), 0);
+                  const barMax = Math.max(...allAmounts.map(a => Math.abs(a)), showBudgetTick ? monthlyBudget! : 0);
                   const barValue = Math.abs(item.amount);
                   if (barMax > 0 && barValue > 0) {
                     barWidth = Math.max(2, (barValue / barMax) * 100);
                   }
+                  const budgetPct = showBudgetTick && barMax > 0 ? (monthlyBudget! / barMax) * 100 : 0;
 
                   // One rule for all three toggles. Savings used to skip the bar
                   // entirely on a negative month, so the worst month of the year
@@ -3133,11 +3168,21 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                       </div>
                       
                       {/* Visual indicator - mini bar */}
-                      <div className={`${selectedCategory === 'All' ? 'flex-1' : 'w-32'} min-w-0 h-1.5 bg-neutral-100 rounded-full overflow-hidden self-center`}>
+                      <div className={`relative ${selectedCategory === 'All' ? 'flex-1' : 'w-32'} min-w-0 h-1.5 bg-neutral-100 rounded-full overflow-hidden self-center`}>
                         <div
                           className={`h-full rounded-full transition-all ${barClass}`}
                           style={{ width: `${barWidth}%` }}
                         />
+                        {/* Budget tick. Same x on every row (the rows share one
+                            scale), so the ticks line up into a rule through the
+                            column: bars ending short of it stayed under budget,
+                            bars crossing it went over. */}
+                        {showBudgetTick && (
+                          <div
+                            className="absolute top-0 bottom-0"
+                            style={{ left: `calc(${budgetPct}% - 2px)`, width: 2, backgroundColor: 'rgba(28,28,30,0.35)' }}
+                          />
+                        )}
                       </div>
                       
                       {/* Amount */}
@@ -3183,6 +3228,15 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                         {trendData.length > 1 && index === worstMonthIndex && item.amount !== 0 && index !== bestMonthIndex && (
                           <span className="text-[9px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded font-medium leading-none">
                             Worst
+                          </span>
+                        )}
+                        {/* The running month sits in the same column, marked
+                            as partial in the neutral grey the Best/Worst pills
+                            use for their colours - it is a status, not a
+                            verdict. It is also why that row has no badge. */}
+                        {trendData.length > 1 && isRunningMonth(item) && (
+                          <span className="text-[9px] bg-neutral-100 text-neutral-500 px-1.5 py-0.5 rounded font-medium leading-none whitespace-nowrap">
+                            So far
                           </span>
                         )}
                       </div>
@@ -3318,21 +3372,18 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                       e.stopPropagation();
                       setDrilldownSortBy(prev => prev === 'time' ? 'amount' : 'time');
                     }}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full transition-all active:scale-95 cursor-pointer h-9"
-                    style={{ backgroundColor: '#E5E5EA' }}
+                    // Same anatomy as every other sort toggle in the app
+                    // (Categories' A-Z/€): ArrowUpDown icon + short label on
+                    // the grey pill. This was the one sort control drawn
+                    // differently - Clock icon, uppercase, darker pill.
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition-colors"
+                    style={{ backgroundColor: '#F2F2F7' }}
                     aria-label="Toggle sort order"
                   >
-                    {drilldownSortBy === 'time' ? (
-                      <>
-                        <Clock className="w-3.5 h-3.5" style={{ color: '#3A3A3C' }} />
-                        <span className="text-[10px] font-bold tracking-wide" style={{ color: '#3A3A3C' }}>TIME</span>
-                      </>
-                    ) : (
-                      <>
-                        <ArrowUpDown className="w-3.5 h-3.5" style={{ color: '#3A3A3C' }} />
-                        <span className="text-[10px] font-bold tracking-wide" style={{ color: '#3A3A3C' }}>AMOUNT</span>
-                      </>
-                    )}
+                    <ArrowUpDown className="w-3.5 h-3.5" style={{ color: '#8E8E93' }} />
+                    <span className="text-xs" style={{ color: '#8E8E93' }}>
+                      {drilldownSortBy === 'time' ? 'Time' : CURRENCIES[currency]?.symbol || '€'}
+                    </span>
                   </button>
                 </div>
               </div>

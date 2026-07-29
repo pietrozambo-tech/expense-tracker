@@ -1,4 +1,4 @@
-import { ChevronRight, ChevronLeft, UserCircle, Wallet, HelpCircle, ShieldCheck, ScrollText, Layers, FlaskConical, Trash2, Landmark, Cloud, LogOut, Upload, Copy, Download, UserX, Mail, LifeBuoy, CheckCircle2 } from 'lucide-react';
+import { ChevronRight, ChevronLeft, UserCircle, Wallet, HelpCircle, ShieldCheck, ScrollText, Layers, FlaskConical, Trash2, Landmark, Cloud, LogOut, Upload, Copy, Download, FileSpreadsheet, UserX, Mail, LifeBuoy, CheckCircle2 } from 'lucide-react';
 import { sendSupportMessage, supportLimitReached } from '../lib/support';
 
 // Where "Contact support" messages go. Easy to swap when the domain changes.
@@ -43,6 +43,7 @@ interface SettingsProps {
   hasDemoData?: boolean;
   onImportData?: (payload: ImportPayload) => void;
   onExportData?: () => void;
+  onExportCsv?: () => void;
   sources: Source[];
   defaultSourceExpense?: string;
   defaultSourceIncome?: string;
@@ -89,6 +90,7 @@ export function Settings({
   hasDemoData,
   onImportData,
   onExportData,
+  onExportCsv,
   sources,
   defaultSourceExpense,
   defaultSourceIncome,
@@ -1145,6 +1147,17 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
               <Download className="w-5 h-5" style={{ color: '#8E8E93' }} strokeWidth={2} />
               <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '16px' }}>Export data</span>
               <span style={{ color: '#8E8E93', fontSize: '13px' }}>Backup</span>
+            </button>
+          )}
+          {onExportCsv && (
+            <button
+              onClick={onExportCsv}
+              className="w-full flex items-center gap-3 px-5 py-4 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
+              style={{ borderBottom: '1px solid #F2F2F7' }}
+            >
+              <FileSpreadsheet className="w-5 h-5" style={{ color: '#8E8E93' }} strokeWidth={2} />
+              <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '16px' }}>Export CSV</span>
+              <span style={{ color: '#8E8E93', fontSize: '13px' }}>Spreadsheet</span>
             </button>
           )}
           <button
