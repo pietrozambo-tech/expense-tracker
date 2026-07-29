@@ -102,8 +102,12 @@ export function ExpenseItem({ expense, onTap, onDelete, currency, showDate = fal
             ) : null}
           </div>
 
-          {/* Amount */}
+          {/* Amount. The recurrence marker leads rather than trails: after the
+              amount it pushed the figure left, out of line with every
+              non-recurring row's - and the amount column is the one thing the
+              eye runs down this list to compare. */}
           <div className="flex-shrink-0 flex items-center gap-1.5 text-right pr-4">
+            {isRecurrent && <Repeat size={14} className="text-neutral-400 flex-shrink-0" strokeWidth={2} />}
             <div>
               {showConversion && convertedAmount !== null ? (
                 <>
@@ -120,7 +124,6 @@ export function ExpenseItem({ expense, onTap, onDelete, currency, showDate = fal
                 </p>
               )}
             </div>
-            {isRecurrent && <Repeat size={14} className="text-neutral-400 flex-shrink-0" strokeWidth={2} />}
           </div>
         </button>
       </div>

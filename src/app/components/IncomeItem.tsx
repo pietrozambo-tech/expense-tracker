@@ -97,8 +97,10 @@ export function IncomeItem({ income, onTap, onDelete, currency, showDate = false
             ) : null}
           </div>
 
-          {/* Amount */}
+          {/* Amount. Recurrence marker leads, so the amount's right edge stays
+              on the shared column - same as ExpenseItem. */}
           <div className="flex-shrink-0 flex items-center gap-1.5 text-right pr-4">
+            {isRecurrent && <Repeat size={14} className="text-neutral-400 flex-shrink-0" strokeWidth={2} />}
             <div>
               {showConversion && convertedAmount !== null ? (
                 <>
@@ -115,7 +117,6 @@ export function IncomeItem({ income, onTap, onDelete, currency, showDate = false
                 </p>
               )}
             </div>
-            {isRecurrent && <Repeat size={14} className="text-neutral-400 flex-shrink-0" strokeWidth={2} />}
           </div>
         </button>
       </div>
