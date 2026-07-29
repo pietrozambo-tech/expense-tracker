@@ -23,7 +23,8 @@ import { DEFAULT_SOURCES, DEFAULT_SOURCE_EXPENSE, DEFAULT_SOURCE_INCOME } from '
 import { SourceLogo } from './components/SourceLogo';
 import { SourceSelectorModal } from './components/SourceSelectorModal';
 import { getDemoTransactions } from './lib/demoData';
-import { buildImport, type ImportPayload } from './lib/importData';
+import { buildImport, type ImportPayload, type ImportResult } from './lib/importData';
+import { ImportSummaryDialog } from './components/ImportSummaryDialog';
 import { buildBackup, downloadBackup, isBackupFile } from './lib/backup';
 import { buildTransactionsCsv, downloadTransactionsCsv } from './lib/csv';
 import { buildDescriptionSuggestions, type DescriptionSuggestion } from './lib/suggestions';
@@ -131,6 +132,9 @@ export default function App() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [selectedSubcategory, setSelectedSubcategory] = useState<string | null>(null);
   const [description, setDescription] = useState('');
+  // Post-import summary dialog - set only when the import has anything worth
+  // reading (fallbacks or skips); clean imports stay a toast.
+  const [importSummary, setImportSummary] = useState<ImportResult | null>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [recurrence, setRecurrence] = useState('Never repeat');
   const [date, setDate] = useState(() => {
@@ -1182,10 +1186,8 @@ export default function App() {
     }
     const res = buildImport(payload, categories, incomeCategories, userCurrency);
     if (res.added === 0) {
-      toast.error('Nothing imported', {
-        description: res.skipped.length ? `${res.skipped.length} rows couldn't be matched` : 'No transactions found in the file',
-        duration: 2200,
-      });
+      if (res.skipped.length) setImportSummary(res);
+      else toast.error('Nothing imported', { description: 'No transactions found in the file', duration: 2200 });
       return res;
     }
     setCategories(res.categories);
@@ -1195,14 +1197,17 @@ export default function App() {
     setExpenses((prev) => [...res.transactions, ...prev]);
     setRefreshKey((prev) => prev + 1);
     setCurrentTab('dashboard');
-    track('data_imported', { count: res.added });
-    const notes: string[] = [];
-    if (res.defaulted) notes.push(`${res.defaulted} set to Others`);
-    if (res.skipped.length) notes.push(`${res.skipped.length} skipped`);
-    toast.success(`Imported ${res.added} transaction${res.added === 1 ? '' : 's'}`, {
-      description: notes.length ? notes.join(' · ') : 'Added to your account',
-      duration: 2000,
-    });
+    track('data_imported', { count: res.added, defaulted: res.defaulted, skipped: res.skipped.length });
+    if (res.defaulted || res.skipped.length) {
+      // Something needs the user's eyes - a dialog they dismiss, not a toast
+      // that dismisses itself.
+      setImportSummary(res);
+    } else {
+      toast.success(`Imported ${res.added} transaction${res.added === 1 ? '' : 's'}`, {
+        description: 'All matched to your categories',
+        duration: 2200,
+      });
+    }
     return res;
   };
 
@@ -1389,6 +1394,9 @@ export default function App() {
   return (
     <div className="min-h-screen bg-[#F5F5F7] md:bg-[#EBEBEF]">
       <Toaster position="top-center" />
+      {importSummary && (
+        <ImportSummaryDialog result={importSummary} onClose={() => setImportSummary(null)} />
+      )}
 
       {/* iPhone 14 Container — Activity needs an exact viewport height so only
           its transaction list scrolls; other tabs scroll as a whole page */}
