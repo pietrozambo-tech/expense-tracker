@@ -2,7 +2,7 @@ import { useRef, useState, type ReactNode } from 'react';
 import {
   Minus, Plus, Wallet, Percent, Calendar, Repeat, ChevronDown, ChevronRight, TrendingDown,
   ShoppingCart, Car, Home, Clapperboard, Landmark, Layers,
-  FlaskConical, Trash2,
+  FlaskConical, Trash2, FileSpreadsheet, Palmtree, UtensilsCrossed,
 } from 'lucide-react';
 import type { Source } from '../types';
 import { SourceLogo } from './SourceLogo';
@@ -275,63 +275,51 @@ function StatCard({
   );
 }
 
-function TrendIllustration() {
-  // Line Trend — mirrors the top of the real Trend tab (stat cards + line).
-  const tLabels = recentMonthLabels(7);
-  const trend = [4475, 3620, 3280, 3010, 2920, 3480, 3800];
-  // Rounded bounds, as the real chart now uses.
-  const yMax = 6000, yMin = 2000, yRange = yMax - yMin;
-  const avg = 3533;
-  const W = 320, H = 84;
-  const px = (i: number) => (i / (trend.length - 1)) * W;
-  const py = (v: number) => H - ((v - yMin) / yRange) * H;
-  const linePath = trend
-    .map((v, i) => {
-      if (i === 0) return `M ${px(0)},${py(v)}`;
-      const p = px(i - 1), c = px(i);
-      return `C ${p + (c - p) / 3},${py(trend[i - 1])} ${p + ((c - p) * 2) / 3},${py(v)} ${c},${py(v)}`;
-    })
-    .join(' ');
-  const areaPath = `M 0,${H} ${trend.map((v, i) => `L ${px(i)},${py(v)}`).join(' ')} L ${W},${H} Z`;
-  const avgY = py(avg);
-
+function ImportIllustration() {
+  // Mirrors the real Import screen's two use-case cards, then shows the
+  // outcome: rows landing in Activity, already categorised.
+  const rows = [
+    { name: 'Ferry a/r', cat: 'Travel', amt: '-61.60€', Icon: Palmtree, tint: '#E1F0FF', ink: '#0A84FF' },
+    { name: 'Esselunga', cat: 'Groceries', amt: '-21.04€', Icon: ShoppingCart, tint: '#E7F6EC', ink: '#2E9E5B' },
+    { name: 'Cena', cat: 'Food & Drinks', amt: '-83.00€', Icon: UtensilsCrossed, tint: '#FFF1E2', ink: '#C77700' },
+  ];
   return (
     <div className="flex flex-col gap-3">
-      {/* Trend tab top: the two dark stat cards + the monthly line */}
-      <div className="rounded-2xl p-4" style={{ background: '#FFFFFF', boxShadow: '0 8px 24px rgba(0,0,0,0.06)', border: '1px solid #EEEEF1' }}>
-        <div className="grid grid-cols-2 gap-2 mb-4">
-          <StatCard label="Total Spent" value="24,731€" footnote="7 months · 405 transactions" />
-          <StatCard label="Monthly Average" value="3,533€" footnote="58 transactions" />
+      <div className="grid grid-cols-2 gap-3">
+        <div className="rounded-2xl px-4 py-3.5" style={{ background: '#FFFFFF', boxShadow: '0 8px 24px rgba(0,0,0,0.06)', border: '1px solid #EEEEF1' }}>
+          <span className="flex items-center justify-center mb-2" style={{ width: 34, height: 34, borderRadius: 11, background: '#E7F6EC' }}>
+            <FileSpreadsheet className="w-4.5 h-4.5" style={{ color: '#2E9E5B', width: 18, height: 18 }} />
+          </span>
+          <div className="text-[13px] font-bold leading-tight" style={{ color: '#1C1C1E' }}>Banks &amp; spreadsheets</div>
+          <div className="text-[11px] mt-1 leading-snug" style={{ color: '#8E8E93' }}>Statements, Excel, even screenshots</div>
         </div>
+        <div className="rounded-2xl px-4 py-3.5" style={{ background: '#FFFFFF', boxShadow: '0 8px 24px rgba(0,0,0,0.06)', border: '1px solid #EEEEF1' }}>
+          <span className="flex items-center justify-center mb-2" style={{ width: 34, height: 34, borderRadius: 11, background: '#E1F0FF' }}>
+            <Palmtree style={{ color: '#0A84FF', width: 18, height: 18 }} />
+          </span>
+          <div className="text-[13px] font-bold leading-tight" style={{ color: '#1C1C1E' }}>Trips &amp; splits</div>
+          <div className="text-[11px] mt-1 leading-snug" style={{ color: '#8E8E93' }}>Splitwise lands as your share only</div>
+        </div>
+      </div>
 
-        <div className="text-[13px] font-semibold mb-2" style={{ color: '#1C1C1E' }}>Monthly Spending</div>
-        <div className="flex">
-          {/* Y-axis labels */}
-          <div className="flex flex-col justify-between pr-2 text-[9px] tabular-nums font-medium" style={{ height: H, color: '#B0B0B5' }}>
-            <span>6,000€</span>
-            <span>4,000€</span>
-            <span>2,000€</span>
-          </div>
-          <div className="flex-1 min-w-0">
-            <svg viewBox={`0 0 ${W} ${H}`} width="100%" height={H} preserveAspectRatio="none" style={{ display: 'block' }}>
-              <defs>
-                <linearGradient id="trendGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#3B82F6" stopOpacity="0.12" />
-                  <stop offset="100%" stopColor="#3B82F6" stopOpacity="0.01" />
-                </linearGradient>
-              </defs>
-              <line x1="0" y1="0.5" x2={W} y2="0.5" stroke="#F1F1F1" strokeWidth="1" vectorEffect="non-scaling-stroke" />
-              <line x1="0" y1={H / 2} x2={W} y2={H / 2} stroke="#F1F1F1" strokeWidth="1" vectorEffect="non-scaling-stroke" />
-              <line x1="0" y1={H - 0.5} x2={W} y2={H - 0.5} stroke="#F1F1F1" strokeWidth="1" vectorEffect="non-scaling-stroke" />
-              <line x1="0" y1={avgY} x2={W} y2={avgY} stroke="#A3A3A3" strokeWidth="1" strokeDasharray="4 4" opacity="0.35" vectorEffect="non-scaling-stroke" />
-              <path d={areaPath} fill="url(#trendGrad)" />
-              <path d={linePath} fill="none" stroke="#3B82F6" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
-            </svg>
-            <div className="flex justify-between mt-1.5">
-              {tLabels.map((l) => <span key={l} className="text-[9px]" style={{ color: '#B0B0B5' }}>{l}</span>)}
-            </div>
-          </div>
+      {/* The result: recognisable Activity rows, already categorised */}
+      <div className="rounded-2xl px-4 py-3" style={{ background: '#FFFFFF', boxShadow: '0 8px 24px rgba(0,0,0,0.06)', border: '1px solid #EEEEF1' }}>
+        <div className="flex items-center justify-between mb-1.5">
+          <span className="text-[12px] font-semibold" style={{ color: '#1C1C1E' }}>Activity</span>
+          <span className="text-[10px] font-medium rounded-full px-2 py-0.5" style={{ background: '#F2F2F7', color: '#8E8E93' }}>Imported</span>
         </div>
+        {rows.map((r) => (
+          <div key={r.name} className="flex items-center gap-2.5 py-1.5">
+            <span className="flex items-center justify-center flex-shrink-0" style={{ width: 28, height: 28, borderRadius: 9, background: r.tint }}>
+              <r.Icon style={{ color: r.ink, width: 14, height: 14 }} />
+            </span>
+            <div className="flex-1 min-w-0">
+              <div className="text-[13px] font-medium leading-tight" style={{ color: '#1C1C1E' }}>{r.name}</div>
+              <div className="text-[10px]" style={{ color: '#B0B0B5' }}>{r.cat}</div>
+            </div>
+            <span className="text-[13px] font-bold tabular-nums" style={{ color: '#1C1C1E' }}>{r.amt}</span>
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -471,19 +459,19 @@ export function WelcomeCarousel({ userName, onDone, onSetupCategories, onLoadDem
       desc: 'Enter an amount, choose a category and subcategory, then set how often it repeats and which account it came from.',
     },
     {
+      illustration: <ImportIllustration />,
+      title: 'Bring your history',
+      desc: 'Import from a spreadsheet, bank statements, or a Splitwise trip 🏝️ - an AI assistant converts it all, no manual re-entry.',
+    },
+    {
       illustration: <DashboardIllustration />,
       title: 'Your money at a glance',
       desc: 'The dashboard shows spending, income and savings - with breakdowns by category and source.',
     },
     {
-      illustration: <TrendIllustration />,
-      title: 'Spot the trends',
-      desc: 'See your monthly totals and average, and how your spending trend moves month over month.',
-    },
-    {
       illustration: <SavingsIllustration />,
-      title: 'Grow your savings',
-      desc: 'Track savings and your saving rate over time - the app flags your best and worst months.',
+      title: 'Spot the trends',
+      desc: 'Monthly spending, income and savings over time - best and worst months flagged, saving rate included.',
     },
     {
       illustration: <DemoIllustration />,
