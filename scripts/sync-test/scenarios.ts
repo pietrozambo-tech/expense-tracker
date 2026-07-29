@@ -244,6 +244,30 @@ async function scenarioOffline() {
   expect("Pietro's own screen shows both", his.list(), 'Train 9EUR + Cinema 14EUR');
 }
 
+
+async function scenarioRecurringNoDupes() {
+  heading('6. Both phones materialise the same recurring occurrence - no duplicate');
+  reset();
+  // Occurrence ids are deterministic (rec-<ruleId>-<date>), so when two
+  // devices both back-fill the same missed occurrence, the merge must
+  // recognise them as ONE transaction, not two Netflix charges.
+  const hers = new Phone('Anna  ');
+  const his = new Phone('Pietro');
+  await hers.openApp();
+  await his.openApp();
+
+  console.log('');
+  hers.add('rec-r1-2026-07-28', 'Netflix 13EUR', 13);
+  await hers.sync();
+
+  console.log('');
+  say("Pietro's app, still on this morning's snapshot, back-fills the same occurrence:");
+  his.add('rec-r1-2026-07-28', 'Netflix 13EUR', 13);
+  await his.sync();
+
+  expect('exactly one Netflix survives the merge', serverList(), 'Netflix 13EUR');
+}
+
 async function main() {
   console.log('\n================================================================');
   console.log(` Cloud sync - two devices, one account   [${OLD ? 'BEFORE the fix' : 'AFTER the fix'}]`);
@@ -255,6 +279,7 @@ async function main() {
   await scenarioReopen();
   await scenarioDelete();
   await scenarioOffline();
+  await scenarioRecurringNoDupes();
 
   console.log('\n================================================================');
   console.log(failures === 0 ? ' All checks passed - nothing lost.' : ` ${failures} check(s) FAILED.`);

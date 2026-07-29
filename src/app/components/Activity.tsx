@@ -7,6 +7,7 @@ import { SourceFilterModal } from './SourceFilterModal';
 import { SearchModal } from './SearchModal';
 import { formatAmount, CURRENCIES, homeAmount } from '../utils/currency';
 import { Download } from 'lucide-react';
+import { buildTransactionsCsv, downloadTransactionsCsv } from '../lib/csv';
 import { toast } from 'sonner';
 import type { Transaction, Source } from '../types';
 import { parseLocalDate } from '../lib/dates';
@@ -181,59 +182,19 @@ export function Activity({
         : `${netTotal >= 0 ? '+' : '-'}${formatAmount(Math.abs(netTotal), currency)}`;
 
   // CSV Export
+  // Exports the CURRENT VIEW - whatever the filters above have narrowed the
+  // list to. The full-dataset export lives in Settings; both go through
+  // lib/csv so the two buttons cannot drift into different dialects (they
+  // had: this one used comma decimals and no BOM, the other the opposite).
   const downloadActivity = () => {
     if (filteredTransactions.length === 0) {
       toast.error('No transactions to export');
       return;
     }
-
-    const homeCode = CURRENCIES[currency]?.code || 'EUR';
-    // Escape any cell that contains a comma, quote or newline. Amounts use a
-    // comma decimal separator, so they're always quoted by this rule too.
-    const esc = (v: string | number) => {
-      let s = String(v ?? '');
-      // Formula-injection guard: a cell starting with = + @ or tab would be
-      // executed by Excel/Sheets. Prefix with ' so it renders as text.
-      if (/^[=+@\t]/.test(s)) s = `'${s}`;
-      return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-    };
-    const money = (n: number) => esc(n.toFixed(2).replace('.', ','));
-
-    const headers = [
-      'Date', 'Type', 'Description', 'Category', 'Subcategory', 'Source',
-      'Currency', 'Amount', `Amount (${homeCode})`, 'Recurrence',
-    ];
-    const csvRows = [headers.join(',')];
-
-    filteredTransactions.forEach(t => {
-      const txnCurrency = t.currency || currency; // the currency it was entered in
-      const sourceName = sources.find(s => s.id === t.sourceId)?.name || '';
-      const converted = homeAmount(t, currency); // value in the user's home currency
-      const row = [
-        esc(t.date),
-        t.type === 'income' ? 'Income' : 'Expense',
-        esc(t.description),
-        esc(t.category.name),
-        esc(t.subcategory || ''),
-        esc(sourceName),
-        esc(txnCurrency),
-        money(t.amount),   // original amount, in its own currency
-        money(converted),  // converted to the home currency
-        esc(t.recurrence || 'Never repeat'),
-      ];
-      csvRows.push(row.join(','));
-    });
-
-    const blob = new Blob([csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    link.setAttribute('href', url);
-    link.setAttribute('download', `activity_${new Date().toISOString().split('T')[0]}.csv`);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-
+    downloadTransactionsCsv(
+      buildTransactionsCsv(filteredTransactions, currency, sources),
+      'tracklylab-activity',
+    );
     toast.success(`Exported ${filteredTransactions.length} transaction${filteredTransactions.length !== 1 ? 's' : ''}`);
   };
 

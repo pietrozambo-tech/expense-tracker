@@ -432,7 +432,10 @@ export default function App() {
       clearTimeout(t);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userId, cloudHydrated, syncRetryTick, expenses, recurringRules, categories, incomeCategories, sources, hasCompletedOnboarding, userName, userCurrency, monthlyBudget, hasSeenIntro, defaultSourceExpense, defaultSourceIncome]);
+  // budgetNudgeDismissed is in the payload, so it belongs in the deps -
+  // without it, dismissing the nudge didn't sync until the next unrelated
+  // change, and a re-hydrate on another device could re-show the card.
+  }, [userId, cloudHydrated, syncRetryTick, expenses, recurringRules, categories, incomeCategories, sources, hasCompletedOnboarding, userName, userCurrency, monthlyBudget, budgetNudgeDismissed, hasSeenIntro, defaultSourceExpense, defaultSourceIncome]);
 
   // Coming back to the app pulls anything another device wrote while we were
   // away. Previously returning to the foreground only ever pushed, so a device

@@ -18,7 +18,12 @@ export function buildTransactionsCsv(
   sources: Source[],
 ): string {
   const esc = (v: string | number) => {
-    const s = String(v ?? '');
+    let s = String(v ?? '');
+    // Formula-injection guard: Excel and Sheets execute cells that start with
+    // = + @ or a tab. A transaction described as "=HYPERLINK(...)" must open
+    // as text, not run. (Only user-entered strings pass through here - the
+    // numeric columns are emitted directly.)
+    if (/^[=+@\t]/.test(s)) s = `'${s}`;
     return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
   };
   const sourceName = (id?: string) => (id ? sources.find((s) => s.id === id)?.name ?? id : '');
@@ -59,13 +64,14 @@ export function buildTransactionsCsv(
   return '\ufeff' + [header.join(','), ...rows].join('\r\n') + '\r\n';
 }
 
-// Trigger a client-side download of the CSV.
-export function downloadTransactionsCsv(csv: string) {
+// Trigger a client-side download of the CSV. `basename` distinguishes the
+// full export from a filtered Activity view; the date is appended to both.
+export function downloadTransactionsCsv(csv: string, basename = 'tracklylab-transactions') {
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `tracklylab-transactions-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.download = `${basename}-${new Date().toISOString().slice(0, 10)}.csv`;
   document.body.appendChild(a);
   a.click();
   a.remove();
