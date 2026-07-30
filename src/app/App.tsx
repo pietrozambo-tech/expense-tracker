@@ -795,12 +795,25 @@ export default function App() {
     });
   };
 
+  // The income tab of Manage Categories renders the same subcategory UI as the
+  // expense tab, so these three handlers receive ids from either list. Route by
+  // whichever list owns the id - income ids ("salary", "income-category-…")
+  // never collide with expense ones. Mapping over `categories` unconditionally
+  // meant every income subcategory edit matched nothing, changed nothing, and
+  // still toasted success.
+  const editSubcategories = (categoryId: string, update: (subs: string[]) => string[]) => {
+    const setList = incomeCategories.some((c) => c.id === categoryId)
+      ? setIncomeCategories
+      : setCategories;
+    setList((prev) =>
+      prev.map((cat) =>
+        cat.id === categoryId ? { ...cat, subcategories: update(cat.subcategories || []) } : cat
+      )
+    );
+  };
+
   const handleAddSubcategory = (categoryId: string, subcategoryName: string) => {
-    setCategories(categories.map(cat => 
-      cat.id === categoryId 
-        ? { ...cat, subcategories: [...(cat.subcategories || []), subcategoryName] }
-        : cat
-    ));
+    editSubcategories(categoryId, (subs) => [...subs, subcategoryName]);
     setRefreshKey(prev => prev + 1);
     toast.success('Subcategory added', {
       duration: 1400,
@@ -808,22 +821,16 @@ export default function App() {
   };
 
   const handleEditSubcategory = (categoryId: string, oldName: string, newName: string) => {
-    setCategories(categories.map(cat => 
-      cat.id === categoryId 
-        ? { 
-            ...cat, 
-            subcategories: cat.subcategories?.map(sub => sub === oldName ? newName : sub) 
-          }
-        : cat
-    ));
-    
-    // Update expenses with this subcategory
-    setExpenses(expenses.map(expense => 
+    editSubcategories(categoryId, (subs) => subs.map(sub => sub === oldName ? newName : sub));
+
+    // Re-label the transactions carrying the old name. Already type-agnostic:
+    // the category id pins which direction this is.
+    setExpenses(expenses.map(expense =>
       expense.category.id === categoryId && expense.subcategory === oldName
         ? { ...expense, subcategory: newName }
         : expense
     ));
-    
+
     setRefreshKey(prev => prev + 1);
     toast.success('Subcategory updated', {
       duration: 1400,
@@ -831,22 +838,15 @@ export default function App() {
   };
 
   const handleDeleteSubcategoryHandler = (categoryId: string, subcategoryName: string) => {
-    setCategories(categories.map(cat => 
-      cat.id === categoryId 
-        ? { 
-            ...cat, 
-            subcategories: cat.subcategories?.filter(sub => sub !== subcategoryName) 
-          }
-        : cat
-    ));
-    
-    // Remove subcategory from expenses
-    setExpenses(expenses.map(expense => 
+    editSubcategories(categoryId, (subs) => subs.filter(sub => sub !== subcategoryName));
+
+    // Strip the subcategory from its transactions, keeping the transactions.
+    setExpenses(expenses.map(expense =>
       expense.category.id === categoryId && expense.subcategory === subcategoryName
         ? { ...expense, subcategory: undefined }
         : expense
     ));
-    
+
     setRefreshKey(prev => prev + 1);
     toast.success('Subcategory deleted', {
       duration: 1400,

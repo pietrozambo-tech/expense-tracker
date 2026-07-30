@@ -671,10 +671,13 @@ export function Settings({
   // Show Import subpage — guides the user to turn their own spreadsheet into
   // TracklyLab's import format using an AI assistant, then pick the file.
   if (showImport) {
-    const expList = categories
-      .map((c: any) => `- ${c.name}${c.subcategories?.length ? ` (subcategories: ${c.subcategories.join(', ')})` : ''}`)
-      .join('\n');
-    const incList = incomeCategories.map((c: any) => `- ${c.name}`).join('\n');
+    // One formatter for both directions: income categories carry subcategories
+    // too (imports create them), and the assistant can only match what it is
+    // shown - otherwise it invents a near-duplicate of one you already have.
+    const catLine = (c: any) =>
+      `- ${c.name}${c.subcategories?.length ? ` (subcategories: ${c.subcategories.join(', ')})` : ''}`;
+    const expList = categories.map(catLine).join('\n');
+    const incList = incomeCategories.map(catLine).join('\n');
     const hasSources = sources.length > 0;
     const srcList = hasSources ? sources.map((s) => `${s.id} = ${s.name}`).join(', ') : '(none - omit the "source" field)';
     // Build the example row from the user's OWN setup, so nothing hardcoded
@@ -758,7 +761,7 @@ Some files have one column per person. Those columns hold each person's BALANCE 
 MY EXPENSE categories (with their subcategories):
 ${expList}
 
-MY INCOME categories:
+MY INCOME categories (with their subcategories):
 ${incList}
 
 My sources (id = name): ${srcList}
