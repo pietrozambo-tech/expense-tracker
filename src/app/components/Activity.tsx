@@ -14,6 +14,20 @@ import { parseLocalDate } from '../lib/dates';
 
 type ActivityTypeFilter = 'all' | 'expense' | 'income';
 
+// Everything the filter bar holds. Opening a transaction routes through the
+// 'add' screen, which unmounts this tab entirely - without a snapshot the user
+// comes back to an unfiltered list they have to set up again.
+export interface ActivityFilterState {
+  activityType: ActivityTypeFilter;
+  selectedYear: string;
+  selectedMonth: string;
+  categoryFilter: string;
+  subcategoryFilter: string;
+  searchQuery: string;
+  typeFilter: string;
+  sourceFilter: string;
+}
+
 interface ActivityProps {
   transactions: Transaction[];
   onEditTransaction: (id: string) => void;
@@ -28,6 +42,9 @@ interface ActivityProps {
   // ordinary visit starts clean.
   presetTypeFilter?: string;
   onPresetConsumed?: () => void;
+  // Survives an edit round-trip; the parent nulls it once the user actually
+  // leaves the tab, so an ordinary visit starts clean.
+  filterStateRef?: React.MutableRefObject<ActivityFilterState | null>;
 }
 
 export function Activity({
@@ -40,20 +57,25 @@ export function Activity({
   currency,
   sources,
   presetTypeFilter,
-  onPresetConsumed
+  onPresetConsumed,
+  filterStateRef
 }: ActivityProps) {
   const now = new Date();
   const currentYear = String(now.getFullYear());
   const currentMonth = now.toLocaleString('en-US', { month: 'short' });
 
-  const [activityType, setActivityType] = useState<ActivityTypeFilter>('all');
-  const [selectedYear, setSelectedYear] = useState(currentYear);
-  const [selectedMonth, setSelectedMonth] = useState(currentMonth);
-  const [categoryFilter, setCategoryFilter] = useState('All');
-  const [subcategoryFilter, setSubcategoryFilter] = useState('All');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [typeFilter, setTypeFilter] = useState(presetTypeFilter ?? 'All'); // All / One-off / Recurring / Imported
-  const [sourceFilter, setSourceFilter] = useState('All'); // 'All' or a source id
+  // Restore what the user had set up, unless a preset ("Imported", from the
+  // post-import nudge) was handed in - that must win and start clean.
+  const saved = presetTypeFilter ? null : filterStateRef?.current ?? null;
+
+  const [activityType, setActivityType] = useState<ActivityTypeFilter>(saved?.activityType ?? 'all');
+  const [selectedYear, setSelectedYear] = useState(saved?.selectedYear ?? currentYear);
+  const [selectedMonth, setSelectedMonth] = useState(saved?.selectedMonth ?? currentMonth);
+  const [categoryFilter, setCategoryFilter] = useState(saved?.categoryFilter ?? 'All');
+  const [subcategoryFilter, setSubcategoryFilter] = useState(saved?.subcategoryFilter ?? 'All');
+  const [searchQuery, setSearchQuery] = useState(saved?.searchQuery ?? '');
+  const [typeFilter, setTypeFilter] = useState(presetTypeFilter ?? saved?.typeFilter ?? 'All'); // All / One-off / Recurring / Imported
+  const [sourceFilter, setSourceFilter] = useState(saved?.sourceFilter ?? 'All'); // 'All' or a source id
 
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [isSubcategoryModalOpen, setIsSubcategoryModalOpen] = useState(false);
@@ -66,6 +88,22 @@ export function Activity({
     if (presetTypeFilter) onPresetConsumed?.();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Keep the snapshot current on every change (ref write - no re-render), so
+  // whatever is on screen is what comes back after editing a transaction.
+  useEffect(() => {
+    if (!filterStateRef) return;
+    filterStateRef.current = {
+      activityType,
+      selectedYear,
+      selectedMonth,
+      categoryFilter,
+      subcategoryFilter,
+      searchQuery,
+      typeFilter,
+      sourceFilter,
+    };
+  }, [filterStateRef, activityType, selectedYear, selectedMonth, categoryFilter, subcategoryFilter, searchQuery, typeFilter, sourceFilter]);
 
 
   // Transactions narrowed by the All/Expenses/Income control — every other
