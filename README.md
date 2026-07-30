@@ -119,4 +119,6 @@ pnpm preview    # serve the production build
 
 App data lives in localStorage under versioned keys (`expense-tracker.v1.*`) with optional cloud sync to Supabase (one JSON record per user, RLS-protected). Storage layer: `src/app/lib/storage.ts` · types: `src/app/types.ts` · backup format: `src/app/lib/backup.ts` · recurrence engine: `src/app/lib/recurrence.ts` · FX engine: `src/app/lib/fx.ts`.
 
+Ideas parked with the thinking already done - costings, blockers, decisions not to build something - live in `ROADMAP.md`.
+
 Brought to you by **Zambop** · © TracklyLab
