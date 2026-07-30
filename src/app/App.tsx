@@ -44,7 +44,7 @@ import { RecurringScopeDialog } from './components/RecurringScopeDialog';
 // The heavyweight screens load on demand so the initial bundle stays small.
 // (Named exports wrapped for React.lazy's default-export contract.)
 import type { DashboardViewState } from './components/Dashboard';
-import type { ActivityFilterState } from './components/Activity';
+import type { ActivityViewState } from './components/Activity';
 
 // Loading a lazy chunk can fail when the app has been open across a deploy:
 // the running page references content-hashed filenames (Settings-abc123.js)
@@ -165,9 +165,10 @@ export default function App() {
   // The Overview's last view (period + drilldown), restored after an edit
   // round-trip; cleared by a deliberate tap on the Dashboard nav button.
   const dashboardViewRef = useRef<DashboardViewState | null>(null);
-  // Activity's filter bar, restored after an edit round-trip. Cleared below the
-  // moment the user lands on a tab that isn't Activity or the editor.
-  const activityFilterRef = useRef<ActivityFilterState | null>(null);
+  // Activity's filter bar and scroll position, restored after an edit
+  // round-trip. Cleared below the moment the user lands on a tab that isn't
+  // Activity or the editor.
+  const activityViewRef = useRef<ActivityViewState | null>(null);
   const [categories, setCategories] = useState(loadCategories);
   const [incomeCategories, setIncomeCategories] = useState(loadIncomeCategories);
   // Payment sources (Cash / banks) + the source pre-selected per direction
@@ -267,12 +268,12 @@ export default function App() {
     return () => window.clearTimeout(id);
   }, []);
 
-  // Activity's filters should outlive opening a transaction but not leaving the
-  // tab. Editing routes through 'add' and comes straight back, so 'add' is not
+  // Activity's filters and scroll position should outlive opening a
+  // transaction but not leaving the tab. Editing routes through 'add' and comes straight back, so 'add' is not
   // a departure - landing on any other tab is, and drops the snapshot so the
   // next visit starts unfiltered.
   useEffect(() => {
-    if (currentTab !== 'activity' && currentTab !== 'add') activityFilterRef.current = null;
+    if (currentTab !== 'activity' && currentTab !== 'add') activityViewRef.current = null;
   }, [currentTab]);
 
   // When opening a NEW transaction, pre-select the current default source for
@@ -1449,7 +1450,7 @@ export default function App() {
           <Activity
             presetTypeFilter={activityPresetFilter ?? undefined}
             onPresetConsumed={() => setActivityPresetFilter(null)}
-            filterStateRef={activityFilterRef}
+            viewStateRef={activityViewRef}
             transactions={expenses}
             onEditTransaction={handleEditExpense}
             onDeleteTransaction={handleDeleteExpense}

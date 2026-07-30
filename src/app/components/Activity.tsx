@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { FilterBar } from './FilterBar';
 import { ActivityDayGroup } from './ActivityDayGroup';
 import { CategoryFilterModal } from './CategoryFilterModal';
@@ -14,10 +14,12 @@ import { parseLocalDate } from '../lib/dates';
 
 type ActivityTypeFilter = 'all' | 'expense' | 'income';
 
-// Everything the filter bar holds. Opening a transaction routes through the
+// Everything that makes up "where the user was": the filter bar, plus how far
+// down the list they had scrolled. Opening a transaction routes through the
 // 'add' screen, which unmounts this tab entirely - without a snapshot the user
-// comes back to an unfiltered list they have to set up again.
-export interface ActivityFilterState {
+// comes back to an unfiltered list, at the top, and has to find their place
+// again.
+export interface ActivityViewState {
   activityType: ActivityTypeFilter;
   selectedYear: string;
   selectedMonth: string;
@@ -26,6 +28,7 @@ export interface ActivityFilterState {
   searchQuery: string;
   typeFilter: string;
   sourceFilter: string;
+  scrollTop: number;
 }
 
 interface ActivityProps {
@@ -44,7 +47,7 @@ interface ActivityProps {
   onPresetConsumed?: () => void;
   // Survives an edit round-trip; the parent nulls it once the user actually
   // leaves the tab, so an ordinary visit starts clean.
-  filterStateRef?: React.MutableRefObject<ActivityFilterState | null>;
+  viewStateRef?: React.MutableRefObject<ActivityViewState | null>;
 }
 
 export function Activity({
@@ -58,7 +61,7 @@ export function Activity({
   sources,
   presetTypeFilter,
   onPresetConsumed,
-  filterStateRef
+  viewStateRef
 }: ActivityProps) {
   const now = new Date();
   const currentYear = String(now.getFullYear());
@@ -66,7 +69,7 @@ export function Activity({
 
   // Restore what the user had set up, unless a preset ("Imported", from the
   // post-import nudge) was handed in - that must win and start clean.
-  const saved = presetTypeFilter ? null : filterStateRef?.current ?? null;
+  const saved = presetTypeFilter ? null : viewStateRef?.current ?? null;
 
   const [activityType, setActivityType] = useState<ActivityTypeFilter>(saved?.activityType ?? 'all');
   const [selectedYear, setSelectedYear] = useState(saved?.selectedYear ?? currentYear);
@@ -91,9 +94,10 @@ export function Activity({
 
   // Keep the snapshot current on every change (ref write - no re-render), so
   // whatever is on screen is what comes back after editing a transaction.
+  // Scroll is tracked separately below and carried through untouched.
   useEffect(() => {
-    if (!filterStateRef) return;
-    filterStateRef.current = {
+    if (!viewStateRef) return;
+    viewStateRef.current = {
       activityType,
       selectedYear,
       selectedMonth,
@@ -102,8 +106,20 @@ export function Activity({
       searchQuery,
       typeFilter,
       sourceFilter,
+      scrollTop: viewStateRef.current?.scrollTop ?? 0,
     };
-  }, [filterStateRef, activityType, selectedYear, selectedMonth, categoryFilter, subcategoryFilter, searchQuery, typeFilter, sourceFilter]);
+  }, [viewStateRef, activityType, selectedYear, selectedMonth, categoryFilter, subcategoryFilter, searchQuery, typeFilter, sourceFilter]);
+
+  // Put the list back where it was, before the browser paints - restoring in a
+  // plain effect would show the top of the list for a frame first. The filters
+  // are restored in the same commit, so the list is already its old height and
+  // the offset still means what it meant.
+  const listRef = useRef<HTMLDivElement | null>(null);
+  useLayoutEffect(() => {
+    const top = saved?.scrollTop ?? 0;
+    if (top && listRef.current) listRef.current.scrollTop = top;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
 
   // Transactions narrowed by the All/Expenses/Income control — every other
@@ -344,7 +360,13 @@ export function Activity({
       </div>
 
       {/* Scrollable Transaction List */}
-      <div className="flex-1 overflow-y-auto pt-2 pb-24">
+      <div
+        ref={listRef}
+        onScroll={(e) => {
+          if (viewStateRef?.current) viewStateRef.current.scrollTop = e.currentTarget.scrollTop;
+        }}
+        className="flex-1 overflow-y-auto pt-2 pb-24"
+      >
         {Object.entries(groupedTransactions).length === 0 ? (
           <div className="px-6 py-16 text-center">
             <div className="text-neutral-400 text-sm mb-2">No transactions found</div>
