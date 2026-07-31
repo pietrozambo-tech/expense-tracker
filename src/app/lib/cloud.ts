@@ -153,7 +153,7 @@ export function mergePayloads(
   local: SyncPayload,
   remote: SyncPayload,
 ): SyncPayload {
-  const mergeList = <T extends { id: string }>(
+  const mergeList = <T extends { id: string; updatedAt?: string }>(
     baseList: T[] | undefined,
     localList: T[] | undefined,
     remoteList: T[] | undefined,
@@ -184,15 +184,22 @@ export function mergePayloads(
 
     for (const [id, item] of l) {
       if (r.has(id)) {
-        // In both. This used to be a flat "local wins", which meant an edit
-        // never propagated: the OTHER device's unchanged copy beat the edit on
-        // every merge, and then wrote the old value back over it. Three-way,
-        // like everything else: if this device didn't touch it, the server's
-        // copy is the newer truth; if it did, that edit is deliberate and
-        // stands (when both edited, the device in hand keeps its own - the
-        // other converges to it on its next pull, since its copy then matches
-        // its base).
-        out.push(changed(item, b.get(id)) ? item : (r.get(id) as T));
+        const theirs = r.get(id) as T;
+        // In both. When each copy says when it was last edited, believe the
+        // stamps: the newer edit wins no matter which device is asking - the
+        // one signal that stays true even when the other device runs an older
+        // build of the merge and pushes stale copies around. Only when a stamp
+        // is missing on either side (pre-stamp data) fall back to three-way:
+        // if this device didn't touch it, the server's copy is the newer
+        // truth; if it did, that edit is deliberate and stands. The flat
+        // "local wins" this replaces meant an edit never propagated at all -
+        // the other device's unchanged copy beat it on every merge, then
+        // wrote the old value back over it.
+        if (item.updatedAt && theirs.updatedAt && item.updatedAt !== theirs.updatedAt) {
+          out.push(item.updatedAt > theirs.updatedAt ? item : theirs);
+        } else {
+          out.push(changed(item, b.get(id)) ? item : theirs);
+        }
       } else if (!b.has(id)) out.push(item); // we added it
       // else: it was in base and is gone remotely -> deleted there
     }
@@ -240,8 +247,17 @@ export function mergePayloads(
   const localCopyMissing =
     (local.transactions?.length ?? 0) === 0 && (base?.transactions?.length ?? 0) > 0;
 
+  // The merge walks local order and appends the other device's additions at
+  // the end, which scrambled the visible list: Activity renders array order
+  // within a day, so a transaction synced across landed at the bottom of its
+  // day and rows appeared to move. Dates are YYYY-MM-DD, so a string compare
+  // is a date compare; the sort is stable, so same-day rows keep their
+  // relative order and an edit never moves a row.
+  const byDateDesc = <T extends { date: string }>(list: T[]): T[] =>
+    [...list].sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
+
   return {
-    transactions: mergeList(base?.transactions, local.transactions, remote.transactions),
+    transactions: byDateDesc(mergeList(base?.transactions, local.transactions, remote.transactions)),
     recurringRules: mergeList(base?.recurringRules, local.recurringRules, remote.recurringRules),
     categories: mergeList(base?.categories, local.categories, remote.categories),
     incomeCategories: mergeList(base?.incomeCategories, local.incomeCategories, remote.incomeCategories),

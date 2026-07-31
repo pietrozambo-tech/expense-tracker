@@ -23,14 +23,19 @@ import { db } from './lib/supabase';
 const OLD = process.argv.includes('--before');
 const USER = 'user-shared-account';
 
-const tx = (id: string, description: string, amount: number) => ({
+// Stamps must be distinct and ordered even inside one test tick.
+let STAMP = 0;
+const nextStamp = () => new Date(Date.parse('2026-07-01T00:00:00Z') + ++STAMP * 1000).toISOString();
+
+const tx = (id: string, description: string, amount: number, date = '2026-07-28') => ({
   id,
   description,
   amount,
+  updatedAt: nextStamp(),
   currency: 'EUR',
   baseAmount: amount,
   category: { id: 'c1', name: 'Groceries', icon: 'ShoppingCart', color: 'text-green-500', bgColor: 'bg-green-50', selectedBg: 'bg-green-100', type: 'expense' as const, subcategories: [] },
-  date: '2026-07-28',
+  date,
   type: 'expense' as const,
   recurrence: 'Never repeat',
 });
@@ -79,8 +84,8 @@ class Phone {
     say(`${this.name} opens the app  -> sees ${this.list()}${this.budget ? ` (budget ${this.budget})` : ' (no budget)'}`);
   }
 
-  add(id: string, description: string, amount: number) {
-    this.transactions = [...this.transactions, tx(id, description, amount)];
+  add(id: string, description: string, amount: number, date?: string) {
+    this.transactions = [...this.transactions, tx(id, description, amount, date)];
     say(`${this.name} adds "${description}"  -> phone now has ${this.list()}`);
   }
 
@@ -166,7 +171,7 @@ class Phone {
 
   edit(id: string, description: string, amount: number) {
     this.transactions = this.transactions.map((t) =>
-      t.id === id ? { ...t, description, amount, baseAmount: amount } : t
+      t.id === id ? { ...t, description, amount, baseAmount: amount, updatedAt: nextStamp() } : t
     );
     say(`${this.name} edits ${id} -> "${description}"  -> phone now has ${this.list()}`);
   }
@@ -186,6 +191,14 @@ const heading = (s: string) => console.log(`\n${s}\n${'-'.repeat(s.length)}`);
 const reset = () => { db.rows = []; };
 
 let failures = 0;
+// Unlike expect(), does NOT sort - for asserting the actual array order.
+function expectExact(label: string, actual: string, expected: string) {
+  const ok = actual === expected;
+  if (!ok) failures++;
+  console.log(`\n   ${ok ? 'PASS' : 'FAIL'}  ${label}`);
+  console.log(`         expected: ${expected}`);
+  if (!ok) console.log(`         actual:   ${actual}`);
+}
 function expect(label: string, actual: string, expected: string) {
   const norm = (v: string) => v.split(' + ').sort().join(' + ');
   const ok = norm(actual) === norm(expected);
@@ -513,6 +526,58 @@ async function scenarioEditConflict() {
   expect('and the laptop converges to it', laptop.list(), 'Coffee 7EUR');
 }
 
+// A device still running an older build pushes its stale copies over the
+// server wholesale. The stamps are the only defence: the up-to-date device
+// must recognise its own edit as newer and put it back.
+async function scenarioStaleDevice() {
+  heading('15. A device on an old build overwrites the server with stale copies');
+  reset();
+  const laptop = new Phone('Laptop');
+  await laptop.openApp();
+  laptop.add('t1', 'Coffee 4EUR', 4);
+  await laptop.sync();
+
+  // A stale phone captured the row back then and force-writes it now,
+  // old-build style: no version check, no merge.
+  const staleCopy = JSON.parse(JSON.stringify(db.rows[0].data));
+
+  console.log('');
+  laptop.edit('t1', 'Coffee 5EUR', 5);
+  await laptop.sync();
+
+  console.log('');
+  say('Stale phone force-writes its old copy over the server');
+  db.rows[0].data = staleCopy;
+  db.rows[0].updated_at = new Date().toISOString();
+
+  await laptop.foreground();
+  expect('the laptop keeps its newer edit', laptop.list(), 'Coffee 5EUR');
+  expect('and repairs the server', serverList(), 'Coffee 5EUR');
+}
+
+// The other report: rows visibly moved after a sync. Merged output must come
+// back date-ordered, newest day first, regardless of which side added what.
+async function scenarioMergeOrder() {
+  heading('16. Merged transactions come back in date order');
+  reset();
+  const laptop = new Phone('Laptop');
+  const phone = new Phone('Phone ');
+  await laptop.openApp();
+  laptop.add('t1', 'Day 20', 1, '2026-07-20');
+  laptop.add('t2', 'Day 10', 1, '2026-07-10');
+  await laptop.sync();
+  await phone.openApp();
+
+  console.log('');
+  phone.add('t3', 'Day 15', 1, '2026-07-15');
+  await phone.sync();
+
+  console.log('');
+  await laptop.foreground();
+  expectExact('the laptop lists newest day first', laptop.list(), 'Day 20 + Day 15 + Day 10');
+  expectExact('the server holds the same order', serverList(), 'Day 20 + Day 15 + Day 10');
+}
+
 async function main() {
   console.log('\n================================================================');
   console.log(` Cloud sync - two devices, one account   [${OLD ? 'BEFORE the fix' : 'AFTER the fix'}]`);
@@ -533,6 +598,8 @@ async function main() {
   await scenarioSettingsClear();
   await scenarioEditPropagates();
   await scenarioEditConflict();
+  await scenarioStaleDevice();
+  await scenarioMergeOrder();
 
   console.log('\n================================================================');
   console.log(failures === 0 ? ' All checks passed - nothing lost.' : ` ${failures} check(s) FAILED.`);

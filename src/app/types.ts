@@ -66,6 +66,12 @@ export interface Transaction {
   // big import can be reviewed in bulk from Activity's filter. Absent on
   // everything added by hand.
   importedAt?: string;
+  // When this transaction was created or last edited, stamped by the device
+  // that did it. Sync uses it to decide which of two copies is newer - the
+  // only signal that stays true even when one device runs an older build.
+  // Absent on data from before the field existed; the merge then falls back
+  // to comparing against the last-agreed base.
+  updatedAt?: string;
 }
 
 export interface UserSettings {

@@ -143,6 +143,7 @@ export function buildImport(
       recurrence: 'Never repeat',
       sourceId: rec.source || undefined,
       importedAt,
+      updatedAt: importedAt,
     });
   }
 

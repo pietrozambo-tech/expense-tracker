@@ -525,6 +525,17 @@ export default function App() {
     };
   }, []);
 
+  // An app that stays open and visible never fires visibilitychange, so two
+  // apps side by side were deaf to each other until one was backgrounded.
+  // Poll the version stamp while visible - loadCloudVersion is a few bytes,
+  // and pullRemote already skips the download when the stamp hasn't moved.
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      if (document.visibilityState === 'visible') void pullRemote();
+    }, 20_000);
+    return () => window.clearInterval(id);
+  }, [pullRemote]);
+
   // Coming back online (or refocusing after a failed save) retries the sync.
   useEffect(() => {
     const retry = () => setSyncRetryTick((t) => t + 1);
@@ -674,7 +685,8 @@ export default function App() {
         currency: selectedTransactionCurrency, // Update currency when editing
         baseAmount: convertAmount(parseFloat(amount), selectedTransactionCurrency, BASE_CURRENCY), // lock FX value
         recurrence: recurrence,
-        sourceId: selectedSourceId || undefined
+        sourceId: selectedSourceId || undefined,
+        updatedAt: new Date().toISOString()
       };
       const current = expenses.find((e) => e.id === editingExpenseId);
       const chainRule = current?.recurrenceOf
@@ -728,7 +740,8 @@ export default function App() {
         currency: selectedTransactionCurrency, // Store the currency with the transaction
         baseAmount: convertAmount(parseFloat(amount), selectedTransactionCurrency, BASE_CURRENCY), // lock FX value
         recurrence: recurrence, // Add recurrence
-        sourceId: selectedSourceId || undefined
+        sourceId: selectedSourceId || undefined,
+        updatedAt: new Date().toISOString()
       };
 
       // A recurrence choice on a new transaction starts a chain: the rule's
@@ -1204,7 +1217,11 @@ export default function App() {
   // Restore a full backup produced by Export — replaces all current data.
   const restoreBackup = (b: any) => {
     const count = Array.isArray(b.transactions) ? b.transactions.length : 0;
-    if (Array.isArray(b.transactions)) setExpenses(b.transactions);
+    // Restoring says "THIS is my data, as of now" - re-stamp everything so the
+    // restored copies outrank whatever stale copies other devices still hold.
+    const restoredAt = new Date().toISOString();
+    if (Array.isArray(b.transactions))
+      setExpenses(b.transactions.map((t: Transaction) => ({ ...t, updatedAt: restoredAt })));
     setRecurringRules(Array.isArray(b.recurringRules) ? b.recurringRules : []);
     if (Array.isArray(b.categories)) setCategories(b.categories);
     if (Array.isArray(b.incomeCategories)) setIncomeCategories(b.incomeCategories);
