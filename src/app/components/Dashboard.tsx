@@ -139,18 +139,25 @@ function TrendStatCard({
   value,
   compact,
   footnote,
+  corner,
   valueColor = '#FFFFFF',
 }: {
   label: string;
   value: string;
   compact: string;
   footnote?: React.ReactNode;
+  // Small note on the label row's right edge (e.g. "3 months") - context that
+  // would otherwise cost a whole footnote line above the Saving Rate panel.
+  corner?: string;
   valueColor?: string;
 }) {
   return (
     <div className="rounded-2xl px-4 py-3.5 flex flex-col min-w-0" style={TREND_STAT_CARD}>
-      <div className="text-[11px] leading-tight mb-1.5" style={{ color: 'rgba(235,235,245,0.6)' }}>
-        {label}
+      <div className="flex items-baseline justify-between gap-2 text-[11px] leading-tight mb-1.5">
+        <span style={{ color: 'rgba(235,235,245,0.6)' }}>{label}</span>
+        {corner && (
+          <span className="text-[10px] flex-shrink-0" style={{ color: 'rgba(235,235,245,0.45)' }}>{corner}</span>
+        )}
       </div>
       {/* No padding on this wrapper: FitText measures its parent's clientWidth,
           which would include the card's own padding. */}
@@ -2987,19 +2994,15 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                       value={formatAmountListView(totalSpent, currency, 0)}
                       compact={formatAbbreviatedAmount(totalSpent, currency)}
                       valueColor={savingsColor(totalSpent)}
+                      corner={trendData.length === 1 ? "This month" : `${trendData.length} months`}
                       footnote={
-                        <>
-                          <div>{trendData.length === 1 ? "This month" : `${trendData.length} months`}</div>
-                          {overallSavingRate !== null && (
-                            <div className="mt-1.5">
-                              <StatChip
-                                label={<><span className="max-[359px]:hidden">Saving </span>Rate</>}
-                                value={`${Math.round(overallSavingRate)}%`}
-                                tone={Math.round(overallSavingRate)}
-                              />
-                            </div>
-                          )}
-                        </>
+                        overallSavingRate !== null ? (
+                          <StatChip
+                            label={<><span className="max-[359px]:hidden">Saving </span>Rate</>}
+                            value={`${Math.round(overallSavingRate)}%`}
+                            tone={Math.round(overallSavingRate)}
+                          />
+                        ) : undefined
                       }
                     />
                     <TrendStatCard
