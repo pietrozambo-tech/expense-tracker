@@ -164,6 +164,13 @@ class Phone {
     say(`${this.name} has no local transactions (base kept from last session)`);
   }
 
+  edit(id: string, description: string, amount: number) {
+    this.transactions = this.transactions.map((t) =>
+      t.id === id ? { ...t, description, amount, baseAmount: amount } : t
+    );
+    say(`${this.name} edits ${id} -> "${description}"  -> phone now has ${this.list()}`);
+  }
+
   setBudget(v: number | undefined) {
     this.budget = v;
     say(`${this.name} sets the budget to ${v ?? '(none)'}`);
@@ -458,6 +465,54 @@ async function scenarioSettingsClear() {
   expect('and it does not come back on the PC', String(pc.budget), 'undefined');
 }
 
+// The report: edit an amount on the laptop, close it, open the phone - the
+// phone still shows the old value, and then writes it back over the edit.
+async function scenarioEditPropagates() {
+  heading('13. An edit made on the laptop reaches a phone that was closed');
+  reset();
+  const laptop = new Phone('Laptop');
+  const phone = new Phone('Phone ');
+
+  await laptop.openApp();
+  laptop.add('t1', 'Coffee 4EUR', 4);
+  await laptop.sync();
+  await phone.openApp(); // phone has seen the data; then it is closed
+
+  console.log('');
+  laptop.edit('t1', 'Coffee 5EUR', 5);
+  await laptop.sync();
+
+  console.log('');
+  await phone.openApp(); // cold launch: local copy + persisted base + pull
+  expect('the phone shows the edited value', phone.list(), 'Coffee 5EUR');
+  await phone.sync();
+  expect('and does not write the old value back', serverList(), 'Coffee 5EUR');
+}
+
+// Both devices edit the same transaction before either syncs: the device in
+// hand keeps its own edit; nothing reverts once both have synced.
+async function scenarioEditConflict() {
+  heading('14. Both edit the same transaction - deliberate edits never revert');
+  reset();
+  const laptop = new Phone('Laptop');
+  const phone = new Phone('Phone ');
+  await laptop.openApp();
+  laptop.add('t1', 'Coffee 4EUR', 4);
+  await laptop.sync();
+  await phone.openApp();
+
+  console.log('');
+  laptop.edit('t1', 'Coffee 6EUR', 6);
+  phone.edit('t1', 'Coffee 7EUR', 7);
+  await laptop.sync();
+  await phone.sync(); // conflict: phone changed it too, so its edit stands
+  expect('the later deliberate edit wins', serverList(), 'Coffee 7EUR');
+
+  console.log('');
+  await laptop.foreground();
+  expect('and the laptop converges to it', laptop.list(), 'Coffee 7EUR');
+}
+
 async function main() {
   console.log('\n================================================================');
   console.log(` Cloud sync - two devices, one account   [${OLD ? 'BEFORE the fix' : 'AFTER the fix'}]`);
@@ -476,6 +531,8 @@ async function main() {
   await scenarioSettingsNewDevice();
   await scenarioSettingsEdit();
   await scenarioSettingsClear();
+  await scenarioEditPropagates();
+  await scenarioEditConflict();
 
   console.log('\n================================================================');
   console.log(failures === 0 ? ' All checks passed - nothing lost.' : ` ${failures} check(s) FAILED.`);

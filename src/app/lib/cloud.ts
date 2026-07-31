@@ -158,10 +158,16 @@ export function mergePayloads(
     localList: T[] | undefined,
     remoteList: T[] | undefined,
   ): T[] => {
-    const b = new Set((baseList ?? []).map((x) => x.id));
+    const b = new Map((baseList ?? []).map((x) => [x.id, x]));
     const l = new Map((localList ?? []).map((x) => [x.id, x]));
     const r = new Map((remoteList ?? []).map((x) => [x.id, x]));
     const out: T[] = [];
+    // Deep equality via JSON. Key order is stable here because every copy of
+    // an item round-trips through the same serialisation paths; a false
+    // "changed" verdict only degrades to the old local-wins behaviour, which
+    // keeps a stale copy but never discards a real edit.
+    const changed = (a: T | undefined, base: T | undefined) =>
+      JSON.stringify(a) !== JSON.stringify(base);
 
     // An empty local list against a base that still remembers items is NOT
     // "the user deleted everything here". Erasing takes the whole cloud row
@@ -177,8 +183,17 @@ export function mergePayloads(
     if (l.size === 0 && b.size > 0) return [...r.values()];
 
     for (const [id, item] of l) {
-      if (r.has(id)) out.push(item); // in both - local wins
-      else if (!b.has(id)) out.push(item); // we added it
+      if (r.has(id)) {
+        // In both. This used to be a flat "local wins", which meant an edit
+        // never propagated: the OTHER device's unchanged copy beat the edit on
+        // every merge, and then wrote the old value back over it. Three-way,
+        // like everything else: if this device didn't touch it, the server's
+        // copy is the newer truth; if it did, that edit is deliberate and
+        // stands (when both edited, the device in hand keeps its own - the
+        // other converges to it on its next pull, since its copy then matches
+        // its base).
+        out.push(changed(item, b.get(id)) ? item : (r.get(id) as T));
+      } else if (!b.has(id)) out.push(item); // we added it
       // else: it was in base and is gone remotely -> deleted there
     }
     for (const [id, item] of r) {
