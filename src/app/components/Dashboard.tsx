@@ -758,13 +758,44 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
       // actually living in - nudging from inside last March makes no sense.
       return isCurrentMonth ? { nudge: true as const } : null;
     }
-    if (!isCurrentMonth) return { nudge: false as const, daysLeft: null, monthProgress: null };
+    if (!isCurrentMonth) return { nudge: false as const, daysLeft: null, monthProgress: null, usualByNow: null };
     const daysInMonth = new Date(selectedYear, selectedMonth + 1, 0).getDate();
     const today = now.getDate();
+
+    // What "usual" actually is: the average this user had spent by this same
+    // day of the month, over their previous months. Time elapsed is a bad
+    // stand-in - spending is not linear, and anyone whose rent lands on the
+    // 1st would open the app every month morning-one to be told they are
+    // "spending faster than usual" when this IS their usual. Months with no
+    // expenses at all (before tracking started) do not vote; a tracked month
+    // where nothing had been spent by this day votes 0, which is real.
+    const usualByNow = (() => {
+      let sum = 0;
+      let n = 0;
+      for (let back = 1; back <= 6; back++) {
+        const mStart = new Date(selectedYear, selectedMonth - back, 1);
+        const mEnd = new Date(selectedYear, selectedMonth - back + 1, 0, 23, 59, 59, 999);
+        const monthTx = expenses.filter((e) => {
+          if (e.type === 'income') return false;
+          const d = parseLocalDate(e.date);
+          return d >= mStart && d <= mEnd;
+        });
+        if (monthTx.length === 0) continue;
+        const cutDay = Math.min(today, mEnd.getDate());
+        const cutoff = new Date(mStart.getFullYear(), mStart.getMonth(), cutDay, 23, 59, 59, 999);
+        sum += monthTx
+          .filter((e) => parseLocalDate(e.date) <= cutoff)
+          .reduce((acc, e) => acc + homeAmount(e, currency), 0);
+        n++;
+      }
+      return n > 0 ? sum / n : null;
+    })();
+
     return {
       nudge: false as const,
       daysLeft: daysInMonth - today,
       monthProgress: today / daysInMonth,
+      usualByNow,
     };
   })();
 
@@ -1627,6 +1658,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
               currency={currency}
               daysLeft={budgetView.daysLeft}
               monthProgress={budgetView.monthProgress}
+              usualByNow={budgetView.usualByNow}
             />
           )}
           {budgetView?.nudge === true && !budgetNudgeDismissed && (

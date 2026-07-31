@@ -22,6 +22,9 @@ interface BudgetBarProps {
   daysLeft?: number | null;
   /** 0-1 share of the month elapsed, drawn as the "expected pace" marker. */
   monthProgress?: number | null;
+  /** What this user had typically spent by this day of the month, averaged
+   *  over their previous tracked months. Null with no history. */
+  usualByNow?: number | null;
 }
 
 // Monthly budget progress. Sits under the Expenses/Income toggle, not above it,
@@ -31,7 +34,7 @@ interface BudgetBarProps {
 // The pace marker is what makes this a decision aid rather than decoration:
 // being at 60% of the budget is good on day 25 and bad on day 5, so we draw a
 // tick where spending "should" be by today and phrase the status against it.
-export function BudgetBar({ spent, budget, currency, daysLeft, monthProgress }: BudgetBarProps) {
+export function BudgetBar({ spent, budget, currency, daysLeft, monthProgress, usualByNow }: BudgetBarProps) {
   if (!budget || budget <= 0) return null;
 
   const ratio = spent / budget;
@@ -39,8 +42,21 @@ export function BudgetBar({ spent, budget, currency, daysLeft, monthProgress }: 
   const over = spent > budget;
   const isLive = typeof monthProgress === 'number' && typeof daysLeft === 'number';
 
-  // On pace = spending no faster than the month is passing (with a little slack).
-  const aheadOfPace = isLive && ratio > (monthProgress as number) + 0.1;
+  // "Usual" means this user's own previous months at the same day - not the
+  // clock. Spending is not linear: rent on the 1st put anyone at "25% used" on
+  // day one and the old time-based check (ratio > monthProgress + 0.1) scolded
+  // them every single month for their most predictable expense. The slack is
+  // multiplicative plus a slice of the budget, so a 20EUR coffee against a
+  // 5EUR usual does not shout either. With no history yet, time is the only
+  // yardstick there is - first months keep the old rule.
+  const hasUsual = isLive && typeof usualByNow === 'number';
+  const aheadOfPace = hasUsual
+    ? spent > (usualByNow as number) * 1.1 + budget * 0.05
+    : isLive && ratio > (monthProgress as number) + 0.1;
+
+  // The tick marks where spending "should" be by today under the same yardstick
+  // the status text uses - the user's own usual when known, time otherwise.
+  const paceShare = hasUsual ? (usualByNow as number) / budget : (monthProgress as number);
 
   const tone = over ? TONES.over : aheadOfPace ? TONES.warn : TONES.good;
   // A finished month gets a verdict, not a forecast: "on track" is meaningless
@@ -96,7 +112,7 @@ export function BudgetBar({ spent, budget, currency, daysLeft, monthProgress }: 
             <div
               className="absolute"
               style={{
-                left: `${Math.min(100, (monthProgress as number) * 100)}%`,
+                left: `${Math.min(100, paceShare * 100)}%`,
                 top: -12,
                 width: 2,
                 height: 12,
