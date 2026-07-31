@@ -189,15 +189,49 @@ export function mergePayloads(
     return out;
   };
 
+  // Settings have no ids to merge on, so they go field by field against the
+  // base. "The device in the user's hand wins" was only half right: it is true
+  // of a value this device just CHANGED, and false of one it simply never had.
+  // A laptop signing in for the first time holds no budget and no name, and
+  // taking its settings wholesale wiped both - on that device and then, on its
+  // next write, for every other one.
+  const mergeSettings = (): SyncPayload['settings'] => {
+    const b = base?.settings;
+    const pick = <K extends keyof SyncPayload['settings']>(key: K): SyncPayload['settings'][K] => {
+      // Changed here since this device last agreed with the server, so it is a
+      // deliberate edit - including clearing a budget back to nothing.
+      if (b && local.settings[key] !== b[key]) return local.settings[key];
+      // Otherwise this device has no opinion, so the server's value stands as
+      // it is. Note the deliberate absence of `?? local`: a cleared budget
+      // arrives as undefined, and falling back on local would put it straight
+      // back. Local is the answer only when the server has no settings at all.
+      return remote.settings ? remote.settings[key] : local.settings[key];
+    };
+    return {
+      onboarded: pick('onboarded'),
+      userName: pick('userName'),
+      currency: pick('currency'),
+      monthlyBudget: pick('monthlyBudget'),
+      budgetNudgeDismissed: pick('budgetNudgeDismissed'),
+      hasSeenIntro: pick('hasSeenIntro'),
+      defaultSourceExpense: pick('defaultSourceExpense'),
+      defaultSourceIncome: pick('defaultSourceIncome'),
+    };
+  };
+
+  // The same "this device's copy went missing" signal the lists use: if the
+  // transactions vanished under a base that still remembers them, nothing this
+  // device holds is trustworthy, settings included.
+  const localCopyMissing =
+    (local.transactions?.length ?? 0) === 0 && (base?.transactions?.length ?? 0) > 0;
+
   return {
     transactions: mergeList(base?.transactions, local.transactions, remote.transactions),
     recurringRules: mergeList(base?.recurringRules, local.recurringRules, remote.recurringRules),
     categories: mergeList(base?.categories, local.categories, remote.categories),
     incomeCategories: mergeList(base?.incomeCategories, local.incomeCategories, remote.incomeCategories),
     sources: mergeList(base?.sources, local.sources, remote.sources),
-    // Settings are single values with no id to merge on. The device in the
-    // user's hand is the one whose name, currency and budget they just set.
-    settings: local.settings,
+    settings: localCopyMissing && remote.settings ? remote.settings : mergeSettings(),
   };
 }
 

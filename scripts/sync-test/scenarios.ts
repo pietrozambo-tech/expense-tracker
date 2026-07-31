@@ -38,6 +38,8 @@ const tx = (id: string, description: string, amount: number) => ({
 class Phone {
   name: string;
   transactions: any[] = [];
+  budget: number | undefined = undefined;
+  userName = '';
   base: SyncPayload | null = null;
   version: string | null = null;
 
@@ -52,7 +54,13 @@ class Phone {
       categories: [],
       incomeCategories: [],
       sources: [],
-      settings: { onboarded: true, userName: 'Shared', currency: 'EUR', hasSeenIntro: true },
+      settings: {
+        onboarded: true,
+        userName: this.userName,
+        currency: 'EUR',
+        hasSeenIntro: true,
+        monthlyBudget: this.budget,
+      },
     };
   }
 
@@ -63,10 +71,12 @@ class Phone {
       // against the base persisted from the last agreement.
       const merged = mergePayloads(this.base, this.payload(), cloud.payload);
       this.transactions = merged.transactions;
+      this.budget = merged.settings.monthlyBudget;
+      this.userName = merged.settings.userName;
       this.base = cloud.payload;
       this.version = cloud.version;
     }
-    say(`${this.name} opens the app  -> sees ${this.list()}`);
+    say(`${this.name} opens the app  -> sees ${this.list()}${this.budget ? ` (budget ${this.budget})` : ' (no budget)'}`);
   }
 
   add(id: string, description: string, amount: number) {
@@ -103,6 +113,8 @@ class Phone {
       const merged = mergePayloads(this.base, payload, remote.payload);
       say(`${this.name} hits a conflict -> merges -> ${fmt(merged.transactions)}`);
       this.transactions = merged.transactions;
+      this.budget = merged.settings.monthlyBudget;
+      this.userName = merged.settings.userName;
       this.base = remote.payload;
       this.version = remote.version;
     }
@@ -117,6 +129,8 @@ class Phone {
         if (remote) {
           const merged = mergePayloads(this.base, this.payload(), remote.payload);
           this.transactions = merged.transactions;
+          this.budget = merged.settings.monthlyBudget;
+          this.userName = merged.settings.userName;
           this.base = remote.payload;
           this.version = remote.version;
           say(`${this.name} pulls what changed  -> phone now has ${this.list()}`);
@@ -148,6 +162,11 @@ class Phone {
   loseLocalData() {
     this.transactions = [];
     say(`${this.name} has no local transactions (base kept from last session)`);
+  }
+
+  setBudget(v: number | undefined) {
+    this.budget = v;
+    say(`${this.name} sets the budget to ${v ?? '(none)'}`);
   }
 
   list() { return fmt(this.transactions); }
@@ -371,6 +390,74 @@ async function scenarioStaleBaseNoLocal() {
   expect('and the server still has it', serverList(), 'Rent + Coffee');
 }
 
+// The report: budget shows on the phone, missing on a PC signing in fresh.
+async function scenarioSettingsNewDevice() {
+  heading('10. A new device signs in - does it get the budget and the name?');
+  reset();
+  const phone = new Phone('Phone ');
+  await phone.openApp();
+  phone.userName = 'Pietro';
+  phone.add('t1', 'Rent', 1);
+  phone.setBudget(3200);
+  await phone.sync();
+
+  console.log('');
+  const pc = new Phone('PC    '); // never seen this account: no base, no budget
+  await pc.openApp();
+  expect('the PC shows the budget', String(pc.budget), '3200');
+  expect('the PC shows the name', pc.userName, 'Pietro');
+
+  await pc.sync();
+  const serverBudget = String(((db.rows[0]?.data as any)?.settings)?.monthlyBudget);
+  expect('and the PC does not wipe it on the server', serverBudget, '3200');
+}
+
+// The other half: a budget deliberately changed on one device must still win.
+async function scenarioSettingsEdit() {
+  heading('11. Changing the budget on one device still wins');
+  reset();
+  const phone = new Phone('Phone ');
+  const pc = new Phone('PC    ');
+  await phone.openApp();
+  phone.add('t1', 'Rent', 1);
+  phone.setBudget(3200);
+  await phone.sync();
+  await pc.openApp();
+
+  console.log('');
+  pc.setBudget(2500);
+  await pc.sync();
+  const serverBudget = String(((db.rows[0]?.data as any)?.settings)?.monthlyBudget);
+  expect('the edit reaches the server', serverBudget, '2500');
+
+  console.log('');
+  await phone.foreground();
+  expect('and the phone picks it up', String(phone.budget), '2500');
+}
+
+// Clearing a budget is a real edit, not a missing value - it must stick.
+async function scenarioSettingsClear() {
+  heading('12. Clearing the budget is not mistaken for "no opinion"');
+  reset();
+  const phone = new Phone('Phone ');
+  const pc = new Phone('PC    ');
+  await phone.openApp();
+  phone.add('t1', 'Rent', 1);
+  phone.setBudget(3200);
+  await phone.sync();
+  await pc.openApp();
+
+  console.log('');
+  phone.setBudget(undefined);
+  await phone.sync();
+  const serverBudget = String(((db.rows[0]?.data as any)?.settings)?.monthlyBudget);
+  expect('the server drops the budget', serverBudget, 'undefined');
+
+  console.log('');
+  await pc.foreground();
+  expect('and it does not come back on the PC', String(pc.budget), 'undefined');
+}
+
 async function main() {
   console.log('\n================================================================');
   console.log(` Cloud sync - two devices, one account   [${OLD ? 'BEFORE the fix' : 'AFTER the fix'}]`);
@@ -386,6 +473,9 @@ async function main() {
   await scenarioOfflineThenRestart();
   await scenarioRestoreThenOtherDevice();
   await scenarioStaleBaseNoLocal();
+  await scenarioSettingsNewDevice();
+  await scenarioSettingsEdit();
+  await scenarioSettingsClear();
 
   console.log('\n================================================================');
   console.log(failures === 0 ? ' All checks passed - nothing lost.' : ` ${failures} check(s) FAILED.`);
