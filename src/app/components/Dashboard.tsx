@@ -72,7 +72,16 @@ export interface DashboardViewState {
   expandedCategory: string | null;
   drilldownContext: { categoryName: string; subcategoryName: string | null } | null;
   drilldownSortBy: 'time' | 'amount';
+  comparisonBaseline: ComparisonBaseline;
 }
+
+// What the trend column measures against. 'previous' tracks the period
+// immediately before the selected one as the user navigates. 'average' is the
+// mean of every prior period that holds data. A number pins one specific
+// period, held as an ABSOLUTE index (see periodIndex) rather than an offset -
+// pin March and it stays March as you move around, which is what "compare
+// against that month" means. An offset would quietly slide to February.
+export type ComparisonBaseline = 'previous' | 'average' | number;
 
 interface DashboardProps {
   expenses: Expense[];
@@ -212,6 +221,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
   const [selectedSubcategory, setSelectedSubcategory] = useState<string>('All');
   const [categorySortBy, setCategorySortBy] = useState<CategorySortType>('alphabetical');
   const [drilldownSortBy, setDrilldownSortBy] = useState<'time' | 'amount'>(savedView?.drilldownSortBy ?? 'time');
+  const [comparisonBaseline, setComparisonBaseline] = useState<ComparisonBaseline>(savedView?.comparisonBaseline ?? 'previous');
   const [transactionType, setTransactionType] = useState<TransactionType>(initialPeriod?.type || savedView?.transactionType || 'expense');
   const [isTrendCategoryModalOpen, setIsTrendCategoryModalOpen] = useState(false);
   const [isTrendSubcategoryModalOpen, setIsTrendSubcategoryModalOpen] = useState(false);
@@ -253,8 +263,9 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
       expandedCategory,
       drilldownContext,
       drilldownSortBy,
+      comparisonBaseline,
     };
-  }, [view, viewStateRef, timePeriodType, selectedMonth, selectedQuarter, selectedYear, transactionType, expandedCategory, drilldownContext, drilldownSortBy]);
+  }, [view, viewStateRef, timePeriodType, selectedMonth, selectedQuarter, selectedYear, transactionType, expandedCategory, drilldownContext, drilldownSortBy, comparisonBaseline]);
 
 
   // Prevent background scroll when drilldown is open
@@ -434,53 +445,122 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
     });
   };
 
-  // Get previous period expenses
-  const getPreviousPeriodExpenses = () => {
-    let periodStart: Date;
-    let periodEnd: Date;
-    let currentStart: Date;
+  // A period's absolute position on a single monotonic axis, in the unit of the
+  // currently selected period type. Lets a pinned baseline survive navigation.
+  const periodIndex = (year: number, month: number, quarter: number) =>
+    timePeriodType === 'month' ? year * 12 + month
+      : timePeriodType === 'quarter' ? year * 4 + quarter
+        : year;
+  const currentPeriodIndex = () => periodIndex(selectedYear, selectedMonth, selectedQuarter);
 
+  // How many periods back the chosen baseline sits. A pin that is no longer in
+  // the past (the user navigated back past it) falls back to the previous
+  // period rather than comparing against the future.
+  const resolvedBack = () => {
+    if (comparisonBaseline === 'previous' || comparisonBaseline === 'average') return 1;
+    const back = currentPeriodIndex() - comparisonBaseline;
+    return back >= 1 ? back : 1;
+  };
+
+  // The span of one period of the currently selected type, `back` periods
+  // before the selected one (0 = the selected period itself).
+  const periodRange = (back: number): { start: Date; end: Date } => {
     switch (timePeriodType) {
-      case 'month':
-        const prevMonth = selectedMonth === 0 ? 11 : selectedMonth - 1;
-        const prevYear = selectedMonth === 0 ? selectedYear - 1 : selectedYear;
-        periodStart = new Date(prevYear, prevMonth, 1);
-        periodEnd = new Date(prevYear, prevMonth + 1, 0, 23, 59, 59, 999);
-        currentStart = new Date(selectedYear, selectedMonth, 1);
-        break;
-      case 'quarter':
-        const prevQuarter = selectedQuarter === 0 ? 3 : selectedQuarter - 1;
-        const prevQuarterYear = selectedQuarter === 0 ? selectedYear - 1 : selectedYear;
-        const prevQuarterStartMonth = prevQuarter * 3;
-        periodStart = new Date(prevQuarterYear, prevQuarterStartMonth, 1);
-        periodEnd = new Date(prevQuarterYear, prevQuarterStartMonth + 3, 0, 23, 59, 59, 999);
-        currentStart = new Date(selectedYear, selectedQuarter * 3, 1);
-        break;
+      case 'month': {
+        const m = selectedMonth - back;
+        return {
+          start: new Date(selectedYear, m, 1),
+          end: new Date(selectedYear, m + 1, 0, 23, 59, 59, 999),
+        };
+      }
+      case 'quarter': {
+        const qStart = (selectedQuarter - back) * 3;
+        return {
+          start: new Date(selectedYear, qStart, 1),
+          end: new Date(selectedYear, qStart + 3, 0, 23, 59, 59, 999),
+        };
+      }
       case 'year':
-        periodStart = new Date(selectedYear - 1, 0, 1);
-        periodEnd = new Date(selectedYear - 1, 11, 31, 23, 59, 59, 999);
-        currentStart = new Date(selectedYear, 0, 1);
-        break;
+        return {
+          start: new Date(selectedYear - back, 0, 1),
+          end: new Date(selectedYear - back, 11, 31, 23, 59, 59, 999),
+        };
     }
+  };
 
-    // The period in progress is only partly spent, so comparing it against a
-    // complete previous one made almost everything look like a fall: on the 8th
-    // of the month that is 8 days against 30. Cut the previous period to the
-    // same number of days elapsed so the two halves of the comparison mean the
-    // same thing. A finished period is compared in full, as before.
-    if (isAtCurrentPeriod()) {
-      const today = new Date();
-      const day = 24 * 60 * 60 * 1000;
-      const elapsed = Math.floor((today.getTime() - currentStart.getTime()) / day);
-      const cutoff = new Date(periodStart.getTime() + elapsed * day);
-      cutoff.setHours(23, 59, 59, 999);
-      if (cutoff < periodEnd) periodEnd = cutoff;
-    }
+  // The period in progress is only partly spent, so comparing it against a
+  // complete earlier one made almost everything look like a fall: on the 8th of
+  // the month that is 8 days against 30. Cut the comparison period to the same
+  // number of days elapsed so the two halves mean the same thing. A finished
+  // period is compared in full. Applies to whichever baseline is chosen -
+  // including each period that feeds the average.
+  const truncateToElapsed = ({ start, end }: { start: Date; end: Date }) => {
+    if (!isAtCurrentPeriod()) return { start, end };
+    const day = 24 * 60 * 60 * 1000;
+    const elapsed = Math.floor((new Date().getTime() - periodRange(0).start.getTime()) / day);
+    const cutoff = new Date(start.getTime() + elapsed * day);
+    cutoff.setHours(23, 59, 59, 999);
+    return { start, end: cutoff < end ? cutoff : end };
+  };
 
-    return expenses.filter(expense => {
-      const expenseDate = parseLocalDate(expense.date);
-      return expenseDate >= periodStart && expenseDate <= periodEnd;
+  const inRange = ({ start, end }: { start: Date; end: Date }) =>
+    expenses.filter((e) => {
+      const d = parseLocalDate(e.date);
+      return d >= start && d <= end;
     });
+
+  const ofCurrentType = (list: Expense[]) =>
+    transactionType === 'expense'
+      ? list.filter((e) => e.type !== 'income')
+      : transactionType === 'income'
+        ? list.filter((e) => e.type === 'income')
+        : list;
+
+  // Short name for a period `back` steps before the selected one - what the
+  // dropdown lists and what the column header shows.
+  const periodShortLabel = (back: number) => {
+    switch (timePeriodType) {
+      case 'month': {
+        const d = new Date(selectedYear, selectedMonth - back, 1);
+        const sameYear = d.getFullYear() === selectedYear;
+        return d.toLocaleDateString('en-US', { month: 'short', ...(sameYear ? {} : { year: '2-digit' }) });
+      }
+      case 'quarter': {
+        const q = selectedQuarter - back;
+        const y = selectedYear + Math.floor(q / 4);
+        const qi = ((q % 4) + 4) % 4;
+        return `Q${qi + 1}${y !== selectedYear ? ` ${y}` : ''}`;
+      }
+      case 'year':
+        return String(selectedYear - back);
+    }
+  };
+
+  // Every period before the selected one that actually holds something to
+  // compare against, nearest first. A period with no transactions of the type
+  // on screen is left out - offering it would only ever answer "New".
+  const priorPeriods = () => {
+    const out: { back: number; index: number; label: string }[] = [];
+    const earliest = earliestTransactionDate();
+    for (let back = 1; back <= 60; back++) {
+      const range = periodRange(back);
+      if (earliest && range.end < earliest) break;
+      if (ofCurrentType(inRange(range)).length > 0) {
+        out.push({ back, index: currentPeriodIndex() - back, label: periodShortLabel(back) });
+      }
+    }
+    return out;
+  };
+
+  // Oldest transaction on record - the point past which there is nothing left
+  // to offer as a comparison.
+  const earliestTransactionDate = () => {
+    let earliest: Date | null = null;
+    for (const e of expenses) {
+      const d = parseLocalDate(e.date);
+      if (!earliest || d < earliest) earliest = d;
+    }
+    return earliest;
   };
 
   // Get period display name
@@ -731,17 +811,34 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
   // had never spent on look identical to one that matched last month exactly -
   // and left a first-time user with a column of dashes, since on their first
   // month everything is new.
+  // What one category (or subcategory) came to over a single earlier period.
+  const amountInPeriod = (back: number, categoryName: string, subcategoryName?: string) =>
+    ofCurrentType(inRange(truncateToElapsed(periodRange(back))))
+      .filter((e) =>
+        e.category.name === categoryName &&
+        (subcategoryName === undefined || e.subcategory === subcategoryName)
+      )
+      .reduce((sum, e) => sum + homeAmount(e, currency), 0);
+
+  // The number the trend column measures against, per the chosen baseline.
+  //
+  // 'average' divides by every prior period that holds data - not just the ones
+  // this category appeared in. A category bought once in eight months is not
+  // running at that month's rate, and dividing by 1 would claim it is.
+  const baselineAmount = (categoryName: string, subcategoryName?: string): number => {
+    if (comparisonBaseline === 'average') {
+      const periods = priorPeriods();
+      if (periods.length === 0) return 0;
+      const total = periods.reduce((sum, p) => sum + amountInPeriod(p.back, categoryName, subcategoryName), 0);
+      return total / periods.length;
+    }
+    return amountInPeriod(resolvedBack(), categoryName, subcategoryName);
+  };
+
   const calculateTrend = (
     categoryName: string,
     subcategoryName?: string,
   ): 'up' | 'down' | 'neutral' | 'new' => {
-    const previousPeriodExpenses = getPreviousPeriodExpenses();
-    const previousFilteredTransactions = transactionType === 'expense' 
-      ? previousPeriodExpenses.filter(e => e.type !== 'income')
-      : transactionType === 'income'
-      ? previousPeriodExpenses.filter(e => e.type === 'income')
-      : previousPeriodExpenses;
-
     // Get current amount
     let currentAmount = 0;
     if (subcategoryName) {
@@ -762,25 +859,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
         }, 0);
     }
 
-    // Get previous amount
-    let previousAmount = 0;
-    if (subcategoryName) {
-      // Subcategory trend
-      previousAmount = previousFilteredTransactions
-        .filter(e => e.category.name === categoryName && e.subcategory === subcategoryName)
-        .reduce((sum, e) => {
-          const convertedAmount = homeAmount(e, currency);
-          return sum + convertedAmount;
-        }, 0);
-    } else {
-      // Category trend
-      previousAmount = previousFilteredTransactions
-        .filter(e => e.category.name === categoryName)
-        .reduce((sum, e) => {
-          const convertedAmount = homeAmount(e, currency);
-          return sum + convertedAmount;
-        }, 0);
-    }
+    const previousAmount = baselineAmount(categoryName, subcategoryName);
 
     // Nothing to compare against: this is the first time anything landed here.
     if (previousAmount === 0) {
@@ -804,22 +883,8 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
   // No "so far" qualifier on a period in progress. It was there to admit the
   // comparison was lopsided; now that the previous period is cut to the same
   // number of days elapsed, "vs. Jun" is simply true.
-  const comparisonLabel = () => {
-    switch (timePeriodType) {
-      case 'month': {
-        const prev = new Date(selectedYear, selectedMonth - 1, 1);
-        return `vs. ${prev.toLocaleDateString('en-US', { month: 'short' })}`;
-      }
-      case 'quarter': {
-        const prevQ = selectedQuarter === 0 ? 4 : selectedQuarter;
-        const prevY = selectedQuarter === 0 ? selectedYear - 1 : selectedYear;
-        // The year only when the quarter belongs to a different one.
-        return `vs. Q${prevQ}${prevY !== selectedYear ? ` ${prevY}` : ''}`;
-      }
-      case 'year':
-        return `vs. ${selectedYear - 1}`;
-    }
-  };
+  const comparisonLabel = () =>
+    comparisonBaseline === 'average' ? 'vs. Avg' : `vs. ${periodShortLabel(resolvedBack())}`;
 
   // Get trend data for overall spending, category, or subcategory (Year-to-Date)
   const getTrendData = (identifier: string, txnType: TransactionType) => {
@@ -1290,6 +1355,9 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                     setSelectedQuarter(current.quarter);
                     setSelectedYear(current.year);
                     setExpandedCategory(null);
+                    // A pinned index is counted in the old unit; it would point
+                    // at an unrelated period under the new one.
+                    setComparisonBaseline('previous');
                   }}
                   className="pl-2.5 pr-7 py-1 rounded-md text-xs text-neutral-600 border border-neutral-200"
                   style={{
@@ -1532,12 +1600,61 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                       </span>
                     </button>
                   </div>
-                  <span
-                    className="text-[10px] whitespace-nowrap text-right flex-shrink-0"
-                    style={{ color: '#A0A0A8' }}
-                  >
-                    {comparisonLabel()}
-                  </span>
+                  {/* The baseline the trend column measures against. Left as
+                      plain text until there is genuinely something to choose -
+                      a chevron on a one-option menu is just noise. */}
+                  {(() => {
+                    const priors = priorPeriods();
+                    if (priors.length === 0) {
+                      return (
+                        <span
+                          className="text-[10px] whitespace-nowrap text-right flex-shrink-0"
+                          style={{ color: '#A0A0A8' }}
+                        >
+                          {comparisonLabel()}
+                        </span>
+                      );
+                    }
+                    const value =
+                      comparisonBaseline === 'average'
+                        ? 'average'
+                        : String(currentPeriodIndex() - resolvedBack());
+                    return (
+                      <div className="relative flex items-center gap-0.5 flex-shrink-0">
+                        <span
+                          className="text-[10px] whitespace-nowrap text-right"
+                          style={{ color: '#A0A0A8' }}
+                        >
+                          {comparisonLabel()}
+                        </span>
+                        <ChevronDown className="w-2.5 h-2.5" style={{ color: '#C7C7CC' }} strokeWidth={2.5} />
+                        <select
+                          aria-label="Compare against"
+                          value={value}
+                          onChange={(e) =>
+                            setComparisonBaseline(
+                              e.target.value === 'average' ? 'average' : Number(e.target.value)
+                            )
+                          }
+                          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                          style={{
+                            WebkitTapHighlightColor: 'rgba(255,255,255,0)',
+                            WebkitAppearance: 'none',
+                            appearance: 'none',
+                            touchAction: 'manipulation',
+                            transform: 'translateZ(0)',
+                          }}
+                        >
+                          {priors.map((p) => (
+                            <option key={p.index} value={String(p.index)}>
+                              {p.label}
+                            </option>
+                          ))}
+                          <option value="average">Average</option>
+                        </select>
+                      </div>
+                    );
+                  })()}
                 </div>
                 {sortedCategories.length === 0 ? (
                   <div className="py-12 text-center">
