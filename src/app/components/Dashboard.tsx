@@ -539,6 +539,28 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
   // Every period before the selected one that actually holds something to
   // compare against, nearest first. A period with no transactions of the type
   // on screen is left out - offering it would only ever answer "New".
+  // The dropdown has room the column header does not, so periods are spelled
+  // out there - and always carry their year, since the list runs back past
+  // January and "June" alone stops being an answer once there are two of them.
+  const periodLongLabel = (back: number) => {
+    switch (timePeriodType) {
+      case 'month': {
+        const d = new Date(selectedYear, selectedMonth - back, 1);
+        return d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+      }
+      case 'quarter': {
+        const q = selectedQuarter - back;
+        const y = selectedYear + Math.floor(q / 4);
+        return `Q${(((q % 4) + 4) % 4) + 1} ${y}`;
+      }
+      case 'year':
+        return String(selectedYear - back);
+    }
+  };
+
+  // Built by walking backwards one period at a time, so the list is already in
+  // reverse chronological order - nearest first, across year boundaries.
+  // Nothing is sorted by name at any point.
   const priorPeriods = () => {
     const out: { back: number; index: number; label: string }[] = [];
     const earliest = earliestTransactionDate();
@@ -546,7 +568,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
       const range = periodRange(back);
       if (earliest && range.end < earliest) break;
       if (ofCurrentType(inRange(range)).length > 0) {
-        out.push({ back, index: currentPeriodIndex() - back, label: periodShortLabel(back) });
+        out.push({ back, index: currentPeriodIndex() - back, label: periodLongLabel(back) });
       }
     }
     return out;
