@@ -558,9 +558,10 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
     }
   };
 
-  // Built by walking backwards one period at a time, so the list is already in
-  // reverse chronological order - nearest first, across year boundaries.
-  // Nothing is sorted by name at any point.
+  // Walked backwards - that is how it knows where to stop - then flipped, so
+  // the list reads oldest first and runs forward to the period just before the
+  // one on screen. Chronological throughout, including across year boundaries;
+  // nothing is ever sorted by name.
   const priorPeriods = () => {
     const out: { back: number; index: number; label: string }[] = [];
     const earliest = earliestTransactionDate();
@@ -571,7 +572,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
         out.push({ back, index: currentPeriodIndex() - back, label: periodLongLabel(back) });
       }
     }
-    return out;
+    return out.reverse();
   };
 
   // Oldest transaction on record - the point past which there is nothing left
