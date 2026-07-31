@@ -470,7 +470,7 @@ export function WelcomeCarousel({ userName, onDone, onSetupCategories, onLoadDem
     {
       illustration: <DashboardIllustration />,
       title: 'Your money at a glance',
-      desc: 'The dashboard shows spending, income and savings - with breakdowns by category and source.',
+      desc: 'The dashboard shows spending, income and savings - with breakdowns by category, and every category compared against any earlier month or your average.',
     },
     {
       illustration: <SavingsIllustration />,
