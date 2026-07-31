@@ -163,6 +163,19 @@ export function mergePayloads(
     const r = new Map((remoteList ?? []).map((x) => [x.id, x]));
     const out: T[] = [];
 
+    // An empty local list against a base that still remembers items is NOT
+    // "the user deleted everything here". Erasing takes the whole cloud row
+    // with it (see handleEraseAllData), and deleting item by item syncs as it
+    // goes, so both of those leave the base empty too. A base that outlives
+    // its list means this device's copy went missing - storage cleared, a
+    // write that never landed - and the rule below would read that absence as
+    // 431 deliberate deletions and push them to every other device.
+    //
+    // The one case this gets wrong is deleting every last item while offline
+    // and relaunching before a sync: those come back. Resurrecting a handful
+    // of transactions is a nuisance; propagating a wipe is not recoverable.
+    if (l.size === 0 && b.size > 0) return [...r.values()];
+
     for (const [id, item] of l) {
       if (r.has(id)) out.push(item); // in both - local wins
       else if (!b.has(id)) out.push(item); // we added it

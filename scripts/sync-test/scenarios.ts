@@ -126,6 +126,30 @@ class Phone {
     await this.sync();
   }
 
+  // Settings > Import data with a full backup file: replaces everything held
+  // locally. Deliberately does NOT touch base/version - restoring is a local
+  // edit like any other, and the next sync pushes it up.
+  restore(ids: [string, string][]) {
+    this.transactions = ids.map(([id, d]) => tx(id, d, 1));
+    say(`${this.name} restores a backup  -> phone now has ${this.list()}`);
+  }
+
+  // Signing out clears the persisted base along with the session (App.tsx
+  // does this when userId goes null), but the transactions stay on the device.
+  signOut() {
+    this.base = null;
+    this.version = null;
+    say(`${this.name} signs out`);
+  }
+
+  // A device that still holds a base from an earlier session but has no local
+  // transactions - e.g. a browser whose site data was cleared, or a profile
+  // that never finished hydrating.
+  loseLocalData() {
+    this.transactions = [];
+    say(`${this.name} has no local transactions (base kept from last session)`);
+  }
+
   list() { return fmt(this.transactions); }
 }
 
@@ -298,6 +322,55 @@ async function scenarioOfflineThenRestart() {
   expect('the offline edit survives the relaunch', relaunch.list(), 'Rent 900EUR + Market 25EUR');
 }
 
+// The report: restore a full backup on the phone, then sign in on a PC that
+// has used the account before.
+async function scenarioRestoreThenOtherDevice() {
+  heading('8. Restore a backup on the phone, then open the app on a PC');
+  reset();
+  const phone = new Phone('Phone ');
+  const pc = new Phone('PC    ');
+
+  await phone.openApp();
+  phone.add('t1', 'Rent', 1);
+  phone.add('t2', 'Coffee', 1);
+  await phone.sync();
+
+  // The PC has seen this account before, so it holds a base.
+  await pc.openApp();
+
+  console.log('');
+  phone.restore([['t1', 'Rent'], ['t2', 'Coffee'], ['t3', 'Tennis']]);
+  await phone.sync();
+
+  console.log('');
+  await pc.openApp();
+  expect('the PC sees the restored data', pc.list(), 'Rent + Coffee + Tennis');
+  await pc.sync();
+  expect('and does not wipe the server', serverList(), 'Rent + Coffee + Tennis');
+}
+
+// Same, but the PC's local copy is gone while its base survives.
+async function scenarioStaleBaseNoLocal() {
+  heading('9. A device whose local data is gone but whose base is not');
+  reset();
+  const phone = new Phone('Phone ');
+  const pc = new Phone('PC    ');
+
+  await phone.openApp();
+  phone.add('t1', 'Rent', 1);
+  phone.add('t2', 'Coffee', 1);
+  await phone.sync();
+
+  await pc.openApp(); // PC now holds base = {Rent, Coffee}
+
+  console.log('');
+  pc.loseLocalData();
+  await pc.openApp();
+  expect('the PC pulls the data back down', pc.list(), 'Rent + Coffee');
+  await pc.sync();
+  expect('and the server still has it', serverList(), 'Rent + Coffee');
+}
+
 async function main() {
   console.log('\n================================================================');
   console.log(` Cloud sync - two devices, one account   [${OLD ? 'BEFORE the fix' : 'AFTER the fix'}]`);
@@ -311,6 +384,8 @@ async function main() {
   await scenarioOffline();
   await scenarioRecurringNoDupes();
   await scenarioOfflineThenRestart();
+  await scenarioRestoreThenOtherDevice();
+  await scenarioStaleBaseNoLocal();
 
   console.log('\n================================================================');
   console.log(failures === 0 ? ' All checks passed - nothing lost.' : ` ${failures} check(s) FAILED.`);
