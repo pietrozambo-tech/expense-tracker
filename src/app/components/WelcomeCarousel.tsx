@@ -1,6 +1,6 @@
 import { useRef, useState, type ReactNode } from 'react';
 import {
-  Minus, Plus, Wallet, Percent, Calendar, Repeat, ChevronDown, ChevronRight, TrendingDown,
+  Minus, Plus, Wallet, Gauge, Calendar, Repeat, ChevronDown, ChevronRight, TrendingDown,
   ShoppingCart, Car, Home, Clapperboard, Landmark, Layers,
   FlaskConical, Trash2, FileSpreadsheet, Palmtree, UtensilsCrossed,
 } from 'lucide-react';
@@ -149,7 +149,7 @@ function DashboardIllustration() {
     { label: 'Spending', value: '1,039€', Icon: Minus, tint: 'rgba(255,105,97,0.16)', color: '#FF6961', sw: 3 },
     { label: 'Income', value: '3,380€', Icon: Plus, tint: 'rgba(48,209,88,0.16)', color: '#30D158', sw: 3 },
     { label: 'Savings', value: '2,341€', Icon: Wallet, tint: 'rgba(100,160,255,0.16)', color: '#64A0FF', accent: '#30D158', sw: 2.5 },
-    { label: 'Saving Rate', value: '69%', Icon: Percent, tint: 'rgba(100,160,255,0.16)', color: '#64A0FF', accent: '#30D158', sw: 2.5 },
+    { label: 'Saving Rate', value: '69%', Icon: Gauge, tint: 'rgba(100,160,255,0.16)', color: '#64A0FF', accent: '#30D158', sw: 2.5 },
   ];
   // `trend` mirrors the real rows: flat when the month matches the last one,
   // an arrow when it does not, and the word when there is no earlier figure to

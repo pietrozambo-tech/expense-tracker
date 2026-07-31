@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { ChevronRight, ArrowUpDown, TrendingUp, TrendingDown, Minus, Plus, Receipt, ChevronLeft, ChevronDown, X, Wallet, Percent } from 'lucide-react';
+import { ChevronRight, ArrowUpDown, TrendingUp, TrendingDown, Minus, Plus, Receipt, ChevronLeft, ChevronDown, X, Wallet, Gauge } from 'lucide-react';
 import { TrendCategoryBreakdown } from './TrendCategoryBreakdown';
 import React from 'react';
 import { formatAmount, formatCompactAmount, formatSummaryAmount, formatAmountListView, formatAbbreviatedAmount, CURRENCIES, homeAmount } from '../utils/currency';
@@ -70,7 +70,7 @@ export interface DashboardViewState {
   selectedYear: number;
   transactionType: 'expense' | 'income' | 'savings';
   expandedCategory: string | null;
-  drilldownContext: { categoryName: string; subcategoryName: string | null } | null;
+  drilldownContext: { categoryName: string; subcategoryName: string | null; recurrence?: string } | null;
   drilldownSortBy: 'time' | 'amount';
   comparisonBaseline: ComparisonBaseline;
 }
@@ -250,6 +250,10 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
   const [drilldownContext, setDrilldownContext] = useState<{
     categoryName: string;
     subcategoryName: string | null;
+    // Set by the One-off vs Recurring chart's second layer: the modal then
+    // lists the transactions of ONE cadence ("Every month") instead of a
+    // category - same view, same sorting, different filter.
+    recurrence?: string;
   } | null>(savedView?.drilldownContext ?? null);
   
   // State for recurrence donut chart
@@ -337,12 +341,22 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
     
     // Efficiency: filter first by type and period, then by category
     return expenses.filter(expense => {
-      const typeMatch = transactionType === 'income' ? expense.type === 'income' : expense.type !== 'income';
+      // The recurrence chart under the savings toggle counts every
+      // transaction, so its drilldown must too.
+      const typeMatch =
+        drilldownContext.recurrence && transactionType === 'savings'
+          ? true
+          : transactionType === 'income' ? expense.type === 'income' : expense.type !== 'income';
       if (!typeMatch) return false;
 
       const expenseDate = parseLocalDate(expense.date);
       const inPeriod = expenseDate >= periodStart && expenseDate <= periodEnd;
       if (!inPeriod) return false;
+
+      // Cadence drilldown: the recurrence IS the filter, categories don't apply.
+      if (drilldownContext.recurrence) {
+        return (expense.recurrence || 'Never repeat') === drilldownContext.recurrence;
+      }
 
       const categoryMatch = expense.category.name === categoryName;
       if (!categoryMatch) return false;
@@ -1553,7 +1567,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                     <div className="w-px self-stretch mx-3" style={{ backgroundColor: 'rgba(255,255,255,0.07)' }} />
                     <div className="flex items-center gap-2.5 flex-1 min-w-0">
                       <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: 'rgba(100,160,255,0.16)' }}>
-                        <Percent className="w-4 h-4" style={{ color: '#64A0FF' }} strokeWidth={2.5} />
+                        <Gauge className="w-4 h-4" style={{ color: '#64A0FF' }} strokeWidth={2.5} />
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="text-[11px] leading-tight mb-1" style={{ color: 'rgba(235,235,245,0.6)' }}>Saving Rate</div>
@@ -2469,6 +2483,10 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                           onClick={() => {
                             if (item.name === 'Recurring' && recurrenceLayer === 'overview') {
                               setRecurrenceLayer('detail');
+                            } else if (recurrenceLayer === 'detail') {
+                              // Second layer: a cadence row opens the same
+                              // transaction drilldown the category table uses.
+                              setDrilldownContext({ categoryName: '', subcategoryName: null, recurrence: item.name });
                             } else {
                               const isSelected = selectedRecurrenceSlice === item.name;
                               setSelectedRecurrenceSlice(isSelected ? null : item.name);
@@ -2508,7 +2526,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                               fontWeight: '500'
                             }}>
                               {item.name}
-                              {item.name === 'Recurring' && recurrenceLayer === 'overview' && (
+                              {((item.name === 'Recurring' && recurrenceLayer === 'overview') || recurrenceLayer === 'detail') && (
                                 <ChevronRight size={14} style={{ display: 'inline', marginLeft: '4px', verticalAlign: 'middle' }} />
                               )}
                             </span>
@@ -3515,13 +3533,15 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                 <div className="flex-1 min-w-0">
                   <div className="flex flex-wrap items-center gap-2 mb-1.5">
                     <h3 className="text-xl font-bold text-neutral-900 leading-tight">
-                      {drilldownContext.subcategoryName
+                      {drilldownContext.recurrence
+                        ? drilldownContext.recurrence
+                        : drilldownContext.subcategoryName
                         ? (drilldownContext.subcategoryName === UNCATEGORIZED ? 'Other' : drilldownContext.subcategoryName)
                         : drilldownContext.categoryName}
                     </h3>
-                    {drilldownContext.subcategoryName && (
+                    {(drilldownContext.recurrence || drilldownContext.subcategoryName) && (
                       <span className="text-[10px] text-neutral-400 font-bold px-2 py-0.5 bg-neutral-50 rounded-full border border-neutral-100 uppercase tracking-tight">
-                        {drilldownContext.categoryName}
+                        {drilldownContext.recurrence ? 'Recurring' : drilldownContext.categoryName}
                       </span>
                     )}
                   </div>
