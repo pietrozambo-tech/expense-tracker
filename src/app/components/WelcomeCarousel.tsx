@@ -205,8 +205,12 @@ function DashboardIllustration() {
         <div className="flex items-baseline justify-between mb-1.5">
           <span className="text-sm font-semibold" style={{ color: '#1C1C1E' }}>Categories</span>
           {/* Sits over the last column, as it does in the app - it labels the
-              trend markers and nothing else. */}
-          <span className="text-[9px]" style={{ color: '#A0A0A8' }}>vs. {previousMonthLabel()}</span>
+              trend markers and nothing else. The chevron is the whole tell that
+              the baseline can be changed, so the illustration carries it too. */}
+          <span className="flex items-center gap-0.5">
+            <span className="text-[9px]" style={{ color: '#A0A0A8' }}>vs. {previousMonthLabel()}</span>
+            <ChevronDown className="w-2 h-2" style={{ color: '#C7C7CC' }} strokeWidth={2.5} />
+          </span>
         </div>
         {rows.map((r) => (
           <div key={r.name} className="flex items-center gap-2.5 py-1.5">
