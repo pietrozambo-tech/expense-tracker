@@ -43,7 +43,7 @@ import { RecurringScopeDialog } from './components/RecurringScopeDialog';
 
 // The heavyweight screens load on demand so the initial bundle stays small.
 // (Named exports wrapped for React.lazy's default-export contract.)
-import type { DashboardViewState } from './components/Dashboard';
+import type { DashboardViewState, TrendViewState } from './components/Dashboard';
 import type { ActivityViewState } from './components/Activity';
 
 // Loading a lazy chunk can fail when the app has been open across a deploy:
@@ -165,6 +165,9 @@ export default function App() {
   // The Overview's last view (period + drilldown), restored after an edit
   // round-trip; cleared by a deliberate tap on the Dashboard nav button.
   const dashboardViewRef = useRef<DashboardViewState | null>(null);
+  // Trend's toggle + expanded category, so the refreshKey remounts App forces
+  // (sync pull, recurrence on foreground) don't silently reset it to Expense.
+  const trendViewRef = useRef<TrendViewState | null>(null);
   // Activity's filter bar and scroll position, restored after an edit
   // round-trip. Cleared below the moment the user lands on a tab that isn't
   // Activity or the editor.
@@ -274,6 +277,9 @@ export default function App() {
   // next visit starts unfiltered.
   useEffect(() => {
     if (currentTab !== 'activity' && currentTab !== 'add') activityViewRef.current = null;
+    // Same rule for Trend: a deliberate tab change resets it to Expense, an
+    // in-tab remount does not. 'add' is exempt for symmetry with Activity.
+    if (currentTab !== 'trend' && currentTab !== 'add') trendViewRef.current = null;
   }, [currentTab]);
 
   // When opening a NEW transaction, pre-select the current default source for
@@ -1547,6 +1553,7 @@ export default function App() {
                 onDeleteExpense={handleDeleteExpense}
                 monthlyBudget={monthlyBudget}
                 view="trend"
+                trendStateRef={trendViewRef}
                 onShowOverview={(period) => {
                   setDashboardInitialPeriod(period);
                   setCurrentTab('dashboard');

@@ -75,6 +75,17 @@ export interface DashboardViewState {
   comparisonBaseline: ComparisonBaseline;
 }
 
+// Trend keeps almost no view state - but its Expense/Income/Savings toggle
+// and expanded category must survive the remounts App forces via refreshKey
+// (a background sync pull, recurring materialisation on foreground). Those
+// fire exactly when the phone dims to lock, which read as the toggle
+// "resetting on its own". Cleared by App when the user leaves the tab, so a
+// fresh visit still starts on Expense.
+export interface TrendViewState {
+  transactionType: 'expense' | 'income' | 'savings';
+  trendExpandedCategory: string | null;
+}
+
 // What the trend column measures against. 'previous' tracks the period
 // immediately before the selected one as the user navigates. 'average' is the
 // mean of every prior period that holds data. A number pins one specific
@@ -97,6 +108,7 @@ interface DashboardProps {
   onShowOverview?: (period: { month: number; year: number; type: 'expense' | 'income' }) => void;
   initialPeriod?: { month: number; year: number; type: 'expense' | 'income' } | null;
   viewStateRef?: React.MutableRefObject<DashboardViewState | null>;
+  trendStateRef?: React.MutableRefObject<TrendViewState | null>;
   monthlyBudget?: number;
   /** True once the user has waved away the "set a budget" card. */
   budgetNudgeDismissed?: boolean;
@@ -154,7 +166,7 @@ function TrendStatCard({
         </FitText>
       </div>
       {footnote && (
-        <div className="text-[10px] leading-tight mt-2" style={{ color: 'rgba(235,235,245,0.55)' }}>
+        <div className="text-[10px] leading-tight mt-auto pt-2" style={{ color: 'rgba(235,235,245,0.55)' }}>
           {footnote}
         </div>
       )}
@@ -197,10 +209,11 @@ function StatChip({ label, value, tone }: { label: React.ReactNode; value: strin
   );
 }
 
-export function Dashboard({ expenses, categories, incomeCategories, sources = [], userName, currency, onEditExpense, onDeleteExpense, view = 'overview', onShowOverview, initialPeriod, viewStateRef, monthlyBudget, budgetNudgeDismissed, onSetMonthlyBudget, onDismissBudgetNudge }: DashboardProps) {
+export function Dashboard({ expenses, categories, incomeCategories, sources = [], userName, currency, onEditExpense, onDeleteExpense, view = 'overview', onShowOverview, initialPeriod, viewStateRef, trendStateRef, monthlyBudget, budgetNudgeDismissed, onSetMonthlyBudget, onDismissBudgetNudge }: DashboardProps) {
   // Restore the previous view (period + drilldown) unless a Trend->Overview
   // link supplied an explicit period - that must win and start clean.
   const savedView = view === 'overview' && !initialPeriod ? viewStateRef?.current ?? null : null;
+  const savedTrend = view === 'trend' ? trendStateRef?.current ?? null : null;
   const viewType: ViewType = view === 'trend' ? 'trend' : 'current-month';
   const [timePeriodType, setTimePeriodType] = useState<TimePeriodType>(savedView?.timePeriodType ?? 'month');
   // Measure the cumulative chart's real pixel width so its SVG renders 1:1
@@ -216,13 +229,13 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
     return () => window.removeEventListener('resize', measure);
   });
   const [expandedCategory, setExpandedCategory] = useState<string | null>(savedView?.expandedCategory ?? null);
-  const [trendExpandedCategory, setTrendExpandedCategory] = useState<string | null>(null);
+  const [trendExpandedCategory, setTrendExpandedCategory] = useState<string | null>(savedTrend?.trendExpandedCategory ?? null);
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [selectedSubcategory, setSelectedSubcategory] = useState<string>('All');
   const [categorySortBy, setCategorySortBy] = useState<CategorySortType>('alphabetical');
   const [drilldownSortBy, setDrilldownSortBy] = useState<'time' | 'amount'>(savedView?.drilldownSortBy ?? 'time');
   const [comparisonBaseline, setComparisonBaseline] = useState<ComparisonBaseline>(savedView?.comparisonBaseline ?? 'previous');
-  const [transactionType, setTransactionType] = useState<TransactionType>(initialPeriod?.type || savedView?.transactionType || 'expense');
+  const [transactionType, setTransactionType] = useState<TransactionType>(initialPeriod?.type || savedView?.transactionType || savedTrend?.transactionType || 'expense');
   const [isTrendCategoryModalOpen, setIsTrendCategoryModalOpen] = useState(false);
   const [isTrendSubcategoryModalOpen, setIsTrendSubcategoryModalOpen] = useState(false);
   
@@ -249,6 +262,12 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
   const [selectedMonth, setSelectedMonth] = useState<number>(initialPeriod?.month ?? savedView?.selectedMonth ?? now.getMonth()); // 0-11
   const [selectedQuarter, setSelectedQuarter] = useState<number>(savedView?.selectedQuarter ?? Math.floor((initialPeriod?.month ?? now.getMonth()) / 3)); // 0-3
   const [selectedYear, setSelectedYear] = useState<number>(initialPeriod?.year ?? savedView?.selectedYear ?? now.getFullYear());
+
+  // Trend's own snapshot, same discipline as the overview's below.
+  useEffect(() => {
+    if (view !== 'trend' || !trendStateRef) return;
+    trendStateRef.current = { transactionType, trendExpandedCategory };
+  }, [view, trendStateRef, transactionType, trendExpandedCategory]);
 
   // Keep the snapshot current on every selection change (ref write - no
   // re-render). Trend view has its own instance and never touches it.
@@ -2926,6 +2945,11 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                 // over the totals, so one unusually fat month cannot speak for
                 // all the others.
                 const monthlySavingRates: number[] = [];
+                // Totals over the whole period, for the overall rate on the
+                // Total Saved card - one number for the year, alongside the
+                // per-month average alongside it.
+                let periodIncome = 0;
+                let periodSpending = 0;
 
                 trendData.forEach(month => {
                   const monthStart = new Date(month.year, getMonthNumber(month.month), 1);
@@ -2939,10 +2963,18 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                   const monthIncome = monthExpenses.filter(e => e.type === 'income').reduce((sum, e) => sum + homeAmount(e, currency), 0);
                   const monthSpending = monthExpenses.filter(e => e.type !== 'income').reduce((sum, e) => sum + homeAmount(e, currency), 0);
 
+                  periodIncome += monthIncome;
+                  periodSpending += monthSpending;
                   if (monthIncome > 0) {
                     monthlySavingRates.push(((monthIncome - monthSpending) / monthIncome) * 100);
                   }
                 });
+
+                // Overall rate: totals over the period, not an average of
+                // monthly rates - this one SHOULD let a fat month speak,
+                // because it answers "of everything I earned, how much stayed".
+                const overallSavingRate =
+                  periodIncome > 0 ? ((periodIncome - periodSpending) / periodIncome) * 100 : null;
 
                 const avgMonthlySavingRate = monthlySavingRates.length > 0
                   ? monthlySavingRates.reduce((sum, rate) => sum + rate, 0) / monthlySavingRates.length
@@ -2955,7 +2987,20 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                       value={formatAmountListView(totalSpent, currency, 0)}
                       compact={formatAbbreviatedAmount(totalSpent, currency)}
                       valueColor={savingsColor(totalSpent)}
-                      footnote={trendData.length === 1 ? "This month" : `${trendData.length} months`}
+                      footnote={
+                        <>
+                          <div>{trendData.length === 1 ? "This month" : `${trendData.length} months`}</div>
+                          {overallSavingRate !== null && (
+                            <div className="mt-1.5">
+                              <StatChip
+                                label={<><span className="max-[359px]:hidden">Saving </span>Rate</>}
+                                value={`${Math.round(overallSavingRate)}%`}
+                                tone={Math.round(overallSavingRate)}
+                              />
+                            </div>
+                          )}
+                        </>
+                      }
                     />
                     <TrendStatCard
                       label="Monthly Average"
