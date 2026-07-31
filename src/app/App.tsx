@@ -304,6 +304,8 @@ export default function App() {
   const localPayloadRef = useRef<SyncPayload | null>(null);
   const cloudHydratedRef = useRef(false);
   const pullingRef = useRef(false);
+  // Fires the pending cloud write immediately, set by the save effect below.
+  const flushSaveRef = useRef<(() => void) | null>(null);
   const userIdRef = useRef<string | null>(null);
   userIdRef.current = userId;
 
@@ -435,7 +437,10 @@ export default function App() {
       return false;
     };
 
-    const t = setTimeout(() => {
+    let fired = false;
+    const run = () => {
+      if (fired || cancelled) return;
+      fired = true;
       if (typeof navigator !== 'undefined' && navigator.onLine === false) {
         setSyncStatus('offline');
         return; // the 'online' listener below retries automatically
@@ -453,10 +458,21 @@ export default function App() {
         .catch(() => {
           if (!cancelled) setSyncStatus('error');
         });
-    }, 800);
+    };
+
+    const t = setTimeout(run, 800);
+    // Closing the tab or backgrounding the app throws away a debounce that has
+    // not fired yet. Nothing is lost - the next launch merges the change up -
+    // but "not lost" is not the same as "on my other device ten seconds later",
+    // so hand the listeners below a way to fire it early.
+    flushSaveRef.current = () => {
+      clearTimeout(t);
+      run();
+    };
     return () => {
       cancelled = true;
       clearTimeout(t);
+      flushSaveRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   // budgetNudgeDismissed is in the payload, so it belongs in the deps -
@@ -491,6 +507,23 @@ export default function App() {
       pullingRef.current = false;
     }
   }, [applyPayload]);
+
+  // Leaving pushes what is pending, rather than letting the debounce die with
+  // the page. Registered once: it reads whatever the save effect last stored.
+  useEffect(() => {
+    const flush = () => flushSaveRef.current?.();
+    const onHidden = () => {
+      if (document.visibilityState === 'hidden') flush();
+    };
+    document.addEventListener('visibilitychange', onHidden);
+    // pagehide covers an actual close/navigate, which never reports 'hidden'
+    // on some browsers.
+    window.addEventListener('pagehide', flush);
+    return () => {
+      document.removeEventListener('visibilitychange', onHidden);
+      window.removeEventListener('pagehide', flush);
+    };
+  }, []);
 
   // Coming back online (or refocusing after a failed save) retries the sync.
   useEffect(() => {
