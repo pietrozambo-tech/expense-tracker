@@ -906,27 +906,40 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
   // and left a first-time user with a column of dashes, since on their first
   // month everything is new.
   // What one category (or subcategory) came to over a single earlier period.
-  const amountInPeriod = (back: number, categoryName: string, subcategoryName?: string) =>
-    ofCurrentType(inRange(truncateToElapsed(periodRange(back))))
+  // `truncate` false measures the WHOLE baseline period rather than the slice
+  // matching the days elapsed - used to ask "did this category exist at all
+  // back then", which is a question about existence, not about pace.
+  const amountInPeriod = (
+    back: number,
+    categoryName: string,
+    subcategoryName?: string,
+    truncate = true,
+  ) => {
+    const range = truncate ? truncateToElapsed(periodRange(back)) : periodRange(back);
+    return ofCurrentType(inRange(range))
       .filter((e) =>
         e.category.name === categoryName &&
         (subcategoryName === undefined || e.subcategory === subcategoryName)
       )
       .reduce((sum, e) => sum + homeAmount(e, currency), 0);
+  };
 
   // The number the trend column measures against, per the chosen baseline.
   //
   // 'average' divides by every prior period that holds data - not just the ones
   // this category appeared in. A category bought once in eight months is not
   // running at that month's rate, and dividing by 1 would claim it is.
-  const baselineAmount = (categoryName: string, subcategoryName?: string): number => {
+  const baselineAmount = (categoryName: string, subcategoryName?: string, truncate = true): number => {
     if (comparisonBaseline === 'average') {
       const periods = priorPeriods();
       if (periods.length === 0) return 0;
-      const total = periods.reduce((sum, p) => sum + amountInPeriod(p.back, categoryName, subcategoryName), 0);
+      const total = periods.reduce(
+        (sum, p) => sum + amountInPeriod(p.back, categoryName, subcategoryName, truncate),
+        0,
+      );
       return total / periods.length;
     }
-    return amountInPeriod(resolvedBack(), categoryName, subcategoryName);
+    return amountInPeriod(resolvedBack(), categoryName, subcategoryName, truncate);
   };
 
   const calculateTrend = (
@@ -954,11 +967,22 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
     }
 
     const previousAmount = baselineAmount(categoryName, subcategoryName);
+    // Measured over the whole baseline period, ignoring the pace window.
+    const previousEver = baselineAmount(categoryName, subcategoryName, false);
 
-    // Nothing to compare against: this is the first time anything landed here.
-    if (previousAmount === 0) {
+    // "New" is a claim about ever having spent here, so it is answered by the
+    // WHOLE baseline period. Answering it from the pace-matched slice made the
+    // first days of a month absurd: on the 1st that slice is a single day, so
+    // every category whose spending had not happened to land on the 1st last
+    // month was announced as new - Travel read "New" in August against a
+    // 1,460EUR July.
+    if (previousEver === 0) {
       return currentAmount === 0 ? 'neutral' : 'new';
     }
+    // It existed back then, just not this early in the month. There is no
+    // honest up/down to draw from a zero baseline, so say nothing rather than
+    // report a rise from nothing.
+    if (previousAmount === 0) return 'neutral';
 
     // Calculate percentage change (5% threshold to avoid showing trend for tiny changes)
     const percentageChange = ((currentAmount - previousAmount) / previousAmount) * 100;
