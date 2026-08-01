@@ -43,6 +43,51 @@ function uid() {
   return `imp-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 9)}`;
 }
 
+// Everything below validates at the boundary, because the file is written by
+// an AI from someone's spreadsheet and lands straight in the ledger. A row that
+// cannot be read is reported, never guessed at: a wrong date or a flipped sign
+// is worse than a row the user is told about and fixes by hand.
+
+/** 'YYYY-M-D' -> 'YYYY-MM-DD'. Null for anything not a real calendar date. */
+function normaliseDate(raw: unknown): string | null {
+  const m = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(String(raw ?? '').trim());
+  if (!m) return null; // includes '10/07/2026', which is ambiguous by nature
+  const y = Number(m[1]);
+  const mo = Number(m[2]);
+  const d = Number(m[3]);
+  if (mo < 1 || mo > 12 || d < 1) return null;
+  if (d > new Date(y, mo, 0).getDate()) return null; // 31 April, 30 February
+  return `${y}-${String(mo).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+}
+
+/**
+ * A finite number, from a number or the numeric string an assistant often
+ * emits. NaN and Infinity are rejected: `typeof NaN === 'number'` let them
+ * through, and one of them turns every total in the app into NaN.
+ */
+function normaliseAmount(raw: unknown): number | null {
+  if (typeof raw === 'number') return Number.isFinite(raw) ? raw : null;
+  if (typeof raw !== 'string') return null;
+  let s = raw.trim().replace(/[\s ]/g, '');
+  // "1,234.56" -> thousands separators; "1234,56" -> decimal comma.
+  if (s.includes(',') && s.includes('.')) s = s.replace(/,/g, '');
+  else if (s.includes(',')) s = s.replace(',', '.');
+  const n = Number(s);
+  return Number.isFinite(n) ? n : null;
+}
+
+/** 'Income' / ' expense ' -> the canonical value. Null if it is neither. */
+function normaliseType(raw: unknown): TransactionType | null {
+  const t = String(raw ?? '').trim().toLowerCase();
+  return t === 'expense' || t === 'income' ? t : null;
+}
+
+/** A supported ISO code, case-insensitively. Null if we do not know it. */
+function normaliseCurrency(raw: unknown): string | null {
+  const c = String(raw ?? '').trim().toUpperCase();
+  return c && CURRENCIES[c] ? c : null;
+}
+
 const cloneCats = (cats: Category[]): Category[] =>
   cats.map((c) => ({ ...c, subcategories: c.subcategories ? [...c.subcategories] : c.subcategories }));
 
@@ -81,16 +126,40 @@ export function buildImport(
   // find again as a group.
   const importedAt = new Date().toISOString();
 
+  // Applied to every row that doesn't override it - validated once, here, so an
+  // unknown code cannot reach a transaction and break its formatting.
+  const fileCurrency = normaliseCurrency(payload.currency);
+
   for (const rec of payload.transactions || []) {
-    if (!rec || typeof rec.amount !== 'number' || !rec.date || !rec.category || !rec.type) {
+    if (!rec || !rec.category) {
       skipped.push({ record: rec, reason: 'missing required field' });
+      continue;
+    }
+    const date = normaliseDate(rec.date);
+    if (!date) {
+      // Never guessed at: '10/07/2026' is October in one country and July in
+      // another, and silently picking one puts money in the wrong month.
+      skipped.push({ record: rec, reason: `unreadable date "${rec.date}"` });
+      continue;
+    }
+    const type = normaliseType(rec.type);
+    if (!type) {
+      // Left unchecked, "Income" (capitalised) stored verbatim and every
+      // `type === 'income'` test in the app missed it - income counted as
+      // spending, with the sign flipped everywhere.
+      skipped.push({ record: rec, reason: `unknown type "${rec.type}"` });
+      continue;
+    }
+    const amount = normaliseAmount(rec.amount);
+    if (amount === null) {
+      skipped.push({ record: rec, reason: `unreadable amount "${rec.amount}"` });
       continue;
     }
     // The add form refuses a 0 amount, and the importer holds the same line:
     // a zero-amount transaction moves no money and only clutters the list.
     // (Split-expense exports produce these for rows that were fully paid
     // back.) Negative stays allowed - that is how refunds are recorded.
-    if (rec.amount === 0) {
+    if (amount === 0) {
       skipped.push({ record: rec, reason: 'zero amount' });
       continue;
     }
@@ -98,12 +167,12 @@ export function buildImport(
     // categories, fall back to a catch-all ("Others") rather than dropping the
     // row — and remember the original label as a subcategory so the intent
     // isn't lost. Only skip if there's no catch-all bucket at all.
-    let cat = findCat(rec.category, rec.type);
+    let cat = findCat(rec.category, type);
     let subHint = rec.subcategory;
     if (!cat) {
-      const bucket = findCatchAll(rec.type);
+      const bucket = findCatchAll(type);
       if (!bucket) {
-        skipped.push({ record: rec, reason: `unknown ${rec.type} category "${rec.category}"` });
+        skipped.push({ record: rec, reason: `unknown ${type} category "${rec.category}"` });
         continue;
       }
       cat = bucket;
@@ -126,20 +195,21 @@ export function buildImport(
       }
     }
 
-    // Per-row currency wins over the file-level currency; ignore an unknown code.
-    const rowCurrency =
-      rec.currency && CURRENCIES[rec.currency] ? rec.currency : payload.currency || fallbackCurrency;
+    // Per-row currency wins over the file's; an unrecognised code on either
+    // falls through to the user's own, rather than being stored as-is and
+    // leaving a transaction the app cannot price or format.
+    const rowCurrency = normaliseCurrency(rec.currency) || fileCurrency || fallbackCurrency;
 
     transactions.push({
       id: uid(),
       description: (rec.description || '').trim(),
-      amount: rec.amount,
+      amount,
       category: cat,
       subcategory,
-      date: rec.date,
-      type: rec.type,
+      date,
+      type,
       currency: rowCurrency,
-      baseAmount: convertAmount(rec.amount, rowCurrency, BASE_CURRENCY),
+      baseAmount: convertAmount(amount, rowCurrency, BASE_CURRENCY),
       recurrence: 'Never repeat',
       sourceId: rec.source || undefined,
       importedAt,
