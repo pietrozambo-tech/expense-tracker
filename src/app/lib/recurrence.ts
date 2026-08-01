@@ -208,3 +208,82 @@ export function occurrenceDueDate(t: Transaction, rule: RecurringRule): string {
   const prefix = `rec-${rule.id}-`;
   return t.id.startsWith(prefix) ? t.id.slice(prefix.length) : t.date;
 }
+
+/**
+ * "This and future ones": end the old chain at this occurrence, start a new
+ * rule from the edited values, and move any already-materialized later
+ * occurrences onto it. Past occurrences are untouched. Pure, so the engine and
+ * this can be tested against each other - the bug it exists to prevent only
+ * showed up on the NEXT materialization pass, not at the edit.
+ */
+export function applyFutureEdit(
+  transactions: Transaction[],
+  rules: RecurringRule[],
+  current: Transaction,
+  rule: RecurringRule,
+  values: Partial<Transaction>,
+  nextRuleId: string = newRuleId(),
+): { transactions: Transaction[]; rules: RecurringRule[] } {
+  const cutoff = occurrenceDueDate(current, rule);
+  const stopping = values.recurrence === 'Never repeat';
+
+  // Occurrences the user had already deleted past this point stay deleted:
+  // without carrying them over, ending one chain and starting another quietly
+  // brings every one of them back.
+  const carriedSkips = (rule.skipDates ?? []).filter((d) => d > cutoff);
+
+  const nextRule: RecurringRule | null = stopping
+    ? null
+    : {
+        id: nextRuleId,
+        rule: values.recurrence!,
+        anchorDate: values.date!,
+        template: buildRuleTemplate(values as Transaction),
+        ...(carriedSkips.length ? { skipDates: carriedSkips } : {}),
+      };
+
+  const nextRules = [
+    ...rules.map((r) => (r.id === rule.id ? { ...r, endedAt: cutoff } : r)),
+    ...(nextRule ? [nextRule] : []),
+  ];
+
+  const isLaterInChain = (e: Transaction) =>
+    e.id !== current.id && e.recurrenceOf === rule.id && occurrenceDueDate(e, rule) > cutoff;
+
+  if (stopping) {
+    // Stopping the schedule from here on also removes the auto-created later
+    // occurrences - the user just said they shouldn't exist.
+    return {
+      rules: nextRules,
+      transactions: transactions
+        .filter((e) => !isLaterInChain(e))
+        .map((e) => (e.id === current.id ? { ...e, ...values, recurrenceOf: undefined } : e)),
+    };
+  }
+
+  return {
+    rules: nextRules,
+    transactions: transactions.map((e) => {
+      if (e.id === current.id) return { ...e, ...values, recurrenceOf: nextRule!.id };
+      if (!isLaterInChain(e)) return e;
+      const due = occurrenceDueDate(e, rule);
+      return {
+        ...e,
+        // Re-key onto the new chain. An occurrence's id encodes the rule that
+        // owns it, and that id is exactly the engine's "already materialized?"
+        // check. Left under the old rule's id these were invisible to the new
+        // rule, which materialized every one of them a second time - a
+        // duplicate per future occurrence, appearing on the next app open
+        // rather than at the edit, so the two never looked connected.
+        id: e.id.startsWith(`rec-${rule.id}-`) ? `rec-${nextRule!.id}-${due}` : e.id,
+        ...buildRuleTemplate(values as Transaction),
+        recurrence: values.recurrence,
+        recurrenceOf: nextRule!.id,
+        baseAmount: convertAmount(values.amount!, values.currency!, BASE_CURRENCY),
+        // These rows just changed; without a fresh stamp another device's
+        // untouched copy would look newer and undo the edit.
+        updatedAt: values.updatedAt ?? e.updatedAt,
+      };
+    }),
+  };
+}

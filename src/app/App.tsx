@@ -38,7 +38,7 @@ import { SaveButton } from './components/SaveButton';
 import { DescriptionInput } from './components/DescriptionInput';
 import { Onboarding } from './components/Onboarding';
 import { useAuth } from './auth/AuthProvider';
-import { processRecurrence, buildRuleTemplate, newRuleId, occurrenceDueDate, isActiveRule } from './lib/recurrence';
+import { processRecurrence, buildRuleTemplate, newRuleId, occurrenceDueDate, isActiveRule, applyFutureEdit } from './lib/recurrence';
 import { RecurringScopeDialog } from './components/RecurringScopeDialog';
 
 // The heavyweight screens load on demand so the initial bundle stays small.
@@ -1029,42 +1029,14 @@ export default function App() {
     setExpenses((prev) => prev.map((e) => (e.id === id ? { ...e, ...values } : e)));
   };
 
-  // "This and future ones": end the old chain at this occurrence, start a new
-  // rule from the edited values, and restamp any already-materialized later
-  // occurrences (they keep their own dates). Past occurrences are untouched.
+  // "This and future ones". The whole rewrite lives in lib/recurrence next to
+  // the engine that materializes occurrences, because the two have to agree
+  // about occurrence ids - when they disagreed, every future occurrence was
+  // duplicated on the next open.
   const applyRecurringFuture = (current: Transaction, rule: RecurringRule, values: Partial<Transaction>) => {
-    const cutoff = occurrenceDueDate(current, rule);
-    const stopping = values.recurrence === 'Never repeat';
-    const nextRule: RecurringRule | null = stopping
-      ? null
-      : { id: newRuleId(), rule: values.recurrence!, anchorDate: values.date!, template: templateFromValues(values) };
-    setRecurringRules((prev) => [
-      ...prev.map((r) => (r.id === rule.id ? { ...r, endedAt: cutoff } : r)),
-      ...(nextRule ? [nextRule] : []),
-    ]);
-    const isLaterInChain = (e: Transaction) =>
-      e.id !== current.id && e.recurrenceOf === rule.id && occurrenceDueDate(e, rule) > cutoff;
-    setExpenses((prev) => {
-      if (stopping) {
-        // Stopping the schedule from here on also removes the auto-created
-        // later occurrences - the user just said they shouldn't exist.
-        return prev
-          .filter((e) => !isLaterInChain(e))
-          .map((e) => (e.id === current.id ? { ...e, ...values, recurrenceOf: undefined } : e));
-      }
-      return prev.map((e) => {
-        if (e.id === current.id) return { ...e, ...values, recurrenceOf: nextRule!.id };
-        if (isLaterInChain(e))
-          return {
-            ...e,
-            ...templateFromValues(values),
-            recurrence: values.recurrence,
-            recurrenceOf: nextRule!.id,
-            baseAmount: convertAmount(values.amount!, values.currency!, BASE_CURRENCY),
-          };
-        return e;
-      });
-    });
+    const res = applyFutureEdit(expensesRef.current, rulesRef.current, current, rule, values);
+    setExpenses(res.transactions);
+    setRecurringRules(res.rules);
   };
 
   const confirmRecurringEdit = (scope: 'one' | 'future') => {
