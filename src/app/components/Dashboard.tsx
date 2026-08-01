@@ -73,6 +73,7 @@ export interface DashboardViewState {
   drilldownContext: { categoryName: string; subcategoryName: string | null; recurrence?: string } | null;
   drilldownSortBy: 'time' | 'amount';
   comparisonBaseline: ComparisonBaseline;
+  categorySortBy: 'alphabetical' | 'amount';
 }
 
 // Trend keeps almost no view state - but its Expense/Income/Savings toggle
@@ -239,7 +240,11 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
   const [trendExpandedCategory, setTrendExpandedCategory] = useState<string | null>(savedTrend?.trendExpandedCategory ?? null);
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [selectedSubcategory, setSelectedSubcategory] = useState<string>('All');
-  const [categorySortBy, setCategorySortBy] = useState<CategorySortType>('alphabetical');
+  // Restored on remount like every other choice on this screen: App re-keys
+  // Dashboard whenever refreshKey moves (a background sync pull, a recurring
+  // occurrence materialising), and that was silently putting the list back to
+  // A-Z seconds after the user sorted it by amount.
+  const [categorySortBy, setCategorySortBy] = useState<CategorySortType>(savedView?.categorySortBy ?? 'alphabetical');
   const [drilldownSortBy, setDrilldownSortBy] = useState<'time' | 'amount'>(savedView?.drilldownSortBy ?? 'time');
   const [comparisonBaseline, setComparisonBaseline] = useState<ComparisonBaseline>(savedView?.comparisonBaseline ?? 'previous');
   const [transactionType, setTransactionType] = useState<TransactionType>(initialPeriod?.type || savedView?.transactionType || savedTrend?.transactionType || 'expense');
@@ -294,8 +299,9 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
       drilldownContext,
       drilldownSortBy,
       comparisonBaseline,
+      categorySortBy,
     };
-  }, [view, viewStateRef, timePeriodType, selectedMonth, selectedQuarter, selectedYear, transactionType, expandedCategory, drilldownContext, drilldownSortBy, comparisonBaseline]);
+  }, [view, viewStateRef, timePeriodType, selectedMonth, selectedQuarter, selectedYear, transactionType, expandedCategory, drilldownContext, drilldownSortBy, comparisonBaseline, categorySortBy]);
 
 
   // Prevent background scroll when drilldown is open
@@ -797,6 +803,27 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
       monthProgress: today / daysInMonth,
       usualByNow,
     };
+  })();
+
+  // One line under the hero, and only for the case that genuinely misleads:
+  // the month is running, nothing has come in yet, so savings reads as a large
+  // loss when it is really just the calendar. Says when income has landed
+  // before - a fact about the user's own history, never a prediction about
+  // this month. Silent the rest of the time: on a settled month a negative
+  // figure is true, and restating it would only make the card bigger.
+  const heroNote = (() => {
+    if (timePeriodType !== 'month' || !isAtCurrentPeriod()) return null;
+    if (totalIncome !== 0 || savings >= 0) return null;
+    const periodStart = new Date(selectedYear, selectedMonth, 1);
+    const days = expenses
+      .filter((t) => t.type === 'income' && parseLocalDate(t.date) < periodStart)
+      .map((t) => Number(t.date.slice(8, 10)))
+      .sort((a, b) => a - b);
+    if (days.length === 0) return 'No income recorded yet this month.';
+    const day = days[Math.floor(days.length / 2)]; // median: robust to one odd month
+    const ord = (n: number) =>
+      `${n}${n % 10 === 1 && n !== 11 ? 'st' : n % 10 === 2 && n !== 12 ? 'nd' : n % 10 === 3 && n !== 13 ? 'rd' : 'th'}`;
+    return `Income usually lands around the ${ord(day)}.`;
   })();
 
   // Filter by transaction type for category display
@@ -1637,6 +1664,20 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                       </div>
                     </div>
                   </div>
+
+                  {heroNote && (
+                    <>
+                      <div className="h-px mt-3" style={{ backgroundColor: 'rgba(255,255,255,0.07)' }} />
+                      {/* One line, and structurally one line: truncate rather
+                          than wrap, so the card can never grow a second row. */}
+                      <div
+                        className="text-[11px] leading-snug pt-2.5 truncate"
+                        style={{ color: 'rgba(235,235,245,0.6)' }}
+                      >
+                        {heroNote}
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
             </div>
