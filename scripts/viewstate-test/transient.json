@@ -1,0 +1,16 @@
+{
+  "_why": "State that SHOULD reset when App re-keys a tab. Anything not listed here must live in that component's view-state interface, or test:viewstate fails. Adding a useState forces the choice; it can no longer be made by accident.",
+  "Dashboard.tsx": {
+    "chartWidth": "measured from the DOM on mount; re-measuring is correct",
+    "isTrendCategoryModalOpen": "a modal is never mid-open across a remount",
+    "isTrendSubcategoryModalOpen": "a modal is never mid-open across a remount",
+    "tooltipData": "a chart tooltip belongs to a touch that has ended",
+    "showGreeting": "governed by a module-level once-per-launch flag, not by the tab"
+  },
+  "Activity.tsx": {
+    "isCategoryModalOpen": "a modal is never mid-open across a remount",
+    "isSubcategoryModalOpen": "a modal is never mid-open across a remount",
+    "isSourceModalOpen": "a modal is never mid-open across a remount",
+    "isSearchModalOpen": "a modal is never mid-open across a remount"
+  }
+}

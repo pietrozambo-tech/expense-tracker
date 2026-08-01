@@ -74,6 +74,8 @@ export interface DashboardViewState {
   drilldownSortBy: 'time' | 'amount';
   comparisonBaseline: ComparisonBaseline;
   categorySortBy: 'alphabetical' | 'amount';
+  recurrenceLayer: 'overview' | 'detail';
+  selectedRecurrenceSlice: string | null;
 }
 
 // Trend keeps almost no view state - but its Expense/Income/Savings toggle
@@ -85,6 +87,9 @@ export interface DashboardViewState {
 export interface TrendViewState {
   transactionType: 'expense' | 'income' | 'savings';
   trendExpandedCategory: string | null;
+  trendYearFilter: number;
+  selectedCategory: string;
+  selectedSubcategory: string;
 }
 
 // What the trend column measures against. 'previous' tracks the period
@@ -238,8 +243,8 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
   });
   const [expandedCategory, setExpandedCategory] = useState<string | null>(savedView?.expandedCategory ?? null);
   const [trendExpandedCategory, setTrendExpandedCategory] = useState<string | null>(savedTrend?.trendExpandedCategory ?? null);
-  const [selectedCategory, setSelectedCategory] = useState<string>('All');
-  const [selectedSubcategory, setSelectedSubcategory] = useState<string>('All');
+  const [selectedCategory, setSelectedCategory] = useState<string>(savedTrend?.selectedCategory ?? 'All');
+  const [selectedSubcategory, setSelectedSubcategory] = useState<string>(savedTrend?.selectedSubcategory ?? 'All');
   // Restored on remount like every other choice on this screen: App re-keys
   // Dashboard whenever refreshKey moves (a background sync pull, a recurring
   // occurrence materialising), and that was silently putting the list back to
@@ -262,8 +267,8 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
   } | null>(savedView?.drilldownContext ?? null);
   
   // State for recurrence donut chart
-  const [recurrenceLayer, setRecurrenceLayer] = useState<'overview' | 'detail'>('overview');
-  const [selectedRecurrenceSlice, setSelectedRecurrenceSlice] = useState<string | null>(null);
+  const [recurrenceLayer, setRecurrenceLayer] = useState<'overview' | 'detail'>(savedView?.recurrenceLayer ?? 'overview');
+  const [selectedRecurrenceSlice, setSelectedRecurrenceSlice] = useState<string | null>(savedView?.selectedRecurrenceSlice ?? null);
   
   // State for manual tooltip positioning
   const [tooltipData, setTooltipData] = useState<{
@@ -279,11 +284,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
   const [selectedQuarter, setSelectedQuarter] = useState<number>(savedView?.selectedQuarter ?? Math.floor((initialPeriod?.month ?? now.getMonth()) / 3)); // 0-3
   const [selectedYear, setSelectedYear] = useState<number>(initialPeriod?.year ?? savedView?.selectedYear ?? now.getFullYear());
 
-  // Trend's own snapshot, same discipline as the overview's below.
-  useEffect(() => {
-    if (view !== 'trend' || !trendStateRef) return;
-    trendStateRef.current = { transactionType, trendExpandedCategory };
-  }, [view, trendStateRef, transactionType, trendExpandedCategory]);
+
 
   // Keep the snapshot current on every selection change (ref write - no
   // re-render). Trend view has its own instance and never touches it.
@@ -300,8 +301,10 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
       drilldownSortBy,
       comparisonBaseline,
       categorySortBy,
+      recurrenceLayer,
+      selectedRecurrenceSlice,
     };
-  }, [view, viewStateRef, timePeriodType, selectedMonth, selectedQuarter, selectedYear, transactionType, expandedCategory, drilldownContext, drilldownSortBy, comparisonBaseline, categorySortBy]);
+  }, [view, viewStateRef, timePeriodType, selectedMonth, selectedQuarter, selectedYear, transactionType, expandedCategory, drilldownContext, drilldownSortBy, comparisonBaseline, categorySortBy, recurrenceLayer, selectedRecurrenceSlice]);
 
 
   // Prevent background scroll when drilldown is open
@@ -426,7 +429,19 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
     return availableYears.length > 0 ? availableYears[0] : now.getFullYear();
   };
   
-  const [trendYearFilter, setTrendYearFilter] = useState<number>(getMostRecentYearWithData()); // Year filter for Trend tab
+  const [trendYearFilter, setTrendYearFilter] = useState<number>(savedTrend?.trendYearFilter ?? getMostRecentYearWithData()); // Year filter for Trend tab
+
+  // Trend's own snapshot, same discipline as the overview's below.
+  useEffect(() => {
+    if (view !== 'trend' || !trendStateRef) return;
+    trendStateRef.current = {
+      transactionType,
+      trendExpandedCategory,
+      trendYearFilter,
+      selectedCategory,
+      selectedSubcategory,
+    };
+  }, [view, trendStateRef, transactionType, trendExpandedCategory, trendYearFilter, selectedCategory, selectedSubcategory]);
 
   // Greeting: visible on app launch, collapses after 2s or on first interaction
   const [showGreeting, setShowGreeting] = useState(() => view === 'overview' && !greetingShownThisLaunch);
@@ -452,8 +467,15 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
     };
   }, [showGreeting]);
 
-  // Reset recurrence layer when switching transaction type or time period
+  // Reset recurrence layer when switching transaction type or time period -
+  // but not on mount, which would undo the restored layer on every remount and
+  // bounce the user out of the breakdown they were reading.
+  const recurrenceResetReady = useRef(false);
   useEffect(() => {
+    if (!recurrenceResetReady.current) {
+      recurrenceResetReady.current = true;
+      return;
+    }
     setRecurrenceLayer('overview');
     setSelectedRecurrenceSlice(null);
   }, [transactionType, timePeriodType, selectedMonth, selectedQuarter, selectedYear]);

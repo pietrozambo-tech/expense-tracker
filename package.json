@@ -12,7 +12,8 @@
     "site": "node scripts/build-site.mjs",
     "test:sync": "node scripts/test-sync.mjs",
     "test:recurrence": "node scripts/test-recurrence.mjs",
-    "test:import": "node scripts/test-import.mjs"
+    "test:import": "node scripts/test-import.mjs",
+    "test:viewstate": "node scripts/test-viewstate.mjs"
   },
   "dependencies": {
     "@capacitor/app": "^8.1.1",
