@@ -891,7 +891,11 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
     const names = new Set<string>();
     for (const back of [0, ...priors]) for (const e of inPeriod(back)) names.add(e.category.name);
     const movers = [...names]
-      .map((name) => ({ name, delta: catOf(0, name) - mean(baseSet.map((b) => catOf(b, name))) }))
+      .map((name) => {
+        const now = catOf(0, name);
+        const was = mean(baseSet.map((b) => catOf(b, name)));
+        return { name, now, was, delta: now - was };
+      })
       .sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta));
     // The catch-all is a weak thing to name - "Others moved 605EUR" says a
     // bucket changed without saying what - but suppressing it made the
@@ -937,6 +941,40 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
     const topSame = (delta > 0 ? ups : downs)[0];
     const share = topSame ? topSame.delta / delta : 0;
     // Named individually, so they have to be worth a reader's attention.
+    // A change often lands harder as a proportion than as a sum: "5x January"
+    // says more than "+1,477EUR". But a multiple off a small base is theatre -
+    // 13x sounds alarming when the usual figure is 52EUR - and off a zero base
+    // it means nothing at all, so the form follows the size of what it
+    // measures, and the plain sum is always there as the fallback.
+    const RELATIVE_FLOOR = 50;
+    const relative = (m: { was: number; now: number; delta: number }) => {
+      if (m.was < RELATIVE_FLOOR) return null;
+      const ratio = m.now / m.was;
+      if (ratio >= 2) return `${ratio >= 3 ? Math.round(ratio) : Math.round(ratio * 10) / 10}x`;
+      const pct = Math.round(Math.abs(m.delta / m.was) * 100);
+      return pct >= 15 ? `${pct}%` : null;
+    };
+    const refWord = usualMode ? 'usual' : refLabel;
+    // "was 5x usual" / "was 54% below usual" / "ran 1,477EUR more than January"
+    const detail = (m: { name: string; was: number; now: number; delta: number }, withMoney = true) => {
+      const rel = relative(m);
+      // No usable proportion: the sum is the sentence.
+      if (!rel) return `ran ${money(m.delta)} ${m.delta > 0 ? aboveRef : belowRef}`;
+      const core = rel.endsWith('x')
+        ? `was ${rel} ${refWord}`
+        : `was ${rel} ${m.delta > 0 ? 'above' : 'below'} ${refWord}`;
+      // The sum rides along in brackets, because a proportion alone cannot say
+      // whether 9x usual is 90EUR or 1,090EUR.
+      return withMoney ? `${core} (${m.delta > 0 ? '+' : ''}${money(m.delta)})` : core;
+    };
+    // One line, always. Prefer the fuller phrasing, drop the bracketed sum when
+    // it would push the sentence onto a second row and steal the next line.
+    const MAX_LINE = 52;
+    const fitted = (build: (withMoney: boolean) => string) => {
+      const full = build(true);
+      return full.length <= MAX_LINE ? full : build(false);
+    };
+
     const WORTH_NAMING = 100;
     // The second thing worth saying is simply the next biggest move, in
     // WHICHEVER direction it went. Naming only movers that agree with the net
@@ -947,9 +985,12 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
     const runnerUp = (exclude?: { name: string }) => {
       const next = movers.find((m) => m.name !== exclude?.name && Math.abs(m.delta) >= WORTH_NAMING);
       if (!next) return undefined;
-      return next.delta > 0
-        ? `${next.name} ran ${money(next.delta)} ${aboveRef}.`
-        : `${next.name} ran ${money(next.delta)} ${belowRef}.`;
+      // A category that went to zero is best said plainly; "0.0x usual" is not
+      // a sentence anyone reads.
+      if (next.now === 0 && next.was >= RELATIVE_FLOOR) {
+        return `Nothing in ${next.name}, ${money(next.delta)} ${belowRef}.`;
+      }
+      return fitted((w) => `${next.name} ${detail(next, w)}.`);
     };
     const bigUps = ups.filter((m) => m.delta >= Math.max(WORTH_NAMING, Math.abs(delta) * 0.15));
     const bigDowns = downs.filter((m) => Math.abs(m.delta) >= WORTH_NAMING);
@@ -960,15 +1001,17 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
     let shape: string | null;
     let evidence: string | undefined;
     if (flat) {
-      shape = ups[0] ? `Steady overall, though ${ups[0].name} ran ${money(ups[0].delta)} ${aboveRef}.` : null;
+      shape = ups[0] ? fitted((w) => `Steady overall, though ${ups[0].name} ${detail(ups[0], w)}.`) : null;
       if (shape) evidence = runnerUp(ups[0]);
     } else if (delta < 0) {
-      shape = topSame
-        ? `${topSame.name} pulled the ${unit} down, ${money(topSame.delta)} ${belowRef}.`
-        : `Quieter ${usualMode ? 'than usual' : `than ${refLabel}`}, ${money(delta)} below.`;
+      shape = !topSame
+        ? `Quieter ${usualMode ? 'than usual' : `than ${refLabel}`}, ${money(delta)} below.`
+        : topSame.now === 0 && topSame.was >= RELATIVE_FLOOR
+          ? `Nothing in ${topSame.name}, ${money(topSame.delta)} ${belowRef}.`
+          : fitted((w) => `${topSame.name} pulled the ${unit} down, ${detail(topSame, w).replace(/^(was|ran) /, '')}.`);
       evidence = runnerUp(topSame);
     } else if (share >= 0.6 && topSame) {
-      shape = `${topSame.name} drove the ${unit}, ${money(topSame.delta)} ${aboveRef}.`;
+      shape = fitted((w) => `${topSame.name} drove the ${unit}, ${detail(topSame, w).replace(/^(was|ran) /, '')}.`);
       evidence = runnerUp(topSame);
     } else {
       // Deliberately no count. A count would have to be of categories above
