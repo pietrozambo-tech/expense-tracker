@@ -13,6 +13,7 @@
     "test:sync": "node scripts/test-sync.mjs",
     "test:recurrence": "node scripts/test-recurrence.mjs",
     "test:import": "node scripts/test-import.mjs",
+    "test:storage": "node scripts/test-storage.mjs",
     "test:viewstate": "node scripts/test-viewstate.mjs"
   },
   "dependencies": {
@@ -20,6 +21,7 @@
     "@capacitor/browser": "^8.0.4",
     "@capacitor/core": "^8.4.2",
     "@capacitor/ios": "^8.4.2",
+    "@capacitor/preferences": "^8.0.1",
     "@fontsource/inter": "^5.3.0",
     "@radix-ui/react-accordion": "1.2.3",
     "@radix-ui/react-alert-dialog": "1.1.6",

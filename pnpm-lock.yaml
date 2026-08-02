@@ -23,6 +23,9 @@ importers:
       '@capacitor/ios':
         specifier: ^8.4.2
         version: 8.4.2(@capacitor/core@8.4.2)
+      '@capacitor/preferences':
+        specifier: ^8.0.1
+        version: 8.0.1(@capacitor/core@8.4.2)
       '@fontsource/inter':
         specifier: ^5.3.0
         version: 5.3.0
@@ -739,6 +742,11 @@ packages:
     resolution: {integrity: sha512-ClVzIjK++yRjsRPOpdEzhsZfbHfoEc0f4M6vD0v7sWh0qcoF6NkxNAeHpWTn4OPJpJfpGGoYsq+IfEHrYyBiWA==}
     peerDependencies:
       '@capacitor/core': ^8.4.0
+
+  '@capacitor/preferences@8.0.1':
+    resolution: {integrity: sha512-T6no3ebi79XJCk91U3Jp/liJUwgBdvHR+s6vhvPkPxSuch7z3zx5Rv1bdWM6sWruNx+pViuEGqZvbfCdyBvcHQ==}
+    peerDependencies:
+      '@capacitor/core': '>=8.0.0'
 
   '@emotion/is-prop-valid@1.4.0':
     resolution: {integrity: sha512-QgD4fyscGcbbKwJmqNvUMSE02OsHUa+lAWKdEUIJKgqe5IwRSKd7+KhibEWdaKwgjLj0DRSHA9biAIqGBk05lw==}
@@ -4417,6 +4425,10 @@ snapshots:
       tslib: 2.8.1
 
   '@capacitor/ios@8.4.2(@capacitor/core@8.4.2)':
+    dependencies:
+      '@capacitor/core': 8.4.2
+
+  '@capacitor/preferences@8.0.1(@capacitor/core@8.4.2)':
     dependencies:
       '@capacitor/core': 8.4.2
 

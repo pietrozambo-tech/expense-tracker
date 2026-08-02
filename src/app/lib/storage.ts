@@ -8,6 +8,7 @@ import {
   DEFAULT_SOURCE_EXPENSE,
   DEFAULT_SOURCE_INCOME,
 } from '../components/sources';
+import { getItem, hydrate, removeItem, setItem } from './kv';
 
 // Versioned keys so a future schema change can migrate (or ignore) old data.
 const key = (name: string) => `expense-tracker.v1.${name}`;
@@ -24,11 +25,23 @@ const KEYS = {
   // merge (and tell an offline addition apart from a remote deletion) instead
   // of taking the cloud wholesale.
   syncBase: key('sync-base'),
+  // Whether the user chose to skip signing in. Durable with the rest: losing it
+  // doesn't lose data, but it drops a guest back on the sign-in screen for no
+  // reason they can see.
+  guest: key('guest'),
 };
+
+/**
+ * Pull the durable store into memory before the app reads any of it.
+ *
+ * Only does anything in the native shell, where localStorage can be evicted by
+ * iOS and the real store is behind an async bridge. See lib/kv.ts.
+ */
+export const hydrateStorage = () => hydrate(Object.values(KEYS));
 
 function read<T>(storageKey: string, fallback: T): T {
   try {
-    const raw = localStorage.getItem(storageKey);
+    const raw = getItem(storageKey);
     return raw === null ? fallback : (JSON.parse(raw) as T);
   } catch {
     return fallback;
@@ -37,7 +50,7 @@ function read<T>(storageKey: string, fallback: T): T {
 
 function write(storageKey: string, value: unknown) {
   try {
-    localStorage.setItem(storageKey, JSON.stringify(value));
+    setItem(storageKey, JSON.stringify(value));
   } catch {
     // Storage unavailable (private mode) or full; the app keeps working in memory.
   }
@@ -73,9 +86,21 @@ export const loadIncomeCategories = () =>
 export const saveIncomeCategories = (categories: Category[]) =>
   write(KEYS.incomeCategories, categories);
 
+// ── Guest mode ──────────────────────────────────────────────────────────────
+
+export const loadGuest = () => getItem(KEYS.guest) === 'true';
+export const saveGuest = (guest: boolean) => {
+  if (guest) setItem(KEYS.guest, 'true');
+  else removeItem(KEYS.guest);
+};
+
 export function clearAllData() {
   try {
-    Object.values(KEYS).forEach((storageKey) => localStorage.removeItem(storageKey));
+    // The guest flag is deliberately kept: erasing your data is not the same as
+    // signing out of the app you are still standing in.
+    Object.entries(KEYS)
+      .filter(([name]) => name !== 'guest')
+      .forEach(([, storageKey]) => removeItem(storageKey));
   } catch {
     // Ignore; nothing to clear if storage is unavailable.
   }

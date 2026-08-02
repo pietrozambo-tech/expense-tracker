@@ -4,6 +4,7 @@ import { AuthProvider } from "./app/auth/AuthProvider.tsx";
 import { AppErrorBoundary } from "./app/components/AppErrorBoundary.tsx";
 import { initAnalytics } from "./app/lib/analytics.ts";
 import { initFx } from "./app/lib/fx.ts";
+import { hydrateStorage } from "./app/lib/storage.ts";
 import "./styles/index.css";
 
 initAnalytics();
@@ -46,10 +47,17 @@ if ('serviceWorker' in navigator) {
   });
 }
 
-createRoot(document.getElementById("root")!).render(
-  <AppErrorBoundary>
-    <AuthProvider>
-      <App />
-    </AuthProvider>
-  </AppErrorBoundary>
-);
+// App.tsx reads settings, transactions and categories synchronously in its
+// useState initialisers, so the durable store has to be in memory before the
+// first render. On the web this resolves in the same microtask (localStorage is
+// already synchronous); only the native shell actually waits, for the few
+// milliseconds it takes to read UserDefaults.
+void hydrateStorage().then(() => {
+  createRoot(document.getElementById("root")!).render(
+    <AppErrorBoundary>
+      <AuthProvider>
+        <App />
+      </AuthProvider>
+    </AppErrorBoundary>
+  );
+});

@@ -97,11 +97,17 @@ bundle never loads them (verified: 0 Capacitor references in the main chunk).
       because we offer Google sign-in. The code path already exists behind
       `APPLE_SIGN_IN_ENABLED` in `SignIn.tsx`; it needs an Apple Service ID +
       key configured in Supabase, then flip the flag.
-- [ ] **Storage durability** — `WKWebView` can evict `localStorage` under storage
-      pressure. Consider moving `src/app/lib/storage.ts` to
-      `@capacitor/preferences`. Note this turns the API async, so the
-      `useState(() => loadSettings())` initialisers in `App.tsx` need reworking.
-      Lower risk while cloud sync is on, but worth doing for guests.
+- [x] **Storage durability** — ✅ done. `WKWebView` classes `localStorage` as
+      cache and iOS may evict it, which for a guest (no cloud copy) is the whole
+      ledger gone. `src/app/lib/kv.ts` puts `@capacitor/preferences`
+      (UserDefaults, never evicted) behind a *synchronous* façade, so the
+      `useState(() => loadSettings())` initialisers in `App.tsx` did not have to
+      change: `hydrateStorage()` in `main.tsx` fills a memory mirror before
+      React mounts, reads answer from it, writes land in the background.
+      Web build untouched (0 Capacitor references in the main chunk; the plugin
+      is a separate 8 kB chunk that only native ever fetches).
+      Covered by `pnpm test:storage` — run `--before` to watch 180 transactions
+      vanish the way they would have.
 - [ ] **Native value for guideline 4.2** — a pure web wrapper risks rejection as
       "minimum functionality". Lock Screen widget (WidgetKit) + Siri App Intents
       are the intended answer; both need a Swift extension target.

@@ -3,8 +3,7 @@ import type { Session, User } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import { identifyUser, track, resetAnalytics } from '../lib/analytics';
 import { isNative, NATIVE_AUTH_REDIRECT } from '../lib/platform';
-
-const GUEST_KEY = 'expense-tracker.v1.guest';
+import { loadGuest, saveGuest } from '../lib/storage';
 
 interface AuthContextValue {
   session: Session | null;
@@ -46,13 +45,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [authError, setAuthError] = useState<string | null>(() => readUrlAuthError());
-  const [guest, setGuest] = useState<boolean>(() => {
-    try {
-      return localStorage.getItem(GUEST_KEY) === 'true';
-    } catch {
-      return false;
-    }
-  });
+  const [guest, setGuest] = useState<boolean>(loadGuest);
 
   useEffect(() => {
     // Resolve the current session on load (also completes a magic-link redirect)
@@ -66,11 +59,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Signing in supersedes guest mode
       if (newSession) {
         setGuest(false);
-        try {
-          localStorage.removeItem(GUEST_KEY);
-        } catch {
-          /* ignore */
-        }
+        saveGuest(false);
         // Analytics: tie events to this user; count fresh sign-ins (not reloads)
         const u = newSession.user;
         identifyUser(u.id, { email: u.email, provider: u.app_metadata?.provider });
@@ -200,20 +189,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const continueAsGuest = () => {
-    try {
-      localStorage.setItem(GUEST_KEY, 'true');
-    } catch {
-      /* ignore */
-    }
+    saveGuest(true);
     setGuest(true);
   };
 
   const leaveGuest = () => {
-    try {
-      localStorage.removeItem(GUEST_KEY);
-    } catch {
-      /* ignore */
-    }
+    saveGuest(false);
     setGuest(false);
   };
 
