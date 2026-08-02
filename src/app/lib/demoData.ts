@@ -1,5 +1,5 @@
 import { mockExpenses } from '../components/mockExpenses';
-import { convertAmount } from '../utils/currency';
+import { convertAmount, BASE_CURRENCY } from '../utils/currency';
 import type { Transaction } from '../types';
 
 // The sample dataset has fixed dates. Shift every transaction by whole months
@@ -33,17 +33,29 @@ export function getDemoTransactions(currency: string): Transaction[] {
     now.getDate(),
   ).padStart(2, '0')}`;
 
-  return mockExpenses.map((transaction) => ({
-    ...transaction,
-    id: `demo-${transaction.id}`,
-    date: (() => {
-      const shifted = shiftMonths(transaction.date, offset);
-      return shifted > todayStr ? todayStr : shifted;
-    })(),
-    amount:
-      currency === 'EUR'
+  return mockExpenses.map((transaction) => {
+    // Most sample rows are priced in the user's own currency, so they are
+    // converted from the EUR figures in the file. A handful carry an explicit
+    // foreign currency - a trip abroad - and those keep it: converting them
+    // would erase the very thing they are there to show. Their home value is
+    // locked at today's rate, exactly as the app does when you save one.
+    const foreign = transaction.currency && transaction.currency !== 'EUR';
+    return {
+      ...transaction,
+      id: `demo-${transaction.id}`,
+      date: (() => {
+        const shifted = shiftMonths(transaction.date, offset);
+        return shifted > todayStr ? todayStr : shifted;
+      })(),
+      amount: foreign
         ? transaction.amount
-        : Math.round(convertAmount(transaction.amount, 'EUR', currency) * 100) / 100,
-    currency,
-  }));
+        : currency === 'EUR'
+          ? transaction.amount
+          : Math.round(convertAmount(transaction.amount, 'EUR', currency) * 100) / 100,
+      currency: foreign ? transaction.currency : currency,
+      ...(foreign
+        ? { baseAmount: convertAmount(transaction.amount, transaction.currency, BASE_CURRENCY) }
+        : {}),
+    };
+  });
 }

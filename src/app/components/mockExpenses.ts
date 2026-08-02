@@ -1551,6 +1551,50 @@ const mockExpensesWithoutCurrency = [
     date: '2026-01-15',
     type: 'expense' as const
   },
+  // A short trip abroad, priced in the local currency. These rows keep their
+  // own currency instead of being converted like the rest of the sample - the
+  // demo should show what the app actually does with a foreign purchase, not
+  // just claim it in the tour.
+  {
+    id: 'expense-2026-01-15-gbp1',
+    description: 'Flights to London',
+    amount: 128.40,
+    currency: 'GBP',
+    category: getCategoryByName('Travel', 'expense'),
+    subcategory: 'Flights',
+    date: '2026-01-15',
+    type: 'expense' as const
+  },
+  {
+    id: 'expense-2026-01-15-gbp2',
+    description: 'Hotel, two nights',
+    amount: 214.00,
+    currency: 'GBP',
+    category: getCategoryByName('Travel', 'expense'),
+    subcategory: 'Hotel',
+    date: '2026-01-15',
+    type: 'expense' as const
+  },
+  {
+    id: 'expense-2026-01-16-gbp1',
+    description: 'Dinner in Soho',
+    amount: 46.50,
+    currency: 'GBP',
+    category: getCategoryByName('Travel', 'expense'),
+    subcategory: 'Food',
+    date: '2026-01-16',
+    type: 'expense' as const
+  },
+  {
+    id: 'expense-2026-01-16-gbp2',
+    description: 'Oyster card top-up',
+    amount: 20.00,
+    currency: 'GBP',
+    category: getCategoryByName('Travel', 'expense'),
+    subcategory: 'Transportation',
+    date: '2026-01-16',
+    type: 'expense' as const
+  },
   {
     id: 'expense-2026-01-16',
     description: 'Tennis court booking',
