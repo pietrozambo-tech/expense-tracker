@@ -857,16 +857,33 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
     for (let back = 1; back <= 12 && priors.length < 6; back++) {
       if (inPeriod(back).length > 0) priors.push(back);
     }
-    // Three earlier periods before "your usual" means anything - except for
-    // years, where three would mean the line never appears until year four.
-    // Two years is thin but honest, and "usual" across two years is still a
-    // more useful frame than nothing.
-    if (priors.length < (timePeriodType === 'year' ? 2 : 3)) return null;
     const spent = totalOf(0);
     if (spent === 0) return null;
-
     const mean = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length;
-    const base = mean(priors.map(totalOf));
+    const unitName = timePeriodType === 'month' ? 'month' : timePeriodType === 'quarter' ? 'quarter' : 'year';
+
+    // Nothing before it: say so, rather than leaving a blank that looks like a
+    // bug. It also explains why later periods start carrying a comparison.
+    if (priors.length === 0) {
+      const totals = new Map<string, number>();
+      for (const e of inPeriod(0)) {
+        totals.set(e.category.name, (totals.get(e.category.name) ?? 0) + homeAmount(e, currency));
+      }
+      const top = [...totals.entries()].sort((a, b) => b[1] - a[1])[0];
+      return {
+        line1: `Your first tracked ${unitName}.`,
+        line2: top ? `Biggest category: ${top[0]}, ${formatAmountListView(top[1], currency, 0)}.` : undefined,
+      };
+    }
+
+    // "Your usual" needs a few periods behind it to be true. With only one or
+    // two, compare against the period immediately before and NAME it, so the
+    // sentence carries its own reference instead of implying a baseline that
+    // does not exist yet. Years are the exception: three would mean the line
+    // never appeared until year four.
+    const usualMode = priors.length >= (timePeriodType === 'year' ? 2 : 3);
+    const baseSet = usualMode ? priors : [priors[0]];
+    const base = mean(baseSet.map(totalOf));
     if (base === 0) return null;
     const delta = spent - base;
     const pct = (delta / base) * 100;
@@ -874,7 +891,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
     const names = new Set<string>();
     for (const back of [0, ...priors]) for (const e of inPeriod(back)) names.add(e.category.name);
     const movers = [...names]
-      .map((name) => ({ name, delta: catOf(0, name) - mean(priors.map((b) => catOf(b, name))) }))
+      .map((name) => ({ name, delta: catOf(0, name) - mean(baseSet.map((b) => catOf(b, name))) }))
       .sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta));
     // The catch-all is a weak thing to name - "Others moved 605EUR" says a
     // bucket changed without saying what - but suppressing it made the
@@ -885,7 +902,24 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
     const downs = movers.filter((m) => m.delta < 0);
 
     const money = (v: number) => formatAmountListView(Math.abs(v), currency, 0);
-    const unit = timePeriodType === 'month' ? 'month' : timePeriodType === 'quarter' ? 'quarter' : 'year';
+    const unit = unitName;
+
+    // How the comparison is worded. Either the user's own baseline, or a named
+    // earlier period - never an unqualified number.
+    const refLabel = (() => {
+      const back = priors[0];
+      if (timePeriodType === 'year') return String(selectedYear - back);
+      if (timePeriodType === 'quarter') {
+        const q = selectedQuarter - back;
+        const y = selectedYear + Math.floor(q / 4);
+        return `Q${(((q % 4) + 4) % 4) + 1}${y !== selectedYear ? ` ${y}` : ''}`;
+      }
+      const dte = new Date(selectedYear, selectedMonth - back, 1);
+      return dte.toLocaleDateString('en-US',
+        dte.getFullYear() === selectedYear ? { month: 'long' } : { month: 'long', year: 'numeric' });
+    })();
+    const aboveRef = usualMode ? 'above your usual' : `more than ${refLabel}`;
+    const belowRef = usualMode ? 'below usual' : `less than ${refLabel}`;
 
     // Is this the priciest period on record? Only worth saying when true.
     let record = false;
@@ -903,7 +937,9 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
     const topSame = (delta > 0 ? ups : downs)[0];
     const share = topSame ? topSame.delta / delta : 0;
     // Named individually, so they have to be worth a reader's attention.
-    const bigUps = ups.filter((m) => m.delta >= Math.abs(delta) * 0.15);
+    const WORTH_NAMING = 100;
+    const bigUps = ups.filter((m) => m.delta >= Math.max(WORTH_NAMING, Math.abs(delta) * 0.15));
+    const bigDowns = downs.filter((m) => Math.abs(m.delta) >= WORTH_NAMING);
 
     const flat = Math.abs(pct) < 8;
     // Null when there is genuinely nothing to add beyond "this was a normal
@@ -911,25 +947,29 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
     let shape: string | null;
     let evidence: string | undefined;
     if (flat) {
-      shape = ups[0] ? `Steady overall, though ${ups[0].name} ran ${money(ups[0].delta)} above usual.` : null;
-      if (shape && downs[0]) evidence = `Offset by ${downs[0].name}${downs[1] ? ` and ${downs[1].name}` : ''} below usual.`;
+      shape = ups[0] ? `Steady overall, though ${ups[0].name} ran ${money(ups[0].delta)} ${aboveRef}.` : null;
+      if (shape && bigDowns[0]) evidence = `Offset by ${bigDowns[0].name}${bigDowns[1] ? ` and ${bigDowns[1].name}` : ''} ${belowRef}.`;
     } else if (delta < 0) {
       shape = topSame
-        ? `Quieter than usual, mostly ${topSame.name} at ${money(topSame.delta)} below.`
-        : `Quieter than usual, ${money(delta)} below.`;
-      if (downs[1]) evidence = `${downs[1].name} also ran ${money(downs[1].delta)} below usual.`;
+        ? `Quieter ${usualMode ? 'than usual' : `than ${refLabel}`}, mostly ${topSame.name} at ${money(topSame.delta)} below.`
+        : `Quieter ${usualMode ? 'than usual' : `than ${refLabel}`}, ${money(delta)} below.`;
+      if (bigDowns[1]) evidence = `${bigDowns[1].name} also ran ${money(bigDowns[1].delta)} ${belowRef}.`;
     } else if (share >= 0.6 && topSame) {
-      shape = `${topSame.name} drove the ${unit}, ${money(topSame.delta)} above your usual.`;
-      if (downs[0]) evidence = `${downs[0].name} ran ${money(downs[0].delta)} below usual.`;
+      shape = `${topSame.name} drove the ${unit}, ${money(topSame.delta)} ${aboveRef}.`;
+      if (bigDowns[0]) evidence = `${bigDowns[0].name} ran ${money(bigDowns[0].delta)} ${belowRef}.`;
     } else {
       // Deliberately no count. A count would have to be of categories above
       // some threshold, while the sentence reads as "all of them" - eight rose
       // in July, four by an amount worth reading. The shape is the point.
-      shape = `Higher than usual across several categories:`;
+      shape = usualMode
+        ? `Higher than usual across several categories:`
+        : `Higher than ${refLabel} across several categories:`;
       evidence = bigUps.slice(0, 3).map((m) => `${m.name} +${money(m.delta)}`).join(', ') + '.';
     }
 
-    const inLine = `In line with your usual ${money(base)} a ${unit}.`;
+    const inLine = usualMode
+      ? `In line with your usual ${money(base)} a ${unit}.`
+      : `Much the same as ${refLabel}, ${money(base)}.`;
     if (timePeriodType === 'month') {
       // No leading comparison: the budget bar below already reports the month
       // against its limit, and repeating the idea costs a line.
@@ -941,7 +981,11 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
     // Quarters and years have no budget bar, so they keep the comparison. A
     // flat period says so once rather than reporting itself as "0EUR below".
     return {
-      line1: flat ? inLine : `${money(delta)} ${delta > 0 ? 'above' : 'below'} your usual ${money(base)} a ${unit}.`,
+      line1: flat
+        ? inLine
+        : usualMode
+          ? `${money(delta)} ${delta > 0 ? 'above' : 'below'} your usual ${money(base)} a ${unit}.`
+          : `${money(delta)} ${delta > 0 ? 'more' : 'less'} than ${refLabel}, which was ${money(base)}.`,
       line2: shape ?? undefined,
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
