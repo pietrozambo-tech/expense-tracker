@@ -31,22 +31,41 @@ Supabase's built-in email service only sends to members of the project's own
 team and is capped at a couple of messages an hour. It cannot be used for real
 users, which is the whole reason this setup exists.
 
-Any SMTP provider works. Resend is the one these instructions assume: the free
-tier (3,000/month) is far beyond what this app needs, and the setup is DNS
-records and one API key.
+**Most of this is already done.** The in-app support form
+(`supabase/functions/send-support`) sends through Resend from
+`support@tracklylab.com`, so the domain is verified at the apex and SPF/DKIM are
+live. Nothing to add in DNS.
 
-1. Create an account at resend.com.
-2. **Domains → Add Domain** → `tracklylab.com`.
-3. Resend shows a set of DNS records (domain verification, DKIM, SPF, and an MX
-   for bounce handling). Add them **exactly as shown** wherever `tracklylab.com`
-   DNS is managed.
-   - These sit alongside the records that point the domain at GitHub Pages.
-     Record types do not collide, so the website is unaffected.
-   - Resend puts the MX on a `send.` subdomain rather than the apex, which
-     leaves the apex free for real mailboxes (Google Workspace, etc.) later.
-   - Verification is usually minutes, occasionally up to an hour.
-4. **API Keys → Create API Key**, sending permission. Copy it once (`re_…`); it
-   is not shown again.
+> **A sending address is not a mailbox.** A hosting plan that includes "2 email
+> addresses" is talking about *inboxes that receive*. Sending through Resend
+> needs only the verified **domain**: any address on it works, and
+> `no-reply@tracklylab.com` never has to exist as a mailbox anywhere. The
+> mailbox allowance is untouched by this.
+>
+> The one consequence is that a reply to `no-reply@` reaches nobody, and
+> Supabase's SMTP settings have no Reply-To field. So the template below points
+> people at the support address in the text instead.
+
+What to do:
+
+1. **Domains** → confirm `tracklylab.com` shows *Verified*, and note the exact
+   name (the sender must be on it: apex here, not a `send.` subdomain).
+2. **API Keys → Create API Key**, sending permission, named e.g.
+   `supabase-auth`. Copy it once (`re_…`); it is not shown again.
+   - Deliberately *not* the key the support function uses. Same account, two
+     keys, so either can be revoked without taking the other down. They also
+     live in different places: the support key is a Supabase **secret** read by
+     the Edge Function (`RESEND_API_KEY`), this one goes in the **SMTP
+     password** field. Resend's HTTP API and its SMTP endpoint are two doors
+     into the same verified domain.
+3. Optional, two minutes, if it is not there already: a DMARC record. SPF and
+   DKIM are what get mail delivered; DMARC is what stops someone else spoofing
+   the domain. Start in monitor-only mode so it cannot break the support mail
+   that already works:
+
+   ```
+   _dmarc.tracklylab.com   TXT   v=DMARC1; p=none; rua=mailto:support@tracklylab.com
+   ```
 
 ## 2. Point Supabase at it
 
@@ -55,12 +74,12 @@ enable *Custom SMTP*:
 
 | field | value |
 |---|---|
-| Sender email | `no-reply@send.tracklylab.com` (must be on the verified domain) |
+| Sender email | `no-reply@tracklylab.com` (any address on the verified domain; no mailbox needed) |
 | Sender name | `TracklyLab` |
 | Host | `smtp.resend.com` |
 | Port | `465` |
 | Username | `resend` (literally that word, not an address) |
-| Password | the `re_…` API key |
+| Password | the `re_…` API key from step 1 |
 
 Then **Authentication → Rate Limits**: the email limit is deliberately tiny
 until custom SMTP is configured. Raise it to something sane (30/hour is plenty
@@ -89,7 +108,14 @@ there is nothing to click:
 <p style="font-family:-apple-system,system-ui,sans-serif;color:#8E8E93;font-size:13px;">
   The code expires in 10 minutes. If you didn't ask for it, ignore this email.
 </p>
+<p style="font-family:-apple-system,system-ui,sans-serif;color:#8E8E93;font-size:13px;">
+  Need help? Write to <a href="mailto:support@tracklylab.com" style="color:#007AFF;">support@tracklylab.com</a>.
+</p>
 ```
+
+That last line is doing real work: the mail goes out from a `no-reply@` address
+that has no mailbox behind it, so it gives people somewhere that a human
+actually reads.
 
 Subject line, for both:
 
