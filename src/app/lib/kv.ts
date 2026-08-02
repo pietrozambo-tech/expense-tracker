@@ -41,6 +41,14 @@ function localGet(key: string): string | null {
   }
 }
 
+function localSet(key: string, value: string): void {
+  try {
+    localStorage.setItem(key, value);
+  } catch {
+    /* full or unavailable */
+  }
+}
+
 export function getItem(key: string): string | null {
   if (mirrorReady) return mirror.get(key) ?? null;
   return localGet(key);
@@ -48,13 +56,9 @@ export function getItem(key: string): string | null {
 
 export function setItem(key: string, value: string): void {
   // localStorage is written on both platforms. On the web it *is* the store; on
-  // native it is a free second copy that keeps the pre-hydration read path and
-  // the plugin-missing fallback honest.
-  try {
-    localStorage.setItem(key, value);
-  } catch {
-    /* full or unavailable; the app keeps working from memory */
-  }
+  // native it is the synchronous working copy - always at least as fresh as
+  // the durable one, which is what lets hydrate() trust it (see below).
+  localSet(key, value);
   if (!mirrorReady) return;
   mirror.set(key, value);
   enqueue(key, value);
@@ -94,7 +98,8 @@ async function drain(): Promise<void> {
       if (value === null) await prefs!.remove({ key });
       else await prefs!.set({ key, value });
     } catch {
-      // The localStorage copy is still there; a later write will try again.
+      // The localStorage copy still has the newer value, and hydrate() trusts
+      // localStorage over the durable store - the next launch reconciles.
     }
   }
   draining = null;
@@ -117,19 +122,38 @@ export async function hydrate(keys: readonly string[]): Promise<void> {
     const mod = await import('@capacitor/preferences');
     prefs = mod.Preferences as unknown as PreferencesPlugin;
 
+    // Which copy to trust? localStorage is written synchronously on every
+    // save; the durable write crosses an async bridge, and iOS can suspend
+    // the app mid-flight and kill it while suspended - an edit made seconds
+    // before backgrounding would exist in localStorage but not in the durable
+    // store. So when localStorage holds a key it is never older, and it wins;
+    // reading the durable copy first would lose exactly the edits this module
+    // exists to protect. (This also covers upgrading from the localStorage-
+    // only build: everything present is adopted and persisted.)
+    //
+    // Eviction takes the whole origin store, never single keys. So if ANY of
+    // our keys is still in localStorage, the store is alive, and a key missing
+    // from it was removed on purpose - reconcile the durable copy rather than
+    // resurrect it (a lost in-flight remove would otherwise bring erased data
+    // back). If NONE are present, the store was evicted - or this device was
+    // restored from a backup that carried UserDefaults but not web storage -
+    // and the durable copy is the truth: restore it, including back into
+    // localStorage, so the aliveness test still holds next launch.
+    const alive = keys.some((k) => localGet(k) !== null);
+
     for (const key of keys) {
-      const { value } = await prefs.get({ key });
-      if (value != null) {
-        mirror.set(key, value);
-        continue;
-      }
-      // Nothing durable yet. Adopt whatever the previous localStorage-backed
-      // build left behind, so upgrading to this version doesn't read as a fresh
-      // install. Idempotent: the next launch finds it in Preferences.
-      const legacy = localGet(key);
-      if (legacy !== null) {
-        mirror.set(key, legacy);
-        pending.set(key, legacy);
+      const local = localGet(key);
+      const { value: durable } = await prefs.get({ key });
+      if (local !== null) {
+        mirror.set(key, local);
+        if (durable !== local) pending.set(key, local);
+      } else if (!alive) {
+        if (durable != null) {
+          mirror.set(key, durable);
+          localSet(key, durable);
+        }
+      } else if (durable != null) {
+        pending.set(key, null); // removed locally; finish the removal
       }
     }
 

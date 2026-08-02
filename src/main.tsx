@@ -52,7 +52,9 @@ if ('serviceWorker' in navigator) {
 // first render. On the web this resolves in the same microtask (localStorage is
 // already synchronous); only the native shell actually waits, for the few
 // milliseconds it takes to read UserDefaults.
-void hydrateStorage().then(() => {
+// The .catch is belt-and-braces: hydrateStorage never rejects today, but a
+// storage fault must degrade to localStorage, never white-screen the app.
+void hydrateStorage().catch(() => {}).then(() => {
   createRoot(document.getElementById("root")!).render(
     <AppErrorBoundary>
       <AuthProvider>

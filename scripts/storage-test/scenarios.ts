@@ -238,6 +238,64 @@ heading('7. The plugin is missing or the bridge fails');
   expect('and still reads back on the next launch', S.loadTransactions().length, 5);
 }
 
+// 8. An edit made seconds before backgrounding: localStorage has it (written
+//    synchronously), but iOS suspended the app before the bridge write landed
+//    and killed it while suspended. The relaunch must read the NEWER copy.
+heading('8. A durable write lost to a suspend-and-kill');
+{
+  await freshDevice();
+  S.saveTransactions(SIX_MONTHS.slice(0, 10));
+  await settled();
+  say('10 transactions, both copies agree');
+  // The 11th: the synchronous localStorage write lands, the bridge write dies
+  // with the process.
+  oldWrite(KEY('transactions'), SIX_MONTHS.slice(0, 11));
+  say('an 11th lands in localStorage only; the app is killed mid-flight');
+
+  await relaunch(true);
+  expect('the relaunch reads the newer copy', S.loadTransactions().length, 11);
+  await settled();
+  expect('and heals the durable one', JSON.parse(durable.get(KEY('transactions')) || '[]').length, 11);
+}
+
+// 9. After an eviction is restored, an edit to one key must not make the
+//    others look "removed on purpose" on the launch after that.
+heading('9. Eviction, then an edit, then another relaunch');
+{
+  await freshDevice();
+  S.saveTransactions(SIX_MONTHS.slice(0, 20));
+  S.saveSettings(SETTINGS);
+  await settled();
+  evictWebStorage();
+  await relaunch(true);
+  expect('restored after the eviction', S.loadTransactions().length, 20);
+
+  S.saveTransactions(SIX_MONTHS.slice(0, 21)); // the user edits only the ledger
+  await settled();
+  await relaunch(true);
+  expect('the edit survived', S.loadTransactions().length, 21);
+  expect('and settings were not mistaken for erased', S.loadSettings().monthlyBudget, 1500);
+}
+
+// 10. The mirror image of 8: a durable REMOVE lost with the process. The
+//     relaunch must not resurrect what the user removed.
+heading('10. A durable remove lost to a suspend-and-kill');
+{
+  await freshDevice();
+  S.saveTransactions(SIX_MONTHS.slice(0, 5));
+  S.saveGuest(true);
+  await settled();
+  // Leaving guest mode: the synchronous localStorage remove lands, the bridge
+  // remove dies with the process.
+  try { localStorage.removeItem(KEY('guest')); } catch { /* ignore */ }
+  say('guest mode left; only the localStorage remove landed');
+
+  await relaunch(true);
+  expect('the relaunch does not resurrect it', S.loadGuest(), false);
+  await settled();
+  expect('and finishes the removal durably', durable.has(KEY('guest')), false);
+}
+
 console.log(
   failures === 0
     ? `\nAll scenarios pass${OLD ? ' - the --before build should NOT do that' : ''}\n`
