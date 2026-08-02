@@ -1015,7 +1015,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
         }, 0);
     }
 
-    const previousAmount = baselineAmount(categoryName, subcategoryName);
+    let previousAmount = baselineAmount(categoryName, subcategoryName);
     // Measured over the whole baseline period, ignoring the pace window.
     const previousEver = baselineAmount(categoryName, subcategoryName, false);
 
@@ -1028,10 +1028,27 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
     if (previousEver === 0) {
       return currentAmount === 0 ? 'neutral' : 'new';
     }
-    // It existed back then, just not this early in the month. There is no
-    // honest up/down to draw from a zero baseline, so say nothing rather than
-    // report a rise from nothing.
-    if (previousAmount === 0) return 'neutral';
+    // The pace window can be empty by accident. On the 2nd it is a two-day
+    // sample of one month, and three of the last six months here held nothing
+    // in Food & Drinks by then - so 174EUR against a July that totalled 186EUR
+    // was reported as flat. "Flat" is a positive claim, and it was false.
+    //
+    // A zero baseline is not evidence of anything, so fall back to what this
+    // category usually costs by this day, averaged across recent months. That
+    // is the same measure the budget bar uses, and unlike a single month it is
+    // not hostage to whether one particular week happened to be quiet. It also
+    // keeps small amounts honest: a 5EUR coffee against a usual 20EUR reads
+    // down, where a bare "something against nothing" would have shouted up.
+    if (previousAmount === 0) {
+      const periods = priorPeriods();
+      const usual = periods.length
+        ? periods.reduce((sum, p) => sum + amountInPeriod(p.back, categoryName, subcategoryName), 0) / periods.length
+        : 0;
+      // Nothing has ever been spent here this early in a month, and something
+      // has been now: that genuinely is a rise, with nothing to size it by.
+      if (usual === 0) return currentAmount > 0 ? 'up' : 'neutral';
+      previousAmount = usual;
+    }
 
     // Calculate percentage change (5% threshold to avoid showing trend for tiny changes)
     const percentageChange = ((currentAmount - previousAmount) / previousAmount) * 100;
