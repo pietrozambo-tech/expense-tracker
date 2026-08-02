@@ -833,6 +833,120 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
   // before - a fact about the user's own history, never a prediction about
   // this month. Silent the rest of the time: on a settled month a negative
   // figure is true, and restating it would only make the card bigger.
+  // A completed period gets a plain-language summary of how it compared with
+  // the user's own baseline, in at most two lines under the hero card.
+  //
+  // Every line stands on its own. An earlier draft opened with "1,528EUR above
+  // your usual" and then said "almost all of it Shopping" - fine together, but
+  // the first line was cut for months (the budget bar already says the month
+  // was expensive) and "all of what?" was left dangling. So each line now names
+  // its own reference point.
+  const periodSummary = React.useMemo(() => {
+    // A running period is still changing; there is nothing to summarise yet.
+    if (isAtCurrentPeriod()) return null;
+
+    const expensesOnly = (list: Expense[]) => list.filter((e) => e.type !== 'income');
+    const inPeriod = (back: number) => expensesOnly(inRange(periodRange(back)));
+    const totalOf = (back: number) => inPeriod(back).reduce((sum, e) => sum + homeAmount(e, currency), 0);
+    const catOf = (back: number, name: string) =>
+      inPeriod(back).filter((e) => e.category.name === name).reduce((sum, e) => sum + homeAmount(e, currency), 0);
+
+    // Up to six earlier periods that actually hold data. Fewer than three and
+    // "your usual" is a claim the data cannot support.
+    const priors: number[] = [];
+    for (let back = 1; back <= 12 && priors.length < 6; back++) {
+      if (inPeriod(back).length > 0) priors.push(back);
+    }
+    // Three earlier periods before "your usual" means anything - except for
+    // years, where three would mean the line never appears until year four.
+    // Two years is thin but honest, and "usual" across two years is still a
+    // more useful frame than nothing.
+    if (priors.length < (timePeriodType === 'year' ? 2 : 3)) return null;
+    const spent = totalOf(0);
+    if (spent === 0) return null;
+
+    const mean = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length;
+    const base = mean(priors.map(totalOf));
+    if (base === 0) return null;
+    const delta = spent - base;
+    const pct = (delta / base) * 100;
+
+    const names = new Set<string>();
+    for (const back of [0, ...priors]) for (const e of inPeriod(back)) names.add(e.category.name);
+    const movers = [...names]
+      .map((name) => ({ name, delta: catOf(0, name) - mean(priors.map((b) => catOf(b, name))) }))
+      .sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta));
+    // The catch-all is a weak thing to name - "Others moved 605EUR" says a
+    // bucket changed without saying what - but suppressing it made the
+    // sentence false whenever it genuinely was the driver ("mostly Travel at
+    // 365EUR below" when Others had fallen 605EUR). Vague beats wrong, and a
+    // user who keeps reading about Others has been told something useful.
+    const ups = movers.filter((m) => m.delta > 0);
+    const downs = movers.filter((m) => m.delta < 0);
+
+    const money = (v: number) => formatAmountListView(Math.abs(v), currency, 0);
+    const unit = timePeriodType === 'month' ? 'month' : timePeriodType === 'quarter' ? 'quarter' : 'year';
+
+    // Is this the priciest period on record? Only worth saying when true.
+    let record = false;
+    if (delta > 0) {
+      let maxPrior = 0;
+      for (let back = 1; back <= 24; back++) {
+        if (inPeriod(back).length > 0) maxPrior = Math.max(maxPrior, totalOf(back));
+      }
+      record = spent > maxPrior;
+    }
+
+    // The shape of the difference, which is the part a total cannot tell you:
+    // one category running away with the period reads very differently from
+    // every category drifting up at once, and calls for a different response.
+    const topSame = (delta > 0 ? ups : downs)[0];
+    const share = topSame ? topSame.delta / delta : 0;
+    // Named individually, so they have to be worth a reader's attention.
+    const bigUps = ups.filter((m) => m.delta >= Math.abs(delta) * 0.15);
+
+    const flat = Math.abs(pct) < 8;
+    // Null when there is genuinely nothing to add beyond "this was a normal
+    // period" - saying so twice is worse than saying it once.
+    let shape: string | null;
+    let evidence: string | undefined;
+    if (flat) {
+      shape = ups[0] ? `Steady overall, though ${ups[0].name} ran ${money(ups[0].delta)} above usual.` : null;
+      if (shape && downs[0]) evidence = `Offset by lower ${downs[0].name}${downs[1] ? ` and ${downs[1].name}` : ''}.`;
+    } else if (delta < 0) {
+      shape = topSame
+        ? `Quieter than usual, mostly ${topSame.name} at ${money(topSame.delta)} below.`
+        : `Quieter than usual, ${money(delta)} below.`;
+      if (downs[1]) evidence = `${downs[1].name} also ran ${money(downs[1].delta)} lower.`;
+    } else if (share >= 0.6 && topSame) {
+      shape = `${topSame.name} drove the ${unit}, ${money(topSame.delta)} above your usual.`;
+      if (downs[0]) evidence = `${downs[0].name} ran ${money(downs[0].delta)} lower.`;
+    } else {
+      // Deliberately no count. A count would have to be of categories above
+      // some threshold, while the sentence reads as "all of them" - eight rose
+      // in July, four by an amount worth reading. The shape is the point.
+      shape = `Higher than usual across several categories.`;
+      evidence = bigUps.slice(0, 3).map((m) => `${m.name} +${money(m.delta)}`).join(', ') + '.';
+    }
+
+    const inLine = `In line with your usual ${money(base)} a ${unit}.`;
+    if (timePeriodType === 'month') {
+      // No leading comparison: the budget bar below already reports the month
+      // against its limit, and repeating the idea costs a line.
+      return {
+        line1: shape ?? inLine,
+        line2: evidence ?? (record ? `Your most expensive ${unit} so far.` : undefined),
+      };
+    }
+    // Quarters and years have no budget bar, so they keep the comparison. A
+    // flat period says so once rather than reporting itself as "0EUR below".
+    return {
+      line1: flat ? inLine : `${money(delta)} ${delta > 0 ? 'above' : 'below'} your usual ${money(base)} a ${unit}.`,
+      line2: shape ?? undefined,
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [expenses, currency, timePeriodType, selectedMonth, selectedQuarter, selectedYear]);
+
   const heroNote = (() => {
     if (timePeriodType !== 'month' || !isAtCurrentPeriod()) return null;
     if (totalIncome !== 0 || savings >= 0) return null;
@@ -1704,16 +1818,25 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                     </div>
                   </div>
 
-                  {heroNote && (
+                  {/* A running period explains itself; a finished one gets
+                      summarised. The two can never both apply. */}
+                  {(heroNote || periodSummary) && (
                     <>
                       <div className="h-px mt-3" style={{ backgroundColor: 'rgba(255,255,255,0.07)' }} />
-                      {/* One line, and structurally one line: truncate rather
-                          than wrap, so the card can never grow a second row. */}
-                      <div
-                        className="text-[11px] leading-snug pt-2.5 truncate"
-                        style={{ color: 'rgba(235,235,245,0.6)' }}
-                      >
-                        {heroNote}
+                      <div className="pt-2.5" style={{ color: 'rgba(235,235,245,0.6)' }}>
+                        {heroNote ? (
+                          // Structurally one line: truncate rather than wrap.
+                          <div className="text-[11px] leading-snug truncate">{heroNote}</div>
+                        ) : (
+                          <>
+                            <div className="text-[11px] leading-snug">{periodSummary!.line1}</div>
+                            {periodSummary!.line2 && (
+                              <div className="text-[11px] leading-snug mt-0.5" style={{ color: 'rgba(235,235,245,0.45)' }}>
+                                {periodSummary!.line2}
+                              </div>
+                            )}
+                          </>
+                        )}
                       </div>
                     </>
                   )}
