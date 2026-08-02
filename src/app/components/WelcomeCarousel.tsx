@@ -524,9 +524,13 @@ export function WelcomeCarousel({ userName, onDone, onSetupCategories, onLoadDem
   };
 
   return (
-    <div className="min-h-screen flex flex-col max-w-[430px] mx-auto" style={{ backgroundColor: '#F5F5F7' }}>
-      {/* Skip */}
-      <div className="flex justify-end px-6 pt-4" style={{ minHeight: 44 }}>
+    // The height is the viewport, not a minimum: with min-h-screen a tall slide
+    // simply grew the page and pushed the button below the fold, and the only
+    // way to reach it was to scroll. Fixed height + a slide that scrolls inside
+    // itself keeps Skip and the button pinned where they belong on any device.
+    <div className="flex flex-col max-w-[430px] mx-auto" style={{ height: '100dvh', backgroundColor: '#F5F5F7' }}>
+      {/* Skip - the row keeps its height on the last slide so nothing shifts */}
+      <div className="flex justify-end items-center px-5 flex-shrink-0" style={{ height: 40 }}>
         {!isLast && (
           <button onClick={onDone} className="px-2 py-1 text-sm font-medium" style={{ color: '#8E8E93' }}>
             Skip
@@ -538,23 +542,28 @@ export function WelcomeCarousel({ userName, onDone, onSetupCategories, onLoadDem
       <div
         ref={scrollerRef}
         onScroll={onScroll}
-        className="flex-1 flex overflow-x-auto"
+        className="flex-1 min-h-0 flex overflow-x-auto overflow-y-hidden"
         style={{ scrollSnapType: 'x mandatory', WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none' }}
       >
         {slides.map((slide, i) => (
-          <div key={i} className="flex-shrink-0 w-full flex flex-col justify-center px-7" style={{ scrollSnapAlign: 'center' }}>
-            <div className="mb-8">{slide.illustration}</div>
-            <h2 style={{ color: '#1C1C1E', fontSize: 26, fontWeight: 700, letterSpacing: '-0.4px', marginBottom: 10, textWrap: 'balance' } as any}>
-              {slide.title}
-            </h2>
-            <p style={{ color: '#8E8E93', fontSize: 16, lineHeight: 1.45 }}>{slide.desc}</p>
+          <div key={i} className="flex-shrink-0 w-full overflow-y-auto px-7" style={{ scrollSnapAlign: 'center' }}>
+            {/* min-h-full, not justify-center on the scroller: centring a
+                container that overflows clips the top of the content. This
+                centres while it fits and grows downwards when it doesn't. */}
+            <div className="min-h-full flex flex-col justify-center py-1">
+              <div className="mb-6">{slide.illustration}</div>
+              <h2 style={{ color: '#1C1C1E', fontSize: 26, fontWeight: 700, letterSpacing: '-0.4px', marginBottom: 10, textWrap: 'balance' } as any}>
+                {slide.title}
+              </h2>
+              <p style={{ color: '#8E8E93', fontSize: 16, lineHeight: 1.45 }}>{slide.desc}</p>
+            </div>
           </div>
         ))}
       </div>
 
       {/* Dots + CTA */}
-      <div className="px-7 pb-8 pt-4">
-        <div className="flex justify-center gap-1.5 mb-5">
+      <div className="px-7 pt-3 flex-shrink-0" style={{ paddingBottom: 'max(24px, env(safe-area-inset-bottom))' }}>
+        <div className="flex justify-center gap-1.5 mb-4">
           {slides.map((_, i) => (
             <span
               key={i}
