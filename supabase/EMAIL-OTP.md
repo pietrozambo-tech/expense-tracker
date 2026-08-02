@@ -120,16 +120,21 @@ actually reads.
 Subject line, for both:
 
 ```
-{{ .Token }} is your TracklyLab code
+Your TracklyLab sign-in code
 ```
 
-Putting the code in the subject means an iPhone shows it in the notification
-banner, so most people never open the mail at all. (If the dashboard does not
-substitute variables in subjects, fall back to `Your TracklyLab code`.)
+The code does **not** go in the subject. It seems convenient (the notification
+banner would show it), but it backfires twice: the code sits readable on a
+locked phone for anyone who glances at it, and a subject that is mostly a
+number is classic spam-filter bait - the last thing a domain with no sending
+history needs. iOS offers the code above the keyboard anyway, from the message
+body, because the input carries `autocomplete="one-time-code"`.
 
-Finally, **Authentication → Providers → Email**: confirm *Email OTP Length* is
-`6` (the app validates `/^\d{6}$/`) and set *Email OTP Expiration* to `600`
-seconds, matching what the email promises.
+Finally, **Authentication → Sign In / Providers → Email**: set *Email OTP
+Length* to `6` and *Email OTP Expiration* to `600` seconds, matching what the
+email promises. The app accepts any code of 6-10 digits (Supabase's allowed
+range), so a mismatch here can no longer lock anyone out - the first live test
+shipped an 8-digit code into a field that refused the 7th digit.
 
 ## 4. Verify before exposing it
 
@@ -146,7 +151,7 @@ curl -X POST 'https://kxaqapcrbmuqulkltxum.supabase.co/auth/v1/otp' \
 `{}` and HTTP 200 means Supabase accepted it. Then check the mail:
 
 - [ ] it arrives at all (if not: Resend → Logs shows the SMTP-level reason)
-- [ ] it contains a **6-digit code and no link**
+- [ ] it contains a **code and no link**
 - [ ] it is not in spam (if it is, DNS is not fully verified yet)
 - [ ] **repeat with an address that has never signed in** - that exercises the
       *Confirm signup* template, and it is the one people forget
@@ -170,3 +175,24 @@ built behind that flag.
 - Nothing here affects the native build: the code path is plain HTTPS, with no
   redirect and no custom URL scheme, so it is the one sign-in method that
   behaves identically on web and in the iOS shell.
+
+## Deliverability (the junk folder)
+
+The very first live send landed in Gmail's junk folder. That is normal for a
+domain with no sending history, and it fades - but three things speed it up:
+
+1. **DMARC.** Gmail effectively expects SPF + DKIM + DMARC from any new sender
+   now. Resend sets up the first two; DMARC is one TXT record, monitor-only so
+   it cannot break anything that already sends:
+
+   ```
+   _dmarc.tracklylab.com   TXT   v=DMARC1; p=none; rua=mailto:support@tracklylab.com
+   ```
+
+2. **Keep the code out of the subject** (done above). A number-heavy subject
+   from an unknown domain is exactly the shape filters are trained on.
+
+3. **Mark the first one "Not junk"** in your own mailboxes. It trains the
+   filter for the recipient domain and builds the sender's reputation. Early
+   testers should be warned to check spam once; after a handful of legitimate
+   sends the problem disappears on its own.

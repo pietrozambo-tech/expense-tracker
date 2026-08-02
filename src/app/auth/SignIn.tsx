@@ -45,7 +45,9 @@ export function SignIn() {
   const [error, setError] = useState<string | null>(null);
 
   const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
-  const codeValid = /^\d{6}$/.test(code.trim());
+  // Supabase's code length is a dashboard setting (6-10 digits); accept the
+  // whole range so a settings change can never lock people out again.
+  const codeValid = /^\d{6,10}$/.test(code.trim());
 
   const google = async () => {
     setError(null);
@@ -175,13 +177,13 @@ export function SignIn() {
             <TracklyLogo size={48} className="mb-5" />
             <h1 style={{ color: '#1C1C1E', fontSize: 28, fontWeight: 700, letterSpacing: '-0.02em', marginBottom: 8 }}>Enter your code</h1>
             <p style={{ color: '#6B6B75', fontSize: 15, lineHeight: 1.45 }}>
-              We emailed a 6-digit code to <span style={{ color: '#1C1C1E', fontWeight: 600 }}>{email.trim()}</span>. Enter it below.
+              We emailed a sign-in code to <span style={{ color: '#1C1C1E', fontWeight: 600 }}>{email.trim()}</span>. Enter it below.
             </p>
             <input
               type="text"
               inputMode="numeric"
               autoComplete="one-time-code"
-              maxLength={6}
+              maxLength={10}
               value={code}
               onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
               onKeyDown={(e) => { if (e.key === 'Enter') verify(); }}
