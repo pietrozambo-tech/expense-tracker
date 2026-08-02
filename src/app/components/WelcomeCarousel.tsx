@@ -177,6 +177,17 @@ function DashboardIllustration() {
             </div>
           ))}
         </div>
+        {/* The line the app writes under the hero: a finished period says how
+            it compared with the user's own months, in words. */}
+        <div className="h-px mt-3" style={{ background: 'rgba(255,255,255,0.07)' }} />
+        <div className="pt-2.5">
+          <div className="text-[11px] leading-snug" style={{ color: 'rgba(235,235,245,0.6)' }}>
+            Groceries drove the month, 2x usual (+180€).
+          </div>
+          <div className="text-[11px] leading-snug mt-0.5" style={{ color: 'rgba(235,235,245,0.45)' }}>
+            Transport was 40% below usual (55€).
+          </div>
+        </div>
       </div>
 
       {/* Monthly budget - the bar sits here on the real Dashboard too, between
@@ -470,7 +481,7 @@ export function WelcomeCarousel({ userName, onDone, onSetupCategories, onLoadDem
     {
       illustration: <DashboardIllustration />,
       title: 'Your money at a glance',
-      desc: 'The dashboard shows spending, income and savings - with breakdowns by category, and every category compared against any earlier month or your average.',
+      desc: 'Spending, income and savings at a glance - and once a month is done, a line telling you in plain words how it compared with your own usual.',
     },
     {
       illustration: <SavingsIllustration />,
