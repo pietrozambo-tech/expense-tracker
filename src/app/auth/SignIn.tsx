@@ -10,10 +10,10 @@ const TAGLINE = 'Your Expense Lens';
 // setup. Flip to true once configured (e.g. when moving to the App Store).
 const APPLE_SIGN_IN_ENABLED = false;
 
-// Email one-time-code sign-in is ready in code, but delivering codes to real
-// users needs a custom SMTP provider configured in Supabase. Until that's set
-// up, keep Google as the only account method. Flip to true once SMTP is live.
-const EMAIL_SIGN_IN_ENABLED = false;
+// Email one-time-code sign-in. Codes are delivered by a custom SMTP provider
+// (Resend) configured in Supabase - see supabase/EMAIL-OTP.md, which also
+// explains why this is a typed code and never a link.
+const EMAIL_SIGN_IN_ENABLED = true;
 
 // Google "G" logo (official colours), inlined so it works offline
 function GoogleG() {
@@ -83,12 +83,16 @@ export function SignIn() {
   const bg = 'radial-gradient(130% 65% at 50% -5%, rgba(99,102,241,0.12), rgba(59,130,246,0.06) 42%, #F5F5F7 72%)';
 
   return (
-    <div className="min-h-screen flex flex-col max-w-[430px] mx-auto" style={{ background: bg }}>
-      <div className="flex-1 flex flex-col px-6">
+    // Viewport height, not a minimum: this screen grows every time a provider
+    // is added (the email block pushed the terms off a 667pt phone, and Apple
+    // will add a button again). A fixed height with the middle section taking
+    // the slack keeps the buttons where they are on any device.
+    <div className="flex flex-col max-w-[430px] mx-auto" style={{ height: '100dvh', background: bg }}>
+      <div className="flex-1 min-h-0 overflow-y-auto flex flex-col px-6">
         {step === 'start' ? (
           <>
             {/* Brand hero */}
-            <div className="flex flex-col items-center text-center pt-20 pb-8">
+            <div className="flex flex-col items-center text-center pb-8" style={{ paddingTop: 'clamp(36px, 9vh, 80px)' }}>
               <TracklyLogo size={64} className="mb-4" />
               <h1 style={{ color: '#1C1C1E', fontSize: 34, fontWeight: 700, letterSpacing: '-0.03em', lineHeight: 1 }}>TracklyLab</h1>
               <p className="mt-2.5" style={{ color: '#6B6B75', fontSize: 16, lineHeight: 1.4, maxWidth: 300 }}>{TAGLINE}</p>
@@ -133,8 +137,7 @@ export function SignIn() {
 
             {error && <p className="mt-3" style={{ color: '#FF3B30', fontSize: 13 }}>{error}</p>}
 
-            {/* Email — hidden until a custom SMTP provider is configured in
-                Supabase (see EMAIL_SIGN_IN_ENABLED) */}
+            {/* Email one-time code (see EMAIL_SIGN_IN_ENABLED) */}
             {EMAIL_SIGN_IN_ENABLED && (
               <>
                 {/* Divider */}
@@ -165,7 +168,7 @@ export function SignIn() {
             )}
           </>
         ) : (
-          <div className="pt-16">
+          <div style={{ paddingTop: 'clamp(28px, 7vh, 64px)' }}>
             <button onClick={() => { setStep('start'); setError(null); }} className="flex items-center gap-1 -ml-1 mb-5 self-start" style={{ color: '#3B82F6', fontSize: 15 }}>
               <ArrowLeft className="w-4 h-4" /> Back
             </button>
@@ -198,7 +201,7 @@ export function SignIn() {
       </div>
 
       {/* Bottom CTA */}
-      <div className="px-6 pb-8 pt-6">
+      <div className="px-6 pt-6 flex-shrink-0" style={{ paddingBottom: 'max(24px, env(safe-area-inset-bottom))' }}>
         {step === 'start' ? (
           <>
             {EMAIL_SIGN_IN_ENABLED && (
