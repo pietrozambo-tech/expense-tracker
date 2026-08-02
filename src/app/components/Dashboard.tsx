@@ -912,20 +912,20 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
     let evidence: string | undefined;
     if (flat) {
       shape = ups[0] ? `Steady overall, though ${ups[0].name} ran ${money(ups[0].delta)} above usual.` : null;
-      if (shape && downs[0]) evidence = `Offset by lower ${downs[0].name}${downs[1] ? ` and ${downs[1].name}` : ''}.`;
+      if (shape && downs[0]) evidence = `Offset by ${downs[0].name}${downs[1] ? ` and ${downs[1].name}` : ''} below usual.`;
     } else if (delta < 0) {
       shape = topSame
         ? `Quieter than usual, mostly ${topSame.name} at ${money(topSame.delta)} below.`
         : `Quieter than usual, ${money(delta)} below.`;
-      if (downs[1]) evidence = `${downs[1].name} also ran ${money(downs[1].delta)} lower.`;
+      if (downs[1]) evidence = `${downs[1].name} also ran ${money(downs[1].delta)} below usual.`;
     } else if (share >= 0.6 && topSame) {
       shape = `${topSame.name} drove the ${unit}, ${money(topSame.delta)} above your usual.`;
-      if (downs[0]) evidence = `${downs[0].name} ran ${money(downs[0].delta)} lower.`;
+      if (downs[0]) evidence = `${downs[0].name} ran ${money(downs[0].delta)} below usual.`;
     } else {
       // Deliberately no count. A count would have to be of categories above
       // some threshold, while the sentence reads as "all of them" - eight rose
       // in July, four by an amount worth reading. The shape is the point.
-      shape = `Higher than usual across several categories.`;
+      shape = `Higher than usual across several categories:`;
       evidence = bigUps.slice(0, 3).map((m) => `${m.name} +${money(m.delta)}`).join(', ') + '.';
     }
 
