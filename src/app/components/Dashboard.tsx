@@ -938,6 +938,19 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
     const share = topSame ? topSame.delta / delta : 0;
     // Named individually, so they have to be worth a reader's attention.
     const WORTH_NAMING = 100;
+    // The second thing worth saying is simply the next biggest move, in
+    // WHICHEVER direction it went. Naming only movers that agree with the net
+    // made the summary structurally blind to the opposite case: February came
+    // out 999EUR lower than January, so nothing could report that Travel had
+    // quadrupled - a 1,477EUR rise, larger than the net gap itself, hidden
+    // because a one-off 1,816EUR in Others had not repeated.
+    const runnerUp = (exclude?: { name: string }) => {
+      const next = movers.find((m) => m.name !== exclude?.name && Math.abs(m.delta) >= WORTH_NAMING);
+      if (!next) return undefined;
+      return next.delta > 0
+        ? `${next.name} ran ${money(next.delta)} ${aboveRef}.`
+        : `${next.name} ran ${money(next.delta)} ${belowRef}.`;
+    };
     const bigUps = ups.filter((m) => m.delta >= Math.max(WORTH_NAMING, Math.abs(delta) * 0.15));
     const bigDowns = downs.filter((m) => Math.abs(m.delta) >= WORTH_NAMING);
 
@@ -948,15 +961,15 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
     let evidence: string | undefined;
     if (flat) {
       shape = ups[0] ? `Steady overall, though ${ups[0].name} ran ${money(ups[0].delta)} ${aboveRef}.` : null;
-      if (shape && bigDowns[0]) evidence = `Offset by ${bigDowns[0].name}${bigDowns[1] ? ` and ${bigDowns[1].name}` : ''} ${belowRef}.`;
+      if (shape) evidence = runnerUp(ups[0]);
     } else if (delta < 0) {
       shape = topSame
-        ? `Quieter ${usualMode ? 'than usual' : `than ${refLabel}`}, mostly ${topSame.name} at ${money(topSame.delta)} below.`
+        ? `${topSame.name} pulled the ${unit} down, ${money(topSame.delta)} ${belowRef}.`
         : `Quieter ${usualMode ? 'than usual' : `than ${refLabel}`}, ${money(delta)} below.`;
-      if (bigDowns[1]) evidence = `${bigDowns[1].name} also ran ${money(bigDowns[1].delta)} ${belowRef}.`;
+      evidence = runnerUp(topSame);
     } else if (share >= 0.6 && topSame) {
       shape = `${topSame.name} drove the ${unit}, ${money(topSame.delta)} ${aboveRef}.`;
-      if (bigDowns[0]) evidence = `${bigDowns[0].name} ran ${money(bigDowns[0].delta)} ${belowRef}.`;
+      evidence = runnerUp(topSame);
     } else {
       // Deliberately no count. A count would have to be of categories above
       // some threshold, while the sentence reads as "all of them" - eight rose
