@@ -8,6 +8,9 @@ import "./styles/index.css";
 
 initAnalytics();
 initFx();
+// One line per launch: lets a console (or a screenshot of it) say which build
+// a misbehaving device is really on.
+console.info(`TracklyLab build ${__BUILD_STAMP__}`);
 
 // The PWA's registerSW.js only *registers* the service worker: a new deploy
 // installed and took control in the background, but the running page kept

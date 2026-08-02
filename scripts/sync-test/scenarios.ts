@@ -169,6 +169,23 @@ class Phone {
     say(`${this.name} has no local transactions (base kept from last session)`);
   }
 
+  // Change only the DATE of an existing transaction - the reported case:
+  // salaries moved from the 31st to the 28th.
+  editDate(id: string, newDate: string) {
+    this.transactions = this.transactions.map((t) =>
+      t.id === id ? { ...t, date: newDate, updatedAt: nextStamp() } : t
+    );
+    say(`${this.name} moves ${id} to ${newDate}`);
+  }
+
+  // Restore stamps every row with one timestamp - both devices end up holding
+  // identical copies with identical stamps once it propagates.
+  restampAll() {
+    const stamp = nextStamp();
+    this.transactions = this.transactions.map((t) => ({ ...t, updatedAt: stamp }));
+    say(`${this.name} restores a backup (all rows restamped)`);
+  }
+
   edit(id: string, description: string, amount: number) {
     this.transactions = this.transactions.map((t) =>
       t.id === id ? { ...t, description, amount, baseAmount: amount, updatedAt: nextStamp() } : t
@@ -578,6 +595,38 @@ async function scenarioMergeOrder() {
   expectExact('the server holds the same order', serverList(), 'Day 20 + Day 15 + Day 10');
 }
 
+// The report: salaries' DATES edited on the phone after a restore had given
+// both devices identical stamps. The laptop must adopt the new dates and the
+// hero note (median income day) must follow.
+async function scenarioDateEdits() {
+  heading('17. Salary dates moved from the 31st to the 28th on the phone');
+  reset();
+  const phone = new Phone('Phone ');
+  const laptop = new Phone('Laptop');
+
+  await phone.openApp();
+  phone.add('s1', 'Salary May', 3500, '2026-05-31');
+  phone.add('s2', 'Salary Jun', 3500, '2026-06-30');
+  phone.add('s3', 'Salary Jul', 3500, '2026-07-31');
+  phone.restampAll(); // the subcategorised-backup restore
+  await phone.sync();
+  await laptop.openApp(); // laptop now holds identical rows, identical stamps
+
+  console.log('');
+  phone.editDate('s1', '2026-05-28');
+  phone.editDate('s2', '2026-06-28');
+  phone.editDate('s3', '2026-07-28');
+  await phone.sync();
+
+  console.log('');
+  await laptop.openApp();
+  const dates = laptop.transactions.map((t: any) => t.date).sort().join(' ');
+  expect('the laptop shows the new dates', dates, '2026-05-28 2026-06-28 2026-07-28');
+  await laptop.sync();
+  const serverDates = (((db.rows[0]?.data as any)?.transactions) ?? []).map((t: any) => t.date).sort().join(' ');
+  expect('and does not push the old dates back', serverDates, '2026-05-28 2026-06-28 2026-07-28');
+}
+
 async function main() {
   console.log('\n================================================================');
   console.log(` Cloud sync - two devices, one account   [${OLD ? 'BEFORE the fix' : 'AFTER the fix'}]`);
@@ -600,6 +649,7 @@ async function main() {
   await scenarioEditConflict();
   await scenarioStaleDevice();
   await scenarioMergeOrder();
+  await scenarioDateEdits();
 
   console.log('\n================================================================');
   console.log(failures === 0 ? ' All checks passed - nothing lost.' : ` ${failures} check(s) FAILED.`);

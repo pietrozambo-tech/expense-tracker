@@ -621,6 +621,10 @@ export function Settings({
             <h2 style={{ color: '#1C1C1E', fontSize: '28px', fontWeight: 700, letterSpacing: '-0.03em' }}>TracklyLab</h2>
             <p style={{ color: '#007AFF', fontSize: '14px', fontWeight: 600, marginTop: '4px', letterSpacing: '0.02em' }}>Your Expense Lens</p>
             <p style={{ color: '#8E8E93', fontSize: '13px', marginTop: '6px' }}>Version 0.1</p>
+            {/* Which BUILD this device is actually running. When two devices
+                disagree, comparing this line answers "is one of them stale?"
+                in five seconds. */}
+            <p style={{ color: '#C7C7CC', fontSize: '11px', marginTop: '2px' }}>Build {__BUILD_STAMP__}</p>
             <p style={{ color: '#6B6B75', fontSize: '15px', marginTop: '12px', maxWidth: 300, lineHeight: 1.5 }}>
               Track every expense in seconds - with clear insights into where your money goes.
             </p>

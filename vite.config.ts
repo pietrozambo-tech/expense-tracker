@@ -75,6 +75,12 @@ export default defineConfig({
       },
     })]),
   ],
+  define: {
+    // Baked into the bundle at build time and shown in Settings > About, so
+    // "which build is this device actually running?" is a glance instead of a
+    // guess - stale service-worker bundles have twice masqueraded as sync bugs.
+    __BUILD_STAMP__: JSON.stringify(new Date().toISOString().slice(0, 16).replace('T', ' ') + ' UTC'),
+  },
   resolve: {
     alias: {
       // Alias @ to the src directory
