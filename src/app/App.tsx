@@ -20,6 +20,8 @@ import {
   saveTransactions,
   loadSyncBase,
   saveSyncBase,
+  loadOwner,
+  saveOwner,
 } from './lib/storage';
 import { DEFAULT_SOURCES, DEFAULT_SOURCE_EXPENSE, DEFAULT_SOURCE_INCOME } from './components/sources';
 import { SourceLogo } from './components/SourceLogo';
@@ -197,6 +199,13 @@ export default function App() {
   const userMeta = (session?.user?.user_metadata ?? {}) as Record<string, any>;
   const userAvatar: string | null = userMeta.avatar_url || userMeta.picture || null;
   const [cloudHydrated, setCloudHydrated] = useState(false);
+  // Set when the signed-in account is not the one this device's data belongs
+  // to. While it is set, nothing syncs in either direction: the app shows a
+  // choice instead (see the ownership gate in the render below).
+  const [ownerConflict, setOwnerConflict] = useState<{ email: string | null } | null>(null);
+  // Bumped by the gate's "start fresh" choice to re-run the hydrate effect
+  // after the local data has been cleared.
+  const [hydrateTick, setHydrateTick] = useState(0);
   // Honest sync indicator: pending while a write is debounced/in flight,
   // offline/error when the last attempt could not reach the server.
   const [syncStatus, setSyncStatus] = useState<'synced' | 'pending' | 'offline' | 'error'>('synced');
@@ -367,9 +376,25 @@ export default function App() {
   useEffect(() => {
     if (!userId) {
       setCloudHydrated(false);
+      setOwnerConflict(null);
       rememberSyncBase(null, null);
       return;
     }
+    // Whose data is on this device? If it belongs to a different account, stop
+    // before any cloud call: adopting it would upload one person's ledger into
+    // another person's row (found live: a second sign-in with another email
+    // walked away with a full copy of the first account's data). cloudHydrated
+    // stays false, which keeps every save and pull inert while the gate asks.
+    const owner = loadOwner();
+    if (owner && owner.id !== userId) {
+      setOwnerConflict({ email: owner.email });
+      return;
+    }
+    setOwnerConflict(null);
+    // Stamp before the network, not after: even if this attach never reaches
+    // the server (offline first sign-in), the data is now this account's, and
+    // a later sign-in by someone else must see that.
+    saveOwner({ id: userId, email: userEmail });
     let cancelled = false;
     (async () => {
       try {
@@ -404,7 +429,7 @@ export default function App() {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userId]);
+  }, [userId, hydrateTick]);
 
   // Write changes back to the cloud (debounced), once hydrated.
   //
@@ -425,6 +450,10 @@ export default function App() {
         const res = await saveCloudChecked(userId, payload, cloudVersionRef.current);
         if (res.ok) {
           rememberSyncBase(payload, res.version);
+          // Re-stamp: "erase all data" clears the owner mark along with the
+          // data, but the same signed-in account writing again owns what it
+          // writes. A no-op when the stamp is already right.
+          saveOwner({ id: userId, email: userEmail });
           return true;
         }
         const remote = await loadCloud(userId);
@@ -1409,6 +1438,51 @@ export default function App() {
 
   // Not signed in and not using the app locally → sign-in screen
   if (!session && !guest) return <Suspense fallback={splash()}><SignIn /></Suspense>;
+
+  // The data on this device belongs to a different account. Nothing has been
+  // synced in either direction; the user decides. This must come before any
+  // screen that could show the data itself.
+  if (session && ownerConflict) {
+    return (
+      <div className="flex flex-col max-w-[430px] mx-auto px-6" style={{ height: '100dvh', backgroundColor: '#F5F5F7' }}>
+        <div className="flex-1 flex flex-col items-center justify-center text-center">
+          <TracklyLogo size={56} className="mb-5" />
+          <h1 style={{ color: '#1C1C1E', fontSize: 22, fontWeight: 700, letterSpacing: '-0.02em', marginBottom: 10 }}>
+            This device holds another account's data
+          </h1>
+          <p style={{ color: '#6B6B75', fontSize: 15, lineHeight: 1.5, maxWidth: 320 }}>
+            You're signed in as <span style={{ color: '#1C1C1E', fontWeight: 600 }}>{userEmail}</span>, but the
+            expenses stored here belong to{' '}
+            <span style={{ color: '#1C1C1E', fontWeight: 600 }}>{ownerConflict.email || 'a different account'}</span>.
+            To protect them, nothing has been uploaded to your account.
+          </p>
+        </div>
+        <div className="pt-4 flex-shrink-0" style={{ paddingBottom: 'max(24px, env(safe-area-inset-bottom))' }}>
+          <button
+            onClick={() => {
+              // Clear the other account's data from this device, then attach
+              // this account cleanly (its own cloud data, or a fresh start).
+              resetLocalState();
+              rememberSyncBase(null, null);
+              setOwnerConflict(null);
+              setHydrateTick((t) => t + 1);
+            }}
+            className="w-full py-4 rounded-2xl font-medium text-base transition-all active:scale-[0.98]"
+            style={{ backgroundColor: '#007AFF', color: '#FFFFFF', boxShadow: '0 2px 8px rgba(0,122,255,0.25)' }}
+          >
+            Start fresh with my account
+          </button>
+          <p className="text-center mt-2 px-4" style={{ color: '#A5A5AD', fontSize: 12, lineHeight: 1.45 }}>
+            Removes that data from this device only. {ownerConflict.email || 'The other account'} keeps
+            whatever was last backed up to its own account.
+          </p>
+          <button onClick={() => void signOut()} className="w-full py-3 mt-1 text-[15px] font-medium" style={{ color: '#8E8E93' }}>
+            Go back
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   // Signed in but the account's data hasn't loaded yet.
   //

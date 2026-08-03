@@ -29,6 +29,11 @@ const KEYS = {
   // doesn't lose data, but it drops a guest back on the sign-in screen for no
   // reason they can see.
   guest: key('guest'),
+  // Which account the data on this device belongs to. Device-local metadata:
+  // never part of the cloud payload or a backup file. Absent for guests who
+  // have never signed in - their data is adoptable by the first account that
+  // does, which is the normal onboarding path.
+  owner: key('owner'),
 };
 
 /**
@@ -92,6 +97,40 @@ export const loadGuest = () => getItem(KEYS.guest) === 'true';
 export const saveGuest = (guest: boolean) => {
   if (guest) setItem(KEYS.guest, 'true');
   else removeItem(KEYS.guest);
+};
+
+// ── Data owner ──────────────────────────────────────────────────────────────
+//
+// The id (and email, for messages a human can read) of the account this
+// device's data belongs to. Signing in with a DIFFERENT account must not
+// silently upload what it finds here - that is how a friend trying the app on
+// your phone would walk away with a copy of your ledger in their cloud row.
+
+export interface DataOwner {
+  id: string;
+  email: string | null;
+}
+
+export const loadOwner = (): DataOwner | null => {
+  try {
+    const raw = getItem(KEYS.owner);
+    if (!raw) return null;
+    const o = JSON.parse(raw);
+    return o && typeof o.id === 'string' ? { id: o.id, email: typeof o.email === 'string' ? o.email : null } : null;
+  } catch {
+    return null;
+  }
+};
+
+export const saveOwner = (owner: DataOwner | null) => {
+  if (!owner) {
+    removeItem(KEYS.owner);
+    return;
+  }
+  // Called on every successful cloud push; skip the no-op writes.
+  const current = loadOwner();
+  if (current && current.id === owner.id && current.email === owner.email) return;
+  setItem(KEYS.owner, JSON.stringify(owner));
 };
 
 export function clearAllData() {
