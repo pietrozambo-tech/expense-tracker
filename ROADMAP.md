@@ -93,52 +93,35 @@ us nearly nothing.
 
 ---
 
-## 2. Automatic Revolut expenses
+## 2. Automatic bank expenses (Revolut asked first)
 
-**Status:** parked, planned. Three tiers; the first two are cheap, the third is
-the expensive one everyone imagines first.
+**Status:** decided 2026-08-03 — **one import path, no per-bank parsers.**
 
-### Tier 1 — native Revolut statement parser (~2–3 days, no dependencies)
+A native Revolut CSV parser was designed and rejected: every dedicated parser
+is a second door into the ledger to maintain, test and explain, and the next
+bank makes it a third. The import stays universal, and the one real friction
+in it — the external AI round trip — is fixed by item 1(b) above, which is
+universal too: once the AI runs in-app, "automatic Revolut" is just *export
+the statement, drop it in Import, done*. Same door, no external step, and it
+works identically for any bank, PDF, or screenshot.
 
-Revolut exports a CSV statement from the app in a stable format (Type, Product,
-Started/Completed Date, Description, Amount, Fee, Currency, State, Balance).
-Parse it natively in the Import screen — detected by its header row, no AI
-round trip, works offline:
+Two pieces survive from the per-bank design, both bank-agnostic:
 
-- fold `Fee` into the amount; skip `REVERTED`; skip `PENDING` (they change);
-- rows carry their currency — multi-currency already handles it (`baseAmount`);
-- auto-categorise from the user's own history: same merchant description → the
-  category/subcategory the user last gave it; unknowns fall to the catch-all
-  through the existing pipeline and review sheet;
-- **dedupe** with a synthesized stable id `hash(completedDate, amount, currency,
-  description)` so overlapping exports re-import safely — "already imported"
-  becomes a count in the summary, not duplicates in the ledger.
+- **Share target (native app, ~1 day on Capacitor):** a PWA cannot register as
+  an iOS share target; the native app can. Revolut → Statement → Share →
+  TracklyLab → the ordinary import. Applies to any file from any app.
+- **Dedupe on import:** a synthesized stable id from
+  `hash(date, amount, currency, description)` so overlapping exports can never
+  double-count — "already imported" becomes a count in the summary. Worth
+  building with 1(b), since one-step import will invite re-imports.
 
-### Tier 2 — share target in the native app (~1 day, rides Capacitor)
-
-A PWA cannot register as an iOS share target; the Capacitor app can. Then:
-Revolut app → Statement → Share → TracklyLab → tier-1 parser → review sheet.
-~30 seconds a month, feels automatic, zero regulatory surface.
-
-### Tier 3 — true background sync via open banking (post-launch)
-
-PSD2 account access requires an AISP licence; a solo developer rides an
-aggregator's licence instead (GoCardless Bank Account Data ex-Nordigen,
-SaltEdge, Enable Banking; Plaid/Tink/TrueLayer are enterprise-priced).
-Order-of-magnitude ~€0.30–1.50 per connected account per month at small
-volume — **verify current pricing before building**; this is the feature that
-forces a paid tier (see item 1's commercial note). Consent renews every 90–180
-days depending on the bank, so a re-consent nag flow is part of the feature,
-not an edge case.
-
-Architecture on our stack: bank tokens live server-side only (new tables,
-RLS), a scheduled Edge Function pulls daily and writes to a
-`pending_transactions` inbox table — **never into the `user_data` blob**: the
-blob is client-merged under optimistic concurrency, and a server-side writer
-would race every device. The app drains the inbox through the existing
-import/review pipeline, deduped by Revolut's stable transaction ids. Privacy
-policy + App Privacy labels ("financial info — linked to you") must change
-with it.
+True background sync (open banking) remains the only genuinely automatic
+route, and it is parked for post-launch, tied to a paid tier: PSD2 account
+access needs an AISP licence (ride an aggregator's — GoCardless BAD, SaltEdge,
+Enable Banking; verify pricing, order ~€0.30–1.50/account/month), consent
+renews every 90–180 days, and the feed must land in a `pending_transactions`
+inbox table drained through the import pipeline — **never written into the
+client-merged `user_data` blob**, which a server-side writer would race.
 
 ---
 
