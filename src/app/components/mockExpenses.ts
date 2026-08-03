@@ -133,7 +133,7 @@ const mockExpensesWithoutCurrency = [
     amount: 900.00,
     category: getCategoryByName('Housing', 'expense'),
     subcategory: 'Rent',
-    date: '2025-07-13',
+    date: '2025-07-01',
     type: 'expense' as const,
     recurrence: 'First day of the month' as const
   },
@@ -367,11 +367,11 @@ const mockExpensesWithoutCurrency = [
   },
   {
     id: 'expense-2025-08-13',
-    description: 'Rent',
+    description: 'Monthly rent',
     amount: 900.00,
     category: getCategoryByName('Housing', 'expense'),
     subcategory: 'Rent',
-    date: '2025-08-13',
+    date: '2025-08-01',
     type: 'expense' as const,
     recurrence: 'First day of the month' as const
   },
@@ -605,11 +605,11 @@ const mockExpensesWithoutCurrency = [
   },
   {
     id: 'expense-2025-09-13',
-    description: 'Rent',
+    description: 'Monthly rent',
     amount: 900.00,
     category: getCategoryByName('Housing', 'expense'),
     subcategory: 'Rent',
-    date: '2025-09-13',
+    date: '2025-09-01',
     type: 'expense' as const,
     recurrence: 'First day of the month' as const
   },
@@ -835,11 +835,11 @@ const mockExpensesWithoutCurrency = [
   },
   {
     id: 'expense-2025-10-13',
-    description: 'Rent',
+    description: 'Monthly rent',
     amount: 900.00,
     category: getCategoryByName('Housing', 'expense'),
     subcategory: 'Rent',
-    date: '2025-10-13',
+    date: '2025-10-01',
     type: 'expense' as const,
     recurrence: 'First day of the month' as const
   },
@@ -1056,11 +1056,11 @@ const mockExpensesWithoutCurrency = [
   },
   {
     id: 'expense-2025-11-13',
-    description: 'Rent',
+    description: 'Monthly rent',
     amount: 900.00,
     category: getCategoryByName('Housing', 'expense'),
     subcategory: 'Rent',
-    date: '2025-11-13',
+    date: '2025-11-01',
     type: 'expense' as const,
     recurrence: 'First day of the month' as const
   },
@@ -1285,11 +1285,11 @@ const mockExpensesWithoutCurrency = [
   },
   {
     id: 'expense-2025-12-13',
-    description: 'Rent',
+    description: 'Monthly rent',
     amount: 900.00,
     category: getCategoryByName('Housing', 'expense'),
     subcategory: 'Rent',
-    date: '2025-12-13',
+    date: '2025-12-01',
     type: 'expense' as const,
     recurrence: 'First day of the month' as const
   },

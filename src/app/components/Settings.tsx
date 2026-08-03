@@ -620,7 +620,7 @@ export function Settings({
             <TracklyLogo size={80} className="mb-4" />
             <h2 style={{ color: '#1C1C1E', fontSize: '28px', fontWeight: 700, letterSpacing: '-0.03em' }}>TracklyLab</h2>
             <p style={{ color: '#007AFF', fontSize: '14px', fontWeight: 600, marginTop: '4px', letterSpacing: '0.02em' }}>Your Expense Lens</p>
-            <p style={{ color: '#8E8E93', fontSize: '13px', marginTop: '6px' }}>Version 0.1</p>
+            <p style={{ color: '#8E8E93', fontSize: '13px', marginTop: '6px' }}>Version 1.0</p>
             {/* Which BUILD this device is actually running. When two devices
                 disagree, comparing this line answers "is one of them stale?"
                 in five seconds. */}

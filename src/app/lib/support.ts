@@ -45,7 +45,7 @@ export async function sendSupportMessage(payload: {
         email: payload.email,
         name: payload.name || '',
         isGuest: !!payload.isGuest,
-        appVersion: '0.1',
+        appVersion: '1.0',
         userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : '',
       },
     });

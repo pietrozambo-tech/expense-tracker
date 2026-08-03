@@ -6,9 +6,10 @@
 // collecting something new, or drops a provider, this file has to change with
 // it - it is a promise, not decoration.
 //
-// NOT LEGAL ADVICE. A lawyer should read this before launch. One clause is
-// still missing: the governing law and jurisdiction for disputes, which depends
-// on where the owner is resident.
+// NOT LEGAL ADVICE. A lawyer should read this before launch.
+//
+// OWNER_COUNTRY drives the governing-law clause in the Terms. It must be the
+// owner's actual country of residence - change it there and the clause follows.
 //
 // TracklyLab is run by one person, not a company. Naming him matters: data
 // protection law requires whoever decides how personal data is used to be
@@ -29,7 +30,9 @@ export interface LegalDoc {
 
 export const SUPPORT_EMAIL = 'support@tracklylab.com';
 export const OWNER_NAME = 'Pietro Zamboni';
-const UPDATED = '28 July 2026';
+const UPDATED = '3 August 2026';
+// Country of residence of the owner. Sets the governing law in the Terms.
+const OWNER_COUNTRY = 'Italy';
 
 export const PRIVACY_POLICY: LegalDoc = {
   slug: 'privacy',
@@ -64,7 +67,8 @@ export const PRIVACY_POLICY: LegalDoc = {
     {
       heading: 'When you sign in',
       body: [
-        'Signing in with Google shares your name, email address and profile photo with us, so we can identify your account and show your picture in Settings. We never receive your Google password.',
+        'You can sign in with Google, or with a code sent to your email address. Signing in with Google shares your name, email address and profile photo with us, so we can identify your account and show your picture in Settings. We never receive your Google password.',
+        'If you sign in by email, we store the address you give us and send a one-time code to it. We do not use it to write to you about anything else.',
         'Once signed in, your TracklyLab data is stored in our database as a single record belonging to your account, so it can follow you across devices.',
         `Row-level security means no other TracklyLab user can read that record. It is not, however, encrypted in a way that hides it from us: as the person who runs the service, ${OWNER_NAME} holds the administrative keys to the database, because operating, backing up and supporting it requires them. Your transactions are not read, and are never used for anything other than making the app work for you.`,
         'If you would rather nothing of yours ever left your device, use TracklyLab without signing in - guest mode keeps everything local, where we genuinely cannot reach it.',
@@ -73,7 +77,7 @@ export const PRIVACY_POLICY: LegalDoc = {
     {
       heading: 'What we collect',
       body: [
-        'Account details: your name, email address and profile photo from the sign-in provider you choose.',
+        'Account details: your email address, plus your name and profile photo if you sign in with a provider that gives us them.',
         'Your TracklyLab data, but only if you are signed in: transactions, categories, sources, recurring schedules, budget and preferences.',
         'Usage analytics: which screens are opened and which features are used, plus general technical information such as device type, browser and approximate region derived from your IP address. These events never include transaction descriptions, amounts, categories, sources or your budget.',
         'Support messages: if you write to us from Settings > Support, we receive your message and the email address you give us so we can reply.',
@@ -91,7 +95,7 @@ export const PRIVACY_POLICY: LegalDoc = {
         'We do not sell your data or share it for advertising. We use a small number of service providers who process data on our behalf:',
         'Supabase - hosting, sign-in and the database that holds your synced data.',
         'PostHog - product analytics, as described above.',
-        'Resend - delivering the support messages you send us.',
+        'Resend - delivering the sign-in codes we email you, and the support messages you send us.',
         'We may also disclose information if we are legally required to.',
       ],
     },
@@ -186,6 +190,13 @@ export const TERMS_OF_SERVICE: LegalDoc = {
       body: [
         'You can stop using TracklyLab at any time, and delete your account and data from Settings.',
         'We may suspend or end access if these terms are seriously or repeatedly broken.',
+      ],
+    },
+    {
+      heading: 'Governing law',
+      body: [
+        `These terms are governed by the laws of ${OWNER_COUNTRY}, and any dispute will be dealt with by the courts of ${OWNER_COUNTRY}.`,
+        'If you use TracklyLab as a consumer, this does not take away the protection of the mandatory consumer law of the country you live in, and you can still bring a claim before your local courts.',
       ],
     },
     {
