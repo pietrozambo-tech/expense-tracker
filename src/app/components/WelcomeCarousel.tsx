@@ -248,48 +248,6 @@ function DashboardIllustration() {
   );
 }
 
-// The Trend tab's headline card, reproduced at carousel scale: same dark
-// gradient, same label/value/footnote stack. `rate` swaps the plain footnote
-// for the tinted Saving Rate panel the Savings toggle shows.
-function StatCard({
-  label,
-  value,
-  footnote,
-  valueColor = '#FFFFFF',
-  rate,
-}: {
-  label: string;
-  value: string;
-  footnote?: string;
-  valueColor?: string;
-  rate?: string;
-}) {
-  return (
-    <div
-      className="rounded-xl px-3 py-2.5 flex flex-col"
-      style={{
-        background: 'linear-gradient(150deg, #2E2E32 0%, #1C1C1E 100%)',
-        boxShadow: '0 8px 20px rgba(28, 28, 30, 0.18)',
-        border: '1px solid rgba(255, 255, 255, 0.06)',
-      }}
-    >
-      <div className="text-[10px] leading-tight mb-1" style={{ color: 'rgba(235,235,245,0.6)' }}>{label}</div>
-      <div className="text-[15px] font-bold tabular-nums leading-none" style={{ color: valueColor }}>{value}</div>
-      {rate ? (
-        <div
-          className="flex items-baseline justify-between gap-2 rounded-md px-1.5 py-1 -mx-1.5 mt-1.5 text-[9px]"
-          style={{ backgroundColor: 'rgba(48,209,88,0.12)' }}
-        >
-          <span style={{ color: 'rgba(235,235,245,0.75)' }}>Saving Rate</span>
-          <span className="font-semibold tabular-nums" style={{ color: '#30D158' }}>{rate}</span>
-        </div>
-      ) : (
-        footnote && <div className="text-[9px] leading-tight mt-1.5" style={{ color: 'rgba(235,235,245,0.55)' }}>{footnote}</div>
-      )}
-    </div>
-  );
-}
-
 function ImportIllustration() {
   // Mirrors the real Import screen's two use-case cards, then shows the
   // outcome: rows landing in Activity, already categorised.
@@ -335,45 +293,6 @@ function ImportIllustration() {
             <span className="text-[13px] font-bold tabular-nums" style={{ color: '#1C1C1E' }}>{r.amt}</span>
           </div>
         ))}
-      </div>
-    </div>
-  );
-}
-
-function SavingsIllustration() {
-  // Sample monthly savings — dips below zero one month, like the real Savings view
-  const vals = [1940, 1958, 1741, 1722, -2591, 1906, 2341];
-  const labels = recentMonthLabels(7);
-  const W = 300, H = 120, pad = 12;
-  const maxAbs = 2850;
-  const zeroY = H / 2;
-  const x = (i: number) => pad + (i * (W - pad * 2)) / (vals.length - 1);
-  const y = (v: number) => zeroY - (v / maxAbs) * (H / 2 - pad);
-  const line = vals.map((v, i) => `${i === 0 ? 'M' : 'L'} ${x(i).toFixed(1)} ${y(v).toFixed(1)}`).join(' ');
-
-  return (
-    <div className="flex flex-col gap-3">
-      {/* The same two cards as the other toggles - savings just colours the
-          numbers and swaps the footnote for the rate panel. */}
-      <div className="grid grid-cols-2 gap-3">
-        <StatCard label="Total Saved" value="9,016€" valueColor="#30D158" footnote="7 months" />
-        <StatCard label="Monthly Average" value="1,288€" valueColor="#30D158" rate="38%" />
-      </div>
-
-      {/* Savings line trend (crosses zero) */}
-      <div className="rounded-2xl px-4 pt-4 pb-3" style={{ background: '#FFFFFF', boxShadow: '0 8px 24px rgba(0,0,0,0.06)', border: '1px solid #EEEEF1' }}>
-        <div className="text-sm font-semibold mb-3" style={{ color: '#1C1C1E' }}>Monthly Savings</div>
-        <svg viewBox={`0 0 ${W} ${H}`} width="100%" height={H} style={{ display: 'block' }}>
-          {/* zero baseline */}
-          <line x1={pad} y1={zeroY} x2={W - pad} y2={zeroY} stroke="#E5E5EA" strokeWidth="1" strokeDasharray="3 3" />
-          <path d={line} fill="none" stroke="#007AFF" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-          {vals.map((v, i) => (
-            <circle key={i} cx={x(i)} cy={y(v)} r={i === vals.length - 1 ? 4 : 2.5} fill={v < 0 ? '#FF6961' : '#007AFF'} />
-          ))}
-        </svg>
-        <div className="flex justify-between mt-1 px-1">
-          {labels.map((l) => <span key={l} className="text-[10px]" style={{ color: '#B0B0B5' }}>{l}</span>)}
-        </div>
       </div>
     </div>
   );
@@ -482,11 +401,6 @@ export function WelcomeCarousel({ userName, onDone, onSetupCategories, onLoadDem
       illustration: <DashboardIllustration />,
       title: 'Your money at a glance',
       desc: 'Spending, income and savings at a glance - and once a month is done, a line telling you in plain words how it compared with your own usual.',
-    },
-    {
-      illustration: <SavingsIllustration />,
-      title: 'Spot the trends',
-      desc: 'Monthly spending, income and savings over time - best and worst months flagged, saving rate included.',
     },
     {
       illustration: <DemoIllustration />,

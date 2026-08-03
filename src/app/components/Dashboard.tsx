@@ -120,6 +120,10 @@ interface DashboardProps {
   budgetNudgeDismissed?: boolean;
   onSetMonthlyBudget?: (value: number) => void;
   onDismissBudgetNudge?: () => void;
+  // First-run: with an empty ledger the Overview shows one clear next action
+  // instead of a page of zeros. Both open flows that already exist elsewhere.
+  onAddFirstExpense?: () => void;
+  onLoadDemoData?: () => void;
 }
 
 // Sentinel drilldown target: only the transactions with no subcategory
@@ -222,7 +226,7 @@ function StatChip({ label, value, tone }: { label: React.ReactNode; value: strin
   );
 }
 
-export function Dashboard({ expenses, categories, incomeCategories, sources = [], userName, currency, onEditExpense, onDeleteExpense, view = 'overview', onShowOverview, initialPeriod, viewStateRef, trendStateRef, monthlyBudget, budgetNudgeDismissed, onSetMonthlyBudget, onDismissBudgetNudge }: DashboardProps) {
+export function Dashboard({ expenses, categories, incomeCategories, sources = [], userName, currency, onEditExpense, onDeleteExpense, view = 'overview', onShowOverview, initialPeriod, viewStateRef, trendStateRef, monthlyBudget, budgetNudgeDismissed, onSetMonthlyBudget, onDismissBudgetNudge, onAddFirstExpense, onLoadDemoData }: DashboardProps) {
   // Restore the previous view (period + drilldown) unless a Trend->Overview
   // link supplied an explicit period - that must win and start clean.
   const savedView = view === 'overview' && !initialPeriod ? viewStateRef?.current ?? null : null;
@@ -1706,6 +1710,54 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
   };
 
   const greeting = userName ? `${getGreeting()}, ${userName}` : 'Welcome 👋';
+
+  // First run: an empty ledger used to render a page of zeros with no hint of
+  // what to do next - the wall every brand-new user hit right after the tour.
+  // One clear action instead (plus the sample-data shortcut for people who
+  // want to see the app alive before committing anything).
+  if (view === 'overview' && expenses.length === 0) {
+    return (
+      // Not min-h-screen: the tab wrapper already adds the top inset and a
+      // pb-32 that clears the nav bar, so a full-viewport child overflows by
+      // exactly that chrome and the page scrolls onto nothing. Undershoot
+      // instead and let justify-center place the card.
+      <div className="flex flex-col" style={{ backgroundColor: '#F5F5F7', minHeight: 'calc(100dvh - 200px)' }}>
+        <div className="px-6 pt-1">
+          <p style={{ color: '#8E8E93', fontSize: '14px', marginBottom: '2px' }}>{greeting}</p>
+          <h1 style={{ color: '#1C1C1E', fontSize: '28px', fontWeight: '600', letterSpacing: '-0.5px' }}>
+            Dashboard
+          </h1>
+        </div>
+        <div className="flex-1 flex flex-col justify-center px-6 pt-4 pb-4">
+          <div className="rounded-2xl px-6 py-8 text-center" style={{ background: '#FFFFFF', boxShadow: '0 8px 24px rgba(0,0,0,0.06)', border: '1px solid #EEEEF1' }}>
+            <div className="mx-auto mb-4 flex items-center justify-center" style={{ width: 56, height: 56, borderRadius: 999, background: '#EFF6FF' }}>
+              <Plus className="w-7 h-7" style={{ color: '#007AFF' }} strokeWidth={2.5} />
+            </div>
+            <h2 style={{ color: '#1C1C1E', fontSize: 20, fontWeight: 700, letterSpacing: '-0.02em', marginBottom: 8 }}>
+              Your first month starts here
+            </h2>
+            <p style={{ color: '#8E8E93', fontSize: 15, lineHeight: 1.45, marginBottom: 20 }}>
+              Add an expense as it happens - this page fills in by itself.
+            </p>
+            {onAddFirstExpense && (
+              <button
+                onClick={onAddFirstExpense}
+                className="w-full py-4 rounded-xl font-medium text-base transition-all active:scale-[0.98]"
+                style={{ backgroundColor: '#007AFF', color: '#FFFFFF', boxShadow: '0 2px 8px rgba(0,122,255,0.25)' }}
+              >
+                Add your first expense
+              </button>
+            )}
+            {onLoadDemoData && (
+              <button onClick={onLoadDemoData} className="w-full py-3 mt-1 text-[14px] font-medium" style={{ color: '#8E8E93' }}>
+                Or look around with sample data
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: '#F5F5F7' }}>

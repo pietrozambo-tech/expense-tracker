@@ -1633,6 +1633,8 @@ export default function App() {
                 budgetNudgeDismissed={budgetNudgeDismissed}
                 onSetMonthlyBudget={setMonthlyBudget}
                 onDismissBudgetNudge={() => setBudgetNudgeDismissed(true)}
+                onAddFirstExpense={() => setCurrentTab('add')}
+                onLoadDemoData={handleLoadDemoData}
               />
             )}
             {currentTab === 'trend' && (
