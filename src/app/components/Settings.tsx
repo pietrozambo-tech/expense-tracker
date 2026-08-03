@@ -25,9 +25,6 @@ interface SettingsProps {
   onEditCategory: (id: string, updatedCategory: any) => void;
   onDeleteCategory: (id: string) => void;
   onAddSubcategory: (categoryId: string, subcategoryName: string) => void;
-  // Subcategory names found on transactions but missing from their category's
-  // list (see App.orphanSubcategories) - offered for one-tap adoption.
-  orphanSubcategories?: Record<string, string[]>;
   onEditSubcategory: (categoryId: string, oldName: string, newName: string) => void;
   onDeleteSubcategory: (categoryId: string, subcategoryName: string) => void;
   onAddIncomeCategory: (category: any) => void;
@@ -75,7 +72,6 @@ export function Settings({
   onEditCategory,
   onDeleteCategory,
   onAddSubcategory,
-  orphanSubcategories,
   onEditSubcategory,
   onDeleteSubcategory,
   onAddIncomeCategory,
@@ -584,7 +580,6 @@ export function Settings({
             onEditCategory={categoryType === 'expense' ? onEditCategory : onEditIncomeCategory}
             onDeleteCategory={categoryType === 'expense' ? onDeleteCategory : onDeleteIncomeCategory}
             onAddSubcategory={onAddSubcategory}
-            orphanSubcategories={orphanSubcategories}
             onEditSubcategory={onEditSubcategory}
             onDeleteSubcategory={onDeleteSubcategory}
             onModalOpenChange={onModalOpenChange}

@@ -43,6 +43,7 @@ const tx = (id: string, description: string, amount: number, date = '2026-07-28'
 class Phone {
   name: string;
   transactions: any[] = [];
+  categories: any[] = [];
   budget: number | undefined = undefined;
   userName = '';
   base: SyncPayload | null = null;
@@ -56,7 +57,7 @@ class Phone {
     return {
       transactions: this.transactions,
       recurringRules: [],
-      categories: [],
+      categories: this.categories,
       incomeCategories: [],
       sources: [],
       settings: {
@@ -76,6 +77,7 @@ class Phone {
       // against the base persisted from the last agreement.
       const merged = mergePayloads(this.base, this.payload(), cloud.payload);
       this.transactions = merged.transactions;
+      this.categories = merged.categories;
       this.budget = merged.settings.monthlyBudget;
       this.userName = merged.settings.userName;
       this.base = cloud.payload;
@@ -118,6 +120,7 @@ class Phone {
       const merged = mergePayloads(this.base, payload, remote.payload);
       say(`${this.name} hits a conflict -> merges -> ${fmt(merged.transactions)}`);
       this.transactions = merged.transactions;
+      this.categories = merged.categories;
       this.budget = merged.settings.monthlyBudget;
       this.userName = merged.settings.userName;
       this.base = remote.payload;
@@ -134,6 +137,7 @@ class Phone {
         if (remote) {
           const merged = mergePayloads(this.base, this.payload(), remote.payload);
           this.transactions = merged.transactions;
+          this.categories = merged.categories;
           this.budget = merged.settings.monthlyBudget;
           this.userName = merged.settings.userName;
           this.base = remote.payload;
@@ -167,6 +171,37 @@ class Phone {
   loseLocalData() {
     this.transactions = [];
     say(`${this.name} has no local transactions (base kept from last session)`);
+  }
+
+  // Category gestures, mirroring App.tsx: every edit stamps the category.
+  seedCategory(id: string, name: string, chips: string[]) {
+    this.categories = [...this.categories, { id, name, icon: 'X', color: '', bgColor: '', selectedBg: '', type: 'expense', subcategories: chips }];
+  }
+
+  addChip(catId: string, chip: string) {
+    this.categories = this.categories.map((c) =>
+      c.id === catId ? { ...c, subcategories: [...(c.subcategories || []), chip], updatedAt: nextStamp() } : c,
+    );
+    say(`${this.name} adds subcategory "${chip}"  -> ${this.chips(catId)}`);
+  }
+
+  removeChip(catId: string, chip: string) {
+    this.categories = this.categories.map((c) =>
+      c.id === catId ? { ...c, subcategories: (c.subcategories || []).filter((x: string) => x !== chip), updatedAt: nextStamp() } : c,
+    );
+    say(`${this.name} deletes subcategory "${chip}"  -> ${this.chips(catId)}`);
+  }
+
+  renameCategory(catId: string, newName: string) {
+    this.categories = this.categories.map((c) =>
+      c.id === catId ? { ...c, name: newName, updatedAt: nextStamp() } : c,
+    );
+    say(`${this.name} renames the category to "${newName}"`);
+  }
+
+  chips(catId: string): string {
+    const c = this.categories.find((x) => x.id === catId);
+    return c ? `${c.name}[${(c.subcategories || []).join(',')}]` : 'missing';
   }
 
   // Change only the DATE of an existing transaction - the reported case:
@@ -627,6 +662,72 @@ async function scenarioDateEdits() {
   expect('and does not push the old dates back', serverDates, '2026-05-28 2026-06-28 2026-07-28');
 }
 
+
+// The user's report: edit categories on the iPhone, they must arrive
+// everywhere. Sequential edits first - the everyday case.
+async function scenarioCategoryEdits() {
+  heading('19. A category edit made on one phone arrives on the other');
+  reset();
+  const a = new Phone('iPhone');
+  const b = new Phone('iPad');
+  a.seedCategory('others', 'Others', ['Donations']);
+  await a.sync();
+  await b.openApp();
+
+  a.addChip('others', 'Tobacco');
+  await a.sync();
+  await b.foreground();
+  expect('the new subcategory is on the iPad', b.chips('others'), 'Others[Donations,Tobacco]');
+
+  b.removeChip('others', 'Donations');
+  await b.sync();
+  await a.foreground();
+  expect('and a deletion travels back', a.chips('others'), 'Others[Tobacco]');
+}
+
+// Both devices touch the SAME category while one is stale. Item-level
+// last-writer-wins made this silently destructive: whichever copy won arrived
+// without the other's chip. The chip lists merge three-way now.
+async function scenarioCategoryConcurrent() {
+  heading('20. Two devices edit the same category at the same time');
+  reset();
+  const a = new Phone('iPhone');
+  const b = new Phone('iPad');
+  a.seedCategory('others', 'Others', ['Donations']);
+  await a.sync();
+  await b.openApp();
+
+  a.addChip('others', 'Tobacco');
+  await a.sync();
+  b.addChip('others', 'Gym'); // stale: has not seen Tobacco
+  await b.sync();
+  await a.foreground();
+  expect('the iPad kept both additions', b.chips('others'), 'Others[Donations,Gym,Tobacco]');
+  // Same three chips on both; only the append order differs by which side
+  // merged first, and the next quiet sync aligns even that.
+  expect('the iPhone converged to the same', a.chips('others'), 'Others[Donations,Tobacco,Gym]');
+}
+
+// A rename on one side, a chip on the other: the rename must not eat the chip.
+async function scenarioCategoryRenameVsChip() {
+  heading('21. A rename on one device, a new subcategory on the other');
+  reset();
+  const a = new Phone('iPhone');
+  const b = new Phone('iPad');
+  a.seedCategory('others', 'Others', ['Donations']);
+  await a.sync();
+  await b.openApp();
+
+  a.addChip('others', 'Tobacco');
+  await a.sync();
+  b.renameCategory('others', 'Misc'); // stale copy, newer stamp
+  await b.sync();
+  await a.foreground();
+  await b.foreground();
+  expect('the rename stands and the chip survives (iPad)', b.chips('others'), 'Misc[Donations,Tobacco]');
+  expect('both devices agree (iPhone)', a.chips('others'), 'Misc[Donations,Tobacco]');
+}
+
 async function main() {
   console.log('\n================================================================');
   console.log(` Cloud sync - two devices, one account   [${OLD ? 'BEFORE the fix' : 'AFTER the fix'}]`);
@@ -650,6 +751,9 @@ async function main() {
   await scenarioStaleDevice();
   await scenarioMergeOrder();
   await scenarioDateEdits();
+  await scenarioCategoryEdits();
+  await scenarioCategoryConcurrent();
+  await scenarioCategoryRenameVsChip();
 
   console.log('\n================================================================');
   console.log(failures === 0 ? ' All checks passed - nothing lost.' : ` ${failures} check(s) FAILED.`);

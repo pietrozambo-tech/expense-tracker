@@ -12,6 +12,12 @@ export interface Category {
   selectedBg: string;
   subcategories?: string[];
   type: TransactionType;
+  // When this category (name, look, or subcategory list) was last edited.
+  // The cross-device merge prefers the newer stamp; without one, concurrent
+  // edits to the same category resolved by write order, and a renamed
+  // category on one device could silently drop a subcategory added on
+  // another. Absent on categories never edited since this was added.
+  updatedAt?: string;
 }
 
 // A payment source / account a transaction flows to or from: cash or a bank.

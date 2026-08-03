@@ -23,9 +23,6 @@ interface CategoriesProps {
   onEditCategory: (id: string, category: Omit<Category, 'id'>) => void;
   onDeleteCategory: (id: string) => void;
   onAddSubcategory: (categoryId: string, subcategoryName: string) => void;
-  // Names used by this category's transactions but missing from its list -
-  // shown for one-tap adoption so "ghost" subcategories become manageable.
-  orphanSubcategories?: Record<string, string[]>;
   onEditSubcategory: (categoryId: string, oldName: string, newName: string) => void;
   onDeleteSubcategory: (categoryId: string, subcategoryName: string) => void;
   onModalOpenChange: (isOpen: boolean) => void;
@@ -38,7 +35,6 @@ export function Categories({
   onEditCategory,
   onDeleteCategory,
   onAddSubcategory,
-  orphanSubcategories,
   onEditSubcategory,
   onDeleteSubcategory,
   onModalOpenChange,
@@ -225,32 +221,6 @@ export function Categories({
                               <Trash2 className="w-3.5 h-3.5 text-red-500" />
                             </button>
                           </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Ghosts: in this category's data, not in its list. Adopting
-                      one is the same as adding it by hand. */}
-                  {isExpanded && (orphanSubcategories?.[category.id]?.length ?? 0) > 0 && (
-                    <div className="bg-neutral-50" style={{ borderTop: '1px solid #F2F2F7' }}>
-                      <div className="px-6 pt-3 pb-1" style={{ color: '#8E8E93', fontSize: 11, fontWeight: 600, letterSpacing: '0.05em' }}>
-                        IN YOUR DATA, NOT IN YOUR LIST
-                      </div>
-                      {orphanSubcategories![category.id].map((name) => (
-                        <div key={name} className="px-6 py-2.5 flex items-center justify-between">
-                          <div className="flex items-center gap-3 flex-1 min-w-0">
-                            <div className="w-10 flex-shrink-0" />
-                            <div className="text-sm truncate" style={{ color: '#8E8E93', fontStyle: 'italic' }}>{name}</div>
-                          </div>
-                          <button
-                            onClick={() => onAddSubcategory(category.id, name)}
-                            className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[13px] font-medium active:bg-blue-100 transition-colors"
-                            style={{ color: '#2563EB', backgroundColor: '#EFF6FF' }}
-                          >
-                            <Plus className="w-3.5 h-3.5" />
-                            Add
-                          </button>
                         </div>
                       ))}
                     </div>

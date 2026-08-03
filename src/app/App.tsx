@@ -3,7 +3,7 @@ import { toast } from 'sonner';
 import { Toaster } from './components/ui/sonner';
 import { BarChart3, Plus, List, X, Settings as SettingsIcon, TrendingUp, ChevronDown, Repeat } from 'lucide-react';
 import { CURRENCIES, convertAmount, BASE_CURRENCY } from './utils/currency';
-import type { Transaction, Source, RecurringRule } from './types';
+import type { Transaction, Source, RecurringRule, Category } from './types';
 import {
   clearAllData,
   loadCategories,
@@ -854,7 +854,8 @@ export default function App() {
   const handleAddCategory = (category: Omit<typeof categories[0], 'id'>) => {
     const newCategory = {
       ...category,
-      id: `category-${Date.now()}`
+      id: `category-${Date.now()}`,
+      updatedAt: new Date().toISOString()
     };
     setCategories([...categories, newCategory]);
     setRefreshKey(prev => prev + 1);
@@ -864,14 +865,15 @@ export default function App() {
   };
 
   const handleEditCategory = (id: string, updatedCategory: Omit<typeof categories[0], 'id'>) => {
+    const editedAt = new Date().toISOString();
     setCategories(categories.map(cat => 
-      cat.id === id ? { ...updatedCategory, id } : cat
+      cat.id === id ? { ...updatedCategory, id, updatedAt: editedAt } : cat
     ));
     
     // Update existing expenses that use this category
     setExpenses(expenses.map(expense => 
       expense.category.id === id 
-        ? { ...expense, category: { ...updatedCategory, id } }
+        ? { ...expense, category: { ...updatedCategory, id, updatedAt: editedAt }, updatedAt: editedAt }
         : expense
     ));
     
@@ -906,7 +908,9 @@ export default function App() {
       : setCategories;
     setList((prev) =>
       prev.map((cat) =>
-        cat.id === categoryId ? { ...cat, subcategories: update(cat.subcategories || []) } : cat
+        cat.id === categoryId
+          ? { ...cat, subcategories: update(cat.subcategories || []), updatedAt: new Date().toISOString() }
+          : cat
       )
     );
   };
@@ -926,7 +930,7 @@ export default function App() {
     // the category id pins which direction this is.
     setExpenses(expenses.map(expense =>
       expense.category.id === categoryId && expense.subcategory === oldName
-        ? { ...expense, subcategory: newName }
+        ? { ...expense, subcategory: newName, updatedAt: new Date().toISOString() }
         : expense
     ));
 
@@ -942,7 +946,7 @@ export default function App() {
     // Strip the subcategory from its transactions, keeping the transactions.
     setExpenses(expenses.map(expense =>
       expense.category.id === categoryId && expense.subcategory === subcategoryName
-        ? { ...expense, subcategory: undefined }
+        ? { ...expense, subcategory: undefined, updatedAt: new Date().toISOString() }
         : expense
     ));
 
@@ -956,7 +960,8 @@ export default function App() {
   const handleAddIncomeCategory = (category: Omit<typeof incomeCategories[0], 'id'>) => {
     const newCategory = {
       ...category,
-      id: `income-category-${Date.now()}`
+      id: `income-category-${Date.now()}`,
+      updatedAt: new Date().toISOString()
     };
     setIncomeCategories([...incomeCategories, newCategory]);
     setRefreshKey(prev => prev + 1);
@@ -966,14 +971,15 @@ export default function App() {
   };
 
   const handleEditIncomeCategory = (id: string, updatedCategory: Omit<typeof incomeCategories[0], 'id'>) => {
+    const editedAt = new Date().toISOString();
     setIncomeCategories(incomeCategories.map(cat => 
-      cat.id === id ? { ...updatedCategory, id } : cat
+      cat.id === id ? { ...updatedCategory, id, updatedAt: editedAt } : cat
     ));
     
     // Update existing income transactions that use this category
     setExpenses(expenses.map(expense => 
       expense.type === 'income' && expense.category.id === id 
-        ? { ...expense, category: { ...updatedCategory, id } }
+        ? { ...expense, category: { ...updatedCategory, id, updatedAt: editedAt }, updatedAt: editedAt }
         : expense
     ));
     
@@ -1235,8 +1241,10 @@ export default function App() {
     if (Array.isArray(b.transactions))
       setExpenses(b.transactions.map((t: Transaction) => ({ ...t, updatedAt: restoredAt })));
     setRecurringRules(Array.isArray(b.recurringRules) ? b.recurringRules : []);
-    if (Array.isArray(b.categories)) setCategories(b.categories);
-    if (Array.isArray(b.incomeCategories)) setIncomeCategories(b.incomeCategories);
+    if (Array.isArray(b.categories))
+      setCategories(b.categories.map((c: Category) => ({ ...c, updatedAt: restoredAt })));
+    if (Array.isArray(b.incomeCategories))
+      setIncomeCategories(b.incomeCategories.map((c: Category) => ({ ...c, updatedAt: restoredAt })));
     if (Array.isArray(b.sources)) setSources(b.sources);
     if (b.settings) {
       if (typeof b.settings.currency === 'string') setUserCurrency(b.settings.currency);
@@ -1256,30 +1264,6 @@ export default function App() {
       duration: 2000,
     });
   };
-
-  // Subcategory strings that exist on transactions but not on their category's
-  // chip list - "ghosts": visible in every trend breakdown, manageable
-  // nowhere. Imports made before the review sheet existed created these (and a
-  // category merge losing a chip still could). Settings shows them under their
-  // category with a one-tap adopt.
-  const orphanSubcategories = useMemo(() => {
-    const known = new Map<string, Set<string>>();
-    for (const c of [...categories, ...incomeCategories]) {
-      known.set(c.id, new Set((c.subcategories || []).map((s) => s.toLowerCase())));
-    }
-    const orphans: Record<string, string[]> = {};
-    const seen = new Set<string>();
-    for (const t of expenses) {
-      if (!t.subcategory) continue;
-      const chips = known.get(t.category.id);
-      if (!chips || chips.has(t.subcategory.toLowerCase())) continue; // category gone, or a real chip
-      const dedupe = `${t.category.id}:${t.subcategory.toLowerCase()}`;
-      if (seen.has(dedupe)) continue;
-      seen.add(dedupe);
-      (orphans[t.category.id] ||= []).push(t.subcategory);
-    }
-    return orphans;
-  }, [expenses, categories, incomeCategories]);
 
   // Commit an import after any review decision. Approved proposals become real
   // chips; declined ones import their rows without a subcategory. This is the
@@ -1684,7 +1668,6 @@ export default function App() {
                 onAddIncomeCategory={handleAddIncomeCategory}
                 onEditIncomeCategory={handleEditIncomeCategory}
                 onDeleteIncomeCategory={handleDeleteIncomeCategory}
-                orphanSubcategories={orphanSubcategories}
                 onModalOpenChange={setIsModalOpen}
                 userCurrency={userCurrency}
                 onCurrencyChange={handleCurrencyChange}

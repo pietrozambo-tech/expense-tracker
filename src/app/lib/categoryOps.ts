@@ -14,6 +14,7 @@ export function reassignToOthers(
   txns: Transaction[],
 ): { cats: Category[]; txns: Transaction[] } {
   const type = deleted.type;
+  const stamp = new Date().toISOString();
   const remaining = allCats.filter((c) => c.id !== deleted.id);
   const hasAffected = txns.some((t) => t.type === type && t.category.id === deleted.id);
   if (!hasAffected) return { cats: remaining, txns };
@@ -30,18 +31,21 @@ export function reassignToOthers(
       selectedBg: 'bg-neutral-100',
       subcategories: [],
       type,
+      updatedAt: stamp,
     };
     cats = [...remaining, others];
   }
   // Keep the deleted category's name as a subcategory of Others for context.
   const originSub = deleted.name.trim();
   if (!(others.subcategories || []).some((s) => s.toLowerCase() === originSub.toLowerCase())) {
-    others = { ...others, subcategories: [...(others.subcategories || []), originSub] };
+    others = { ...others, subcategories: [...(others.subcategories || []), originSub], updatedAt: stamp };
     cats = cats.map((c) => (c.id === others!.id ? others! : c));
   }
   const bucket = others;
   const newTxns = txns.map((t) =>
-    t.type === type && t.category.id === deleted.id ? { ...t, category: bucket, subcategory: originSub } : t,
+    t.type === type && t.category.id === deleted.id
+      ? { ...t, category: bucket, subcategory: originSub, updatedAt: stamp }
+      : t,
   );
   return { cats, txns: newTxns };
 }

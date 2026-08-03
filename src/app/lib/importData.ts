@@ -282,6 +282,9 @@ export function applyImportDecision(
     const list = cat.subcategories || [];
     if (!list.some((s) => s.toLowerCase() === p.name.toLowerCase())) {
       cat.subcategories = [...list, p.name];
+      // A chip the user just approved is an edit like any other: the stamp is
+      // what carries it past a stale copy on another device.
+      cat.updatedAt = new Date().toISOString();
     }
   }
 

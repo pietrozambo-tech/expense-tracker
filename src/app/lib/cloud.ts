@@ -211,6 +211,56 @@ export function mergePayloads(
     return out;
   };
 
+  // Subcategory lists merge chip by chip when both devices touched the same
+  // category. Item-level "newer copy wins" was silently destructive here: add
+  // "Tobacco" on the phone while the tablet holds a stale copy and renames the
+  // category, and whichever copy wins arrives WITHOUT the other one's chip.
+  // Three-way on the list itself keeps both edits: a chip absent from base is
+  // an addition (kept from either side), a base chip missing on one side is a
+  // deletion (respected from either side). Names compare case-insensitively;
+  // the first-seen spelling stands.
+  const mergeChips = (baseChips: string[] = [], ours: string[] = [], theirs: string[] = []): string[] => {
+    const low = (x: string) => x.toLowerCase();
+    const inBase = new Set(baseChips.map(low));
+    const inOurs = new Set(ours.map(low));
+    const inTheirs = new Set(theirs.map(low));
+    const seen = new Set<string>();
+    const out: string[] = [];
+    const push = (name: string) => {
+      const k = low(name);
+      if (!seen.has(k)) {
+        seen.add(k);
+        out.push(name);
+      }
+    };
+    for (const name of ours) if (!inBase.has(low(name)) || inTheirs.has(low(name))) push(name);
+    for (const name of theirs) if (!inBase.has(low(name)) || inOurs.has(low(name))) push(name);
+    return out;
+  };
+
+  // Categories go through the same per-item merge as everything else (which
+  // resolves name/icon/colour), then the chips are reconciled for ids both
+  // sides hold. A category only one side has needs nothing: it was added or
+  // deleted, never concurrently edited.
+  const mergeCategoryList = (
+    baseList: Category[] | undefined,
+    localList: Category[] | undefined,
+    remoteList: Category[] | undefined,
+  ): Category[] => {
+    const merged = mergeList(baseList, localList, remoteList);
+    const b = new Map((baseList ?? []).map((c) => [c.id, c]));
+    const l = new Map((localList ?? []).map((c) => [c.id, c]));
+    const r = new Map((remoteList ?? []).map((c) => [c.id, c]));
+    return merged.map((cat) => {
+      const ours = l.get(cat.id);
+      const theirs = r.get(cat.id);
+      if (!ours || !theirs) return cat;
+      const chips = mergeChips(b.get(cat.id)?.subcategories, ours.subcategories, theirs.subcategories);
+      const same = (x: string[] = []) => x.join(' ');
+      return same(chips) === same(cat.subcategories) ? cat : { ...cat, subcategories: chips };
+    });
+  };
+
   // Settings have no ids to merge on, so they go field by field against the
   // base. "The device in the user's hand wins" was only half right: it is true
   // of a value this device just CHANGED, and false of one it simply never had.
@@ -259,8 +309,8 @@ export function mergePayloads(
   return {
     transactions: byDateDesc(mergeList(base?.transactions, local.transactions, remote.transactions)),
     recurringRules: mergeList(base?.recurringRules, local.recurringRules, remote.recurringRules),
-    categories: mergeList(base?.categories, local.categories, remote.categories),
-    incomeCategories: mergeList(base?.incomeCategories, local.incomeCategories, remote.incomeCategories),
+    categories: mergeCategoryList(base?.categories, local.categories, remote.categories),
+    incomeCategories: mergeCategoryList(base?.incomeCategories, local.incomeCategories, remote.incomeCategories),
     sources: mergeList(base?.sources, local.sources, remote.sources),
     settings: localCopyMissing && remote.settings ? remote.settings : mergeSettings(),
   };
