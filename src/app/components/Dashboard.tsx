@@ -4,6 +4,7 @@ import { TrendCategoryBreakdown } from './TrendCategoryBreakdown';
 import React from 'react';
 import { formatAmount, formatCompactAmount, formatSummaryAmount, formatAmountListView, formatAbbreviatedAmount, CURRENCIES, homeAmount } from '../utils/currency';
 import { getCategoryIcon } from './categoryIcons';
+import { usualCurve } from '../lib/usual';
 import { BudgetBar, BudgetNudge } from './BudgetBar';
 import { FitText } from './FitText';
 import { parseLocalDate } from '../lib/dates';
@@ -794,33 +795,18 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
     const daysInMonth = new Date(selectedYear, selectedMonth + 1, 0).getDate();
     const today = now.getDate();
 
-    // What "usual" actually is: the average this user had spent by this same
-    // day of the month, over their previous months. Time elapsed is a bad
-    // stand-in - spending is not linear, and anyone whose rent lands on the
-    // 1st would open the app every month morning-one to be told they are
-    // "spending faster than usual" when this IS their usual. Months with no
-    // expenses at all (before tracking started) do not vote; a tracked month
-    // where nothing had been spent by this day votes 0, which is real.
+    // What "usual" actually is: the MEDIAN of what this user had spent by this
+    // same day of the month, over their previous months (see lib/usual.ts).
+    // Time elapsed is a bad stand-in - spending is not linear, and anyone whose
+    // rent lands on the 1st would open the app every month morning-one to be
+    // told they are "spending faster than usual" when this IS their usual.
+    // One number off the same median curve the chart draws, so the bar's
+    // verdict and the chart's dotted line can never disagree.
     const usualByNow = (() => {
-      let sum = 0;
-      let n = 0;
-      for (let back = 1; back <= 6; back++) {
-        const mStart = new Date(selectedYear, selectedMonth - back, 1);
-        const mEnd = new Date(selectedYear, selectedMonth - back + 1, 0, 23, 59, 59, 999);
-        const monthTx = expenses.filter((e) => {
-          if (e.type === 'income') return false;
-          const d = parseLocalDate(e.date);
-          return d >= mStart && d <= mEnd;
-        });
-        if (monthTx.length === 0) continue;
-        const cutDay = Math.min(today, mEnd.getDate());
-        const cutoff = new Date(mStart.getFullYear(), mStart.getMonth(), cutDay, 23, 59, 59, 999);
-        sum += monthTx
-          .filter((e) => parseLocalDate(e.date) <= cutoff)
-          .reduce((acc, e) => acc + homeAmount(e, currency), 0);
-        n++;
-      }
-      return n > 0 ? sum / n : null;
+      const curve = usualCurve(expenses, currency, {
+        type: 'month', year: selectedYear, month: selectedMonth, quarter: 0, steps: daysInMonth,
+      });
+      return curve ? curve[Math.min(today, daysInMonth) - 1] : null;
     })();
 
     return {
@@ -2318,6 +2304,16 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
           {transactionType === 'expense' && (() => {
             const cumulativeData = getCumulativeData();
             if (cumulativeData.length === 0) return null;
+            // The benchmark: the median of earlier periods, aligned step for
+            // step. Spans the WHOLE period while the solid line stops at
+            // today, so a running month shows where "usual" is heading.
+            const usual = usualCurve(expenses, currency, {
+              type: timePeriodType,
+              year: selectedYear,
+              month: selectedMonth,
+              quarter: selectedQuarter,
+              steps: cumulativeData.length,
+            });
             // Hide the chart entirely when the period has no spending yet
             if (!cumulativeData.some(d => (d.cumulative ?? 0) > 0)) return null;
             
@@ -2487,9 +2483,21 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                   boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)'
                 }}>
                   <div className="px-6 py-4">
-                    <h3 className="text-sm mb-3" style={{ color: '#1C1C1E', fontWeight: '600' }}>
-                      Cumulative Spending
-                    </h3>
+                    <div className="flex items-baseline justify-between gap-2 mb-3">
+                      <h3 className="text-sm" style={{ color: '#1C1C1E', fontWeight: '600' }}>
+                        Cumulative Spending
+                      </h3>
+                      {/* Names the dotted line where it is drawn, rather than
+                          leaving a second line to be guessed at. */}
+                      {usual && (
+                        <span className="flex items-center gap-1.5 flex-shrink-0">
+                          <svg width="16" height="2" aria-hidden="true">
+                            <line x1="0" y1="1" x2="16" y2="1" stroke="#C7C7CC" strokeWidth="1.5" strokeDasharray="4 4" />
+                          </svg>
+                          <span style={{ color: '#8E8E93', fontSize: 11 }}>Your usual</span>
+                        </span>
+                      )}
+                    </div>
                     <div
                       ref={chartBoxRef}
                       style={{ height: '200px', width: '100%', position: 'relative', minWidth: 0, minHeight: 0 }}
@@ -2510,7 +2518,11 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                         const plotW = svgW - marginLeft - marginRight;
                         const plotH = svgH - marginTop - marginBottom;
                         const n = cumulativeData.length;
-                        const dataMax = Math.max(...cumulativeData.map(d => d.cumulative ?? 0), 1);
+                        const dataMax = Math.max(
+                          ...cumulativeData.map(d => d.cumulative ?? 0),
+                          ...(usual ?? []),
+                          1,
+                        );
 
                         // Round the axis up to a nice max with round steps, leaving a little headroom
                         const { max: axisMax, step: yStep } = niceAxis(dataMax);
@@ -2547,6 +2559,20 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                           const cp2x = prev.x + (p.x - prev.x) * 2 / 3;
                           return `${acc} C ${cp1x},${prev.y} ${cp2x},${p.y} ${p.x},${p.y}`;
                         }, '');
+                        // Benchmark path: same smoothing as the real line so the
+                        // two read as the same kind of object, one just fainter.
+                        const usualD = (() => {
+                          if (!usual) return '';
+                          const pts = usual.map((v, i) => ({ x: xOf(i), y: yOf(v) }));
+                          return pts.reduce((acc, p, i) => {
+                            if (i === 0) return `M ${p.x},${p.y}`;
+                            const prev = pts[i - 1];
+                            const cp1x = prev.x + (p.x - prev.x) / 3;
+                            const cp2x = prev.x + (p.x - prev.x) * 2 / 3;
+                            return `${acc} C ${cp1x},${prev.y} ${cp2x},${p.y} ${p.x},${p.y}`;
+                          }, '');
+                        })();
+
                         const areaD = linePts.length > 1
                           ? `${lineD} L ${linePts[linePts.length - 1].x},${marginTop + plotH} L ${linePts[0].x},${marginTop + plotH} Z`
                           : '';
@@ -2589,6 +2615,17 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                             />
 
                             {/* Area fill */}
+                            {/* Benchmark first, so the real line always sits on top of it */}
+                            {usualD && (
+                              <path
+                                d={usualD}
+                                fill="none"
+                                stroke="#C7C7CC"
+                                strokeWidth={1.5}
+                                strokeDasharray="4 4"
+                                strokeLinecap="round"
+                              />
+                            )}
                             {areaD && <path d={areaD} fill="url(#customCumulativeGrad)" />}
 
                             {/* Area stroke */}

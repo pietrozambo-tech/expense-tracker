@@ -14,6 +14,7 @@
     "test:recurrence": "node scripts/test-recurrence.mjs",
     "test:import": "node scripts/test-import.mjs",
     "test:storage": "node scripts/test-storage.mjs",
+    "test:usual": "node scripts/test-usual.mjs",
     "test:viewstate": "node scripts/test-viewstate.mjs"
   },
   "dependencies": {
