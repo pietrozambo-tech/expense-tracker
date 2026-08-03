@@ -25,6 +25,9 @@ interface SettingsProps {
   onEditCategory: (id: string, updatedCategory: any) => void;
   onDeleteCategory: (id: string) => void;
   onAddSubcategory: (categoryId: string, subcategoryName: string) => void;
+  // Subcategory names found on transactions but missing from their category's
+  // list (see App.orphanSubcategories) - offered for one-tap adoption.
+  orphanSubcategories?: Record<string, string[]>;
   onEditSubcategory: (categoryId: string, oldName: string, newName: string) => void;
   onDeleteSubcategory: (categoryId: string, subcategoryName: string) => void;
   onAddIncomeCategory: (category: any) => void;
@@ -72,6 +75,7 @@ export function Settings({
   onEditCategory,
   onDeleteCategory,
   onAddSubcategory,
+  orphanSubcategories,
   onEditSubcategory,
   onDeleteSubcategory,
   onAddIncomeCategory,
@@ -580,6 +584,7 @@ export function Settings({
             onEditCategory={categoryType === 'expense' ? onEditCategory : onEditIncomeCategory}
             onDeleteCategory={categoryType === 'expense' ? onDeleteCategory : onDeleteIncomeCategory}
             onAddSubcategory={onAddSubcategory}
+            orphanSubcategories={orphanSubcategories}
             onEditSubcategory={onEditSubcategory}
             onDeleteSubcategory={onDeleteSubcategory}
             onModalOpenChange={onModalOpenChange}
@@ -746,7 +751,7 @@ Every transaction MUST use exactly ONE of MY categories listed below (matched by
 - If it uses broad or bank-style categories (e.g. "Groceries", "Bills", "Shopping"), map those to the closest of my categories too.
 - If it has NO category, work it out from the merchant / description (e.g. "Uber" → Transport, "Netflix" → Subscriptions, "Tesco" → Groceries).
 ${fallbackLine}
-- "subcategory": optional - use one of that category's subcategories if it fits, or add a sensible new one.
+- "subcategory": optional - use one of that category's EXISTING subcategories (listed below) whenever one fits, even loosely. Only suggest a brand-new subcategory when truly nothing of mine fits: the app asks me to approve every new one before it is added, so inventing many creates work for me.
 
 READING A STATEMENT
 - Include real transactions only. Skip opening/closing balances, running balances, "balance brought forward" and pure summary lines.

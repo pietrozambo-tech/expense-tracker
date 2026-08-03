@@ -27,8 +27,9 @@ import { DEFAULT_SOURCES, DEFAULT_SOURCE_EXPENSE, DEFAULT_SOURCE_INCOME } from '
 import { SourceLogo } from './components/SourceLogo';
 import { SourceSelectorModal } from './components/SourceSelectorModal';
 import { getDemoTransactions } from './lib/demoData';
-import { buildImport, type ImportPayload, type ImportResult } from './lib/importData';
+import { buildImport, applyImportDecision, type ImportPayload, type ImportResult } from './lib/importData';
 import { ImportSummaryDialog } from './components/ImportSummaryDialog';
+import { ImportReviewDialog } from './components/ImportReviewDialog';
 import { buildBackup, downloadBackup, isBackupFile } from './lib/backup';
 import { buildTransactionsCsv, downloadTransactionsCsv } from './lib/csv';
 import { buildDescriptionSuggestions, type DescriptionSuggestion } from './lib/suggestions';
@@ -140,6 +141,10 @@ export default function App() {
   // Post-import summary dialog - set only when the import has anything worth
   // reading (uncategorized rows or unreadable ones); clean imports stay a toast.
   const [importSummary, setImportSummary] = useState<ImportResult | null>(null);
+  // An import whose file wants new subcategories, parked until the user has
+  // approved or declined them on the review sheet. Nothing is committed while
+  // this is set; cancelling drops the whole import.
+  const [pendingImport, setPendingImport] = useState<ImportResult | null>(null);
   // One-shot filter preset for the Activity tab - the "Review in Activity"
   // button lands the user on the imported rows, pre-filtered.
   const [activityPresetFilter, setActivityPresetFilter] = useState<string | null>(null);
@@ -1252,10 +1257,70 @@ export default function App() {
     });
   };
 
+  // Subcategory strings that exist on transactions but not on their category's
+  // chip list - "ghosts": visible in every trend breakdown, manageable
+  // nowhere. Imports made before the review sheet existed created these (and a
+  // category merge losing a chip still could). Settings shows them under their
+  // category with a one-tap adopt.
+  const orphanSubcategories = useMemo(() => {
+    const known = new Map<string, Set<string>>();
+    for (const c of [...categories, ...incomeCategories]) {
+      known.set(c.id, new Set((c.subcategories || []).map((s) => s.toLowerCase())));
+    }
+    const orphans: Record<string, string[]> = {};
+    const seen = new Set<string>();
+    for (const t of expenses) {
+      if (!t.subcategory) continue;
+      const chips = known.get(t.category.id);
+      if (!chips || chips.has(t.subcategory.toLowerCase())) continue; // category gone, or a real chip
+      const dedupe = `${t.category.id}:${t.subcategory.toLowerCase()}`;
+      if (seen.has(dedupe)) continue;
+      seen.add(dedupe);
+      (orphans[t.category.id] ||= []).push(t.subcategory);
+    }
+    return orphans;
+  }, [expenses, categories, incomeCategories]);
+
+  // Commit an import after any review decision. Approved proposals become real
+  // chips; declined ones import their rows without a subcategory. This is the
+  // ONLY place an import can touch the category lists.
+  const commitImport = (res: ImportResult, approvedKeys: ReadonlySet<string>) => {
+    const applied = applyImportDecision(res, categories, incomeCategories, approvedKeys);
+    if (res.proposedSubcategories.length > 0) {
+      setCategories(applied.categories);
+      saveCategories(applied.categories);
+      setIncomeCategories(applied.incomeCategories);
+      saveIncomeCategories(applied.incomeCategories);
+    }
+    setExpenses((prev) => [...applied.transactions, ...prev]);
+    setRefreshKey((prev) => prev + 1);
+    setCurrentTab('dashboard');
+    const realSkips = res.skipped.filter((sk) => sk.reason !== 'zero amount');
+    track('data_imported', {
+      count: res.added,
+      uncategorized: res.uncategorized,
+      skipped: res.skipped.length,
+      proposed: res.proposedSubcategories.length,
+      approved: approvedKeys.size,
+    });
+    if (res.uncategorized || realSkips.length) {
+      // Something needs the user's eyes - a dialog they dismiss, not a toast
+      // that dismisses itself. Zero-amount skips alone don't qualify: that
+      // guard is bookkeeping, not news.
+      setImportSummary(res);
+    } else {
+      toast.success(`Imported ${res.added} transaction${res.added === 1 ? '' : 's'}`, {
+        description: 'All matched to your categories',
+        duration: 2200,
+      });
+    }
+  };
+
   // Import a lightweight JSON payload (see lib/importData). Resolves category
-  // names against the user's own categories, adds any new subcategories, and
-  // prepends the transactions. A full backup file (from Export) is restored
-  // instead. Persists + cloud-syncs via the usual effects.
+  // names against the user's own categories and prepends the transactions. A
+  // file that wants NEW subcategories stops at a review sheet first: the
+  // import proposes, the user decides, and only then does anything commit.
+  // A full backup file (from Export) is restored instead.
   const handleImportData = (payload: ImportPayload) => {
     // Full backup? Restore everything rather than appending.
     const p = payload as any;
@@ -1270,25 +1335,11 @@ export default function App() {
       else toast.error('Nothing imported', { description: 'No transactions found in the file', duration: 2200 });
       return res;
     }
-    setCategories(res.categories);
-    saveCategories(res.categories);
-    setIncomeCategories(res.incomeCategories);
-    saveIncomeCategories(res.incomeCategories);
-    setExpenses((prev) => [...res.transactions, ...prev]);
-    setRefreshKey((prev) => prev + 1);
-    setCurrentTab('dashboard');
-    track('data_imported', { count: res.added, uncategorized: res.uncategorized, skipped: res.skipped.length });
-    if (res.uncategorized || realSkips.length) {
-      // Something needs the user's eyes - a dialog they dismiss, not a toast
-      // that dismisses itself. Zero-amount skips alone don't qualify: that
-      // guard is bookkeeping, not news.
-      setImportSummary(res);
-    } else {
-      toast.success(`Imported ${res.added} transaction${res.added === 1 ? '' : 's'}`, {
-        description: 'All matched to your categories',
-        duration: 2200,
-      });
+    if (res.proposedSubcategories.length > 0) {
+      setPendingImport(res); // the review sheet takes it from here
+      return res;
     }
+    commitImport(res, new Set());
     return res;
   };
 
@@ -1537,6 +1588,20 @@ export default function App() {
           }}
         />
       )}
+      {pendingImport && (
+        <ImportReviewDialog
+          result={pendingImport}
+          onConfirm={(approved) => {
+            setPendingImport(null);
+            commitImport(pendingImport, approved);
+          }}
+          onCancel={() => {
+            setPendingImport(null);
+            track('import_review_cancelled', { proposed: pendingImport.proposedSubcategories.length });
+            toast('Import cancelled', { description: 'Nothing was added', duration: 2000 });
+          }}
+        />
+      )}
 
       {/* iPhone 14 Container — Activity needs an exact viewport height so only
           its transaction list scrolls; other tabs scroll as a whole page */}
@@ -1619,6 +1684,7 @@ export default function App() {
                 onAddIncomeCategory={handleAddIncomeCategory}
                 onEditIncomeCategory={handleEditIncomeCategory}
                 onDeleteIncomeCategory={handleDeleteIncomeCategory}
+                orphanSubcategories={orphanSubcategories}
                 onModalOpenChange={setIsModalOpen}
                 userCurrency={userCurrency}
                 onCurrencyChange={handleCurrencyChange}

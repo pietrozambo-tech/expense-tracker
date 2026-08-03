@@ -5,7 +5,7 @@
 //
 // Run with:  pnpm test:import   (add --before for the pre-validation behaviour)
 
-import { buildImport } from './lib/importData';
+import { buildImport, applyImportDecision, proposalKey } from './lib/importData';
 import { parseLocalDate } from './lib/dates';
 import { homeAmount } from './utils/currency';
 import type { Category } from './types';
@@ -173,6 +173,64 @@ function scenarioTotalsStayFinite() {
   expect('and it is the sum of the readable rows', String(total), '30');
 }
 
+
+// What actually got committed, uniformly for both builds: the old one already
+// "decided" by silently mutating; the current one decides via the review step.
+const committed = (r: any, approved: Set<string>) =>
+  OLD
+    ? { transactions: r.transactions, categories: r.categories, incomeCategories: r.incomeCategories }
+    : applyImportDecision(r, EXP, INC, approved);
+const props = (r: any) => ((r.proposedSubcategories ?? []) as any[]);
+const allKeys = (r: any) => new Set(props(r).map(proposalKey));
+const chips = (cats: any[], id: string) => (cats.find((c) => c.id === id)?.subcategories ?? []).join(',');
+
+function scenarioProposals() {
+  heading('7. Imports propose subcategories, never commit them');
+
+  const r = run([
+    row({ subcategory: 'Tobacco', category: 'Others' }),
+    row({ subcategory: 'tobacco', category: 'Others' }), // same, different case
+    row({ subcategory: 'supermarket' }), // exists on Groceries (as "Supermarket")
+  ]);
+  expect('an unknown subcategory becomes a proposal (deduped, rows counted)',
+    props(r).map((p) => `${p.name}@${p.categoryName}x${p.rows}`).join('|'), 'Tobacco@Othersx2');
+  expect('an existing chip is matched (normalised), not proposed',
+    r.transactions[2]?.subcategory ?? 'none', 'Supermarket');
+
+  const declined = committed(r, new Set());
+  expect('declined: the category list gains nothing', chips(declined.categories, 'c9'), '');
+  expect('declined: rows import without the subcategory',
+    String(declined.transactions[0]?.subcategory), 'undefined');
+  expect('declined: the row itself still lands, categorised',
+    declined.transactions[0]?.category?.name ?? 'none', 'Others');
+
+  const approved = committed(r, allKeys(r));
+  expect('approved: the chip is added once, first-seen spelling', chips(approved.categories, 'c9'), 'Tobacco');
+  expect('approved: rows keep their subcategory', approved.transactions[0]?.subcategory ?? 'none', 'Tobacco');
+  expect('the user\'s own arrays are never touched in place', chips(EXP, 'c9'), '');
+}
+
+function scenarioProposalEdges() {
+  heading('8. Proposal edge cases');
+
+  // Unknown category: lands in the catch-all, original name proposed as the
+  // re-sorting handle - approval still required.
+  const r = run([row({ category: 'Vices', subcategory: '' })]);
+  expect('unknown category falls back to the catch-all', r.transactions[0]?.category?.name ?? 'none', 'Others');
+  expect('and its original name is proposed, not committed',
+    props(r).map((p) => `${p.name}@${p.categoryName}`).join('|'), 'Vices@Others');
+  const declined = committed(r, new Set());
+  expect('declining it keeps the row, in Others, unlabelled',
+    `${declined.transactions[0]?.category?.name}/${String(declined.transactions[0]?.subcategory)}`, 'Others/undefined');
+
+  // Income side: proposals carry their list, approval lands on the right one.
+  const ri = run([row({ type: 'income', category: 'Salary', subcategory: 'Bonus' })]);
+  expect('an income proposal knows its side', props(ri).map((p) => `${p.type}:${p.name}`).join('|'), 'income:Bonus');
+  const ok = committed(ri, allKeys(ri));
+  expect('approving it grows the income category', chips(ok.incomeCategories, 'i1'), 'Bonus');
+  expect('and leaves the expense side alone', chips(ok.categories, 'c1'), 'Supermarket');
+}
+
 console.log('\n================================================================');
 console.log(` Import file handling   [${OLD ? 'BEFORE validation' : 'AFTER validation'}]`);
 console.log(' (running the real src/app/lib/importData.ts)');
@@ -183,6 +241,8 @@ scenarioAmount();
 scenarioCurrency();
 scenarioNothingSilent();
 scenarioTotalsStayFinite();
+scenarioProposals();
+scenarioProposalEdges();
 console.log('\n================================================================');
 console.log(failures === 0 ? ' All checks passed.' : ` ${failures} check(s) FAILED.`);
 console.log('================================================================\n');

@@ -22,10 +22,24 @@ export interface ImportPayload {
   transactions: ImportRecord[];
 }
 
+// A subcategory the file wants that the user does not have. The import never
+// creates it on its own: categories and subcategories are the user's structure,
+// and nothing enters it without an explicit yes (the review sheet). Rows keep
+// the proposed name on their `subcategory` field until the decision is applied.
+export interface ProposedSubcategory {
+  categoryId: string;
+  categoryName: string;
+  type: TransactionType; // which list the category lives in
+  name: string; // first-seen spelling from the file
+  rows: number; // how many imported rows carry it
+}
+
+/** Stable identity of a proposal, for approve/decline bookkeeping. */
+export const proposalKey = (p: { type: TransactionType; categoryId: string; name: string }) =>
+  `${p.type}:${p.categoryId}:${p.name.trim().toLowerCase()}`;
+
 export interface ImportResult {
   transactions: Transaction[]; // new transactions, ready to prepend
-  categories: Category[]; // expense categories (may gain new subcategories)
-  incomeCategories: Category[]; // income categories (may gain new subcategories)
   added: number;
   defaulted: number; // rows whose category didn't match and fell back to a catch-all
   // Rows that ended up in the catch-all bucket HOWEVER they got there - the
@@ -34,6 +48,9 @@ export interface ImportResult {
   // waiting to be given a real category.
   uncategorized: number;
   skipped: { record: ImportRecord; reason: string }[];
+  // Subcategories the file references that the user does not have. Empty for
+  // most files; when not, the caller shows the review sheet before committing.
+  proposedSubcategories: ProposedSubcategory[];
 }
 
 // A category name that acts as the catch-all bucket for anything unmatched.
@@ -88,18 +105,18 @@ function normaliseCurrency(raw: unknown): string | null {
   return c && CURRENCIES[c] ? c : null;
 }
 
-const cloneCats = (cats: Category[]): Category[] =>
-  cats.map((c) => ({ ...c, subcategories: c.subcategories ? [...c.subcategories] : c.subcategories }));
-
 /**
  * Turn a lightweight ImportPayload into app Transactions.
  *
  * - Category names are matched case-insensitively against the user's current
- *   expense/income categories. Unmatched rows are skipped (and reported).
- * - A subcategory that doesn't exist on its category is added to it, so custom
- *   subcategories (e.g. "Betting") come across as first-class chips.
- * - Nothing is mutated: fresh category arrays are returned for the caller to
- *   persist alongside the new transactions.
+ *   expense/income categories. Unmatched rows fall back to the catch-all (and
+ *   are reported); only rows with no catch-all at all are skipped.
+ * - The user's categories are READ, never changed. A subcategory the file
+ *   references that the user does not have becomes a proposal in the result;
+ *   it only turns into a real chip if applyImportDecision() is told so.
+ *   (It used to be added silently, which grew the user's taxonomy behind
+ *   their back - and any later loss of the chip left "ghost" subcategories
+ *   visible in trends but absent from Settings.)
  */
 export function buildImport(
   payload: ImportPayload,
@@ -107,16 +124,16 @@ export function buildImport(
   incomeCats: Category[],
   fallbackCurrency: string
 ): ImportResult {
-  const exp = cloneCats(expenseCats);
-  const inc = cloneCats(incomeCats);
-
   const findCat = (name: string, type: TransactionType) => {
-    const list = type === 'income' ? inc : exp;
+    const list = type === 'income' ? incomeCats : expenseCats;
     const n = name.trim().toLowerCase();
     return list.find((c) => c.name.trim().toLowerCase() === n);
   };
   const findCatchAll = (type: TransactionType) =>
-    (type === 'income' ? inc : exp).find((c) => CATCHALL_RE.test(c.name.trim()));
+    (type === 'income' ? incomeCats : expenseCats).find((c) => CATCHALL_RE.test(c.name.trim()));
+
+  // Proposals, deduped case-insensitively per category, counting their rows.
+  const proposals = new Map<string, ProposedSubcategory>();
 
   const transactions: Transaction[] = [];
   const skipped: { record: ImportRecord; reason: string }[] = [];
@@ -190,8 +207,12 @@ export function buildImport(
       if (existing) {
         subcategory = existing; // normalise to the existing spelling
       } else {
-        cat.subcategories = [...list, sub]; // add the new subcategory
+        // Not one of the user's chips: keep the name on the row, and propose it.
         subcategory = sub;
+        const k = proposalKey({ type, categoryId: cat.id, name: sub });
+        const p = proposals.get(k);
+        if (p) p.rows++;
+        else proposals.set(k, { categoryId: cat.id, categoryName: cat.name, type, name: sub, rows: 1 });
       }
     }
 
@@ -217,5 +238,58 @@ export function buildImport(
     });
   }
 
-  return { transactions, categories: exp, incomeCategories: inc, added: transactions.length, defaulted, uncategorized, skipped };
+  return {
+    transactions,
+    added: transactions.length,
+    defaulted,
+    uncategorized,
+    skipped,
+    proposedSubcategories: [...proposals.values()],
+  };
+}
+
+const cloneCats = (cats: Category[]): Category[] =>
+  cats.map((c) => ({ ...c, subcategories: c.subcategories ? [...c.subcategories] : c.subcategories }));
+
+/**
+ * Apply the user's review decision to an import.
+ *
+ * Approved proposals become real chips on their categories; the rows keep
+ * their subcategory. Declined ones add nothing: their rows import with the
+ * subcategory stripped - still categorised, still findable under the
+ * "Imported" filter, they just don't grow the user's structure.
+ *
+ * Nothing is mutated: fresh arrays come back for the caller to persist.
+ */
+export function applyImportDecision(
+  result: ImportResult,
+  expenseCats: Category[],
+  incomeCats: Category[],
+  approvedKeys: ReadonlySet<string>
+): { transactions: Transaction[]; categories: Category[]; incomeCategories: Category[] } {
+  const exp = cloneCats(expenseCats);
+  const inc = cloneCats(incomeCats);
+
+  const declined = new Set<string>();
+  for (const p of result.proposedSubcategories) {
+    const k = proposalKey(p);
+    if (!approvedKeys.has(k)) {
+      declined.add(k);
+      continue;
+    }
+    const cat = (p.type === 'income' ? inc : exp).find((c) => c.id === p.categoryId);
+    if (!cat) continue; // category vanished between build and decision
+    const list = cat.subcategories || [];
+    if (!list.some((s) => s.toLowerCase() === p.name.toLowerCase())) {
+      cat.subcategories = [...list, p.name];
+    }
+  }
+
+  const transactions = result.transactions.map((t) => {
+    if (!t.subcategory) return t;
+    const k = proposalKey({ type: t.type, categoryId: t.category.id, name: t.subcategory });
+    return declined.has(k) ? { ...t, subcategory: undefined } : t;
+  });
+
+  return { transactions, categories: exp, incomeCategories: inc };
 }
