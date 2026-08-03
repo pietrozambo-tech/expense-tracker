@@ -93,7 +93,56 @@ us nearly nothing.
 
 ---
 
-## 2. Smaller parked items
+## 2. Automatic Revolut expenses
+
+**Status:** parked, planned. Three tiers; the first two are cheap, the third is
+the expensive one everyone imagines first.
+
+### Tier 1 — native Revolut statement parser (~2–3 days, no dependencies)
+
+Revolut exports a CSV statement from the app in a stable format (Type, Product,
+Started/Completed Date, Description, Amount, Fee, Currency, State, Balance).
+Parse it natively in the Import screen — detected by its header row, no AI
+round trip, works offline:
+
+- fold `Fee` into the amount; skip `REVERTED`; skip `PENDING` (they change);
+- rows carry their currency — multi-currency already handles it (`baseAmount`);
+- auto-categorise from the user's own history: same merchant description → the
+  category/subcategory the user last gave it; unknowns fall to the catch-all
+  through the existing pipeline and review sheet;
+- **dedupe** with a synthesized stable id `hash(completedDate, amount, currency,
+  description)` so overlapping exports re-import safely — "already imported"
+  becomes a count in the summary, not duplicates in the ledger.
+
+### Tier 2 — share target in the native app (~1 day, rides Capacitor)
+
+A PWA cannot register as an iOS share target; the Capacitor app can. Then:
+Revolut app → Statement → Share → TracklyLab → tier-1 parser → review sheet.
+~30 seconds a month, feels automatic, zero regulatory surface.
+
+### Tier 3 — true background sync via open banking (post-launch)
+
+PSD2 account access requires an AISP licence; a solo developer rides an
+aggregator's licence instead (GoCardless Bank Account Data ex-Nordigen,
+SaltEdge, Enable Banking; Plaid/Tink/TrueLayer are enterprise-priced).
+Order-of-magnitude ~€0.30–1.50 per connected account per month at small
+volume — **verify current pricing before building**; this is the feature that
+forces a paid tier (see item 1's commercial note). Consent renews every 90–180
+days depending on the bank, so a re-consent nag flow is part of the feature,
+not an edge case.
+
+Architecture on our stack: bank tokens live server-side only (new tables,
+RLS), a scheduled Edge Function pulls daily and writes to a
+`pending_transactions` inbox table — **never into the `user_data` blob**: the
+blob is client-merged under optimistic concurrency, and a server-side writer
+would race every device. The app drains the inbox through the existing
+import/review pipeline, deduped by Revolut's stable transaction ids. Privacy
+policy + App Privacy labels ("financial info — linked to you") must change
+with it.
+
+---
+
+## 3. Smaller parked items
 
 - **Optimistic render during token refresh.** Cuts the expired-token +
   slow-network cold start from ~1,446ms to ~330ms. Carries auth risk: shows UI
