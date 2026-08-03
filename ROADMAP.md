@@ -125,7 +125,54 @@ client-merged `user_data` blob**, which a server-side writer would race.
 
 ---
 
-## 3. Smaller parked items
+## 3. Spending by day of week
+
+**Status:** designed 2026-08-03, deferred to post-launch. No code.
+
+Answers "what do my weekends actually cost?" - a real question a tracker can
+answer and a bank statement cannot.
+
+**Not on the Dashboard.** That screen already carries the hero, budget bar,
+categories, cumulative chart, one-off vs recurring and the source donut, and it
+is the screen a first-time user has to survive. Day-of-week is also a
+low-frequency insight: once you know weekends cost double, you know it. High-
+frequency real estate for a truth that does not change is the wrong trade.
+
+**Put it in Trend**, under Monthly Breakdown, where it inherits the category
+filter already on that screen for free - which turns the general question into
+the sharp one: *Food & Drinks by day of week*, i.e. do I really eat out at
+weekends or do I just think I do.
+
+### Two traps that decide whether it is true or garbage
+
+1. **Never plot raw totals.** Months hold four or five of each weekday, so a
+   month starting on a Friday hands Fridays a free extra day. It has to be the
+   average *per occurrence* - "a typical Saturday", not "total spent on
+   Saturdays".
+2. **Exclude recurring transactions**, or the chart is an artefact of the
+   calendar. Rent lands on the 1st, and the 1st was a Friday in May 2026, a
+   Monday in June, a Wednesday in July, a **Saturday** in August - so August
+   would show a huge Saturday bar that is 900 EUR of rent and nothing to do
+   with weekends. The one-off/recurring split already exists on the Dashboard,
+   so the data is there: read one-off only, and say so on the card.
+
+### Notes
+
+- Six periods of lookback (same as `lib/usual.ts`) gives ~26 samples per
+  weekday; one month gives four or five, which is noise.
+- At that sample size a plain **mean is fine**, unlike the monthly benchmark
+  where a single travel month moved the median-vs-mean answer by 60%: one
+  400 EUR dinner across 26 Saturdays moves the bar by 15 EUR.
+- Shape: seven slim bars, the weekend pair in a warmer tint so the block reads
+  without a legend, value on tap, ~90px tall. Above it the sentence that is
+  often the whole product: *"A typical Saturday costs 68 EUR, about 2.3x a
+  weekday."*
+- Cheaper 20% version if it is ever wanted sooner: that sentence alone, as one
+  more line in the completed-period summary under the hero. No new screen.
+
+---
+
+## 4. Smaller parked items
 
 - **Optimistic render during token refresh.** Cuts the expired-token +
   slow-network cold start from ~1,446ms to ~330ms. Carries auth risk: shows UI

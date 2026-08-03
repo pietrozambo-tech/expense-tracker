@@ -278,9 +278,11 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
   // State for manual tooltip positioning
   const [tooltipData, setTooltipData] = useState<{
     x: number;
-    y: number;
+    y: number; // where the marker sits: the real line, or the benchmark on a future day
     label: string;
-    value: number;
+    value: number | null; // null past today in a running period
+    usual: number | null;
+    usualY: number | null;
   } | null>(null);
   
   // Track the specific period (month, quarter, or year)
@@ -2318,6 +2320,44 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
               quarter: selectedQuarter,
               steps: cumulativeData.length,
             });
+
+            // ONE projection, shared by the SVG, the pointer handlers and the
+            // tooltip. This used to be three copies of the same arithmetic and
+            // they drifted apart: the handlers still assumed a 200px-tall chart
+            // and an axis scaled to the spending line alone, so once the
+            // benchmark (which is often the taller of the two) set the axis,
+            // the marker landed hundreds of euros above the point it named.
+            const geom = (() => {
+              const svgW = chartWidth || 340;
+              const svgH = usual ? 178 : 200;
+              const marginTop = 5;
+              const marginRight = 10;
+              const marginBottom = 35; // room for x-axis labels
+              const marginLeft = 40; // y-axis label column
+              const plotW = svgW - marginLeft - marginRight;
+              const plotH = svgH - marginTop - marginBottom;
+              const n = cumulativeData.length;
+              const dataMax = Math.max(
+                ...cumulativeData.map((d) => d.cumulative ?? 0),
+                ...(usual ?? []),
+                1,
+              );
+              const { max: axisMax, step: yStep } = niceAxis(dataMax);
+              return {
+                svgW, svgH, marginTop, marginRight, marginBottom, marginLeft,
+                plotW, plotH, n, axisMax, yStep,
+                xOf: (i: number) => marginLeft + (n > 1 ? (i / (n - 1)) * plotW : plotW / 2),
+                yOf: (v: number) => marginTop + plotH * (1 - v / axisMax),
+                // Which point a finger at this x means. The slack either side
+                // keeps the first and last days reachable without pixel-perfect
+                // aim.
+                indexAt: (px: number) => {
+                  const rel = px - marginLeft;
+                  if (rel < -10 || rel > plotW + 10) return null;
+                  return Math.max(0, Math.min(Math.round((rel / plotW) * (n - 1)), n - 1));
+                },
+              };
+            })();
             // Hide the chart entirely when the period has no spending yet
             if (!cumulativeData.some(d => (d.cumulative ?? 0) > 0)) return null;
             
@@ -2339,147 +2379,52 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
               }
             };
             
-            // Manual touch handler for better mobile sensitivity
-            const handleManualTouch = (e: React.TouchEvent<HTMLDivElement>) => {
-              const touch = e.touches[0];
-              if (!touch) return;
-              
-              const rect = e.currentTarget.getBoundingClientRect();
-              const touchX = touch.clientX - rect.left;
-              
-              // Recharts margins: { top: 5, right: 10, left: -8, bottom: 5 }
-              // YAxis width is 40px
-              const yAxisWidth = 40;
-              const chartLeftMargin = 0; // plot starts at yAxisWidth (labels sit to its left)
-              const chartRightMargin = 10;
-              const chartTopMargin = 5;
-              const chartBottomMargin = 5;
-              const leftOffset = yAxisWidth + chartLeftMargin;
-              const plotWidth = rect.width - leftOffset - chartRightMargin;
-              const relativeX = touchX - leftOffset;
-              
-              if (relativeX < 0 || relativeX > plotWidth) {
-                return; // Don't clear tooltip, just ignore out-of-bounds touches
-              }
-              
-              // Find closest data point
-              const dataIndex = Math.round((relativeX / plotWidth) * (cumulativeData.length - 1));
-              const clampedIndex = Math.max(0, Math.min(dataIndex, cumulativeData.length - 1));
-              const dataPoint = cumulativeData[clampedIndex];
-              
-              if (!dataPoint || dataPoint.cumulative === null) return; // future days have no value
-              
-              const dataValue = dataPoint.cumulative;
-              
-              // Calculate positions to match Recharts' rendering exactly
-              const chartHeight = 200;
-              // XAxis takes space for labels: fontSize(11px) + tick(5px) + padding(~14px) = ~30px
-              const xAxisHeight = 30;
-              const plotHeight = chartHeight - chartTopMargin - chartBottomMargin - xAxisHeight;
-              
-              // Use the actual max from the data (same as Recharts 'dataMax')
-              const actualMax = niceAxis(Math.max(...cumulativeData.map(d => d.cumulative ?? 0), 1)).max;
-              
-              // Ensure we don't divide by zero
-              if (actualMax === 0) return;
-              
-              const valueRatio = dataValue / actualMax;
-              const yPosition = chartTopMargin + plotHeight * (1 - valueRatio);
-              const xPosition = leftOffset + (plotWidth / (cumulativeData.length - 1)) * clampedIndex;
-              
-              // Format label
-              let periodLabel = dataPoint.label;
+            // One handler for finger and mouse: the touch version was written
+            // separately and then never bound to anything, so dragging along
+            // the chart did nothing on a phone and only Safari's synthetic
+            // click ever reached it.
+            const showTooltipAt = (clientX: number, el: HTMLElement) => {
+              const rect = el.getBoundingClientRect();
+              const i = geom.indexAt(clientX - rect.left);
+              if (i === null) return;
+              const point = cumulativeData[i];
+              if (!point) return;
+
+              const actual = point.cumulative;
+              const benchmark = usual ? usual[i] : null;
+              // Past today in a running period there is no spending yet, but
+              // there IS a benchmark - and "where would I usually be by the
+              // 20th" is exactly what that line is for.
+              if (actual === null && benchmark === null) return;
+
+              let periodLabel = point.label;
               if (timePeriodType === 'month') {
-                const day = parseInt(dataPoint.label);
+                const day = parseInt(point.label);
                 const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
                 const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-                const monthName = monthNames[selectedMonth];
                 const date = new Date(selectedYear, selectedMonth, day);
-                const dayOfWeek = dayNames[date.getDay()];
-                const getOrdinal = (n: number) => {
-                  const s = ["th", "st", "nd", "rd"];
-                  const v = n % 100;
-                  return n + (s[(v - 20) % 10] || s[v] || s[0]);
+                const getOrdinal = (nn: number) => {
+                  const suf = ['th', 'st', 'nd', 'rd'];
+                  const v = nn % 100;
+                  return nn + (suf[(v - 20) % 10] || suf[v] || suf[0]);
                 };
-                periodLabel = `${dayOfWeek}, ${monthName} ${getOrdinal(day)}`;
+                periodLabel = `${dayNames[date.getDay()]}, ${monthNames[selectedMonth]} ${getOrdinal(day)}`;
               } else if (timePeriodType === 'year') {
                 // The x-axis shows just the month initial when zoomed to a year;
                 // spell it out fully in the tooltip where there's room.
-                periodLabel = new Date(selectedYear, clampedIndex, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+                periodLabel = new Date(selectedYear, i, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
               }
 
               setTooltipData({
-                x: xPosition,
-                y: yPosition,
+                x: geom.xOf(i),
+                y: geom.yOf(actual ?? (benchmark as number)),
                 label: periodLabel,
-                value: dataValue
+                value: actual,
+                usual: benchmark,
+                usualY: benchmark === null ? null : geom.yOf(benchmark),
               });
             };
-            
-            // Manual mouse handler (same logic as touch)
-            const handleManualMouse = (e: React.MouseEvent<HTMLDivElement>) => {
-              const rect = e.currentTarget.getBoundingClientRect();
-              const mouseX = e.clientX - rect.left;
-              
-              const yAxisWidth = 40;
-              const chartLeftMargin = 0; // plot starts at yAxisWidth (labels sit to its left)
-              const chartRightMargin = 10;
-              const chartTopMargin = 5;
-              const chartBottomMargin = 5;
-              const leftOffset = yAxisWidth + chartLeftMargin;
-              const plotWidth = rect.width - leftOffset - chartRightMargin;
-              const relativeX = mouseX - leftOffset;
-              
-              if (relativeX < 0 || relativeX > plotWidth) {
-                return;
-              }
-              
-              const dataIndex = Math.round((relativeX / plotWidth) * (cumulativeData.length - 1));
-              const clampedIndex = Math.max(0, Math.min(dataIndex, cumulativeData.length - 1));
-              const dataPoint = cumulativeData[clampedIndex];
-              
-              if (!dataPoint || dataPoint.cumulative === null) return; // future days have no value
-              
-              const dataValue = dataPoint.cumulative;
-              const chartHeight = 200;
-              const xAxisHeight = 30;
-              const plotHeight = chartHeight - chartTopMargin - chartBottomMargin - xAxisHeight;
-              const actualMax = niceAxis(Math.max(...cumulativeData.map(d => d.cumulative ?? 0), 1)).max;
-              
-              if (actualMax === 0) return;
-              
-              const valueRatio = dataValue / actualMax;
-              const yPosition = chartTopMargin + plotHeight * (1 - valueRatio);
-              const xPosition = leftOffset + (plotWidth / (cumulativeData.length - 1)) * clampedIndex;
-              
-              let periodLabel = dataPoint.label;
-              if (timePeriodType === 'month') {
-                const day = parseInt(dataPoint.label);
-                const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-                const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-                const monthName = monthNames[selectedMonth];
-                const date = new Date(selectedYear, selectedMonth, day);
-                const dayOfWeek = dayNames[date.getDay()];
-                const getOrdinal = (n: number) => {
-                  const s = ["th", "st", "nd", "rd"];
-                  const v = n % 100;
-                  return n + (s[(v - 20) % 10] || s[v] || s[0]);
-                };
-                periodLabel = `${dayOfWeek}, ${monthName} ${getOrdinal(day)}`;
-              } else if (timePeriodType === 'year') {
-                // The x-axis shows just the month initial when zoomed to a year;
-                // spell it out fully in the tooltip where there's room.
-                periodLabel = new Date(selectedYear, clampedIndex, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-              }
 
-              setTooltipData({
-                x: xPosition,
-                y: yPosition,
-                label: periodLabel,
-                value: dataValue
-              });
-            };
-            
             return (
               <div className="px-6 mb-4">
                 <div className="rounded-2xl overflow-hidden" style={{ 
@@ -2492,37 +2437,35 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                     </h3>
                     <div
                       ref={chartBoxRef}
-                      style={{ height: usual ? '178px' : '200px', width: '100%', position: 'relative', minWidth: 0, minHeight: 0 }}
-                      onMouseMove={handleManualMouse}
+                      style={{
+                        height: usual ? '178px' : '200px',
+                        width: '100%',
+                        position: 'relative',
+                        minWidth: 0,
+                        minHeight: 0,
+                        // The scrub gesture is horizontal; let the page keep the
+                        // vertical one so the card never traps the scroll.
+                        touchAction: 'pan-y',
+                      }}
+                      onMouseMove={(e) => showTooltipAt(e.clientX, e.currentTarget)}
                       onMouseLeave={() => setTooltipData(null)}
+                      onTouchStart={(e) => { const t = e.touches[0]; if (t) showTooltipAt(t.clientX, e.currentTarget); }}
+                      onTouchMove={(e) => { const t = e.touches[0]; if (t) showTooltipAt(t.clientX, e.currentTarget); }}
+                      onTouchEnd={() => setTooltipData(null)}
+                      onTouchCancel={() => setTooltipData(null)}
                     >
                       {/* Custom SVG area chart — no recharts to avoid internal key collision */}
                       {(() => {
                         // Render at the container's real width so 1 SVG unit = 1px:
                         // this keeps the endpoint dot round and the axis text undistorted.
-                        const svgW = chartWidth || 340;
-                        const svgH = usual ? 178 : 200;
-                        const marginTop = 5;
-                        const marginRight = 10;
-                        const marginBottom = 35; // room for x-axis labels
-                        const yAxisW = 40;
-                        const marginLeft = yAxisW; // plot starts after the y-axis label column so they don't overlap
-                        const plotW = svgW - marginLeft - marginRight;
-                        const plotH = svgH - marginTop - marginBottom;
-                        const n = cumulativeData.length;
-                        const dataMax = Math.max(
-                          ...cumulativeData.map(d => d.cumulative ?? 0),
-                          ...(usual ?? []),
-                          1,
-                        );
-
-                        // Round the axis up to a nice max with round steps, leaving a little headroom
-                        const { max: axisMax, step: yStep } = niceAxis(dataMax);
+                        // Geometry comes from `geom` so the drawing and the
+                        // pointer maths can never disagree again.
+                        const { svgW, svgH, marginTop, marginRight, marginBottom,
+                                marginLeft, plotW, plotH, n, axisMax, yStep, xOf, yOf } = geom;
+                        const yAxisW = marginLeft;
                         const yTicks: Array<{ value: number }> = [];
                         for (let v = 0; v <= axisMax + 1e-6; v += yStep) yTicks.push({ value: v });
 
-                        const xOf = (i: number) => marginLeft + (n > 1 ? (i / (n - 1)) * plotW : plotW / 2);
-                        const yOf = (v: number) => marginTop + plotH * (1 - v / axisMax);
 
                         // X-axis ticks at a regular interval; replace the last one with the true
                         // final day when they'd otherwise collide, so labels never crowd
@@ -2668,80 +2611,96 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                         );
                       })()}
                       
-                      {/* Manual Tooltip - positioned absolutely based on state */}
+                      {/* Tooltip. Every dimension comes from `geom`, so it
+                          clamps against the chart that is actually on screen
+                          rather than a 390x200 one that no longer exists. */}
                       {tooltipData && (() => {
-                        const chartHeight = 200;
-                        const chartMidpoint = chartHeight / 2;
-                        const tooltipHeight = 50;
-                        const tooltipWidth = 140;
                         const margin = 8;
-                        const dotOffset = 12;
-                        
-                        const yAxisWidth = 40;
-                        const chartLeftMargin = 0; // plot starts at yAxisWidth (labels sit to its left)
-                        const chartRightMargin = 10;
-                        const chartContainerWidth = 390;
-                        const plotWidth = chartContainerWidth - yAxisWidth - chartLeftMargin - chartRightMargin;
-                        
-                        const showAbove = tooltipData.y > chartMidpoint;
-                        
-                        let tooltipY = tooltipData.y;
-                        if (showAbove) {
-                          tooltipY = Math.max(margin + tooltipHeight / 2, tooltipData.y - dotOffset - tooltipHeight / 2);
-                        } else {
-                          tooltipY = Math.min(chartHeight - margin - tooltipHeight / 2, tooltipData.y + dotOffset + tooltipHeight / 2);
-                        }
-                        
-                        const leftEdge = yAxisWidth + Math.abs(chartLeftMargin);
-                        const rightEdge = chartContainerWidth - chartRightMargin;
-                        const availableWidth = rightEdge - leftEdge;
-                        
-                        const relativeX = tooltipData.x - leftEdge;
-                        const nearLeftEdge = relativeX < (tooltipWidth / 2 + margin);
-                        const nearRightEdge = relativeX > (availableWidth - tooltipWidth / 2 - margin);
-                        
+                        const dotOffset = 14;
+                        const rows = (tooltipData.value !== null ? 1 : 0) + (tooltipData.usual !== null ? 1 : 0);
+                        const tooltipHeight = 26 + rows * 18;
+                        const tooltipWidth = 150;
+
+                        // Anchor above or below whichever marker is showing, and
+                        // keep the box inside the plot either way.
+                        const anchorY = tooltipData.y;
+                        const showAbove = anchorY > geom.svgH / 2;
+                        const tooltipY = showAbove
+                          ? Math.max(margin + tooltipHeight / 2, anchorY - dotOffset - tooltipHeight / 2)
+                          : Math.min(geom.svgH - geom.marginBottom - margin - tooltipHeight / 2, anchorY + dotOffset + tooltipHeight / 2);
+
+                        const leftEdge = geom.marginLeft;
+                        const rightEdge = geom.svgW - geom.marginRight;
                         let transformX = '-50%';
-                        if (nearLeftEdge) {
-                          transformX = '0%';
-                        } else if (nearRightEdge) {
-                          transformX = '-100%';
-                        }
-                        
+                        if (tooltipData.x - tooltipWidth / 2 < leftEdge) transformX = '0%';
+                        else if (tooltipData.x + tooltipWidth / 2 > rightEdge) transformX = '-100%';
+
+                        const Row = ({ color, label, amount }: { color: string; label: string; amount: number }) => (
+                          <div className="flex items-center gap-1.5" style={{ whiteSpace: 'nowrap' }}>
+                            <span style={{ width: 6, height: 6, borderRadius: 999, backgroundColor: color, flexShrink: 0 }} />
+                            <span style={{ color: '#8E8E93', fontSize: 11 }}>{label}</span>
+                            <span style={{ color: '#1C1C1E', fontSize: 12, fontWeight: 600, marginLeft: 'auto' }}>
+                              {formatAmountListView(amount, currency, 0)}
+                            </span>
+                          </div>
+                        );
+
                         return (
                           <>
                             {/* Vertical indicator line */}
-                            <div 
+                            <div
                               style={{
                                 position: 'absolute',
                                 left: `${tooltipData.x}px`,
-                                top: '5px',
-                                bottom: '35px',
+                                top: `${geom.marginTop}px`,
+                                height: `${geom.plotH}px`,
                                 width: '1px',
                                 backgroundColor: '#E5E5EA',
                                 pointerEvents: 'none',
-                                zIndex: 8
+                                zIndex: 8,
                               }}
                             />
-                            
-                            {/* Dot on the data point */}
-                            <div 
-                              style={{
-                                position: 'absolute',
-                                left: `${tooltipData.x}px`,
-                                top: `${tooltipData.y}px`,
-                                transform: 'translate(-50%, -50%)',
-                                width: '8px',
-                                height: '8px',
-                                borderRadius: '50%',
-                                backgroundColor: '#FFFFFF',
-                                border: '2px solid #6BA3F5',
-                                pointerEvents: 'none',
-                                zIndex: 9
-                              }}
-                            />
-                            
+
+                            {/* A marker on each line that has a value here, so
+                                the two numbers in the box are each attached to
+                                something visible. */}
+                            {tooltipData.usualY !== null && (
+                              <div
+                                style={{
+                                  position: 'absolute',
+                                  left: `${tooltipData.x}px`,
+                                  top: `${tooltipData.usualY}px`,
+                                  transform: 'translate(-50%, -50%)',
+                                  width: '7px',
+                                  height: '7px',
+                                  borderRadius: '50%',
+                                  backgroundColor: '#FFFFFF',
+                                  border: '2px solid #C7C7CC',
+                                  pointerEvents: 'none',
+                                  zIndex: 9,
+                                }}
+                              />
+                            )}
+                            {tooltipData.value !== null && (
+                              <div
+                                style={{
+                                  position: 'absolute',
+                                  left: `${tooltipData.x}px`,
+                                  top: `${geom.yOf(tooltipData.value)}px`,
+                                  transform: 'translate(-50%, -50%)',
+                                  width: '8px',
+                                  height: '8px',
+                                  borderRadius: '50%',
+                                  backgroundColor: '#FFFFFF',
+                                  border: '2px solid #3B82F6',
+                                  pointerEvents: 'none',
+                                  zIndex: 10,
+                                }}
+                              />
+                            )}
+
                             {/* Tooltip box */}
-                            <div 
+                            <div
                               style={{
                                 position: 'absolute',
                                 left: `${tooltipData.x}px`,
@@ -2753,17 +2712,19 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                                 padding: '6px 8px',
                                 boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
                                 pointerEvents: 'none',
-                                zIndex: 10,
-                                minWidth: '130px',
-                                whiteSpace: 'nowrap'
+                                zIndex: 11,
+                                width: `${tooltipWidth}px`,
                               }}
                             >
-                              <p style={{ color: '#8E8E93', fontSize: '11px', marginTop: 0, marginLeft: 0, marginRight: 0, marginBottom: 0, whiteSpace: 'nowrap' }}>
+                              <p style={{ color: '#8E8E93', fontSize: '11px', margin: 0, marginBottom: 3, whiteSpace: 'nowrap' }}>
                                 {tooltipData.label}
                               </p>
-                              <p style={{ color: '#1C1C1E', fontSize: '13px', fontWeight: '600', marginTop: 0, marginLeft: 0, marginRight: 0, marginBottom: 0, whiteSpace: 'nowrap' }}>
-                                {formatAmountListView(tooltipData.value, currency, 0)}
-                              </p>
+                              {tooltipData.value !== null && (
+                                <Row color="#3B82F6" label={periodWord} amount={tooltipData.value} />
+                              )}
+                              {tooltipData.usual !== null && (
+                                <Row color="#C7C7CC" label="Your usual" amount={tooltipData.usual} />
+                              )}
                             </div>
                           </>
                         );
