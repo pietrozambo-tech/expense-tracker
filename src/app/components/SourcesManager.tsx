@@ -44,7 +44,10 @@ export function SourcesManager({
   };
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden" style={{ backgroundColor: '#F5F5F7' }}>
+    // Same bound as the other Settings sub-screens: the tab wrapper already
+    // contributes the top inset and the nav-clearing bottom padding, so a
+    // full-viewport child overflows by exactly that (see SUBPAGE_HEIGHT).
+    <div className="flex flex-col overflow-hidden" style={{ height: 'calc(100dvh - 136px)', backgroundColor: '#F5F5F7' }}>
       {/* Header */}
       <div className="flex-shrink-0" style={{ backgroundColor: '#F5F5F7' }}>
         <div className="px-6 pb-4 pt-0">
