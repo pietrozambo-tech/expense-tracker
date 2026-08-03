@@ -2307,6 +2307,10 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
             // The benchmark: the median of earlier periods, aligned step for
             // step. Spans the WHOLE period while the solid line stops at
             // today, so a running month shows where "usual" is heading.
+            const periodWord =
+              timePeriodType === 'month' ? 'This month'
+              : timePeriodType === 'quarter' ? 'This quarter'
+              : 'This year';
             const usual = usualCurve(expenses, currency, {
               type: timePeriodType,
               year: selectedYear,
@@ -2483,24 +2487,12 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                   boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)'
                 }}>
                   <div className="px-6 py-4">
-                    <div className="flex items-baseline justify-between gap-2 mb-3">
-                      <h3 className="text-sm" style={{ color: '#1C1C1E', fontWeight: '600' }}>
-                        Cumulative Spending
-                      </h3>
-                      {/* Names the dotted line where it is drawn, rather than
-                          leaving a second line to be guessed at. */}
-                      {usual && (
-                        <span className="flex items-center gap-1.5 flex-shrink-0">
-                          <svg width="16" height="2" aria-hidden="true">
-                            <line x1="0" y1="1" x2="16" y2="1" stroke="#C7C7CC" strokeWidth="1.5" strokeDasharray="4 4" />
-                          </svg>
-                          <span style={{ color: '#8E8E93', fontSize: 11 }}>Your usual</span>
-                        </span>
-                      )}
-                    </div>
+                    <h3 className="text-sm mb-3" style={{ color: '#1C1C1E', fontWeight: '600' }}>
+                      Cumulative Spending
+                    </h3>
                     <div
                       ref={chartBoxRef}
-                      style={{ height: '200px', width: '100%', position: 'relative', minWidth: 0, minHeight: 0 }}
+                      style={{ height: usual ? '178px' : '200px', width: '100%', position: 'relative', minWidth: 0, minHeight: 0 }}
                       onMouseMove={handleManualMouse}
                       onMouseLeave={() => setTooltipData(null)}
                     >
@@ -2509,7 +2501,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                         // Render at the container's real width so 1 SVG unit = 1px:
                         // this keeps the endpoint dot round and the axis text undistorted.
                         const svgW = chartWidth || 340;
-                        const svgH = 200;
+                        const svgH = usual ? 178 : 200;
                         const marginTop = 5;
                         const marginRight = 10;
                         const marginBottom = 35; // room for x-axis labels
@@ -2777,6 +2769,23 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                         );
                       })()}
                     </div>
+
+                    {/* Legend under the plot, in the height the chart gave up:
+                        naming both lines where the eye lands after reading
+                        them, without growing the card. Only when there are two
+                        lines to tell apart. */}
+                    {usual && (
+                      <div className="flex items-center justify-center gap-4 mt-1.5">
+                        <span className="flex items-center gap-1.5">
+                          <span style={{ width: 7, height: 7, borderRadius: 999, backgroundColor: '#3B82F6' }} />
+                          <span style={{ color: '#8E8E93', fontSize: 11 }}>{periodWord}</span>
+                        </span>
+                        <span className="flex items-center gap-1.5">
+                          <span style={{ width: 7, height: 7, borderRadius: 999, backgroundColor: '#C7C7CC' }} />
+                          <span style={{ color: '#8E8E93', fontSize: 11 }}>Your usual</span>
+                        </span>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
