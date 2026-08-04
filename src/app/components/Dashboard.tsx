@@ -4,7 +4,7 @@ import { TrendCategoryBreakdown } from './TrendCategoryBreakdown';
 import React from 'react';
 import { formatAmount, formatCompactAmount, formatSummaryAmount, formatAmountListView, formatAbbreviatedAmount, CURRENCIES, homeAmount } from '../utils/currency';
 import { getCategoryIcon } from './categoryIcons';
-import { usualCurve } from '../lib/usual';
+import { usualCurve, periodCurve } from '../lib/usual';
 import { BudgetBar, BudgetNudge } from './BudgetBar';
 import { FitText } from './FitText';
 import { parseLocalDate } from '../lib/dates';
@@ -77,6 +77,7 @@ export interface DashboardViewState {
   categorySortBy: 'alphabetical' | 'amount';
   recurrenceLayer: 'overview' | 'detail';
   selectedRecurrenceSlice: string | null;
+  cumulativeBenchmark: 'usual' | 'lastYear';
 }
 
 // Trend keeps almost no view state - but its Expense/Income/Savings toggle
@@ -257,6 +258,9 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
   const [categorySortBy, setCategorySortBy] = useState<CategorySortType>(savedView?.categorySortBy ?? 'alphabetical');
   const [drilldownSortBy, setDrilldownSortBy] = useState<'time' | 'amount'>(savedView?.drilldownSortBy ?? 'time');
   const [comparisonBaseline, setComparisonBaseline] = useState<ComparisonBaseline>(savedView?.comparisonBaseline ?? 'previous');
+  // What the cumulative chart's dotted line is: the median of recent periods
+  // ("Your usual") or the same period one year back. Chosen from the legend.
+  const [cumulativeBenchmark, setCumulativeBenchmark] = useState<'usual' | 'lastYear'>(savedView?.cumulativeBenchmark ?? 'usual');
   const [transactionType, setTransactionType] = useState<TransactionType>(initialPeriod?.type || savedView?.transactionType || savedTrend?.transactionType || 'expense');
   const [isTrendCategoryModalOpen, setIsTrendCategoryModalOpen] = useState(false);
   const [isTrendSubcategoryModalOpen, setIsTrendSubcategoryModalOpen] = useState(false);
@@ -307,11 +311,12 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
       drilldownContext,
       drilldownSortBy,
       comparisonBaseline,
+      cumulativeBenchmark,
       categorySortBy,
       recurrenceLayer,
       selectedRecurrenceSlice,
     };
-  }, [view, viewStateRef, timePeriodType, selectedMonth, selectedQuarter, selectedYear, transactionType, expandedCategory, drilldownContext, drilldownSortBy, comparisonBaseline, categorySortBy, recurrenceLayer, selectedRecurrenceSlice]);
+  }, [view, viewStateRef, timePeriodType, selectedMonth, selectedQuarter, selectedYear, transactionType, expandedCategory, drilldownContext, drilldownSortBy, comparisonBaseline, categorySortBy, recurrenceLayer, selectedRecurrenceSlice, cumulativeBenchmark]);
 
 
   // Prevent background scroll when drilldown is open
@@ -2321,6 +2326,30 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
               steps: cumulativeData.length,
             });
 
+            // The other benchmark on offer: this same period, one year back.
+            const lastYear = periodCurve(expenses, currency, {
+              type: timePeriodType,
+              year: selectedYear - 1,
+              month: selectedMonth,
+              quarter: selectedQuarter,
+              steps: cumulativeData.length,
+            });
+            // The user's choice, downgraded to whatever actually exists - a
+            // remembered "last year" must not blank the line on a month whose
+            // previous year has no data.
+            const benchmarkMode: 'usual' | 'lastYear' =
+              cumulativeBenchmark === 'lastYear'
+                ? (lastYear ? 'lastYear' : 'usual')
+                : (usual ? 'usual' : lastYear ? 'lastYear' : 'usual');
+            const benchCurve = benchmarkMode === 'lastYear' ? lastYear : usual;
+            const M3 = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            const lastYearLabel =
+              timePeriodType === 'month' ? `${M3[selectedMonth]} ${selectedYear - 1}`
+              : timePeriodType === 'quarter' ? `Q${selectedQuarter + 1} ${selectedYear - 1}`
+              : `${selectedYear - 1}`;
+            const benchmarkLabel = benchmarkMode === 'lastYear' ? lastYearLabel : 'Your usual';
+            const benchmarkChoices = !!usual && !!lastYear;
+
             // ONE projection, shared by the SVG, the pointer handlers and the
             // tooltip. This used to be three copies of the same arithmetic and
             // they drifted apart: the handlers still assumed a 200px-tall chart
@@ -2329,7 +2358,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
             // the marker landed hundreds of euros above the point it named.
             const geom = (() => {
               const svgW = chartWidth || 340;
-              const svgH = usual ? 178 : 200;
+              const svgH = benchCurve ? 178 : 200;
               const marginTop = 5;
               const marginRight = 10;
               const marginBottom = 35; // room for x-axis labels
@@ -2339,7 +2368,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
               const n = cumulativeData.length;
               const dataMax = Math.max(
                 ...cumulativeData.map((d) => d.cumulative ?? 0),
-                ...(usual ?? []),
+                ...(benchCurve ?? []),
                 1,
               );
               const { max: axisMax, step: yStep } = niceAxis(dataMax);
@@ -2391,7 +2420,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
               if (!point) return;
 
               const actual = point.cumulative;
-              const benchmark = usual ? usual[i] : null;
+              const benchmark = benchCurve ? benchCurve[i] : null;
               // Past today in a running period there is no spending yet, but
               // there IS a benchmark - and "where would I usually be by the
               // 20th" is exactly what that line is for.
@@ -2438,7 +2467,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                     <div
                       ref={chartBoxRef}
                       style={{
-                        height: usual ? '178px' : '200px',
+                        height: benchCurve ? '178px' : '200px',
                         width: '100%',
                         position: 'relative',
                         minWidth: 0,
@@ -2497,8 +2526,8 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                         // Benchmark path: same smoothing as the real line so the
                         // two read as the same kind of object, one just fainter.
                         const usualD = (() => {
-                          if (!usual) return '';
-                          const pts = usual.map((v, i) => ({ x: xOf(i), y: yOf(v) }));
+                          if (!benchCurve) return '';
+                          const pts = benchCurve.map((v, i) => ({ x: xOf(i), y: yOf(v) }));
                           return pts.reduce((acc, p, i) => {
                             if (i === 0) return `M ${p.x},${p.y}`;
                             const prev = pts[i - 1];
@@ -2723,7 +2752,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                                 <Row color="#3B82F6" label={periodWord} amount={tooltipData.value} />
                               )}
                               {tooltipData.usual !== null && (
-                                <Row color="#C7C7CC" label="Your usual" amount={tooltipData.usual} />
+                                <Row color="#C7C7CC" label={benchmarkLabel} amount={tooltipData.usual} />
                               )}
                             </div>
                           </>
@@ -2735,15 +2764,39 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                         naming both lines where the eye lands after reading
                         them, without growing the card. Only when there are two
                         lines to tell apart. */}
-                    {usual && (
+                    {benchCurve && (
                       <div className="flex items-center justify-center gap-4 mt-1.5">
                         <span className="flex items-center gap-1.5">
                           <span style={{ width: 7, height: 7, borderRadius: 999, backgroundColor: '#3B82F6' }} />
                           <span style={{ color: '#8E8E93', fontSize: 11 }}>{periodWord}</span>
                         </span>
-                        <span className="flex items-center gap-1.5">
+                        <span className="relative flex items-center gap-1.5">
                           <span style={{ width: 7, height: 7, borderRadius: 999, backgroundColor: '#C7C7CC' }} />
-                          <span style={{ color: '#8E8E93', fontSize: 11 }}>Your usual</span>
+                          <span style={{ color: '#8E8E93', fontSize: 11 }}>{benchmarkLabel}</span>
+                          {/* The dotted line can be the median or the same
+                              period last year; when both exist the label is a
+                              picker, in the same quiet grammar as "vs. Jul". */}
+                          {benchmarkChoices && (
+                            <>
+                              <ChevronDown className="w-2.5 h-2.5" style={{ color: '#C7C7CC' }} strokeWidth={2.5} />
+                              <select
+                                aria-label="Benchmark line"
+                                value={benchmarkMode}
+                                onChange={(e) => setCumulativeBenchmark(e.target.value as 'usual' | 'lastYear')}
+                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                style={{
+                                  WebkitTapHighlightColor: 'rgba(255,255,255,0)',
+                                  WebkitAppearance: 'none',
+                                  appearance: 'none',
+                                  touchAction: 'manipulation',
+                                  transform: 'translateZ(0)',
+                                }}
+                              >
+                                <option value="usual">Your usual</option>
+                                <option value="lastYear">{lastYearLabel}</option>
+                              </select>
+                            </>
+                          )}
                         </span>
                       </div>
                     )}

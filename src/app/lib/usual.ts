@@ -150,3 +150,24 @@ export function usualCurve(
 
   return Array.from({ length: steps }, (_, i) => median(curves.map((c) => c[i])) ?? 0);
 }
+
+/**
+ * The cumulative curve of ONE specific period - "this same month, last year"
+ * as an alternative benchmark to the median. Null when that period holds no
+ * spending: a flat zero line is not a benchmark, it is an absence of one.
+ */
+export function periodCurve(
+  expenses: UsualRow[],
+  currency: string,
+  opts: { type: PeriodType; year: number; month: number; quarter: number; steps: number },
+): number[] | null {
+  const { type, year, month, quarter, steps } = opts;
+  if (steps <= 0) return null;
+  const ends = stepEndsFor(type, year, month, quarter, steps);
+  const start =
+    type === 'month' ? new Date(year, month, 1)
+    : type === 'quarter' ? new Date(year, quarter * 3, 1)
+    : new Date(year, 0, 1);
+  const curve = cumulativeForPeriod(expenses, currency, start, ends);
+  return curve[curve.length - 1] > 0 ? curve : null;
+}
