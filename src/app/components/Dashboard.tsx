@@ -3129,9 +3129,27 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
         
         // Filter trendData by selected year
         const trendData = trendDataRaw.filter(item => item.year === trendYearFilter);
-        
-        // Calculate Y-axis range - handle negative values for savings
-        const allAmounts = trendData.map(t => t.amount);
+
+        // The year before the selected one, as a benchmark line - mirroring
+        // the cumulative chart's "usual". Two points minimum: one month of
+        // last year is not a line.
+        const prevYearTrend = trendDataRaw.filter(item => item.year === trendYearFilter - 1);
+        const showPrevYear = prevYearTrend.length > 1 && trendData.length > 0;
+        // With the overlay on, months sit at fixed calendar slots so January
+        // is under January: a running year (8 points) and its full previous
+        // year (12) can only be compared on a shared axis. Without it, the
+        // old index spread stays.
+        const MONTH_SLOTS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const slotX = (m: string) => (MONTH_SLOTS.indexOf(m) / 11) * 320;
+        const chartX = (item: { month: string }, index: number) =>
+          showPrevYear ? slotX(item.month) : trendData.length > 1 ? (index / (trendData.length - 1)) * 320 : 160;
+
+        // Calculate Y-axis range - handle negative values for savings.
+        // The benchmark's own values count: it must fit inside the plot.
+        const allAmounts = [
+          ...trendData.map(t => t.amount),
+          ...(showPrevYear ? prevYearTrend.map(t => t.amount) : []),
+        ];
         const actualMin = allAmounts.length > 0 ? Math.min(...allAmounts) : 0;
         const actualMax = allAmounts.length > 0 ? Math.max(...allAmounts) : 0;
         
@@ -3555,17 +3573,43 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                             );
                           })()}
                           
+                          {/* Last year, month by month - same dash family as
+                              the cumulative chart's benchmark, drawn first so
+                              this year always sits on top of it. */}
+                          {showPrevYear && (
+                            <path
+                              d={(() => {
+                                const pts = prevYearTrend.map(item => ({
+                                  x: slotX(item.month),
+                                  y: yRange > 0 ? 88 - ((item.amount - yMin) / yRange) * 88 : 44,
+                                }));
+                                return pts.reduce((acc, pt, i, a) => {
+                                  if (i === 0) return `M ${pt.x},${pt.y}`;
+                                  const prev = a[i - 1];
+                                  const cp1x = prev.x + (pt.x - prev.x) / 3;
+                                  const cp2x = prev.x + (pt.x - prev.x) * 2 / 3;
+                                  return `${acc} C ${cp1x},${prev.y} ${cp2x},${pt.y} ${pt.x},${pt.y}`;
+                                }, '');
+                              })()}
+                              fill="none"
+                              stroke="#C7C7CC"
+                              strokeWidth="1.5"
+                              strokeDasharray="4 4"
+                              strokeLinecap="round"
+                            />
+                          )}
+
                           {/* Trend Area Fill */}
                           {trendData.length > 1 && (
                             <path
                               d={`
-                                M 0,88 
+                                M ${chartX(trendData[0], 0)},88 
                                 ${trendData.map((item, index) => {
-                                  const x = (index / (trendData.length - 1)) * 320;
+                                  const x = chartX(item, index);
                                   const y = yRange > 0 ? 88 - ((item.amount - yMin) / yRange) * 88 : 44;
                                   return `L ${x},${y}`;
                                 }).join(' ')}
-                                L 320,88 Z
+                                L ${chartX(trendData[trendData.length - 1], trendData.length - 1)},88 Z
                               `}
                               fill="url(#trendGradient)"
                             />
@@ -3577,7 +3621,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                               d={(() => {
                                 // Simple path generator
                                 const points = trendData.map((item, index) => ({
-                                  x: (index / (trendData.length - 1)) * 320,
+                                  x: chartX(item, index),
                                   y: yRange > 0 ? 88 - ((item.amount - yMin) / yRange) * 88 : 44
                                 }));
                                 
@@ -3601,7 +3645,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                           
                           {/* Data points - minimal visibility, invisible until interaction (handled by CSS hover) */}
                           {trendData.map((item, index) => {
-                            const x = trendData.length > 1 ? (index / (trendData.length - 1)) * 320 : 160;
+                            const x = chartX(item, index);
                             const y = yRange > 0 ? 88 - ((item.amount - yMin) / yRange) * 88 : 44;
                             
                             return (
@@ -3636,8 +3680,10 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                   
                   {/* Month labels */}
                   <div className="relative ml-14 mr-2 mt-4 h-3">
-                    {trendData.map((item, index) => {
-                      const leftPosition = trendData.length > 1 ? (index / (trendData.length - 1)) * 100 : 50;
+                    {(showPrevYear ? MONTH_SLOTS.map(m => ({ month: m })) : trendData).map((item, index, arr) => {
+                      const leftPosition = showPrevYear
+                        ? (MONTH_SLOTS.indexOf(item.month) / 11) * 100
+                        : arr.length > 1 ? (index / (arr.length - 1)) * 100 : 50;
                       return (
                         <div 
                           key={index} 
@@ -3649,6 +3695,21 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                       );
                     })}
                   </div>
+
+                  {/* Legend, same shape as the cumulative chart's: two lines
+                      on one plot need naming, and years name themselves best */}
+                  {showPrevYear && (
+                    <div className="flex items-center justify-center gap-4 mt-3">
+                      <span className="flex items-center gap-1.5">
+                        <span style={{ width: 7, height: 7, borderRadius: 999, backgroundColor: '#3B82F6' }} />
+                        <span style={{ color: '#8E8E93', fontSize: 11 }}>{trendYearFilter}</span>
+                      </span>
+                      <span className="flex items-center gap-1.5">
+                        <span style={{ width: 7, height: 7, borderRadius: 999, backgroundColor: '#C7C7CC' }} />
+                        <span style={{ color: '#8E8E93', fontSize: 11 }}>{trendYearFilter - 1}</span>
+                      </span>
+                    </div>
+                  )}
                 </>
               )}
             </div>

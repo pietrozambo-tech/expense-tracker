@@ -126,7 +126,11 @@ export function usualCurve(
 ): number[] | null {
   const { type, year, month, quarter, steps } = opts;
   const lookback = opts.lookback ?? (type === 'year' ? 3 : 6);
-  const minPeriods = opts.minPeriods ?? 2;
+  // Months and quarters need at least two earlier periods - one month is not
+  // a benchmark, it is that month. A single earlier YEAR is different: "last
+  // year" is a benchmark people actually reason with, and demanding two would
+  // switch the feature off for almost everyone (two full years of tracking).
+  const minPeriods = opts.minPeriods ?? (type === 'year' ? 1 : 2);
   if (steps <= 0) return null;
 
   const curves: number[][] = [];

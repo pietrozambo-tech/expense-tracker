@@ -127,8 +127,22 @@ heading('5. Only expenses count');
   expect('salary does not lift the spending benchmark', at(c, 10), 100);
 }
 
-// 6. The plain statistic, on its own.
-heading('6. median()');
+// 6. Year view: one earlier year IS a benchmark ("last year").
+heading("6. A single previous year counts; a single previous month doesn't");
+{
+  const rows = [
+    tx('2025-03-10', 900), tx('2025-08-10', 300),
+    tx('2026-02-10', 500),
+  ];
+  const y = usualCurve(rows, 'EUR', { type: 'year', year: 2026, month: 0, quarter: 0, steps: 12 });
+  expect('the year benchmark exists with one prior year', y === null ? 'null' : 'a curve', 'a curve');
+  expect('and is that year, cumulatively', y ? `${Math.round(y[2])}/${Math.round(y[11])}` : 'null', '900/1200');
+  expect('a single prior month still gives nothing',
+    curveFor([tx('2026-07-01', 100), tx('2026-06-01', 100)].slice(0, 1), 31), null);
+}
+
+// 7. The plain statistic, on its own.
+heading('7. median()');
 {
   expect('odd count', median([3, 1, 2]), 2);
   expect('even count averages the middle two', median([1, 2, 3, 4]), 2.5);

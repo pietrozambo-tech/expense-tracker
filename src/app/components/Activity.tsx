@@ -42,8 +42,11 @@ interface ActivityProps {
   sources: Source[];
   // One-shot: start with this type filter selected (e.g. 'Imported' from the
   // post-import "Review in Activity" button). Consumed on mount so the next
-  // ordinary visit starts clean.
-  presetTypeFilter?: string;
+  // ordinary visit starts clean. Carries the YEAR of the imported batch and
+  // the catch-all category too: an import of last year's data with the filter
+  // still on the current month showed an empty list and looked like the
+  // import had vanished.
+  preset?: { typeFilter: string; year?: string; categoryFilter?: string };
   onPresetConsumed?: () => void;
   // Survives an edit round-trip; the parent nulls it once the user actually
   // leaves the tab, so an ordinary visit starts clean.
@@ -59,7 +62,7 @@ export function Activity({
   incomeCategories,
   currency,
   sources,
-  presetTypeFilter,
+  preset,
   onPresetConsumed,
   viewStateRef
 }: ActivityProps) {
@@ -69,15 +72,17 @@ export function Activity({
 
   // Restore what the user had set up, unless a preset ("Imported", from the
   // post-import nudge) was handed in - that must win and start clean.
-  const saved = presetTypeFilter ? null : viewStateRef?.current ?? null;
+  const saved = preset ? null : viewStateRef?.current ?? null;
 
   const [activityType, setActivityType] = useState<ActivityTypeFilter>(saved?.activityType ?? 'all');
-  const [selectedYear, setSelectedYear] = useState(saved?.selectedYear ?? currentYear);
-  const [selectedMonth, setSelectedMonth] = useState(saved?.selectedMonth ?? currentMonth);
-  const [categoryFilter, setCategoryFilter] = useState(saved?.categoryFilter ?? 'All');
+  // The preset pins the year the batch actually landed in, over the whole
+  // year - the imported rows must be on screen when the tab opens.
+  const [selectedYear, setSelectedYear] = useState(preset?.year ?? saved?.selectedYear ?? currentYear);
+  const [selectedMonth, setSelectedMonth] = useState(preset ? 'Full Year' : saved?.selectedMonth ?? currentMonth);
+  const [categoryFilter, setCategoryFilter] = useState(preset?.categoryFilter ?? saved?.categoryFilter ?? 'All');
   const [subcategoryFilter, setSubcategoryFilter] = useState(saved?.subcategoryFilter ?? 'All');
   const [searchQuery, setSearchQuery] = useState(saved?.searchQuery ?? '');
-  const [typeFilter, setTypeFilter] = useState(presetTypeFilter ?? saved?.typeFilter ?? 'All'); // All / One-off / Recurring / Imported
+  const [typeFilter, setTypeFilter] = useState(preset?.typeFilter ?? saved?.typeFilter ?? 'All'); // All / One-off / Recurring / Imported
   const [sourceFilter, setSourceFilter] = useState(saved?.sourceFilter ?? 'All'); // 'All' or a source id
 
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
@@ -88,7 +93,7 @@ export function Activity({
   // The preset is applied via the useState initialiser above; report it
   // consumed so the parent clears it and the next visit starts unfiltered.
   useEffect(() => {
-    if (presetTypeFilter) onPresetConsumed?.();
+    if (preset) onPresetConsumed?.();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

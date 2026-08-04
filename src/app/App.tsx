@@ -119,7 +119,7 @@ import {
 } from './lib/cloud';
 import { track } from './lib/analytics';
 import { categories as initialCategories, incomeCategories as initialIncomeCategories } from './components/categories';
-import { reassignToOthers } from './lib/categoryOps';
+import { reassignToOthers, CATCHALL_RE } from './lib/categoryOps';
 
 export default function App() {
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(() => loadSettings().onboarded);
@@ -147,7 +147,11 @@ export default function App() {
   const [pendingImport, setPendingImport] = useState<ImportResult | null>(null);
   // One-shot filter preset for the Activity tab - the "Review in Activity"
   // button lands the user on the imported rows, pre-filtered.
-  const [activityPresetFilter, setActivityPresetFilter] = useState<string | null>(null);
+  const [activityPreset, setActivityPreset] = useState<{
+    typeFilter: string;
+    year?: string;
+    categoryFilter?: string;
+  } | null>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [recurrence, setRecurrence] = useState('Never repeat');
   const [date, setDate] = useState(() => {
@@ -1567,7 +1571,26 @@ export default function App() {
           onClose={() => setImportSummary(null)}
           onReview={() => {
             setImportSummary(null);
-            setActivityPresetFilter('Imported');
+            // Land on the rows that need eyes, not on today's empty month:
+            // the freshest import batch decides the year, and the rows the
+            // dialog counted are the ones sitting in the catch-all bucket.
+            const stamps = expenses.map((e) => e.importedAt).filter(Boolean) as string[];
+            const latest = stamps.length ? stamps.reduce((a, b) => (a > b ? a : b)) : null;
+            const batch = latest ? expenses.filter((e) => e.importedAt === latest) : [];
+            const yearCount = new Map<string, number>();
+            for (const t of batch) {
+              const y = t.date.slice(0, 4);
+              yearCount.set(y, (yearCount.get(y) ?? 0) + 1);
+            }
+            const year = [...yearCount.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
+            const catchAll = categories.find((c) => CATCHALL_RE.test(c.name.trim()))?.name;
+            setActivityPreset({
+              typeFilter: 'Imported',
+              year,
+              // Only narrow to the catch-all when that is what the dialog was
+              // flagging - a summary about skipped rows should show the batch.
+              categoryFilter: importSummary.uncategorized > 0 ? catchAll : undefined,
+            });
             setCurrentTab('activity');
           }}
         />
@@ -1599,8 +1622,8 @@ export default function App() {
         {/* Content - Different structure for activity tab vs others */}
         {currentTab === 'activity' ? (
           <Activity
-            presetTypeFilter={activityPresetFilter ?? undefined}
-            onPresetConsumed={() => setActivityPresetFilter(null)}
+            preset={activityPreset ?? undefined}
+            onPresetConsumed={() => setActivityPreset(null)}
             viewStateRef={activityViewRef}
             transactions={expenses}
             onEditTransaction={handleEditExpense}
