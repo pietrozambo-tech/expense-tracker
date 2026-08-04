@@ -28,6 +28,9 @@ import { isBackupFile } from '../lib/backup';
 interface SettingsProps {
   categories: any[];
   incomeCategories: any[];
+  // First day of the week for day-of-week views: 1 Monday, 0 Sunday, 6 Saturday
+  weekStartsOn?: number;
+  onSetWeekStartsOn?: (day: number) => void;
   onAddCategory: (category: any) => void;
   onEditCategory: (id: string, updatedCategory: any) => void;
   onDeleteCategory: (id: string) => void;
@@ -72,9 +75,11 @@ interface SettingsProps {
   onSignInToSync?: () => void;
 }
 
-export function Settings({ 
+export function Settings({
   categories,
   incomeCategories,
+  weekStartsOn = 1,
+  onSetWeekStartsOn,
   onAddCategory,
   onEditCategory,
   onDeleteCategory,
@@ -449,7 +454,7 @@ export function Settings({
         <div className="flex-1 overflow-y-auto pb-24">
           <div className="px-6 pb-6">
             <p style={{ color: '#8E8E93', fontSize: '13px' }}>
-              Your name and your monthly spending limit
+              Your name, your monthly spending limit and how your week starts
             </p>
           </div>
 
@@ -501,6 +506,36 @@ export function Settings({
             </div>
             <p style={{ color: '#B0B0B5', fontSize: 12, marginTop: 6, lineHeight: 1.45 }}>
               Shows a progress bar on your Dashboard for the current month. Leave empty for no limit.
+            </p>
+
+            <p style={{ color: '#8E8E93', fontSize: 13, fontWeight: 500, margin: '24px 0 8px' }}>
+              WEEK STARTS ON
+            </p>
+            {/* Applies immediately, unlike name and budget: it is a preference,
+                not a value being typed, and a wrong tap is one tap to undo. */}
+            <div
+              className="flex p-1 rounded-xl"
+              style={{ backgroundColor: '#FFFFFF', border: '1px solid #E5E5EA', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}
+            >
+              {[{ day: 1, label: 'Monday' }, { day: 6, label: 'Saturday' }, { day: 0, label: 'Sunday' }].map(({ day, label }) => (
+                <button
+                  key={day}
+                  onClick={() => onSetWeekStartsOn?.(day)}
+                  className="flex-1 py-2 rounded-lg text-sm"
+                  style={{
+                    backgroundColor: weekStartsOn === day ? '#1C1C1E' : 'transparent',
+                    color: weekStartsOn === day ? '#FFFFFF' : '#8E8E93',
+                    fontWeight: weekStartsOn === day ? 600 : 500,
+                    transition: 'background-color 0.15s ease',
+                    WebkitTapHighlightColor: 'rgba(255, 255, 255, 0)',
+                  }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <p style={{ color: '#B0B0B5', fontSize: 12, marginTop: 6, lineHeight: 1.45 }}>
+              Sets the day order in the Trend tab's day-of-week view.
             </p>
 
             <button

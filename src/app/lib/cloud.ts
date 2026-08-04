@@ -20,6 +20,7 @@ export interface SyncPayload {
     hasSeenIntro: boolean;
     defaultSourceExpense?: string;
     defaultSourceIncome?: string;
+    weekStartsOn?: number;
   };
 }
 
@@ -330,6 +331,7 @@ export function mergePayloads(
       hasSeenIntro: pick('hasSeenIntro'),
       defaultSourceExpense: pick('defaultSourceExpense'),
       defaultSourceIncome: pick('defaultSourceIncome'),
+      weekStartsOn: pick('weekStartsOn'),
     };
   };
 

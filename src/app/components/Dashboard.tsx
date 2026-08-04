@@ -5,6 +5,7 @@ import React from 'react';
 import { formatAmount, formatCompactAmount, formatSummaryAmount, formatAmountListView, formatAbbreviatedAmount, CURRENCIES, homeAmount } from '../utils/currency';
 import { getCategoryIcon } from './categoryIcons';
 import { usualCurve, periodCurve } from '../lib/usual';
+import { dayOfWeekBreakdown, dowTakeaway } from '../lib/dayOfWeek';
 import { BudgetBar, BudgetNudge } from './BudgetBar';
 import { FitText } from './FitText';
 import { parseLocalDate } from '../lib/dates';
@@ -93,6 +94,10 @@ export interface TrendViewState {
   trendYearFilter: number;
   selectedCategory: string;
   selectedSubcategory: string;
+  // The breakdown card's alternate view (expenses only) and its own scopes.
+  trendBreakdown: 'monthly' | 'dow';
+  trendDowMonth: number | null;
+  trendDowOneOffs: boolean;
 }
 
 // What the trend column measures against. 'previous' tracks the period
@@ -127,6 +132,8 @@ interface DashboardProps {
   // instead of a page of zeros. Both open flows that already exist elsewhere.
   onAddFirstExpense?: () => void;
   onLoadDemoData?: () => void;
+  /** First day of the week for the day-of-week breakdown (Settings > Profile). */
+  weekStartsOn?: number;
 }
 
 // Sentinel drilldown target: only the transactions with no subcategory
@@ -234,7 +241,7 @@ function StatChip({ label, value, tone }: { label: React.ReactNode; value: strin
 // starting from it means the first render already draws at the right scale.
 let lastChartWidth = 0;
 
-export function Dashboard({ expenses, categories, incomeCategories, sources = [], userName, currency, onEditExpense, onDeleteExpense, view = 'overview', onShowOverview, initialPeriod, viewStateRef, trendStateRef, monthlyBudget, budgetNudgeDismissed, onSetMonthlyBudget, onDismissBudgetNudge, onAddFirstExpense, onLoadDemoData }: DashboardProps) {
+export function Dashboard({ expenses, categories, incomeCategories, sources = [], userName, currency, onEditExpense, onDeleteExpense, view = 'overview', onShowOverview, initialPeriod, viewStateRef, trendStateRef, monthlyBudget, budgetNudgeDismissed, onSetMonthlyBudget, onDismissBudgetNudge, onAddFirstExpense, onLoadDemoData, weekStartsOn = 1 }: DashboardProps) {
   // Restore the previous view (period + drilldown) unless a Trend->Overview
   // link supplied an explicit period - that must win and start clean.
   const savedView = view === 'overview' && !initialPeriod ? viewStateRef?.current ?? null : null;
@@ -475,6 +482,18 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
   
   const [trendYearFilter, setTrendYearFilter] = useState<number>(savedTrend?.trendYearFilter ?? getMostRecentYearWithData()); // Year filter for Trend tab
 
+  // The breakdown card's view: months, or days of the week. Expenses only -
+  // income is payday-dominated (the weekday of the 27th is a calendar
+  // accident) and savings is a monthly residual, so for those the picker is
+  // not offered and the card stays monthly.
+  const [trendBreakdown, setTrendBreakdown] = useState<'monthly' | 'dow'>(savedTrend?.trendBreakdown ?? 'monthly');
+  // Day-of-week's own scope: one month of the selected year, or null for all
+  // of it. Lives inside the card because it only means anything there.
+  const [trendDowMonth, setTrendDowMonth] = useState<number | null>(savedTrend?.trendDowMonth ?? null);
+  // Drop recurring rows: rent lands on whichever weekday the 1st falls, which
+  // in a single month is one weekday taking the whole hit.
+  const [trendDowOneOffs, setTrendDowOneOffs] = useState<boolean>(savedTrend?.trendDowOneOffs ?? false);
+
   // Trend's own snapshot, same discipline as the overview's below.
   useEffect(() => {
     if (view !== 'trend' || !trendStateRef) return;
@@ -484,8 +503,11 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
       trendYearFilter,
       selectedCategory,
       selectedSubcategory,
+      trendBreakdown,
+      trendDowMonth,
+      trendDowOneOffs,
     };
-  }, [view, trendStateRef, transactionType, trendExpandedCategory, trendYearFilter, selectedCategory, selectedSubcategory]);
+  }, [view, trendStateRef, transactionType, trendExpandedCategory, trendYearFilter, selectedCategory, selectedSubcategory, trendBreakdown, trendDowMonth, trendDowOneOffs]);
 
   // Greeting: visible on app launch, collapses after 2s or on first interaction
   const [showGreeting, setShowGreeting] = useState(() => view === 'overview' && !greetingShownThisLaunch);
@@ -3861,19 +3883,161 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
               )}
             </div>
 
-            {/* Monthly Breakdown - High Density */}
+            {/* Monthly Breakdown - High Density. For expenses the heading is a
+                picker: the same rows bucketed by day of the week instead, the
+                rhythm view. Income (payday-dominated) and savings (a monthly
+                residual) have no meaningful weekday shape, so no picker. */}
+            {(() => {
+            const showDow = trendBreakdown === 'dow' && transactionType === 'expense';
+            // Category filtering matches the monthly rows; year, income and
+            // recurrence are the lib's job.
+            const dowBuckets = showDow
+              ? dayOfWeekBreakdown(
+                  expenses.filter((e) => {
+                    if (selectedCategory === 'All') return true;
+                    if (e.category.name !== selectedCategory) return false;
+                    return selectedSubcategory === 'All' || e.subcategory === selectedSubcategory;
+                  }),
+                  currency,
+                  { year: trendYearFilter, month: trendDowMonth, weekStartsOn, oneOffsOnly: trendDowOneOffs },
+                )
+              : [];
+            const dowMax = Math.max(...dowBuckets.map((b) => b.avg), 0);
+            const dowLine = showDow ? dowTakeaway(dowBuckets) : null;
+            const M3 = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            return (
             <div className="px-6 py-3 bg-white mb-2">
               <div className="flex items-baseline justify-between mb-2">
-                <h3 className="text-neutral-900 font-semibold text-sm">Monthly Breakdown</h3>
+                <span className="relative flex items-center gap-1">
+                  <h3 className="text-neutral-900 font-semibold text-sm">
+                    {showDow ? 'Day of Week' : 'Monthly Breakdown'}
+                  </h3>
+                  {transactionType === 'expense' && (
+                    <>
+                      <ChevronDown className="w-2.5 h-2.5" style={{ color: '#C7C7CC' }} strokeWidth={2.5} />
+                      <select
+                        aria-label="Breakdown view"
+                        value={showDow ? 'dow' : 'monthly'}
+                        onChange={(e) => setTrendBreakdown(e.target.value as 'monthly' | 'dow')}
+                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                        style={{
+                          WebkitTapHighlightColor: 'rgba(255,255,255,0)',
+                          WebkitAppearance: 'none',
+                          appearance: 'none',
+                          touchAction: 'manipulation',
+                          transform: 'translateZ(0)',
+                        }}
+                      >
+                        <option value="monthly">Monthly breakdown</option>
+                        <option value="dow">Day of week</option>
+                      </select>
+                    </>
+                  )}
+                </span>
                 {/* The tick on every bar below marks the same value; this names
-                    it once. Expenses only - the budget is a spending limit. */}
-                {transactionType === 'expense' && selectedCategory === 'All' && !!monthlyBudget && monthlyBudget > 0 && (
+                    it once. Expenses only - the budget is a spending limit,
+                    and a MONTHLY one, so it has no place on a weekday row. */}
+                {!showDow && transactionType === 'expense' && selectedCategory === 'All' && !!monthlyBudget && monthlyBudget > 0 && (
                   <span className="flex items-baseline gap-1.5 text-[10px]" style={{ color: '#A0A0A8' }}>
                     <span className="self-center w-0.5 h-2.5 rounded-full" style={{ backgroundColor: 'rgba(28,28,30,0.35)' }} />
                     Budget {formatAmountListView(monthlyBudget, currency, 0)}
                   </span>
                 )}
               </div>
+
+              {showDow && (
+                <>
+                  {/* The view's own scopes: one month of the selected year, and
+                      whether recurring rows count. In a single month a rule like
+                      rent lands entirely on one weekday - one tap removes it. */}
+                  <div className="flex items-center justify-between gap-2 mt-1 mb-1">
+                    <select
+                      aria-label="Day of week scope"
+                      value={trendDowMonth === null ? 'year' : String(trendDowMonth)}
+                      onChange={(e) => setTrendDowMonth(e.target.value === 'year' ? null : Number(e.target.value))}
+                      className="pl-2.5 pr-7 py-1 rounded-md text-xs text-neutral-600 border border-neutral-200"
+                      style={{
+                        WebkitTapHighlightColor: 'rgba(255, 255, 255, 0)',
+                        WebkitAppearance: 'none',
+                        appearance: 'none',
+                        touchAction: 'manipulation',
+                        backgroundColor: '#FAFAFA',
+                        backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%238E8E93' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E\")",
+                        backgroundRepeat: 'no-repeat',
+                        backgroundPosition: 'right 8px center',
+                        transform: 'translateZ(0)',
+                      }}
+                    >
+                      <option value="year">Full {trendYearFilter}</option>
+                      {M3.map((m, i) => (
+                        <option key={m} value={String(i)}>{m} {trendYearFilter}</option>
+                      ))}
+                    </select>
+                    <div className="flex rounded-md overflow-hidden border border-neutral-200 text-xs">
+                      {[{ v: false, label: 'All' }, { v: true, label: 'One-offs' }].map(({ v, label }) => (
+                        <button
+                          key={label}
+                          onClick={() => setTrendDowOneOffs(v)}
+                          className="px-2.5 py-1"
+                          style={{
+                            backgroundColor: trendDowOneOffs === v ? '#1C1C1E' : '#FAFAFA',
+                            color: trendDowOneOffs === v ? '#FFFFFF' : '#8E8E93',
+                            fontWeight: trendDowOneOffs === v ? 600 : 500,
+                            transition: 'background-color 0.15s ease',
+                            WebkitTapHighlightColor: 'rgba(255, 255, 255, 0)',
+                          }}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {dowMax > 0 ? (
+                    <>
+                      {/* Averages, not totals: a window holding five Saturdays
+                          and four Tuesdays would crown Saturday just for
+                          occurring more often. The day count keeps a thin
+                          sample honest. */}
+                      <div className="flex items-center gap-2.5 pb-1.5 mt-2 mb-1 border-b border-neutral-100">
+                        <div className="w-12 flex-shrink-0"></div>
+                        <div className="flex-1 min-w-0"></div>
+                        <div className="w-16 flex-shrink-0 text-right text-[9px] text-neutral-400 uppercase tracking-wide">Avg / day</div>
+                        <div className="w-8 flex-shrink-0 text-right text-[9px] text-neutral-400 uppercase tracking-wide">Days</div>
+                      </div>
+                      <div className="space-y-0">
+                        {dowBuckets.map((b) => (
+                          <div key={b.day} className="w-full flex items-center gap-2.5 py-2.5">
+                            <div className="w-12 flex-shrink-0 text-left text-[11px] text-neutral-600">{b.label.slice(0, 3)}</div>
+                            <div className="relative flex-1 min-w-0 h-1.5 bg-neutral-100 rounded-full overflow-hidden">
+                              <div
+                                className="h-full rounded-full bg-neutral-400 transition-all"
+                                style={{ width: b.avg > 0 ? `${Math.max(2, (b.avg / dowMax) * 100)}%` : '0%' }}
+                              />
+                            </div>
+                            <div className="w-16 flex-shrink-0 text-xs font-semibold tabular-nums text-right text-neutral-900">
+                              {formatAmountListView(b.avg, currency, 0)}
+                            </div>
+                            <div className="w-8 flex-shrink-0 text-right text-[11px] text-neutral-400 tabular-nums">
+                              {b.occurrences > 0 ? `x${b.occurrences}` : '-'}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      {dowLine && (
+                        <p className="mt-2 text-[11px]" style={{ color: '#8E8E93' }}>{dowLine}</p>
+                      )}
+                    </>
+                  ) : (
+                    <p className="py-6 text-center text-sm text-neutral-400">
+                      No spending in this period{trendDowOneOffs ? ' outside recurring' : ''}.
+                    </p>
+                  )}
+                </>
+              )}
+
+              {!showDow && (
+              <>
 
               {/* Column headers. Shown whenever a row carries more than one
                   number - a category drilldown (weight + count) or the savings
@@ -4060,7 +4224,11 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                   );
                 })}
               </div>
+              </>
+              )}
             </div>
+            );
+            })()}
 
             {/* Category Breakdown Table - Only for Expenses and Income */}
             {transactionType !== 'savings' && selectedCategory === 'All' && trendFilteredTransactions.length > 0 && (

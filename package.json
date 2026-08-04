@@ -15,6 +15,7 @@
     "test:import": "node scripts/test-import.mjs",
     "test:storage": "node scripts/test-storage.mjs",
     "test:usual": "node scripts/test-usual.mjs",
+    "test:dow": "node scripts/test-dow.mjs",
     "test:viewstate": "node scripts/test-viewstate.mjs"
   },
   "dependencies": {

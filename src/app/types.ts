@@ -94,4 +94,7 @@ export interface UserSettings {
   // Source pre-selected on new transactions, separately for each direction
   defaultSourceExpense?: string;
   defaultSourceIncome?: string;
+  // First day of the week for day-of-week views: 1 Monday (default), 0 Sunday,
+  // 6 Saturday
+  weekStartsOn?: number;
 }

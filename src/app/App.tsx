@@ -198,6 +198,9 @@ export default function App() {
   const [defaultSourceIncome, setDefaultSourceIncome] = useState(
     () => loadSettings().defaultSourceIncome || DEFAULT_SOURCE_INCOME
   );
+  // First day of the week for the day-of-week breakdown: 1 Monday (default),
+  // 0 Sunday, 6 Saturday.
+  const [weekStartsOn, setWeekStartsOn] = useState<number>(() => loadSettings().weekStartsOn ?? 1);
   const [selectedSourceId, setSelectedSourceId] = useState<string | null>(
     () => loadSettings().defaultSourceExpense || DEFAULT_SOURCE_EXPENSE
   );
@@ -289,8 +292,9 @@ export default function App() {
       hasSeenIntro,
       defaultSourceExpense,
       defaultSourceIncome,
+      weekStartsOn,
     });
-  }, [hasCompletedOnboarding, userName, userCurrency, monthlyBudget, budgetNudgeDismissed, hasSeenIntro, defaultSourceExpense, defaultSourceIncome]);
+  }, [hasCompletedOnboarding, userName, userCurrency, monthlyBudget, budgetNudgeDismissed, hasSeenIntro, defaultSourceExpense, defaultSourceIncome, weekStartsOn]);
 
   // Warm the tab chunks once the first screen has settled. Deliberately on an
   // idle callback with a timeout rather than straight after mount: the point
@@ -369,6 +373,7 @@ export default function App() {
       hasSeenIntro,
       defaultSourceExpense,
       defaultSourceIncome,
+      weekStartsOn,
     },
   });
 
@@ -389,6 +394,7 @@ export default function App() {
     setHasSeenIntro(!!s.hasSeenIntro);
     setDefaultSourceExpense(s.defaultSourceExpense ?? DEFAULT_SOURCE_EXPENSE);
     setDefaultSourceIncome(s.defaultSourceIncome ?? DEFAULT_SOURCE_INCOME);
+    setWeekStartsOn(s.weekStartsOn ?? 1);
   }, []);
 
   // Keep the ref holding current local state fresh, for the listeners below
@@ -542,7 +548,7 @@ export default function App() {
   // budgetNudgeDismissed is in the payload, so it belongs in the deps -
   // without it, dismissing the nudge didn't sync until the next unrelated
   // change, and a re-hydrate on another device could re-show the card.
-  }, [userId, cloudHydrated, syncRetryTick, expenses, recurringRules, categories, incomeCategories, sources, hasCompletedOnboarding, userName, userCurrency, monthlyBudget, budgetNudgeDismissed, hasSeenIntro, defaultSourceExpense, defaultSourceIncome]);
+  }, [userId, cloudHydrated, syncRetryTick, expenses, recurringRules, categories, incomeCategories, sources, hasCompletedOnboarding, userName, userCurrency, monthlyBudget, budgetNudgeDismissed, hasSeenIntro, defaultSourceExpense, defaultSourceIncome, weekStartsOn]);
 
   // Coming back to the app pulls anything another device wrote while we were
   // away. Previously returning to the foreground only ever pushed, so a device
@@ -1701,6 +1707,7 @@ export default function App() {
                 onDeleteExpense={handleDeleteExpense}
                 monthlyBudget={monthlyBudget}
                 view="trend"
+                weekStartsOn={weekStartsOn}
                 trendStateRef={trendViewRef}
                 onShowOverview={(period) => {
                   setDashboardInitialPeriod(period);
@@ -1709,9 +1716,11 @@ export default function App() {
               />
             )}
             {currentTab === 'settings' && (
-              <Settings 
+              <Settings
                 categories={categories}
                 incomeCategories={incomeCategories}
+                weekStartsOn={weekStartsOn}
+                onSetWeekStartsOn={setWeekStartsOn}
                 onAddCategory={handleAddCategory}
                 onEditCategory={handleEditCategory}
                 onDeleteCategory={handleDeleteCategory}
