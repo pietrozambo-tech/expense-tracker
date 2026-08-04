@@ -703,7 +703,7 @@ export function Settings({
       `${exampleSub ? `, "subcategory": "${exampleSub}"` : ''}, "description": "Example"` +
       `${defaultSrcId ? `, "source": "${defaultSrcId}"` : ''} }`;
     const sourceRule = hasSources
-      ? `- "source": optional; one of my source ids listed below${defaultSrcId ? ` (use "${defaultSrcId}" if unsure)` : ''}.`
+      ? `- "source": optional. Use one of my source ids listed below ONLY where the data actually says which account a transaction came from (a column, a card name, a statement header). If the file does not say, LEAVE THE FIELD OUT: a guessed account is worse than none, because it would be wrong on every single row.`
       : `- "source": leave this field out - I have no sources set up.`;
     // A second example showing a foreign-currency row, so mixed-currency
     // statements are handled. Pick any code that isn't the home one.
@@ -737,11 +737,19 @@ ${exampleRow2}
   ]
 }
 
+BEFORE YOU CONVERT - ask me, do not guess
+- If the data has no YEAR anywhere (e.g. only "month" and "day" columns), ASK me which year it covers, and whether it spans more than one. A wrong year silently files a whole set of transactions in the wrong place, and nothing in the app will look obviously broken afterwards.
+- If a row is a monthly or weekly TOTAL rather than one transaction (e.g. a salary tab with one row per month and no day), ask me which day of the month to date it on.
+- Open EVERY sheet, tab and page of what I give you. Files often keep income on a second tab, and converting only the first one loses half the picture without saying so.
+
 FORMAT
 - "date": YYYY-MM-DD. Convert any date format to this. If a date is ambiguous (e.g. 03/04/25), infer the order from the other rows and stay consistent.
 - "amount": a plain positive number - no currency symbol, no thousands separators (e.g. 1234.56).
 - "type": "expense" for money going out, "income" for money coming in.
-- A refund, cashback or money returned on a card: keep "type":"expense" but make "amount" NEGATIVE.
+- A NEGATIVE amount inside an expense list is one of two different things, so read the description before deciding:
+  - money back on something I bought (refund, return, cashback): keep "type":"expense" and make "amount" NEGATIVE, so it nets off that category.
+  - money I actually won or was given, merely recorded in the expense sheet (a betting win, a reimbursement, something sold): make it "type":"income" with a POSITIVE amount and my closest income category.
+  If a negative row is genuinely ambiguous, ask me instead of picking one.
 - File "currency": "${userCurrency}" (my home currency) - the default for every row. Most statements are entirely in ${userCurrency}, so you leave it as is.
 - Per-row "currency": add this to a row ONLY when it's in a DIFFERENT currency (e.g. a foreign purchase). Put the amount exactly as shown in that currency plus its ISO code - do NOT convert it; TracklyLab does the conversion.
 - "description": a short, readable label. Clean up cryptic statement text (e.g. "SQ *BLUE BOTTLE 1234" → "Blue Bottle").
