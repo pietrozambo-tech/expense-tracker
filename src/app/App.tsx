@@ -43,7 +43,8 @@ import { SaveButton } from './components/SaveButton';
 import { DescriptionInput } from './components/DescriptionInput';
 import { Onboarding } from './components/Onboarding';
 import { useAuth } from './auth/AuthProvider';
-import { processRecurrence, buildRuleTemplate, newRuleId, occurrenceDueDate, isActiveRule, applyFutureEdit, findPastSeriesMatches, findUnclaimedSeriesRows, tagPastSeries } from './lib/recurrence';
+import { processRecurrence, buildRuleTemplate, newRuleId, occurrenceDueDate, isActiveRule, applyFutureEdit, findPastSeriesMatches, findUnclaimedSeriesRows, tagPastSeries, type SeriesClaim } from './lib/recurrence';
+import { SeriesClaimDialog } from './components/SeriesClaimDialog';
 import { RecurringScopeDialog } from './components/RecurringScopeDialog';
 import { ConfirmDialog } from './components/ConfirmDialog';
 
@@ -184,7 +185,7 @@ export default function App() {
   // The same offer from the other direction: series set up long ago, history
   // imported afterwards. Checked on open and after imports; declining is
   // remembered per transaction so it never nags.
-  const [pendingSeriesCleanup, setPendingSeriesCleanup] = useState<Array<{ rule: RecurringRule; ids: string[]; name: string }> | null>(null);
+  const [pendingSeriesCleanup, setPendingSeriesCleanup] = useState<SeriesClaim[] | null>(null);
   const [pendingRecurringDelete, setPendingRecurringDelete] = useState<Transaction | null>(null);
   const [returnToTab, setReturnToTab] = useState<'dashboard' | 'activity' | 'trend' | 'settings' | 'add'>('dashboard'); // Track which tab to return to after editing
   // Set when a Trend month is tapped so the Overview opens on that period
@@ -672,14 +673,10 @@ export default function App() {
   // setting state and still see the fresh rows.
   const offerSeriesCleanup = useCallback(() => {
     const dismissed = new Set(loadBackTagDismissed());
-    const groups = findUnclaimedSeriesRows(expensesRef.current, rulesRef.current)
-      .map((g) => ({
-        rule: g.rule,
-        name: g.rule.template.description ?? '',
-        ids: g.rows.map((r) => r.id).filter((id) => !dismissed.has(id)),
-      }))
-      .filter((g) => g.ids.length > 0);
-    if (groups.length > 0) setPendingSeriesCleanup(groups);
+    const claims = findUnclaimedSeriesRows(expensesRef.current, rulesRef.current)
+      .map((c) => ({ ...c, rows: c.rows.filter((r) => !dismissed.has(r.id)) }))
+      .filter((c) => c.rows.length > 0);
+    if (claims.length > 0) setPendingSeriesCleanup(claims);
   }, []);
 
   const recurrenceReady = userId ? cloudHydrated : guest;
@@ -2109,40 +2106,39 @@ export default function App() {
           rows to the EXISTING rules as pre-anchor history - no new rules, no
           new future occurrences, the schedules the user set up stay exactly
           as they are. Declining is remembered per transaction. */}
-      {pendingSeriesCleanup && !pendingBackTag && (() => {
-        const total = pendingSeriesCleanup.reduce((s, g) => s + g.ids.length, 0);
-        const names = pendingSeriesCleanup.map((g) => `${g.name} (${g.ids.length})`);
-        const summary = names.slice(0, 4).join(', ') + (names.length > 4 ? ` and ${names.length - 4} more` : '');
-        return (
-          <div className="relative z-[60]">
-            <ConfirmDialog
-              variant="neutral"
-              icon={Repeat}
-              title="Mark past transactions as recurring?"
-              message={`${total} older transaction${total === 1 ? '' : 's'} match your recurring series: ${summary}. Marking them only labels the past - your schedules stay as they are.`}
-              confirmLabel={`Mark ${total === 1 ? 'it' : `all ${total}`} recurring`}
-              onConfirm={() => {
-                setExpenses((prev) => {
-                  let next = prev;
-                  for (const g of pendingSeriesCleanup) next = tagPastSeries(next, g.ids, g.rule);
-                  return next;
-                });
-                setRefreshKey((prev) => prev + 1);
-                toast.success(`${total} transaction${total === 1 ? '' : 's'} marked as recurring`, { duration: 1600 });
-                setPendingSeriesCleanup(null);
-              }}
-              onCancel={() => {
-                // Remember every id offered, so the same rows never nag again;
-                // a future import bringing NEW matches still will.
-                saveBackTagDismissed([
-                  ...new Set([...loadBackTagDismissed(), ...pendingSeriesCleanup.flatMap((g) => g.ids)]),
-                ]);
-                setPendingSeriesCleanup(null);
-              }}
-            />
-          </div>
-        );
-      })()}
+      {pendingSeriesCleanup && !pendingBackTag && (
+        <div className="relative z-[60]">
+          <SeriesClaimDialog
+            claims={pendingSeriesCleanup}
+            currency={userCurrency}
+            onConfirm={(approved) => {
+              const total = approved.reduce((s, c) => s + c.rows.length, 0);
+              setExpenses((prev) => {
+                let next = prev;
+                for (const c of approved) next = tagPastSeries(next, c.rows.map((r) => r.id), c.rule);
+                return next;
+              });
+              // Unchecking is an answer too: those rows are not offered again.
+              const approvedIds = new Set(approved.flatMap((c) => c.rows.map((r) => r.id)));
+              const declined = pendingSeriesCleanup
+                .flatMap((c) => c.rows.map((r) => r.id))
+                .filter((id) => !approvedIds.has(id));
+              if (declined.length) saveBackTagDismissed([...new Set([...loadBackTagDismissed(), ...declined])]);
+              setRefreshKey((prev) => prev + 1);
+              toast.success(`${total} transaction${total === 1 ? '' : 's'} marked as recurring`, { duration: 1600 });
+              setPendingSeriesCleanup(null);
+            }}
+            onCancel={() => {
+              // Remember every id offered, so the same rows never nag again;
+              // a future import bringing NEW matches still will.
+              saveBackTagDismissed([
+                ...new Set([...loadBackTagDismissed(), ...pendingSeriesCleanup.flatMap((c) => c.rows.map((r) => r.id))]),
+              ]);
+              setPendingSeriesCleanup(null);
+            }}
+          />
+        </div>
+      )}
       {/* Offered once, right after a series is declared recurring: fold its
           earlier one-off copies (imported history, mostly) into the chain.
           Declining leaves them untouched - it never asks again for this rule. */}

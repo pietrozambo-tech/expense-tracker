@@ -205,6 +205,7 @@ scenarioStopping();
 scenarioStamps();
 scenarioBackTag();
 scenarioUnclaimedScan();
+scenarioForeignWording();
 // 7. Retro-tagging imported history as recurring, without minting new rules.
 function scenarioBackTag() {
   heading('7. A year of imported "Monthly rent" joins the new chain safely');
@@ -304,19 +305,20 @@ function scenarioUnclaimedScan() {
     { ...tx('occ', '2026-01-01', 800, 'Monthly rent'), recurrence: 'First day of the month', recurrenceOf: 'rule-rent2' },
   ];
 
-  const groups = findUnclaimedSeriesRows(txns, [rent, voda, ended]);
-  const byRule = Object.fromEntries(groups.map((g) => [g.rule.id, g.rows.map((r) => r.id).sort().join(',')]));
+  const claims = findUnclaimedSeriesRows(txns, [rent, voda, ended]);
+  const byRule: Record<string, string> = {};
+  for (const c of claims) byRule[c.rule.id] = (byRule[c.rule.id] ? byRule[c.rule.id] + ',' : '') + c.rows.map((r) => r.id).sort().join(',');
   expect('the rent history is found, spacing and case aside', byRule['rule-rent2'] ?? '(none)', 'r1,r2');
   expect('each series claims only its own', byRule['rule-voda'] ?? '(none)', 'v1');
   expect('an ended series claims nothing', byRule['rule-gym'] ?? '(none)', '(none)');
   say('the post-anchor look-alike next to a real occurrence stays out: it may be a duplicate');
   expect('rows after the anchor are not offered',
-    groups.some((g) => g.rows.some((r) => r.id === 'post')) ? 'offered' : 'left alone', 'left alone');
+    claims.some((c) => c.rows.some((r) => r.id === 'post')) ? 'offered' : 'left alone', 'left alone');
 
   // Accept, then run the engine well past the anchors: the tagging must not
   // change what the rules produce.
   let tagged = txns;
-  for (const g of groups) tagged = tagPastSeries(tagged, g.rows.map((r) => r.id), g.rule);
+  for (const c of claims) tagged = tagPastSeries(tagged, c.rows.map((r) => r.id), c.rule);
   const before = processRecurrence(txns, [rent, voda, ended], TODAY);
   const after = processRecurrence(tagged, [rent, voda, ended], TODAY);
   expect('the engine creates exactly as many occurrences as it would have anyway',
@@ -324,6 +326,70 @@ function scenarioUnclaimedScan() {
   expect('and no new rules', String(after.rules.length), String(before.rules.length));
   const scan2 = findUnclaimedSeriesRows(after.transactions, after.rules);
   expect('a second scan finds nothing left to offer', String(scan2.length), '0');
+}
+
+// 9. The wording is not the series. Imported history in another language, or
+// simply named differently by the bank, has to be claimable - a dictionary of
+// translations would never cover enough, so the shape carries it: same
+// category and direction, an amount in the same neighbourhood, and a cadence
+// that actually repeated.
+function scenarioForeignWording() {
+  heading('9. "Affitto" is claimed by the "Monthly rent" series');
+
+  const garage = { ...cat, id: 'c-gar', name: 'Garage' };
+  const food = { ...cat, id: 'c-food', name: 'Groceries' };
+  const tx = (id: string, date: string, amount: number, description: string, category = cat): Transaction => ({
+    id, description, amount, currency: 'EUR', baseAmount: amount,
+    category, date, type: 'expense', recurrence: 'Never repeat',
+  });
+
+  const rent: RecurringRule = { id: 'r-rent', rule: 'Every month', anchorDate: '2026-01-01',
+    template: { description: 'Monthly rent', amount: 900, currency: 'EUR', category: cat, type: 'expense' } };
+  // A second series in the SAME category, so the assignment has to choose.
+  const box: RecurringRule = { id: 'r-box', rule: 'Every month', anchorDate: '2026-01-05',
+    template: { description: 'Garage', amount: 100, currency: 'EUR', category: garage, type: 'expense' } };
+  // A yearly series: its history is not monthly, so shape cannot speak for it.
+  const ins: RecurringRule = { id: 'r-ins', rule: 'Every year', anchorDate: '2026-02-01',
+    template: { description: 'Home insurance', amount: 300, currency: 'EUR', category: cat, type: 'expense' } };
+
+  const txns: Transaction[] = [
+    // The real case: a year of Italian rent, slightly cheaper than today.
+    ...Array.from({ length: 12 }, (_, i) => tx(`aff-${i}`, `2025-${String(i + 1).padStart(2, '0')}-02`, 880, 'Affitto')),
+    // Same category, repeated, but nowhere near the rent's amount.
+    ...['01', '02', '03'].map((m) => tx(`cond-${m}`, `2025-${m}-15`, 120, 'Condominio')),
+    // Looks like rent, but happened once: a deposit, not a series.
+    tx('dep', '2025-01-03', 900, 'Caparra'),
+    // Another category entirely, repeated and similar in size.
+    ...['01', '02', '03'].map((m) => tx(`sp-${m}`, `2025-${m}-20`, 870, 'Spesa grande', food)),
+    // The garage series' own history, closer to 100 than to 900.
+    ...['01', '02', '03'].map((m) => tx(`box-${m}`, `2025-${m}-06`, 95, 'Box auto', garage)),
+  ];
+
+  const claims = findUnclaimedSeriesRows(txns, [rent, box, ins]);
+  const claimed = Object.fromEntries(claims.map((c) => [c.label, `${c.rows.length}->${c.rule.id}:${c.confidence}`]));
+  say(`claims: ${claims.map((c) => `${c.label} x${c.rows.length} -> ${c.rule.template.description}`).join(', ') || '(none)'}`);
+
+  expect('the Italian rent is claimed by the rent series, on shape', claimed['Affitto'] ?? '(none)', '12->r-rent:likely');
+  expect('a repeated bill of a different size is not swept in', claimed['Condominio'] ?? '(none)', '(none)');
+  expect('a one-off that looks like rent is not a series', claimed['Caparra'] ?? '(none)', '(none)');
+  expect('another category is never touched', claimed['Spesa grande'] ?? '(none)', '(none)');
+  expect('and each series takes the history nearest its own amount', claimed['Box auto'] ?? '(none)', '3->r-box:likely');
+  expect('a yearly series claims nothing on monthly shape',
+    claims.some((c) => c.rule.id === 'r-ins') ? 'claimed' : 'left alone', 'left alone');
+
+  // Exact wording still outranks shape when both are on offer.
+  const both = findUnclaimedSeriesRows([...txns, tx('en-1', '2025-04-02', 880, 'Monthly rent')], [rent, box, ins]);
+  const exact = both.find((c) => c.confidence === 'exact');
+  expect('same-wording history is still an exact claim', exact ? `${exact.label}:${exact.rows.length}` : '(none)', 'Monthly rent:1');
+
+  // And the promise that matters: tagging changes nothing about the future.
+  let tagged = txns;
+  for (const c of claims) tagged = tagPastSeries(tagged, c.rows.map((r) => r.id), c.rule);
+  const before = processRecurrence(txns, [rent, box, ins], TODAY);
+  const after = processRecurrence(tagged, [rent, box, ins], TODAY);
+  expect('the engine still creates exactly what it would have',
+    String(after.createdCount), String(before.createdCount));
+  expect('and mints no rules', String(after.rules.length), String(before.rules.length));
 }
 
 console.log('\n================================================================');

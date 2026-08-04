@@ -342,21 +342,107 @@ export function findPastSeriesMatches(
  * left alone - next to a materialized occurrence it may well be a duplicate,
  * and sweeping it into the chain would hide that rather than fix it.
  */
+export interface SeriesClaim {
+  rule: RecurringRule;
+  /** The wording the historical rows share, as they are worded. */
+  label: string;
+  rows: Transaction[];
+  /** Same wording as the series, or matched on shape alone. */
+  confidence: 'exact' | 'likely';
+  /** The typical amount of the historical rows, for the review sheet. */
+  medianAmount: number;
+}
+
+const monthKey = (date: string) => date.slice(0, 7);
+const middle = (values: number[]) => {
+  const s = [...values].sort((a, b) => a - b);
+  const mid = s.length >> 1;
+  return s.length % 2 ? s[mid] : (s[mid - 1] + s[mid]) / 2;
+};
+
+/** Cadences whose history should look like one row per month. */
+const MONTHLY_RULES = new Set(['Every month', 'First day of the month']);
+
 export function findUnclaimedSeriesRows(
   transactions: Transaction[],
   rules: RecurringRule[],
-): Array<{ rule: RecurringRule; rows: Transaction[] }> {
-  const groups: Array<{ rule: RecurringRule; rows: Transaction[] }> = [];
-  for (const rule of rules) {
-    if (!isActiveRule(rule)) continue;
-    const name = normName(rule.template.description ?? '');
+): SeriesClaim[] {
+  const active = rules.filter(isActiveRule);
+  if (active.length === 0) return [];
+
+  // Cluster the unclaimed rows by what they are: direction, category, and the
+  // exact wording. Wording groups the cluster; it is deliberately NOT how the
+  // cluster is matched to a series - "Affitto" and "Monthly rent" are the same
+  // bill, and no dictionary of translations would ever cover enough of them.
+  const clusters = new Map<string, { type: string; categoryId: string | undefined; label: string; rows: Transaction[] }>();
+  for (const t of transactions) {
+    if (t.recurrenceOf) continue;
+    if (t.recurrence && t.recurrence !== 'Never repeat') continue;
+    const name = normName(t.description);
     if (!name) continue;
-    const rows = transactions.filter((t) =>
-      isUnclaimedMatch(t, name, rule.template.category?.id, rule.template.type ?? 'expense', rule.anchorDate),
-    );
-    if (rows.length > 0) groups.push({ rule, rows });
+    const type = t.type ?? 'expense';
+    const key = `${type}|${t.category?.id ?? ''}|${name}`;
+    const found = clusters.get(key);
+    if (found) found.rows.push(t);
+    else clusters.set(key, { type, categoryId: t.category?.id, label: t.description.trim(), rows: [t] });
   }
-  return groups;
+
+  const claims: SeriesClaim[] = [];
+  for (const cluster of clusters.values()) {
+    const clusterName = normName(cluster.label);
+    let best: { rule: RecurringRule; rows: Transaction[]; confidence: 'exact' | 'likely'; distance: number } | null = null;
+
+    for (const rule of active) {
+      if ((rule.template.type ?? 'expense') !== cluster.type) continue;
+      if (rule.template.category?.id !== cluster.categoryId) continue;
+      // Only history: the engine materializes from the anchor forward, so
+      // anything before it is a row the engine will never touch. Tagging
+      // these creates no rule and no future occurrence.
+      const rows = cluster.rows.filter((t) => t.date < rule.anchorDate);
+      if (rows.length === 0) continue;
+
+      const exact = clusterName === normName(rule.template.description ?? '');
+      const amount = middle(rows.map((r) => r.amount));
+      const ruleAmount = rule.template.amount || 0;
+      const distance = ruleAmount > 0 ? Math.abs(amount - ruleAmount) / ruleAmount : 1;
+
+      let confidence: 'exact' | 'likely' | null = exact ? 'exact' : null;
+      if (!confidence && MONTHLY_RULES.has(rule.rule)) {
+        // Differently worded, so the shape has to carry the claim: a bill
+        // that actually repeated (three or more rows, in three or more
+        // different months) for an amount in the same neighbourhood as the
+        // series. Loose on the amount because rents rise and plans change;
+        // strict on the repetition, because a one-off cannot be a series.
+        const months = new Set(rows.map((r) => monthKey(r.date)));
+        if (rows.length >= 3 && months.size >= 3 && distance <= 0.35) confidence = 'likely';
+      }
+      if (!confidence) continue;
+
+      // One cluster belongs to at most one series: an exact wording wins, and
+      // among shape matches the nearest amount does.
+      const better =
+        !best ||
+        (confidence === 'exact' && best.confidence !== 'exact') ||
+        (confidence === best.confidence && distance < best.distance);
+      if (better) best = { rule, rows, confidence, distance };
+    }
+
+    if (best) {
+      claims.push({
+        rule: best.rule,
+        label: cluster.label,
+        rows: best.rows,
+        confidence: best.confidence,
+        medianAmount: middle(best.rows.map((r) => r.amount)),
+      });
+    }
+  }
+
+  // Surest first, then biggest: the sheet reads top-down in order of how much
+  // it is asking the user to take on trust.
+  return claims.sort((a, b) =>
+    a.confidence === b.confidence ? b.rows.length - a.rows.length : a.confidence === 'exact' ? -1 : 1,
+  );
 }
 
 /**
