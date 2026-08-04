@@ -130,7 +130,10 @@ export default function App() {
   const [userCurrency, setUserCurrency] = useState(() => loadSettings().currency);
   const [monthlyBudget, setMonthlyBudget] = useState<number | undefined>(() => loadSettings().monthlyBudget);
   const [budgetNudgeDismissed, setBudgetNudgeDismissed] = useState<boolean>(() => !!loadSettings().budgetNudgeDismissed);
-  const [selectedTransactionCurrency, setSelectedTransactionCurrency] = useState('EUR'); // Currency for current transaction being added/edited
+  // Currency for the transaction being added or edited. Seeded from the saved
+  // setting rather than a hardcoded 'EUR', and re-seeded by the effect below
+  // every time the Add screen opens for a new transaction.
+  const [selectedTransactionCurrency, setSelectedTransactionCurrency] = useState(() => loadSettings().currency);
   const [currentTab, setCurrentTab] = useState<'dashboard' | 'activity' | 'add' | 'trend' | 'settings'>('dashboard');
   // The shared scroll container for the non-activity tabs. Switching tabs must
   // start the new tab from the top (see the effect below).
@@ -261,6 +264,21 @@ export default function App() {
     mainScrollRef.current?.scrollTo({ top: 0 });
     window.scrollTo({ top: 0 });
   }, [currentTab]);
+  // The Add screen always opens in the user's own currency.
+  //
+  // This used to be seeded by the "+" button and nowhere else, so every other
+  // way in arrived on whatever was last used - and on a fresh install that was
+  // a hardcoded EUR. Someone who chose another currency during setup and then
+  // followed the first-run nudge got a form denominated in euros, and only the
+  // SECOND transaction came out right. Doing it here covers every route in,
+  // including any added later.
+  //
+  // Editing is the exception: a transaction keeps the currency it was recorded
+  // in, which is set on the way into the form.
+  useEffect(() => {
+    if (currentTab !== 'add' || editingExpenseId) return;
+    setSelectedTransactionCurrency(userCurrency);
+  }, [currentTab, editingExpenseId, userCurrency]);
   useEffect(() => {
     saveSettings({
       onboarded: hasCompletedOnboarding,
@@ -1808,10 +1826,7 @@ export default function App() {
                 </span>
               </button>
               <button
-                onClick={() => {
-                  setCurrentTab('add');
-                  setSelectedTransactionCurrency(userCurrency); // Initialize with user's default currency
-                }}
+                onClick={() => setCurrentTab('add')}
                 aria-label="Add transaction"
                 className="flex flex-col items-center pointer-events-auto justify-self-center"
               >

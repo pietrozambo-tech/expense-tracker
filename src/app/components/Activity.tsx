@@ -5,6 +5,7 @@ import { CategoryFilterModal } from './CategoryFilterModal';
 import { SubcategoryFilterModal } from './SubcategoryFilterModal';
 import { SourceFilterModal } from './SourceFilterModal';
 import { SearchModal } from './SearchModal';
+import { ExportScopeModal } from './ExportScopeModal';
 import { formatAmount, CURRENCIES, homeAmount } from '../utils/currency';
 import { Download } from 'lucide-react';
 import { buildTransactionsCsv, downloadTransactionsCsv } from '../lib/csv';
@@ -258,20 +259,53 @@ export function Activity({
         : `${netTotal >= 0 ? '+' : '-'}${formatAmount(Math.abs(netTotal), currency)}`;
 
   // CSV Export
-  // Exports the CURRENT VIEW - whatever the filters above have narrowed the
-  // list to. The full-dataset export lives in Settings; both go through
-  // lib/csv so the two buttons cannot drift into different dialects (they
-  // had: this one used comma decimals and no BOM, the other the opposite).
+  // The tab opens filtered - to this month, at least - so "download" meant one
+  // thing to the button (the current view) and usually another to the person
+  // pressing it (all my data). It asks now, unless the filters are leaving
+  // everything on screen anyway, in which case there is nothing to ask.
+  //
+  // Both scopes go through lib/csv, and so does the Settings export, so the
+  // three cannot drift into different dialects (they had: this one used comma
+  // decimals and no BOM, the other the opposite).
+  const [exportScopeOpen, setExportScopeOpen] = useState(false);
+
+  // The filters in force, worded the way they read on screen.
+  const activeFilters = (() => {
+    const bits: string[] = [];
+    if (activityType !== 'all') bits.push(activityType === 'expense' ? 'Expenses' : 'Income');
+    bits.push(selectedMonth === 'Full Year' ? selectedYear : `${selectedMonth} ${selectedYear}`);
+    if (categoryFilter !== 'All') bits.push(categoryFilter);
+    if (subcategoryFilter !== 'All') bits.push(subcategoryFilter);
+    if (typeFilter !== 'All') bits.push(typeFilter);
+    if (sourceFilter !== 'All') bits.push(sources.find((s) => s.id === sourceFilter)?.name ?? 'One source');
+    if (searchQuery) bits.push(`"${searchQuery}"`);
+    return bits;
+  })();
+
+  const runExport = (scope: 'view' | 'all') => {
+    const rows = scope === 'all' ? transactions : filteredTransactions;
+    setExportScopeOpen(false);
+    if (rows.length === 0) {
+      toast.error('No transactions to export');
+      return;
+    }
+    downloadTransactionsCsv(
+      buildTransactionsCsv(rows, currency, sources),
+      scope === 'all' ? 'tracklylab-transactions' : 'tracklylab-activity',
+    );
+    toast.success(`Exported ${rows.length} transaction${rows.length !== 1 ? 's' : ''}`);
+  };
+
   const downloadActivity = () => {
     if (filteredTransactions.length === 0) {
       toast.error('No transactions to export');
       return;
     }
-    downloadTransactionsCsv(
-      buildTransactionsCsv(filteredTransactions, currency, sources),
-      'tracklylab-activity',
-    );
-    toast.success(`Exported ${filteredTransactions.length} transaction${filteredTransactions.length !== 1 ? 's' : ''}`);
+    if (filteredTransactions.length === transactions.length) {
+      runExport('view'); // the view IS everything - nothing to choose between
+      return;
+    }
+    setExportScopeOpen(true);
   };
 
   // Category list for the filter modal, matching the active type
@@ -454,6 +488,16 @@ export function Activity({
           onModalOpenChange?.(false);
         }}
       />
+
+      {exportScopeOpen && (
+        <ExportScopeModal
+          filteredCount={filteredTransactions.length}
+          totalCount={transactions.length}
+          filters={activeFilters}
+          onSelect={runExport}
+          onClose={() => setExportScopeOpen(false)}
+        />
+      )}
     </div>
   );
 }
