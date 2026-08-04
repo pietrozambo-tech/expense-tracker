@@ -17,7 +17,15 @@ export interface DowRow {
   currency?: string;
   baseAmount?: number;
   recurrence?: string;
+  /** Set on occurrences a recurring rule materialised. */
+  recurrenceOf?: string;
 }
+
+/** Is this row the product of a recurring rule? Either marker counts: rule
+ *  occurrences carry both, but rows from older builds or imports may hold
+ *  only the label. */
+export const isRecurringRow = (row: Pick<DowRow, 'recurrence' | 'recurrenceOf'>) =>
+  !!row.recurrenceOf || (!!row.recurrence && row.recurrence !== 'Never repeat');
 
 export interface DayBucket {
   /** JS getDay() index: 0 = Sunday. */
@@ -83,7 +91,7 @@ export function dayOfWeekBreakdown(
     }
     for (const row of rows) {
       if (row.type === 'income') continue;
-      if (oneOffsOnly && row.recurrence && row.recurrence !== 'Never repeat') continue;
+      if (oneOffsOnly && isRecurringRow(row)) continue;
       const at = parseLocalDate(row.date);
       if (at < start || at > end) continue;
       totals[at.getDay()] += homeAmount(row as never, currency);

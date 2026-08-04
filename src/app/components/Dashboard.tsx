@@ -3889,22 +3889,39 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                 residual) have no meaningful weekday shape, so no picker. */}
             {(() => {
             const showDow = trendBreakdown === 'dow' && transactionType === 'expense';
+            // Months that have not started yet are not on offer, and a saved
+            // scope pointing at one (chosen in December, reopened in a new
+            // year) falls back to the full year rather than showing an empty
+            // future month.
+            const dowNow = new Date();
+            const dowMaxMonth = trendYearFilter === dowNow.getFullYear() ? dowNow.getMonth() : 11;
+            const dowMonth = trendDowMonth !== null && trendDowMonth > dowMaxMonth ? null : trendDowMonth;
             // Category filtering matches the monthly rows; year, income and
             // recurrence are the lib's job.
-            const dowBuckets = showDow
-              ? dayOfWeekBreakdown(
-                  expenses.filter((e) => {
-                    if (selectedCategory === 'All') return true;
-                    if (e.category.name !== selectedCategory) return false;
-                    return selectedSubcategory === 'All' || e.subcategory === selectedSubcategory;
-                  }),
-                  currency,
-                  { year: trendYearFilter, month: trendDowMonth, weekStartsOn, oneOffsOnly: trendDowOneOffs },
-                )
+            const dowSource = showDow
+              ? expenses.filter((e) => {
+                  if (selectedCategory === 'All') return true;
+                  if (e.category.name !== selectedCategory) return false;
+                  return selectedSubcategory === 'All' || e.subcategory === selectedSubcategory;
+                })
               : [];
+            const dowOpts = { year: trendYearFilter, month: dowMonth, weekStartsOn };
+            // Both cuts, always: the One-offs view says what it left out, in
+            // euros. Bars are relative, so excluding recurring spending that
+            // falls evenly across the week changes almost nothing the eye can
+            // see - the numbers change, the shape does not - and a toggle that
+            // "does nothing" visible reads as broken.
+            const dowAll = showDow ? dayOfWeekBreakdown(dowSource, currency, dowOpts) : [];
+            const dowOneOff = showDow && trendDowOneOffs
+              ? dayOfWeekBreakdown(dowSource, currency, { ...dowOpts, oneOffsOnly: true })
+              : dowAll;
+            const dowBuckets = trendDowOneOffs ? dowOneOff : dowAll;
+            const dowExcludedTotal = dowAll.reduce((s, b) => s + b.total, 0) - dowOneOff.reduce((s, b) => s + b.total, 0);
+            const dowExcludedCount = dowAll.reduce((s, b) => s + b.txCount, 0) - dowOneOff.reduce((s, b) => s + b.txCount, 0);
             const dowMax = Math.max(...dowBuckets.map((b) => b.avg), 0);
             const dowLine = showDow ? dowTakeaway(dowBuckets) : null;
             const M3 = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            const MFULL = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
             return (
             <div className="px-6 py-3 bg-white mb-2">
               <div className="flex items-baseline justify-between mb-2">
@@ -3953,7 +3970,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                   <div className="flex items-center justify-between gap-2 mt-1 mb-1">
                     <select
                       aria-label="Day of week scope"
-                      value={trendDowMonth === null ? 'year' : String(trendDowMonth)}
+                      value={dowMonth === null ? 'year' : String(dowMonth)}
                       onChange={(e) => setTrendDowMonth(e.target.value === 'year' ? null : Number(e.target.value))}
                       className="pl-2.5 pr-7 py-1 rounded-md text-xs text-neutral-600 border border-neutral-200"
                       style={{
@@ -3969,17 +3986,20 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                       }}
                     >
                       <option value="year">Full {trendYearFilter}</option>
-                      {M3.map((m, i) => (
+                      {MFULL.slice(0, dowMaxMonth + 1).map((m, i) => (
                         <option key={m} value={String(i)}>{m} {trendYearFilter}</option>
                       ))}
                     </select>
-                    <div className="flex rounded-md overflow-hidden border border-neutral-200 text-xs">
+                    <div className="flex rounded-md overflow-hidden border border-neutral-200">
                       {[{ v: false, label: 'All' }, { v: true, label: 'One-offs' }].map(({ v, label }) => (
                         <button
                           key={label}
                           onClick={() => setTrendDowOneOffs(v)}
-                          className="px-2.5 py-1"
+                          className="px-2 leading-none"
                           style={{
+                            fontSize: 10,
+                            paddingTop: 4,
+                            paddingBottom: 4,
                             backgroundColor: trendDowOneOffs === v ? '#1C1C1E' : '#FAFAFA',
                             color: trendDowOneOffs === v ? '#FFFFFF' : '#8E8E93',
                             fontWeight: trendDowOneOffs === v ? 600 : 500,
@@ -4000,7 +4020,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                           occurring more often. The day count keeps a thin
                           sample honest. */}
                       <div className="flex items-center gap-2.5 pb-1.5 mt-2 mb-1 border-b border-neutral-100">
-                        <div className="w-12 flex-shrink-0"></div>
+                        <div className="w-[72px] flex-shrink-0"></div>
                         <div className="flex-1 min-w-0"></div>
                         <div className="w-16 flex-shrink-0 text-right text-[9px] text-neutral-400 uppercase tracking-wide">Avg / day</div>
                         <div className="w-8 flex-shrink-0 text-right text-[9px] text-neutral-400 uppercase tracking-wide">Days</div>
@@ -4008,7 +4028,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                       <div className="space-y-0">
                         {dowBuckets.map((b) => (
                           <div key={b.day} className="w-full flex items-center gap-2.5 py-2.5">
-                            <div className="w-12 flex-shrink-0 text-left text-[11px] text-neutral-600">{b.label.slice(0, 3)}</div>
+                            <div className="w-[72px] flex-shrink-0 text-left text-[11px] text-neutral-600">{b.label}</div>
                             <div className="relative flex-1 min-w-0 h-1.5 bg-neutral-100 rounded-full overflow-hidden">
                               <div
                                 className="h-full rounded-full bg-neutral-400 transition-all"
@@ -4027,11 +4047,29 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                       {dowLine && (
                         <p className="mt-2 text-[11px]" style={{ color: '#8E8E93' }}>{dowLine}</p>
                       )}
+                      {/* What the toggle actually did, in euros. Without this
+                          it can look dead: recurring spending spread across
+                          the week lowers every bar in proportion, and bars
+                          are relative, so the picture barely moves. */}
+                      {trendDowOneOffs && (
+                        <p className="mt-1 text-[11px]" style={{ color: '#B0B0B5' }}>
+                          {dowExcludedCount > 0
+                            ? `Leaving out ${dowExcludedCount} recurring transaction${dowExcludedCount === 1 ? '' : 's'} (${formatAmountListView(dowExcludedTotal, currency, 0)}).`
+                            : 'Nothing here is recurring, so this view matches All.'}
+                        </p>
+                      )}
                     </>
                   ) : (
-                    <p className="py-6 text-center text-sm text-neutral-400">
-                      No spending in this period{trendDowOneOffs ? ' outside recurring' : ''}.
-                    </p>
+                    <div className="py-6 text-center">
+                      <p className="text-sm text-neutral-400">
+                        No spending in this period{trendDowOneOffs && dowExcludedCount > 0 ? ' outside recurring' : ''}.
+                      </p>
+                      {trendDowOneOffs && dowExcludedCount > 0 && (
+                        <p className="mt-1 text-[11px]" style={{ color: '#B0B0B5' }}>
+                          Leaving out {dowExcludedCount} recurring transaction{dowExcludedCount === 1 ? '' : 's'} ({formatAmountListView(dowExcludedTotal, currency, 0)}).
+                        </p>
+                      )}
+                    </div>
                   )}
                 </>
               )}
@@ -4048,7 +4086,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
               {(selectedCategory !== 'All' || transactionType === 'savings') && (
                 <div className="flex items-center gap-2.5 pb-1.5 mt-2 mb-1 border-b border-neutral-100">
                   {/* Month spacer */}
-                  <div className="w-12 flex-shrink-0"></div>
+                  <div className="w-[72px] flex-shrink-0"></div>
                   {/* Bar chart spacer */}
                   <div className={`${selectedCategory === 'All' ? 'flex-1' : 'w-32'} min-w-0`}></div>
                   {/* Amount header */}
@@ -4145,8 +4183,8 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                       className="w-full flex items-center gap-2.5 py-2.5 active:bg-neutral-50 transition-colors"
                     >
                       {/* Month - always neutral; ranking lives in the badges */}
-                      <div className="w-12 flex-shrink-0 text-left text-[11px] tabular-nums self-center text-neutral-600">
-                        {item.month}
+                      <div className="w-[72px] flex-shrink-0 text-left text-[11px] tabular-nums self-center text-neutral-600">
+                        {MFULL[M3.indexOf(item.month)] ?? item.month}
                       </div>
                       
                       {/* Visual indicator - mini bar */}

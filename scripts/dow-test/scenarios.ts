@@ -82,6 +82,15 @@ heading('3. One-offs only: rent does not own the weekday the 1st fell on');
   expect('with everything in, Saturday carries the rent', Math.round(at(all, 'Saturday').total), 1000);
   expect('one-offs only: Saturday drops to zero', at(oneOff, 'Saturday').total, 0);
   expect('while the coffee stays', Math.round(at(oneOff, 'Tuesday').total), 10);
+
+  // A rule-made occurrence can arrive with only the chain marker: an edit,
+  // an import or an older build may have wiped the label. It is still rent.
+  const marked = [
+    { ...tx('2026-08-08', 500), recurrence: 'Never repeat', recurrenceOf: 'rule-1' },
+    tx('2026-08-11', 10),
+  ];
+  const m = dayOfWeekBreakdown(marked, 'EUR', { ...AUG, oneOffsOnly: true });
+  expect('the recurrenceOf marker alone is enough to exclude a row', at(m, 'Saturday').total, 0);
 }
 
 // 4. Income is not spending.
