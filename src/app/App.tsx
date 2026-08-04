@@ -115,6 +115,8 @@ import {
   saveCloudChecked,
   deleteCloud,
   mergePayloads,
+  sameVersion,
+  samePayload,
   type SyncPayload,
 } from './lib/cloud';
 import { track } from './lib/analytics';
@@ -537,12 +539,20 @@ export default function App() {
     pullingRef.current = true;
     try {
       const version = await loadCloudVersion(uid);
-      if (!version || version === cloudVersionRef.current) return; // nothing new
+      // sameVersion, not ===: the server hands our own stamp back in a
+      // different text form, and a string compare made every poll believe
+      // another device had written (see cloud.ts).
+      if (!version || sameVersion(version, cloudVersionRef.current)) return; // nothing new
       const remote = await loadCloud(uid);
       if (!remote) return;
       const local = localPayloadRef.current ?? remote.payload;
       const merged = mergePayloads(cloudBaseRef.current, local, remote.payload);
       rememberSyncBase(remote.payload, remote.version);
+      // A pull that changes nothing must not touch the UI. Dashboard and Trend
+      // are keyed on refreshKey, so applying an identical payload remounts
+      // both - the charts blank and redraw - and hands the save effect fresh
+      // state to push, which gives the next poll something to find.
+      if (samePayload(merged, local)) return;
       applyPayload(merged);
       setRefreshKey((prev) => prev + 1);
     } catch {

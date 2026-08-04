@@ -68,6 +68,48 @@ export async function loadCloudVersion(userId: string): Promise<string | null> {
   return (data?.updated_at as string) ?? null;
 }
 
+// Do two stamps name the same moment?
+//
+// Not the same question as "are these the same string". The client writes an
+// ISO stamp ending in `Z`; Postgres keeps it as a timestamptz and hands it
+// back as `+00:00`, with trailing zeros trimmed off the fraction - so a write
+// of `...:00.120Z` reads back as `...:00.12+00:00`. Same instant, different
+// text.
+//
+// Comparing the text meant a device never recognised its OWN last write: every
+// poll saw a "new" version, downloaded the dataset, merged it into itself and
+// re-rendered - then pushed the result, giving the next poll something new to
+// find. A phone sitting idle on the dashboard did that every twenty seconds,
+// forever, and the charts visibly redrew each time.
+export function sameVersion(a: string | null, b: string | null): boolean {
+  if (a === b) return true;
+  if (!a || !b) return false;
+  const ta = Date.parse(a);
+  const tb = Date.parse(b);
+  return !Number.isNaN(ta) && !Number.isNaN(tb) && ta === tb;
+}
+
+// Value equality for two datasets, insensitive to key order and treating an
+// absent field as an undefined one (`monthlyBudget` is either).
+//
+// Used to answer "did that pull actually change anything?". A merge can be a
+// no-op - another device pushing an unchanged payload still moves the version
+// stamp - and applying a no-op costs a full remount of the screen.
+function canonical(v: unknown): string {
+  if (v === undefined || v === null) return 'null';
+  if (typeof v !== 'object') return JSON.stringify(v) ?? 'null';
+  if (Array.isArray(v)) return `[${v.map(canonical).join(',')}]`;
+  const obj = v as Record<string, unknown>;
+  const keys = Object.keys(obj).filter((k) => obj[k] !== undefined).sort();
+  return `{${keys.map((k) => `${JSON.stringify(k)}:${canonical(obj[k])}`).join(',')}}`;
+}
+
+export function samePayload(a: SyncPayload | null, b: SyncPayload | null): boolean {
+  if (a === b) return true;
+  if (!a || !b) return false;
+  return canonical(a) === canonical(b);
+}
+
 // The stamp for the next write. It must be strictly later than the one being
 // replaced, and a plain `new Date()` is not enough: two devices writing in the
 // same millisecond produce identical stamps, and then the version check passes

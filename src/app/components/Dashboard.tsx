@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { ChevronRight, ArrowUpDown, TrendingUp, TrendingDown, Minus, Plus, Receipt, ChevronLeft, ChevronDown, X, Wallet, Gauge } from 'lucide-react';
 import { TrendCategoryBreakdown } from './TrendCategoryBreakdown';
 import React from 'react';
@@ -228,6 +228,11 @@ function StatChip({ label, value, tone }: { label: React.ReactNode; value: strin
   );
 }
 
+// The cumulative chart's box width, remembered across remounts. Deliberately
+// module scope: this is how wide the phone is, which no remount changes, and
+// starting from it means the first render already draws at the right scale.
+let lastChartWidth = 0;
+
 export function Dashboard({ expenses, categories, incomeCategories, sources = [], userName, currency, onEditExpense, onDeleteExpense, view = 'overview', onShowOverview, initialPeriod, viewStateRef, trendStateRef, monthlyBudget, budgetNudgeDismissed, onSetMonthlyBudget, onDismissBudgetNudge, onAddFirstExpense, onLoadDemoData }: DashboardProps) {
   // Restore the previous view (period + drilldown) unless a Trend->Overview
   // link supplied an explicit period - that must win and start clean.
@@ -237,16 +242,39 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
   const [timePeriodType, setTimePeriodType] = useState<TimePeriodType>(savedView?.timePeriodType ?? 'month');
   // Measure the cumulative chart's real pixel width so its SVG renders 1:1
   // (no aspect-ratio stretching that would deform the line dot / axis text).
-  const chartBoxRef = useRef<HTMLDivElement | null>(null);
-  const [chartWidth, setChartWidth] = useState(0);
-  useEffect(() => {
+  //
+  // Measured on the ref callback, which React runs during the commit - before
+  // the browser paints - and seeded from the last width this session. The
+  // width is a property of the viewport, not of the data, so it survives the
+  // remounts App triggers on a sync pull. Measuring in an effect instead meant
+  // every remount painted one frame at the 340-unit fallback inside a ~294px
+  // box: the whole chart appeared scaled down, then snapped back a frame
+  // later. That flicker is what a phone left open showed on every poll.
+  const [chartWidth, setChartWidth] = useState(lastChartWidth);
+  const chartBoxCleanup = useRef<(() => void) | null>(null);
+  const chartBoxRef = useCallback((el: HTMLDivElement | null) => {
+    chartBoxCleanup.current?.();
+    chartBoxCleanup.current = null;
+    if (!el) return;
     const measure = () => {
-      if (chartBoxRef.current) setChartWidth(chartBoxRef.current.clientWidth);
+      const w = el.clientWidth;
+      if (w > 0) {
+        lastChartWidth = w;
+        setChartWidth(w);
+      }
     };
     measure();
-    window.addEventListener('resize', measure);
-    return () => window.removeEventListener('resize', measure);
-  });
+    // Rotation, a keyboard opening, an iPad split view: the box can change
+    // width without the window firing resize, and vice versa.
+    if (typeof ResizeObserver !== 'undefined') {
+      const ro = new ResizeObserver(measure);
+      ro.observe(el);
+      chartBoxCleanup.current = () => ro.disconnect();
+    } else {
+      window.addEventListener('resize', measure);
+      chartBoxCleanup.current = () => window.removeEventListener('resize', measure);
+    }
+  }, []);
   const [expandedCategory, setExpandedCategory] = useState<string | null>(savedView?.expandedCategory ?? null);
   const [trendExpandedCategory, setTrendExpandedCategory] = useState<string | null>(savedTrend?.trendExpandedCategory ?? null);
   const [selectedCategory, setSelectedCategory] = useState<string>(savedTrend?.selectedCategory ?? 'All');
@@ -2489,6 +2517,14 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                         // this keeps the endpoint dot round and the axis text undistorted.
                         // Geometry comes from `geom` so the drawing and the
                         // pointer maths can never disagree again.
+                        //
+                        // Nothing at all until that width is known: a chart laid
+                        // out at the fallback width inside a narrower box gets
+                        // scaled down whole by preserveAspectRatio, and the
+                        // correction a frame later is the shrink-then-snap the
+                        // eye catches. The box already reserves the height, so
+                        // waiting costs no layout shift.
+                        if (!chartWidth) return null;
                         const { svgW, svgH, marginTop, marginRight, marginBottom,
                                 marginLeft, plotW, plotH, n, axisMax, yStep, xOf, yOf } = geom;
                         const yAxisW = marginLeft;

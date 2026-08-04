@@ -16,6 +16,8 @@ import {
   loadCloudVersion,
   saveCloudChecked,
   mergePayloads,
+  sameVersion,
+  samePayload,
   type SyncPayload,
 } from './lib/cloud';
 import { db } from './lib/supabase';
@@ -126,6 +128,39 @@ class Phone {
       this.base = remote.payload;
       this.version = remote.version;
     }
+  }
+
+  // The 20-second poll App.tsx runs while the app is open and visible
+  // (pullRemote). Two counters, because the two costs are different: `pulls`
+  // is bandwidth, `refreshes` is the screen - App keys Dashboard and Trend on
+  // refreshKey, so a refresh remounts them and the charts visibly redraw.
+  pulls = 0;
+  refreshes = 0;
+
+  async poll() {
+    const version = await loadCloudVersion(USER);
+    // OLD: a string compare, which never recognised this device's own write
+    // because the server hands the stamp back in a different text form.
+    const unchanged = OLD ? version === this.version : sameVersion(version, this.version);
+    if (!version || unchanged) return;
+    const remote = await loadCloud(USER);
+    if (!remote) return;
+    this.pulls++;
+    const local = this.payload();
+    const merged = mergePayloads(this.base, local, remote.payload);
+    this.base = remote.payload;
+    this.version = remote.version;
+    // OLD: applied whatever came back, even when it was what we already had.
+    if (!OLD && samePayload(merged, local)) {
+      say(`${this.name} polls -> stamp moved but the data is identical, nothing to do`);
+      return;
+    }
+    this.transactions = merged.transactions;
+    this.categories = merged.categories;
+    this.budget = merged.settings.monthlyBudget;
+    this.userName = merged.settings.userName;
+    this.refreshes++;
+    say(`${this.name} polls -> pulls changes and re-renders  -> ${this.list()}`);
   }
 
   async foreground() {
@@ -728,6 +763,48 @@ async function scenarioCategoryRenameVsChip() {
   expect('both devices agree (iPhone)', a.chips('others'), 'Misc[Donations,Tobacco]');
 }
 
+// The two that matter for a phone sitting still: the poll must recognise this
+// device's own last write, and a pull that changes nothing must not touch the
+// screen. Getting either wrong redraws the dashboard every twenty seconds.
+async function scenarioIdlePolling() {
+  heading('22. A phone left open on the dashboard is left alone');
+  reset();
+  const a = new Phone('iPhone');
+  a.add('t1', 'Coffee', 3);
+  await a.sync();
+
+  say('nobody else is signed in; the app just sits there for a minute');
+  for (let i = 0; i < 3; i++) await a.poll();
+
+  expect('a minute of polling downloads nothing', String(a.pulls), '0');
+  expect('and the charts are never re-rendered', String(a.refreshes), '0');
+}
+
+async function scenarioNoOpPull() {
+  heading('23. Another device re-uploading the same data does not redraw ours');
+  reset();
+  const a = new Phone('iPhone');
+  const b = new Phone('iPad');
+  a.add('t1', 'Coffee', 3);
+  a.add('t2', 'Bus', 2);
+  await a.sync();
+  await b.openApp();
+  say('the iPad returns to the foreground and pushes - same data, new stamp');
+  await b.sync();
+
+  await a.poll();
+  expect('the phone downloads once to see what moved', String(a.pulls), '1');
+  expect('finds nothing new, and leaves the screen alone', String(a.refreshes), '0');
+  expect('and still has everything', a.list(), 'Coffee + Bus');
+
+  say('a real change on the iPad, however, must come through');
+  b.add('t3', 'Lunch', 12);
+  await b.sync();
+  await a.poll();
+  expect('this one does re-render', String(a.refreshes), '1');
+  expect('with the new transaction', a.list(), 'Coffee + Bus + Lunch');
+}
+
 async function main() {
   console.log('\n================================================================');
   console.log(` Cloud sync - two devices, one account   [${OLD ? 'BEFORE the fix' : 'AFTER the fix'}]`);
@@ -754,6 +831,8 @@ async function main() {
   await scenarioCategoryEdits();
   await scenarioCategoryConcurrent();
   await scenarioCategoryRenameVsChip();
+  await scenarioIdlePolling();
+  await scenarioNoOpPull();
 
   console.log('\n================================================================');
   console.log(failures === 0 ? ' All checks passed - nothing lost.' : ` ${failures} check(s) FAILED.`);
