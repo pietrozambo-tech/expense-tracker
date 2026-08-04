@@ -1853,10 +1853,26 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                   value={timePeriodType}
                   onChange={(e) => {
                     setTimePeriodType(e.target.value as TimePeriodType);
-                    const current = getCurrentPeriod();
-                    setSelectedMonth(current.month);
-                    setSelectedQuarter(current.quarter);
-                    setSelectedYear(current.year);
+                    // Change the lens, stay where you are. This used to jump
+                    // back to today, so looking at October 2025 by quarter
+                    // landed on the CURRENT quarter and you had to navigate all
+                    // the way back. The title picker is how you move; this only
+                    // changes how the period in view is cut up.
+                    //
+                    // Zooming in lands on the last sub-period in view, never
+                    // later than today: 2025 by month is December 2025, but
+                    // this year by month is this month, not December.
+                    const now = new Date();
+                    const lastMonthInView =
+                      timePeriodType === 'month' ? selectedMonth
+                      : timePeriodType === 'quarter' ? selectedQuarter * 3 + 2
+                      : 11;
+                    const month =
+                      selectedYear === now.getFullYear()
+                        ? Math.min(lastMonthInView, now.getMonth())
+                        : lastMonthInView;
+                    setSelectedMonth(month);
+                    setSelectedQuarter(Math.floor(month / 3));
                     setExpandedCategory(null);
                     // A pinned index is counted in the old unit; it would point
                     // at an unrelated period under the new one.
