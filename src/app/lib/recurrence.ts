@@ -298,23 +298,65 @@ export function applyFutureEdit(
  * Amount deliberately does not matter: rents rise and plans change, but the
  * name on the transaction is the series.
  */
+const normName = (s: string) => s.trim().toLowerCase().replace(/\s+/g, ' ');
+
+/** A plain one-off that looks like a member of the series: same name (case
+ *  and spacing aside), same category and direction, dated before the cutoff,
+ *  not already in any chain. */
+const isUnclaimedMatch = (
+  t: Transaction,
+  name: string,
+  categoryId: string | undefined,
+  type: string,
+  before: string,
+) =>
+  t.date < before &&
+  !t.recurrenceOf &&
+  (!t.recurrence || t.recurrence === 'Never repeat') &&
+  (t.type ?? 'expense') === type &&
+  t.category?.id === categoryId &&
+  normName(t.description) === name;
+
 export function findPastSeriesMatches(
   transactions: Transaction[],
   seed: { id: string; description: string; category: { id: string }; type?: string; date: string },
 ): Transaction[] {
-  const norm = (s: string) => s.trim().toLowerCase().replace(/\s+/g, ' ');
-  const name = norm(seed.description);
+  const name = normName(seed.description);
   if (!name) return [];
   return transactions.filter(
-    (t) =>
-      t.id !== seed.id &&
-      t.date < seed.date &&
-      !t.recurrenceOf &&
-      (!t.recurrence || t.recurrence === 'Never repeat') &&
-      (t.type ?? 'expense') === (seed.type ?? 'expense') &&
-      t.category?.id === seed.category?.id &&
-      norm(t.description) === name,
+    (t) => t.id !== seed.id && isUnclaimedMatch(t, name, seed.category?.id, seed.type ?? 'expense', seed.date),
   );
+}
+
+/**
+ * The other way round: given the rules that already exist, which plain
+ * one-offs look like their history? The case findPastSeriesMatches cannot
+ * reach - the series was set up long ago, so the "declare it recurring"
+ * moment never comes again, while an import has just dropped a year of
+ * untagged copies behind it.
+ *
+ * Only rows dated BEFORE the rule's anchor. The engine materializes from the
+ * anchor forward, so everything offered here is history it will never touch:
+ * tagging these creates no rule and no future occurrence, it only marks the
+ * past as what it was. A same-named one-off AFTER the anchor is deliberately
+ * left alone - next to a materialized occurrence it may well be a duplicate,
+ * and sweeping it into the chain would hide that rather than fix it.
+ */
+export function findUnclaimedSeriesRows(
+  transactions: Transaction[],
+  rules: RecurringRule[],
+): Array<{ rule: RecurringRule; rows: Transaction[] }> {
+  const groups: Array<{ rule: RecurringRule; rows: Transaction[] }> = [];
+  for (const rule of rules) {
+    if (!isActiveRule(rule)) continue;
+    const name = normName(rule.template.description ?? '');
+    if (!name) continue;
+    const rows = transactions.filter((t) =>
+      isUnclaimedMatch(t, name, rule.template.category?.id, rule.template.type ?? 'expense', rule.anchorDate),
+    );
+    if (rows.length > 0) groups.push({ rule, rows });
+  }
+  return groups;
 }
 
 /**

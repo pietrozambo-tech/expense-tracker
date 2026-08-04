@@ -34,6 +34,10 @@ const KEYS = {
   // have never signed in - their data is adoptable by the first account that
   // does, which is the normal onboarding path.
   owner: key('owner'),
+  // Transaction ids the user declined to fold into a recurring series, so the
+  // offer is not repeated on every launch. Device-local: a nudge preference,
+  // not data - at worst another device asks the same question once.
+  backTagDismissed: key('backtag-dismissed'),
 };
 
 /**
@@ -164,3 +168,6 @@ export const saveSyncBase = (base: SyncBase | null) => {
   }
   write(KEYS.syncBase, base);
 };
+
+export const loadBackTagDismissed = (): string[] => read<string[]>(KEYS.backTagDismissed, []);
+export const saveBackTagDismissed = (ids: string[]) => write(KEYS.backTagDismissed, ids);

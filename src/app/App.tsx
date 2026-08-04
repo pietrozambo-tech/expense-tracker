@@ -22,6 +22,8 @@ import {
   saveSyncBase,
   loadOwner,
   saveOwner,
+  loadBackTagDismissed,
+  saveBackTagDismissed,
 } from './lib/storage';
 import { DEFAULT_SOURCES, DEFAULT_SOURCE_EXPENSE, DEFAULT_SOURCE_INCOME } from './components/sources';
 import { SourceLogo } from './components/SourceLogo';
@@ -41,7 +43,7 @@ import { SaveButton } from './components/SaveButton';
 import { DescriptionInput } from './components/DescriptionInput';
 import { Onboarding } from './components/Onboarding';
 import { useAuth } from './auth/AuthProvider';
-import { processRecurrence, buildRuleTemplate, newRuleId, occurrenceDueDate, isActiveRule, applyFutureEdit, findPastSeriesMatches, tagPastSeries } from './lib/recurrence';
+import { processRecurrence, buildRuleTemplate, newRuleId, occurrenceDueDate, isActiveRule, applyFutureEdit, findPastSeriesMatches, findUnclaimedSeriesRows, tagPastSeries } from './lib/recurrence';
 import { RecurringScopeDialog } from './components/RecurringScopeDialog';
 import { ConfirmDialog } from './components/ConfirmDialog';
 
@@ -179,6 +181,10 @@ export default function App() {
   // copies of the same series (typically imported history) can join the new
   // chain in one tap instead of a dozen hand edits.
   const [pendingBackTag, setPendingBackTag] = useState<{ rule: RecurringRule; ids: string[]; name: string } | null>(null);
+  // The same offer from the other direction: series set up long ago, history
+  // imported afterwards. Checked on open and after imports; declining is
+  // remembered per transaction so it never nags.
+  const [pendingSeriesCleanup, setPendingSeriesCleanup] = useState<Array<{ rule: RecurringRule; ids: string[]; name: string }> | null>(null);
   const [pendingRecurringDelete, setPendingRecurringDelete] = useState<Transaction | null>(null);
   const [returnToTab, setReturnToTab] = useState<'dashboard' | 'activity' | 'trend' | 'settings' | 'add'>('dashboard'); // Track which tab to return to after editing
   // Set when a Trend month is tapped so the Overview opens on that period
@@ -659,7 +665,25 @@ export default function App() {
       });
     }
   }, []);
+  // Untagged history behind the existing rules: an import drops a year of
+  // "Monthly rent" one-offs behind a series that was set up long ago, so the
+  // "declare it recurring" moment - which is when the other offer fires -
+  // never comes. Reads refs, so the import path can call it right after
+  // setting state and still see the fresh rows.
+  const offerSeriesCleanup = useCallback(() => {
+    const dismissed = new Set(loadBackTagDismissed());
+    const groups = findUnclaimedSeriesRows(expensesRef.current, rulesRef.current)
+      .map((g) => ({
+        rule: g.rule,
+        name: g.rule.template.description ?? '',
+        ids: g.rows.map((r) => r.id).filter((id) => !dismissed.has(id)),
+      }))
+      .filter((g) => g.ids.length > 0);
+    if (groups.length > 0) setPendingSeriesCleanup(groups);
+  }, []);
+
   const recurrenceReady = userId ? cloudHydrated : guest;
+  const cleanupOfferedThisLaunch = useRef(false);
   useEffect(() => {
     if (!recurrenceReady) return;
     runRecurrence();
@@ -667,8 +691,18 @@ export default function App() {
       if (document.visibilityState === 'visible') runRecurrence();
     };
     document.addEventListener('visibilitychange', onVisible);
-    return () => document.removeEventListener('visibilitychange', onVisible);
-  }, [recurrenceReady, runRecurrence]);
+    // Once per launch, after the open has settled - not on every foreground,
+    // which would put a dialog over whatever the user came back to do.
+    let cleanupTimer: number | undefined;
+    if (!cleanupOfferedThisLaunch.current) {
+      cleanupOfferedThisLaunch.current = true;
+      cleanupTimer = window.setTimeout(offerSeriesCleanup, 2000);
+    }
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible);
+      if (cleanupTimer) window.clearTimeout(cleanupTimer);
+    };
+  }, [recurrenceReady, runRecurrence, offerSeriesCleanup]);
 
   const handleCategorySelect = (categoryId: string) => {
     setSelectedCategory(categoryId);
@@ -1350,6 +1384,11 @@ export default function App() {
         description: 'All matched to your categories',
         duration: 2200,
       });
+      // The import may have dropped a year of one-offs behind series that
+      // already exist - offer to fold them in. When the summary dialog is up
+      // instead, the offer waits for its close (see onClose below); two
+      // stacked dialogs is one too many.
+      window.setTimeout(offerSeriesCleanup, 800);
     }
   };
 
@@ -1617,7 +1656,10 @@ export default function App() {
       {importSummary && (
         <ImportSummaryDialog
           result={importSummary}
-          onClose={() => setImportSummary(null)}
+          onClose={() => {
+            setImportSummary(null);
+            window.setTimeout(offerSeriesCleanup, 400);
+          }}
           onReview={() => {
             setImportSummary(null);
             // Land on the rows that need eyes, not on today's empty month:
@@ -2062,6 +2104,45 @@ export default function App() {
           />
         </div>
       )}
+      {/* The scan the other way round: series that already exist, history
+          that arrived untagged (an import, typically). Tagging attaches the
+          rows to the EXISTING rules as pre-anchor history - no new rules, no
+          new future occurrences, the schedules the user set up stay exactly
+          as they are. Declining is remembered per transaction. */}
+      {pendingSeriesCleanup && !pendingBackTag && (() => {
+        const total = pendingSeriesCleanup.reduce((s, g) => s + g.ids.length, 0);
+        const names = pendingSeriesCleanup.map((g) => `${g.name} (${g.ids.length})`);
+        const summary = names.slice(0, 4).join(', ') + (names.length > 4 ? ` and ${names.length - 4} more` : '');
+        return (
+          <div className="relative z-[60]">
+            <ConfirmDialog
+              variant="neutral"
+              icon={Repeat}
+              title="Mark past transactions as recurring?"
+              message={`${total} older transaction${total === 1 ? '' : 's'} match your recurring series: ${summary}. Marking them only labels the past - your schedules stay as they are.`}
+              confirmLabel={`Mark ${total === 1 ? 'it' : `all ${total}`} recurring`}
+              onConfirm={() => {
+                setExpenses((prev) => {
+                  let next = prev;
+                  for (const g of pendingSeriesCleanup) next = tagPastSeries(next, g.ids, g.rule);
+                  return next;
+                });
+                setRefreshKey((prev) => prev + 1);
+                toast.success(`${total} transaction${total === 1 ? '' : 's'} marked as recurring`, { duration: 1600 });
+                setPendingSeriesCleanup(null);
+              }}
+              onCancel={() => {
+                // Remember every id offered, so the same rows never nag again;
+                // a future import bringing NEW matches still will.
+                saveBackTagDismissed([
+                  ...new Set([...loadBackTagDismissed(), ...pendingSeriesCleanup.flatMap((g) => g.ids)]),
+                ]);
+                setPendingSeriesCleanup(null);
+              }}
+            />
+          </div>
+        );
+      })()}
       {/* Offered once, right after a series is declared recurring: fold its
           earlier one-off copies (imported history, mostly) into the chain.
           Declining leaves them untouched - it never asks again for this rule. */}

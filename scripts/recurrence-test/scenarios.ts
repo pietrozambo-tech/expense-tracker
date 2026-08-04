@@ -15,6 +15,7 @@ import {
   buildRuleTemplate,
   newRuleId,
   findPastSeriesMatches,
+  findUnclaimedSeriesRows,
   tagPastSeries,
 } from './lib/recurrence';
 import type { RecurringRule, Transaction } from './types';
@@ -203,6 +204,7 @@ scenarioDeletedStayDeleted();
 scenarioStopping();
 scenarioStamps();
 scenarioBackTag();
+scenarioUnclaimedScan();
 // 7. Retro-tagging imported history as recurring, without minting new rules.
 function scenarioBackTag() {
   heading('7. A year of imported "Monthly rent" joins the new chain safely');
@@ -272,6 +274,56 @@ function scenarioBackTag() {
   say(`label-only tagging would have minted ${boom.rules.length} rules from one rent`);
   expect('which is exactly why tagged rows must join the chain',
     String(boom.rules.length > 1), 'true');
+}
+
+// 8. The scan from the rules' side: series set up long ago, history imported
+// afterwards. The user's actual case - the "declare recurring" moment never
+// comes again, so the offer has to start from what already exists.
+function scenarioUnclaimedScan() {
+  heading('8. Existing rules claim imported history; the future is untouched');
+
+  const tx = (id: string, date: string, amount: number, description: string): Transaction => ({
+    id, description, amount, currency: 'EUR', baseAmount: amount,
+    category: cat, date, type: 'expense', recurrence: 'Never repeat',
+  });
+
+  // Two live series and one ended one. Anchors in 2026; history in 2025.
+  const rent: RecurringRule = { id: 'rule-rent2', rule: 'First day of the month', anchorDate: '2026-01-01',
+    template: { description: 'Monthly rent', amount: 800, currency: 'EUR', category: cat, type: 'expense' } };
+  const voda: RecurringRule = { id: 'rule-voda', rule: 'Every month', anchorDate: '2026-02-10',
+    template: { description: 'Vodafone', amount: 25, currency: 'EUR', category: cat, type: 'expense' } };
+  const ended: RecurringRule = { id: 'rule-gym', rule: 'Every month', anchorDate: '2026-01-05', endedAt: '2026-03-05',
+    template: { description: 'Gym', amount: 40, currency: 'EUR', category: cat, type: 'expense' } };
+
+  const txns: Transaction[] = [
+    tx('r1', '2025-03-01', 780, 'Monthly rent'),
+    tx('r2', '2025-04-01', 780, 'monthly  Rent'), // case and spacing differ
+    tx('v1', '2025-06-10', 23, 'Vodafone'),
+    tx('g1', '2025-05-05', 40, 'Gym'),            // matches only the ENDED rule
+    tx('post', '2026-03-01', 800, 'Monthly rent'),// AFTER the anchor: likely a duplicate, not history
+    { ...tx('occ', '2026-01-01', 800, 'Monthly rent'), recurrence: 'First day of the month', recurrenceOf: 'rule-rent2' },
+  ];
+
+  const groups = findUnclaimedSeriesRows(txns, [rent, voda, ended]);
+  const byRule = Object.fromEntries(groups.map((g) => [g.rule.id, g.rows.map((r) => r.id).sort().join(',')]));
+  expect('the rent history is found, spacing and case aside', byRule['rule-rent2'] ?? '(none)', 'r1,r2');
+  expect('each series claims only its own', byRule['rule-voda'] ?? '(none)', 'v1');
+  expect('an ended series claims nothing', byRule['rule-gym'] ?? '(none)', '(none)');
+  say('the post-anchor look-alike next to a real occurrence stays out: it may be a duplicate');
+  expect('rows after the anchor are not offered',
+    groups.some((g) => g.rows.some((r) => r.id === 'post')) ? 'offered' : 'left alone', 'left alone');
+
+  // Accept, then run the engine well past the anchors: the tagging must not
+  // change what the rules produce.
+  let tagged = txns;
+  for (const g of groups) tagged = tagPastSeries(tagged, g.rows.map((r) => r.id), g.rule);
+  const before = processRecurrence(txns, [rent, voda, ended], TODAY);
+  const after = processRecurrence(tagged, [rent, voda, ended], TODAY);
+  expect('the engine creates exactly as many occurrences as it would have anyway',
+    String(after.createdCount), String(before.createdCount));
+  expect('and no new rules', String(after.rules.length), String(before.rules.length));
+  const scan2 = findUnclaimedSeriesRows(after.transactions, after.rules);
+  expect('a second scan finds nothing left to offer', String(scan2.length), '0');
 }
 
 console.log('\n================================================================');
