@@ -5,6 +5,15 @@ import type { Transaction } from '../types';
 // The sample dataset has fixed dates. Shift every transaction by whole months
 // so the newest sample month lands on the current month — this keeps the
 // dashboard's "current month" view populated no matter when demo data is loaded.
+//
+// Those hand-written months only cover the recent stretch, which left every
+// year-over-year view empty on a fresh device: no "vs last year" benchmark on
+// the cumulative chart, no dashed previous-year line on Trend, and a year view
+// with nothing to compare against. So the months before them are generated,
+// back to January of last year, and a full previous calendar year always
+// exists. Generated rather than written out because two more years of sample
+// transactions would be ~150KB of data in every bundle, including for the
+// people who never load the demo.
 
 const monthIndex = (dateStr: string) => {
   const [year, month] = dateStr.split('-').map(Number);
@@ -21,9 +30,23 @@ function shiftMonths(dateStr: string, offset: number): string {
   return `${year}-${String(month + 1).padStart(2, '0')}-${String(clampedDay).padStart(2, '0')}`;
 }
 
+// A stable 0..1 from a string. The variation below has to be deterministic:
+// with Math.random the charts would redraw differently on every load, and no
+// two screenshots of the demo would ever match.
+function hashUnit(seed: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < seed.length; i++) {
+    h ^= seed.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return ((h >>> 0) % 10000) / 10000;
+}
+
 export function getDemoTransactions(currency: string): Transaction[] {
   const now = new Date();
-  const newestMonth = Math.max(...mockExpenses.map((t) => monthIndex(t.date)));
+  const sampleMonths = mockExpenses.map((t) => monthIndex(t.date));
+  const newestMonth = Math.max(...sampleMonths);
+  const oldestMonth = Math.min(...sampleMonths);
   const offset = now.getFullYear() * 12 + now.getMonth() - newestMonth;
   // The newest sample month is a partial one, with entries up to the 10th. Land
   // that on a month only a few days old and those entries fall after today -
@@ -33,7 +56,60 @@ export function getDemoTransactions(currency: string): Transaction[] {
     now.getDate(),
   ).padStart(2, '0')}`;
 
-  return mockExpenses.map((transaction) => {
+  // The hand-written stretch, ending on this month.
+  const recent = mockExpenses.map((t) => ({
+    ...t,
+    id: `demo-${t.id}`,
+    date: shiftMonths(t.date, offset),
+  }));
+
+  // Everything before it, back to January of last year.
+  const oldestShown = oldestMonth + offset;
+  const firstNeeded = (now.getFullYear() - 1) * 12;
+  // Only whole months make usable templates - the newest hand-written one stops
+  // mid-month, and a history of half-months would read as a spending collapse.
+  const templates = [...new Set(sampleMonths)].sort((a, b) => a - b).filter((m) => m !== newestMonth);
+
+  const history: typeof recent = [];
+  for (let m = oldestShown - 1; m >= firstNeeded; m--) {
+    const back = oldestShown - m; // 1 = the month just before the written ones
+    const template = templates[(back - 1) % templates.length];
+    // Spending drifts gently down the further back you go, so last year reads
+    // as a slightly cheaper year rather than a carbon copy - which is the whole
+    // point of a year-over-year view. The drift stays out of the last six
+    // months, so the monthly "your usual" benchmark is untouched and the demo
+    // never opens on a false "spending faster than usual".
+    const drift = 1 - Math.min(back, 30) * 0.006;
+    const wobble = 0.95 + hashUnit(`month:${m}`) * 0.1;
+    const factor = drift * wobble;
+
+    for (const t of mockExpenses) {
+      if (monthIndex(t.date) !== template) continue;
+      // A tenth of the rows drop out, so no two months are identical.
+      if (hashUnit(`${m}:${t.id}`) < 0.1) continue;
+      // Scaling every category by the same number made last year a smaller
+      // copy of this one: every single category came out "up", every arrow
+      // red, which is not what a year looks like and tells the user nothing.
+      // Each category gets its own multiplier instead, so some things cost
+      // more than they used to and some less.
+      //
+      // Rent and salary are left on the plain drift: they only ever went up,
+      // and a demo showing a 20% pay cut or a landlord dropping the rent
+      // reads as broken rather than as variety.
+      const steady = t.type === 'income' || t.category?.name === 'Housing';
+      const perCategory = steady ? 1 : 0.78 + hashUnit(`cat:${t.category?.name ?? ''}`) * 0.55;
+      const scaled = t.amount * factor * perCategory;
+      history.push({
+        ...t,
+        id: `demo-h${m}-${t.id}`,
+        date: shiftMonths(t.date, m - monthIndex(t.date)),
+        // Salaries and payouts come in round numbers; groceries do not.
+        amount: t.type === 'income' ? Math.round(scaled / 10) * 10 : Math.round(scaled * 100) / 100,
+      });
+    }
+  }
+
+  return [...recent, ...history].map((transaction) => {
     // Most sample rows are priced in the user's own currency, so they are
     // converted from the EUR figures in the file. A handful carry an explicit
     // foreign currency - a trip abroad - and those keep it: converting them
@@ -42,11 +118,7 @@ export function getDemoTransactions(currency: string): Transaction[] {
     const foreign = transaction.currency && transaction.currency !== 'EUR';
     return {
       ...transaction,
-      id: `demo-${transaction.id}`,
-      date: (() => {
-        const shifted = shiftMonths(transaction.date, offset);
-        return shifted > todayStr ? todayStr : shifted;
-      })(),
+      date: transaction.date > todayStr ? todayStr : transaction.date,
       amount: foreign
         ? transaction.amount
         : currency === 'EUR'
