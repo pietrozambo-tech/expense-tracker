@@ -41,8 +41,9 @@ import { SaveButton } from './components/SaveButton';
 import { DescriptionInput } from './components/DescriptionInput';
 import { Onboarding } from './components/Onboarding';
 import { useAuth } from './auth/AuthProvider';
-import { processRecurrence, buildRuleTemplate, newRuleId, occurrenceDueDate, isActiveRule, applyFutureEdit } from './lib/recurrence';
+import { processRecurrence, buildRuleTemplate, newRuleId, occurrenceDueDate, isActiveRule, applyFutureEdit, findPastSeriesMatches, tagPastSeries } from './lib/recurrence';
 import { RecurringScopeDialog } from './components/RecurringScopeDialog';
+import { ConfirmDialog } from './components/ConfirmDialog';
 
 // The heavyweight screens load on demand so the initial bundle stays small.
 // (Named exports wrapped for React.lazy's default-export contract.)
@@ -174,6 +175,10 @@ export default function App() {
   // Pending scope choices for edits/deletes of transactions in a recurring
   // chain ("only this one" vs "this and future ones").
   const [pendingRecurringEdit, setPendingRecurringEdit] = useState<{ id: string; values: Partial<Transaction> } | null>(null);
+  // Offered right after a transaction is declared recurring: earlier one-off
+  // copies of the same series (typically imported history) can join the new
+  // chain in one tap instead of a dozen hand edits.
+  const [pendingBackTag, setPendingBackTag] = useState<{ rule: RecurringRule; ids: string[]; name: string } | null>(null);
   const [pendingRecurringDelete, setPendingRecurringDelete] = useState<Transaction | null>(null);
   const [returnToTab, setReturnToTab] = useState<'dashboard' | 'activity' | 'trend' | 'settings' | 'add'>('dashboard'); // Track which tab to return to after editing
   // Set when a Trend month is tapped so the Overview opens on that period
@@ -796,6 +801,14 @@ export default function App() {
           };
           setRecurringRules((prev) => [...prev, rule]);
           setExpenses((prev) => prev.map((e) => (e.id === editingExpenseId ? { ...e, recurrenceOf: rule.id } : e)));
+          const matches = findPastSeriesMatches(expenses, {
+            id: editingExpenseId,
+            description: values.description!,
+            category: categoryData!,
+            type: transactionType,
+            date,
+          });
+          if (matches.length > 0) setPendingBackTag({ rule, ids: matches.map((m) => m.id), name: values.description! });
         }
       }
 
@@ -833,6 +846,8 @@ export default function App() {
         };
         newExpense.recurrenceOf = rule.id;
         setRecurringRules((prev) => [...prev, rule]);
+        const matches = findPastSeriesMatches(expenses, newExpense);
+        if (matches.length > 0) setPendingBackTag({ rule, ids: matches.map((m) => m.id), name: newExpense.description });
       }
 
       // Add to expenses list
@@ -2044,6 +2059,27 @@ export default function App() {
             onOnlyThis={() => confirmRecurringDelete('one')}
             onFuture={() => confirmRecurringDelete('future')}
             onCancel={() => setPendingRecurringDelete(null)}
+          />
+        </div>
+      )}
+      {/* Offered once, right after a series is declared recurring: fold its
+          earlier one-off copies (imported history, mostly) into the chain.
+          Declining leaves them untouched - it never asks again for this rule. */}
+      {pendingBackTag && (
+        <div className="relative z-[60]">
+          <ConfirmDialog
+            variant="neutral"
+            icon={Repeat}
+            title="Include earlier ones?"
+            message={`${pendingBackTag.ids.length} past transaction${pendingBackTag.ids.length === 1 ? '' : 's'} named "${pendingBackTag.name}" ${pendingBackTag.ids.length === 1 ? 'is' : 'are'} not marked as recurring. Mark ${pendingBackTag.ids.length === 1 ? 'it' : 'them'} as part of this series too?`}
+            confirmLabel={`Mark ${pendingBackTag.ids.length === 1 ? 'it' : 'all ' + pendingBackTag.ids.length} recurring`}
+            onConfirm={() => {
+              setExpenses((prev) => tagPastSeries(prev, pendingBackTag.ids, pendingBackTag.rule));
+              setRefreshKey((prev) => prev + 1);
+              toast.success(`${pendingBackTag.ids.length} transaction${pendingBackTag.ids.length === 1 ? '' : 's'} marked as recurring`, { duration: 1600 });
+              setPendingBackTag(null);
+            }}
+            onCancel={() => setPendingBackTag(null)}
           />
         </div>
       )}

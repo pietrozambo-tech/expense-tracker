@@ -3995,11 +3995,11 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                         <button
                           key={label}
                           onClick={() => setTrendDowOneOffs(v)}
-                          className="px-2 leading-none"
+                          className="px-2.5 leading-none"
                           style={{
-                            fontSize: 10,
-                            paddingTop: 4,
-                            paddingBottom: 4,
+                            fontSize: 11,
+                            paddingTop: 6,
+                            paddingBottom: 6,
                             backgroundColor: trendDowOneOffs === v ? '#1C1C1E' : '#FAFAFA',
                             color: trendDowOneOffs === v ? '#FFFFFF' : '#8E8E93',
                             fontWeight: trendDowOneOffs === v ? 600 : 500,

@@ -287,3 +287,52 @@ export function applyFutureEdit(
     }),
   };
 }
+
+/**
+ * Earlier one-off copies of a series the user has just declared recurring:
+ * same name (case and spacing aside), same category and direction, dated
+ * before the seed, and not already part of any chain. Imported history is the
+ * whole point - a year of "Monthly rent" rows arrives as plain one-offs, and
+ * retagging them by hand is a dozen edits nobody will do.
+ *
+ * Amount deliberately does not matter: rents rise and plans change, but the
+ * name on the transaction is the series.
+ */
+export function findPastSeriesMatches(
+  transactions: Transaction[],
+  seed: { id: string; description: string; category: { id: string }; type?: string; date: string },
+): Transaction[] {
+  const norm = (s: string) => s.trim().toLowerCase().replace(/\s+/g, ' ');
+  const name = norm(seed.description);
+  if (!name) return [];
+  return transactions.filter(
+    (t) =>
+      t.id !== seed.id &&
+      t.date < seed.date &&
+      !t.recurrenceOf &&
+      (!t.recurrence || t.recurrence === 'Never repeat') &&
+      (t.type ?? 'expense') === (seed.type ?? 'expense') &&
+      t.category?.id === seed.category?.id &&
+      norm(t.description) === name,
+  );
+}
+
+/**
+ * Stamp past matches as members of an existing chain. recurrenceOf must point
+ * at the real rule: a bare label with no chain link is a legacy seed, and the
+ * migration at the top of processRecurrence would mint a brand-new rule out
+ * of EACH row - a dozen rent rules, each materializing its own occurrences.
+ * Linked to the rule they are just history: their dates sit before the
+ * anchor, so the engine never touches them.
+ */
+export function tagPastSeries(
+  transactions: Transaction[],
+  matchIds: string[],
+  rule: RecurringRule,
+): Transaction[] {
+  const ids = new Set(matchIds);
+  const stamp = new Date().toISOString();
+  return transactions.map((t) =>
+    ids.has(t.id) ? { ...t, recurrence: rule.rule, recurrenceOf: rule.id, updatedAt: stamp } : t,
+  );
+}

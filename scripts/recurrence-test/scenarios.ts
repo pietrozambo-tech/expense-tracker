@@ -14,6 +14,8 @@ import {
   occurrenceDueDate,
   buildRuleTemplate,
   newRuleId,
+  findPastSeriesMatches,
+  tagPastSeries,
 } from './lib/recurrence';
 import type { RecurringRule, Transaction } from './types';
 
@@ -200,6 +202,78 @@ scenarioPastUntouched();
 scenarioDeletedStayDeleted();
 scenarioStopping();
 scenarioStamps();
+scenarioBackTag();
+// 7. Retro-tagging imported history as recurring, without minting new rules.
+function scenarioBackTag() {
+  heading('7. A year of imported "Monthly rent" joins the new chain safely');
+
+  const tx = (id: string, date: string, amount: number, description: string): Transaction => ({
+    id, description, amount, currency: 'EUR', baseAmount: amount,
+    category: cat, date, type: 'expense', recurrence: 'Never repeat',
+  });
+
+  // Twelve imported one-offs, plus a look-alike in another category and a
+  // different bill, neither of which may be swept up.
+  const otherCat = { ...cat, id: 'c2', name: 'Leisure' };
+  const history: Transaction[] = [];
+  for (let m = 0; m < 12; m++) {
+    history.push(tx(`imp-${m}`, '2025-' + String(m + 1).padStart(2, '0') + '-01', 800, 'Monthly rent'));
+  }
+  history.push({ ...tx('imp-look', '2025-06-15', 12, 'monthly RENT'), category: otherCat });
+  history.push(tx('imp-dazn', '2025-06-20', 30, 'DAZN'));
+
+  // The user opens their newest rent and declares it recurring: App.tsx makes
+  // the rule and then offers the back-tag.
+  const seedValues = tx('imp-11', '2025-12-01', 800, 'Monthly rent');
+  const rule: RecurringRule = {
+    id: newRuleId(),
+    rule: 'Every month',
+    anchorDate: '2025-12-01',
+    template: buildRuleTemplate(seedValues),
+  };
+
+  const matches = findPastSeriesMatches(history, seedValues);
+  expect('the 11 earlier rents match - name, category, direction',
+    String(matches.length), '11');
+  expect('case and spacing do not defeat the name match, category does',
+    matches.some((m) => m.id === 'imp-look') ? 'look-alike swept up' : 'look-alike left alone',
+    'look-alike left alone');
+  expect('other bills are not touched',
+    matches.some((m) => m.id === 'imp-dazn') ? 'DAZN swept up' : 'DAZN left alone',
+    'DAZN left alone');
+
+  let txns = tagPastSeries(history, matches.map((m) => m.id), rule);
+  expect('tagged rows join the chain with BOTH markers',
+    String(txns.filter((t) => t.recurrence === 'Every month' && t.recurrenceOf === rule.id).length),
+    '11');
+
+  // The whole reason recurrenceOf must be set: run the engine. Without the
+  // chain link every tagged row is a legacy seed and becomes its own rule.
+  txns = txns.map((t) => (t.id === 'imp-11' ? { ...t, recurrence: 'Every month', recurrenceOf: rule.id } : t));
+  const res = processRecurrence(txns, [rule], TODAY);
+  expect('the engine mints no extra rules out of the tagged history',
+    String(res.rules.length), '1');
+  const perDate: Record<string, number> = {};
+  for (const t of res.transactions) perDate[t.date] = (perDate[t.date] ?? 0) + (t.description === 'Monthly rent' ? 1 : 0);
+  expect('and no month ever holds two rents',
+    String(Math.max(...Object.values(perDate))), '1');
+
+  // Matching is not offered rows already in a chain, nor future ones.
+  const again = findPastSeriesMatches(res.transactions, seedValues);
+  expect('once tagged, nothing is left to offer', String(again.length), '0');
+
+  // And the trap this design avoids, demonstrated: stamping the label WITHOUT
+  // the chain link makes every row a legacy seed, and the migration mints a
+  // rule out of each one.
+  const naive = history.map((t) =>
+    matches.some((m) => m.id === t.id) ? { ...t, recurrence: 'Every month' } : t,
+  );
+  const boom = processRecurrence(naive, [rule], TODAY);
+  say(`label-only tagging would have minted ${boom.rules.length} rules from one rent`);
+  expect('which is exactly why tagged rows must join the chain',
+    String(boom.rules.length > 1), 'true');
+}
+
 console.log('\n================================================================');
 console.log(failures === 0 ? ' All checks passed.' : ` ${failures} check(s) FAILED.`);
 console.log('================================================================\n');
