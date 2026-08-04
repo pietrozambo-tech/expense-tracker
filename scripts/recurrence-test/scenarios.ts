@@ -16,6 +16,7 @@ import {
   newRuleId,
   findPastSeriesMatches,
   findUnclaimedSeriesRows,
+  findGeneratedDuplicates,
   tagPastSeries,
 } from './lib/recurrence';
 import type { RecurringRule, Transaction } from './types';
@@ -206,6 +207,7 @@ scenarioStamps();
 scenarioBackTag();
 scenarioUnclaimedScan();
 scenarioForeignWording();
+scenarioNoDoubleUp();
 // 7. Retro-tagging imported history as recurring, without minting new rules.
 function scenarioBackTag() {
   heading('7. A year of imported "Monthly rent" joins the new chain safely');
@@ -390,6 +392,75 @@ function scenarioForeignWording() {
   expect('the engine still creates exactly what it would have',
     String(after.createdCount), String(before.createdCount));
   expect('and mints no rules', String(after.rules.length), String(before.rules.length));
+}
+
+// 10. The engine must not invent a transaction the user already has. Marking
+// an older transaction as recurring anchors the rule in the past, and the
+// back-fill then walked straight over imported history - a generated copy on
+// top of every real row since. Reported from a real device, as duplicates.
+function scenarioNoDoubleUp() {
+  heading('10. Back-fill never lands on a transaction that already exists');
+
+  const tx = (id: string, date: string, amount: number, description: string, category = cat): Transaction => ({
+    id, description, amount, currency: 'EUR', baseAmount: amount,
+    category, date, type: 'expense', recurrence: 'Never repeat',
+  });
+
+  // A rule anchored in January, and imported history either side of it. The
+  // history is worded in Italian while the series is not, so only the shape
+  // connects them - exactly the case the guard has to catch.
+  const rule: RecurringRule = { id: 'rule-rent3', rule: 'First day of the month', anchorDate: '2026-01-01',
+    template: { description: 'Monthly rent', amount: 900, currency: 'EUR', category: cat, type: 'expense' } };
+  const seed: Transaction = { ...tx('seed3', '2026-01-01', 900, 'Monthly rent'), recurrence: 'First day of the month', recurrenceOf: 'rule-rent3' };
+  const imported = ['02', '03', '04', '05', '06', '07', '08'].map((m) => tx(`imp-${m}`, `2026-${m}-01`, 880, 'Affitto'));
+
+  const res = processRecurrence([seed, ...imported], [rule], TODAY);
+  const rentsPerDate = new Map<string, number>();
+  for (const t of res.transactions) rentsPerDate.set(t.date, (rentsPerDate.get(t.date) ?? 0) + 1);
+  say(`${imported.length} imported months, engine created ${res.createdCount}`);
+  expect('nothing is generated over the imported months', String(res.createdCount), '0');
+  expect('and no day holds two rents', String(Math.max(...rentsPerDate.values())), '1');
+
+  // The guard is a skip, not a tombstone: remove the row the user kept and the
+  // occurrence is created on the next pass, as it always would have been.
+  const without = res.transactions.filter((t) => t.id !== 'imp-04');
+  const again = processRecurrence(without, [rule], TODAY);
+  expect('deleting the kept row lets the occurrence come back', String(again.createdCount), '1');
+
+  // A different bill on the same day in the same category is not the rent.
+  const other = processRecurrence(
+    [seed, tx('gift', '2026-02-01', 15, 'Fiori')],
+    [rule], TODAY,
+  );
+  expect('a small unrelated expense does not suppress the rent',
+    String(other.transactions.some((t) => t.id === 'rec-rule-rent3-2026-02-01')), 'true');
+
+  // And a day already owned by ANOTHER series never blocks this one.
+  const gym: RecurringRule = { id: 'rule-gym2', rule: 'First day of the month', anchorDate: '2026-01-01',
+    template: { description: 'Gym', amount: 900, currency: 'EUR', category: cat, type: 'expense' } };
+  const twoSeries = processRecurrence(
+    [seed, { ...tx('g', '2026-02-01', 900, 'Gym'), recurrence: 'First day of the month', recurrenceOf: 'rule-gym2' }],
+    [rule, gym], TODAY,
+  );
+  expect('two schedules can share a day',
+    String(twoSeries.transactions.some((t) => t.id === 'rec-rule-rent3-2026-02-01')), 'true');
+
+  // Now the clean-up for data that predates the guard: find the generated
+  // copies, and only those.
+  const damaged = [seed, ...imported,
+    ...['02', '03'].map((m) => ({ ...tx(`rec-rule-rent3-2026-${m}-01`, `2026-${m}-01`, 900, 'Monthly rent'), recurrence: 'First day of the month', recurrenceOf: 'rule-rent3' })),
+  ];
+  const dupes = findGeneratedDuplicates(damaged, [rule]);
+  expect('both generated copies are found', String(dupes.length), '2');
+  expect('and it is always the GENERATED row offered for removal',
+    dupes.every((d) => d.generated.id.startsWith('rec-')) ? 'generated' : 'user row', 'generated');
+  expect('the row kept is the user\'s own', dupes.map((d) => d.kept.id).sort().join(','), 'imp-02,imp-03');
+  const cleaned = damaged.filter((t) => !dupes.some((d) => d.generated.id === t.id));
+  expect('removing them leaves the ledger whole', String(cleaned.length), String(damaged.length - 2));
+  expect('and nothing is found a second time',
+    String(findGeneratedDuplicates(cleaned, [rule]).length), '0');
+  expect('nor does the engine put them back',
+    String(processRecurrence(cleaned, [rule], TODAY).createdCount), '0');
 }
 
 console.log('\n================================================================');

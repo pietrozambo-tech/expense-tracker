@@ -43,7 +43,7 @@ import { SaveButton } from './components/SaveButton';
 import { DescriptionInput } from './components/DescriptionInput';
 import { Onboarding } from './components/Onboarding';
 import { useAuth } from './auth/AuthProvider';
-import { processRecurrence, buildRuleTemplate, newRuleId, occurrenceDueDate, isActiveRule, applyFutureEdit, findPastSeriesMatches, findUnclaimedSeriesRows, tagPastSeries, type SeriesClaim } from './lib/recurrence';
+import { processRecurrence, buildRuleTemplate, newRuleId, occurrenceDueDate, isActiveRule, applyFutureEdit, findPastSeriesMatches, findUnclaimedSeriesRows, findGeneratedDuplicates, tagPastSeries, type SeriesClaim } from './lib/recurrence';
 import { SeriesClaimDialog } from './components/SeriesClaimDialog';
 import { RecurringScopeDialog } from './components/RecurringScopeDialog';
 import { ConfirmDialog } from './components/ConfirmDialog';
@@ -186,6 +186,10 @@ export default function App() {
   // imported afterwards. Checked on open and after imports; declining is
   // remembered per transaction so it never nags.
   const [pendingSeriesCleanup, setPendingSeriesCleanup] = useState<SeriesClaim[] | null>(null);
+  // Occurrences the engine generated on top of transactions that already
+  // existed, from before it learned to check. Offered for removal, generated
+  // rows only.
+  const [pendingDuplicates, setPendingDuplicates] = useState<Array<{ generated: Transaction; kept: Transaction }> | null>(null);
   const [pendingRecurringDelete, setPendingRecurringDelete] = useState<Transaction | null>(null);
   const [returnToTab, setReturnToTab] = useState<'dashboard' | 'activity' | 'trend' | 'settings' | 'add'>('dashboard'); // Track which tab to return to after editing
   // Set when a Trend month is tapped so the Overview opens on that period
@@ -673,6 +677,13 @@ export default function App() {
   // setting state and still see the fresh rows.
   const offerSeriesCleanup = useCallback(() => {
     const dismissed = new Set(loadBackTagDismissed());
+    // Duplicates first: they are damage, and the other offer is only tidying.
+    const dupes = findGeneratedDuplicates(expensesRef.current, rulesRef.current)
+      .filter((d) => !dismissed.has(d.generated.id));
+    if (dupes.length > 0) {
+      setPendingDuplicates(dupes);
+      return;
+    }
     const claims = findUnclaimedSeriesRows(expensesRef.current, rulesRef.current)
       .map((c) => ({ ...c, rows: c.rows.filter((r) => !dismissed.has(r.id)) }))
       .filter((c) => c.rows.length > 0);
@@ -2101,6 +2112,38 @@ export default function App() {
           />
         </div>
       )}
+      {/* Occurrences the engine generated on top of rows that already existed,
+          before it learned to look. Only the generated copies are removed -
+          the user's own row, with the amount they actually paid, stays. */}
+      {pendingDuplicates && !pendingBackTag && (() => {
+        const names = [...new Set(pendingDuplicates.map((d) => d.generated.description))];
+        const summary = names.slice(0, 3).join(', ') + (names.length > 3 ? ` and ${names.length - 3} more` : '');
+        const n = pendingDuplicates.length;
+        return (
+          <div className="relative z-[60]">
+            <ConfirmDialog
+              variant="danger"
+              title={`Remove ${n} duplicate${n === 1 ? '' : 's'}?`}
+              message={`Your recurring schedules created ${n} transaction${n === 1 ? '' : 's'} on days that already had one (${summary}). Only the generated cop${n === 1 ? 'y is' : 'ies are'} removed - your own transactions stay.`}
+              confirmLabel={`Remove ${n === 1 ? 'it' : `all ${n}`}`}
+              onConfirm={() => {
+                const ids = new Set(pendingDuplicates.map((d) => d.generated.id));
+                setExpenses((prev) => prev.filter((e) => !ids.has(e.id)));
+                setRefreshKey((prev) => prev + 1);
+                toast.success(`${n} duplicate${n === 1 ? '' : 's'} removed`, { duration: 1600 });
+                setPendingDuplicates(null);
+                // The tidy-up offer, if any, waits for the next open.
+              }}
+              onCancel={() => {
+                saveBackTagDismissed([
+                  ...new Set([...loadBackTagDismissed(), ...pendingDuplicates.map((d) => d.generated.id)]),
+                ]);
+                setPendingDuplicates(null);
+              }}
+            />
+          </div>
+        );
+      })()}
       {/* The scan the other way round: series that already exist, history
           that arrived untagged (an import, typically). Tagging attaches the
           rows to the EXISTING rules as pre-anchor history - no new rules, no
