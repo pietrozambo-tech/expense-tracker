@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { ChevronRight, ArrowUpDown, TrendingUp, TrendingDown, Minus, Plus, Receipt, ChevronLeft, ChevronDown, X, Wallet, Gauge } from 'lucide-react';
 import { TrendCategoryBreakdown } from './TrendCategoryBreakdown';
 import React from 'react';
@@ -10,6 +10,7 @@ import { FitText } from './FitText';
 import { parseLocalDate } from '../lib/dates';
 import { CategoryFilterModal } from './CategoryFilterModal';
 import { SubcategoryFilterModal } from './SubcategoryFilterModal';
+import { PeriodPickerModal } from './PeriodPickerModal';
 import { SourceLogo } from './SourceLogo';
 import type { Source } from '../types';
 
@@ -292,6 +293,9 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
   const [transactionType, setTransactionType] = useState<TransactionType>(initialPeriod?.type || savedView?.transactionType || savedTrend?.transactionType || 'expense');
   const [isTrendCategoryModalOpen, setIsTrendCategoryModalOpen] = useState(false);
   const [isTrendSubcategoryModalOpen, setIsTrendSubcategoryModalOpen] = useState(false);
+  // Deliberately NOT in the saved view state: a sheet that reopened itself on
+  // every remount would be a worse bug than the one it fixes.
+  const [isPeriodPickerOpen, setIsPeriodPickerOpen] = useState(false);
   
   // State for drill-down modal
   const [drilldownContext, setDrilldownContext] = useState<{
@@ -693,6 +697,34 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
     }
     return earliest;
   };
+
+  // What the period picker offers. One pass over the ledger marks the months
+  // that hold something, so the sheet can point at where the data actually is
+  // rather than presenting twelve identical squares.
+  const activeMonths = useMemo(() => {
+    const months = new Set<string>();
+    for (const e of expenses) {
+      const d = parseLocalDate(e.date);
+      months.add(`${d.getFullYear()}-${d.getMonth()}`);
+    }
+    return months;
+  }, [expenses]);
+
+  const selectableYears = useMemo(() => {
+    const nowY = new Date().getFullYear();
+    let earliest = nowY;
+    for (const key of activeMonths) {
+      const y = Number(key.slice(0, key.indexOf('-')));
+      if (y < earliest) earliest = y;
+    }
+    // Never later than this year - the next arrow stops there too - and never
+    // later than the year already on screen, which stays reachable even if the
+    // transactions that justified it have since been deleted.
+    const from = Math.min(earliest, selectedYear, nowY);
+    const years: number[] = [];
+    for (let y = from; y <= Math.max(nowY, selectedYear); y++) years.push(y);
+    return years;
+  }, [activeMonths, selectedYear]);
 
   // Get period display name
   const getPeriodDisplayName = () => {
@@ -1892,9 +1924,19 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                     <ChevronLeft className="w-4 h-4" />
                   </button>
 
-                  <div className="font-semibold text-sm text-center flex-1 min-w-0 truncate" style={{ color: '#FFFFFF' }}>
-                    {monthName}
-                  </div>
+                  {/* The title is the way in to any other period. Stepping the
+                      arrows from here to October 2025 was eleven taps. */}
+                  <button
+                    onClick={() => setIsPeriodPickerOpen(true)}
+                    className="flex items-center justify-center gap-1 flex-1 min-w-0 py-1 rounded-lg"
+                    style={{ WebkitTapHighlightColor: 'rgba(255, 255, 255, 0)' }}
+                    aria-label={`${monthName} - choose a period`}
+                  >
+                    <span className="font-semibold text-sm truncate" style={{ color: '#FFFFFF' }}>
+                      {monthName}
+                    </span>
+                    <ChevronDown className="w-2.5 h-2.5 flex-shrink-0" style={{ color: 'rgba(255,255,255,0.55)' }} strokeWidth={3} />
+                  </button>
 
                   <button
                     onClick={navigateNext}
@@ -4023,6 +4065,32 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
           </div>
         );
       })()}
+
+      {/* Jump straight to a period, from the period title on the hero card.
+          Mounted only while open so it always starts on the year on screen. */}
+      {isPeriodPickerOpen && (
+        <PeriodPickerModal
+          type={timePeriodType}
+          year={selectedYear}
+          month={selectedMonth}
+          quarter={selectedQuarter}
+          years={selectableYears}
+          activeMonths={activeMonths}
+          onSelect={(choice) => {
+            setTimePeriodType(choice.type);
+            setSelectedYear(choice.year);
+            setSelectedMonth(choice.month);
+            setSelectedQuarter(choice.quarter);
+            // Same housekeeping as the arrows: a drilldown belongs to the
+            // period it was opened from, and a pinned comparison index is
+            // counted in the old unit.
+            setExpandedCategory(null);
+            if (choice.type !== timePeriodType) setComparisonBaseline('previous');
+            setIsPeriodPickerOpen(false);
+          }}
+          onClose={() => setIsPeriodPickerOpen(false)}
+        />
+      )}
 
       {/* Category Filter Modal for Trend View */}
       <CategoryFilterModal

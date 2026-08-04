@@ -1,7 +1,8 @@
 {
   "_why": "State that SHOULD reset when App re-keys a tab. Anything not listed here must live in that component's view-state interface, or test:viewstate fails. Adding a useState forces the choice; it can no longer be made by accident.",
   "Dashboard.tsx": {
-    "chartWidth": "measured from the DOM on mount; re-measuring is correct",
+    "chartWidth": "measured from the DOM on mount; the last width is kept in a module-level cache, so a remount starts from it and re-measures",
+    "isPeriodPickerOpen": "a sheet is never mid-open across a remount; the period it picks is what persists",
     "isTrendCategoryModalOpen": "a modal is never mid-open across a remount",
     "isTrendSubcategoryModalOpen": "a modal is never mid-open across a remount",
     "tooltipData": "a chart tooltip belongs to a touch that has ended",
