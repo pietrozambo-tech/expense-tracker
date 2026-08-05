@@ -1907,11 +1907,13 @@ export default function App() {
                 <div
                   className="w-12 h-12 rounded-full flex items-center justify-center transition-transform active:scale-95"
                   style={{
-                    backgroundColor: '#FFFFFF',
-                    boxShadow: '0 4px 16px rgba(255, 255, 255, 0.3)'
+                    // The logo's own gradient on the most-tapped control in
+                    // the app: the one place the brand is allowed to shout.
+                    background: 'linear-gradient(135deg, #3B82F6 0%, #6366F1 100%)',
+                    boxShadow: '0 4px 18px rgba(79, 116, 243, 0.55)'
                   }}
                 >
-                  <Plus size={24} style={{ color: '#1C1C1E' }} strokeWidth={2.5} />
+                  <Plus size={24} style={{ color: '#FFFFFF' }} strokeWidth={2.5} />
                 </div>
               </button>
               <button
