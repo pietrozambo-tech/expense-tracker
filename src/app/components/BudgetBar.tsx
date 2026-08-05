@@ -101,7 +101,7 @@ export function BudgetBar({ spent, budget, currency, daysLeft, monthProgress, us
         </div>
 
         {/* Track */}
-        <div className="relative h-2 rounded-full overflow-hidden" style={{ backgroundColor: '#F2F2F7' }}>
+        <div className="relative h-2 rounded-full overflow-hidden" style={{ backgroundColor: '#F2F1ED' }}>
           <div
             className="h-full rounded-full transition-all"
             style={{
@@ -250,7 +250,7 @@ export function BudgetNudge({ currency, onSave, onDismiss }: BudgetNudgeProps) {
                 disabled={!valid}
                 className="px-4 py-2 rounded-xl font-medium transition-all active:scale-[0.97] flex-shrink-0"
                 style={{
-                  backgroundColor: valid ? '#007AFF' : '#E5E5EA',
+                  backgroundColor: valid ? '#3B82F6' : '#E5E5EA',
                   color: '#FFFFFF',
                   fontSize: 14,
                 }}
@@ -264,9 +264,9 @@ export function BudgetNudge({ currency, onSave, onDismiss }: BudgetNudgeProps) {
           </>
         ) : (
           <>
-            <div className="h-2 rounded-full" style={{ backgroundColor: '#F2F2F7' }} />
+            <div className="h-2 rounded-full" style={{ backgroundColor: '#F2F1ED' }} />
             <div className="mt-2">
-              <span style={{ color: '#007AFF', fontSize: 12, fontWeight: 600 }}>
+              <span style={{ color: '#3B82F6', fontSize: 12, fontWeight: 600 }}>
                 Set a monthly limit to track how you're doing
               </span>
             </div>

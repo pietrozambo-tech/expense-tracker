@@ -24,7 +24,7 @@ export function RecurringScopeDialog({
   onFuture,
   onCancel,
 }: RecurringScopeDialogProps) {
-  const accent = variant === 'danger' ? '#EF4444' : '#007AFF';
+  const accent = variant === 'danger' ? '#EF4444' : '#3B82F6';
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-6 max-w-[430px] mx-auto">
       <div className="bg-white rounded-2xl w-full max-w-sm">

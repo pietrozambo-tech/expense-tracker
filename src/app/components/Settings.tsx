@@ -323,9 +323,9 @@ export function Settings({
   // Show Currency Selector
   if (showCurrencySelector) {
     return (
-      <div className="flex flex-col" style={{ height: SUBPAGE_HEIGHT, backgroundColor: '#F5F5F7' }}>
+      <div className="flex flex-col" style={{ height: SUBPAGE_HEIGHT, backgroundColor: '#F6F5F2' }}>
         {/* Fixed Header Section */}
-        <div style={{ backgroundColor: '#F5F5F7' }}>
+        <div style={{ backgroundColor: '#F6F5F2' }}>
           {/* Header with back button and title */}
           <div className="px-6 pb-4 pt-0">
             <div className="flex items-center justify-center relative">
@@ -336,7 +336,7 @@ export function Settings({
                 }}
                 className="absolute left-0 -ml-2 px-2 py-1 rounded-lg active:bg-neutral-200 transition-colors"
               >
-                <ChevronLeft size={24} style={{ color: '#007AFF' }} />
+                <ChevronLeft size={24} style={{ color: '#3B82F6' }} />
               </button>
               <h1 style={{ color: '#1C1C1E', fontSize: '20px', fontWeight: '600', letterSpacing: '-0.3px' }}>Currency</h1>
             </div>
@@ -363,14 +363,14 @@ export function Settings({
                   onClick={() => handleCurrencyChange(currency.code)}
                   className="w-full flex items-center justify-between px-5 py-4 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
                   style={{
-                    borderBottom: index < currencies.length - 1 ? '1px solid #F2F2F7' : 'none'
+                    borderBottom: index < currencies.length - 1 ? '1px solid #F2F1ED' : 'none'
                   }}
                 >
                   <div className="flex items-center gap-3">
                     <div
                       className="w-10 h-10 rounded-full flex items-center justify-center"
                       style={{
-                        backgroundColor: userCurrency === currency.code ? '#E3F2FF' : '#F2F2F7',
+                        backgroundColor: userCurrency === currency.code ? '#E3F2FF' : '#F2F1ED',
                         fontSize: '22px'
                       }}
                     >
@@ -381,7 +381,7 @@ export function Settings({
                         <span
                           className="font-medium"
                           style={{
-                            color: userCurrency === currency.code ? '#007AFF' : '#1C1C1E',
+                            color: userCurrency === currency.code ? '#3B82F6' : '#1C1C1E',
                             fontSize: '16px'
                           }}
                         >
@@ -394,7 +394,7 @@ export function Settings({
                   {userCurrency === currency.code && (
                     <div
                       className="w-6 h-6 rounded-full flex items-center justify-center"
-                      style={{ backgroundColor: '#007AFF' }}
+                      style={{ backgroundColor: '#3B82F6' }}
                     >
                       <svg width="12" height="10" viewBox="0 0 12 10" fill="none">
                         <path
@@ -430,9 +430,9 @@ export function Settings({
   // Show Name Editor
   if (showNameEditor) {
     return (
-      <div className="flex flex-col" style={{ height: SUBPAGE_HEIGHT, backgroundColor: '#F5F5F7' }}>
+      <div className="flex flex-col" style={{ height: SUBPAGE_HEIGHT, backgroundColor: '#F6F5F2' }}>
         {/* Fixed Header Section */}
-        <div style={{ backgroundColor: '#F5F5F7' }}>
+        <div style={{ backgroundColor: '#F6F5F2' }}>
           {/* Header with back button and title */}
           <div className="px-6 pb-4 pt-0">
             <div className="flex items-center justify-center relative">
@@ -443,7 +443,7 @@ export function Settings({
                 }}
                 className="absolute left-0 -ml-2 px-2 py-1 rounded-lg active:bg-neutral-200 transition-colors"
               >
-                <ChevronLeft size={24} style={{ color: '#007AFF' }} />
+                <ChevronLeft size={24} style={{ color: '#3B82F6' }} />
               </button>
               <h1 style={{ color: '#1C1C1E', fontSize: '20px', fontWeight: '600', letterSpacing: '-0.3px' }}>Profile</h1>
             </div>
@@ -477,7 +477,7 @@ export function Settings({
                 boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)'
               }}
               onFocus={(e) => {
-                e.target.style.border = '1.5px solid #007AFF';
+                e.target.style.border = '1.5px solid #3B82F6';
                 e.target.style.boxShadow = '0 0 0 3px rgba(0, 122, 255, 0.08)';
               }}
               onBlur={(e) => {
@@ -546,7 +546,7 @@ export function Settings({
               disabled={!editedName.trim()}
               className="w-full mt-6 py-4 rounded-xl font-medium text-base transition-all active:scale-[0.98]"
               style={{
-                backgroundColor: !editedName.trim() ? '#E5E5EA' : '#007AFF',
+                backgroundColor: !editedName.trim() ? '#E5E5EA' : '#3B82F6',
                 color: '#FFFFFF',
                 boxShadow: !editedName.trim() ? 'none' : '0 2px 8px rgba(0, 122, 255, 0.25)',
                 cursor: !editedName.trim() ? 'not-allowed' : 'pointer'
@@ -563,9 +563,9 @@ export function Settings({
   // Show Categories subpage
   if (showCategories) {
     return (
-      <div className="flex flex-col overflow-hidden" style={{ height: SUBPAGE_HEIGHT, backgroundColor: '#F5F5F7' }}>
+      <div className="flex flex-col overflow-hidden" style={{ height: SUBPAGE_HEIGHT, backgroundColor: '#F6F5F2' }}>
         {/* Fixed Header Section */}
-        <div className="flex-shrink-0" style={{ backgroundColor: '#F5F5F7' }}>
+        <div className="flex-shrink-0" style={{ backgroundColor: '#F6F5F2' }}>
           {/* Header with back button and title */}
           <div className="px-6 pb-4 pt-0">
             <div className="flex items-center justify-center relative">
@@ -576,7 +576,7 @@ export function Settings({
                 }}
                 className="absolute left-0 -ml-2 px-2 py-1 rounded-lg active:bg-neutral-200 transition-colors"
               >
-                <ChevronLeft size={24} style={{ color: '#007AFF' }} />
+                <ChevronLeft size={24} style={{ color: '#3B82F6' }} />
               </button>
               <h1 style={{ color: '#1C1C1E', fontSize: '20px', fontWeight: '600', letterSpacing: '-0.3px' }}>Categories</h1>
             </div>
@@ -644,15 +644,15 @@ export function Settings({
   // Show About subpage
   if (showAbout) {
     return (
-      <div className="flex flex-col" style={{ height: SUBPAGE_HEIGHT, backgroundColor: '#F5F5F7' }}>
-        <div style={{ backgroundColor: '#F5F5F7' }}>
+      <div className="flex flex-col" style={{ height: SUBPAGE_HEIGHT, backgroundColor: '#F6F5F2' }}>
+        <div style={{ backgroundColor: '#F6F5F2' }}>
           <div className="px-6 pb-4 pt-0">
             <div className="flex items-center justify-center relative">
               <button
                 onClick={() => setShowAbout(false)}
                 className="absolute left-0 -ml-2 px-2 py-1 rounded-lg active:bg-neutral-200 transition-colors"
               >
-                <ChevronLeft size={24} style={{ color: '#007AFF' }} />
+                <ChevronLeft size={24} style={{ color: '#3B82F6' }} />
               </button>
               <h1 style={{ color: '#1C1C1E', fontSize: '20px', fontWeight: '600', letterSpacing: '-0.3px' }}>About</h1>
             </div>
@@ -664,7 +664,7 @@ export function Settings({
           <div className="flex flex-col items-center text-center px-6 pt-6 pb-8">
             <TracklyLogo size={80} className="mb-4" />
             <h2 style={{ color: '#1C1C1E', fontSize: '28px', fontWeight: 700, letterSpacing: '-0.03em' }}>TracklyLab</h2>
-            <p style={{ color: '#007AFF', fontSize: '14px', fontWeight: 600, marginTop: '4px', letterSpacing: '0.02em' }}>Your Expense Lens</p>
+            <p style={{ color: '#3B82F6', fontSize: '14px', fontWeight: 600, marginTop: '4px', letterSpacing: '0.02em' }}>Your Expense Lens</p>
             <p style={{ color: '#8E8E93', fontSize: '13px', marginTop: '6px' }}>Version 1.0</p>
             {/* Which BUILD this device is actually running. When two devices
                 disagree, comparing this line answers "is one of them stale?"
@@ -681,7 +681,7 @@ export function Settings({
               <button
                 onClick={() => setLegalDoc(PRIVACY_POLICY)}
                 className="w-full flex items-center gap-3 px-5 py-4 active:bg-neutral-100 transition-colors"
-                style={{ borderBottom: '1px solid #F2F2F7' }}
+                style={{ borderBottom: '1px solid #F2F1ED' }}
               >
                 <ShieldCheck className="w-5 h-5" style={{ color: '#8E8E93' }} strokeWidth={2} />
                 <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '16px' }}>Privacy Policy</span>
@@ -838,7 +838,7 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
       <div className="flex gap-3 items-start">
         <div
           className="flex-shrink-0 flex items-center justify-center rounded-full"
-          style={{ width: 22, height: 22, backgroundColor: '#007AFF', color: '#fff', fontSize: 12, fontWeight: 700 }}
+          style={{ width: 22, height: 22, backgroundColor: '#3B82F6', color: '#fff', fontSize: 12, fontWeight: 700 }}
         >
           {n}
         </div>
@@ -847,15 +847,15 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
     );
 
     return (
-      <div className="flex flex-col" style={{ height: SUBPAGE_HEIGHT, backgroundColor: '#F5F5F7' }}>
-        <div style={{ backgroundColor: '#F5F5F7' }}>
+      <div className="flex flex-col" style={{ height: SUBPAGE_HEIGHT, backgroundColor: '#F6F5F2' }}>
+        <div style={{ backgroundColor: '#F6F5F2' }}>
           <div className="px-6 pb-4 pt-0">
             <div className="flex items-center justify-center relative">
               <button
                 onClick={() => setShowImport(false)}
                 className="absolute left-0 -ml-2 px-2 py-1 rounded-lg active:bg-neutral-200 transition-colors"
               >
-                <ChevronLeft size={24} style={{ color: '#007AFF' }} />
+                <ChevronLeft size={24} style={{ color: '#3B82F6' }} />
               </button>
               <h1 style={{ color: '#1C1C1E', fontSize: '20px', fontWeight: '600', letterSpacing: '-0.3px' }}>Import data</h1>
             </div>
@@ -919,7 +919,7 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
             <button
               onClick={copyPrompt}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-full active:scale-95 transition-transform"
-              style={{ backgroundColor: '#007AFF' }}
+              style={{ backgroundColor: '#3B82F6' }}
             >
               <Copy className="w-3.5 h-3.5" style={{ color: '#fff' }} strokeWidth={2.5} />
               <span style={{ color: '#fff', fontSize: 12, fontWeight: 600 }}>Copy</span>
@@ -989,15 +989,15 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
   // Show Contacts subpage — a form that sends a message straight from the app.
   if (showSupport) {
     return (
-      <div className="flex flex-col" style={{ height: SUBPAGE_HEIGHT, backgroundColor: '#F5F5F7' }}>
-        <div style={{ backgroundColor: '#F5F5F7' }}>
+      <div className="flex flex-col" style={{ height: SUBPAGE_HEIGHT, backgroundColor: '#F6F5F2' }}>
+        <div style={{ backgroundColor: '#F6F5F2' }}>
           <div className="px-6 pb-4 pt-0">
             <div className="flex items-center justify-center relative">
               <button
                 onClick={closeSupport}
                 className="absolute left-0 -ml-2 px-2 py-1 rounded-lg active:bg-neutral-200 transition-colors"
               >
-                <ChevronLeft size={24} style={{ color: '#007AFF' }} />
+                <ChevronLeft size={24} style={{ color: '#3B82F6' }} />
               </button>
               <h1 style={{ color: '#1C1C1E', fontSize: '20px', fontWeight: '600', letterSpacing: '-0.3px' }}>Contacts</h1>
             </div>
@@ -1016,7 +1016,7 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
             <button
               onClick={closeSupport}
               className="mt-8 px-8 py-3 rounded-xl font-medium text-base active:scale-[0.98] transition-transform"
-              style={{ backgroundColor: '#007AFF', color: '#FFFFFF', boxShadow: '0 2px 8px rgba(0,122,255,0.25)' }}
+              style={{ backgroundColor: '#3B82F6', color: '#FFFFFF', boxShadow: '0 2px 8px rgba(0,122,255,0.25)' }}
             >
               Done
             </button>
@@ -1061,14 +1061,14 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
               onClick={submitSupport}
               disabled={!canSendSupport || sendingSupport}
               className="w-full mt-4 py-4 rounded-xl font-medium text-base flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-40"
-              style={{ backgroundColor: '#007AFF', color: '#FFFFFF', boxShadow: '0 2px 8px rgba(0,122,255,0.25)' }}
+              style={{ backgroundColor: '#3B82F6', color: '#FFFFFF', boxShadow: '0 2px 8px rgba(0,122,255,0.25)' }}
             >
               <Mail className="w-4 h-4" /> {sendingSupport ? 'Sending…' : 'Send message'}
             </button>
 
             <p className="text-center mt-4" style={{ color: '#8E8E93', fontSize: 13, lineHeight: 1.5 }}>
               Or email us directly at{' '}
-              <a href={`mailto:${SUPPORT_EMAIL}`} style={{ color: '#007AFF', fontWeight: 500 }}>{SUPPORT_EMAIL}</a>
+              <a href={`mailto:${SUPPORT_EMAIL}`} style={{ color: '#3B82F6', fontWeight: 500 }}>{SUPPORT_EMAIL}</a>
             </p>
           </div>
         )}
@@ -1081,7 +1081,7 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
     // No min-h-screen here: the page ends just below the signature. The small
     // negative margin trims the parent scroll area's nav padding for this tab
     // only (other tabs keep it), so the signature sits snug above the nav bar.
-    <div style={{ backgroundColor: '#F5F5F7', marginBottom: -16 }}>
+    <div style={{ backgroundColor: '#F6F5F2', marginBottom: -16 }}>
       {/* Header */}
       <div className="px-6 pb-4 pt-1">
         <h1 style={{ color: '#1C1C1E', fontSize: '28px', fontWeight: '600', letterSpacing: '-0.5px' }}>Settings</h1>
@@ -1098,7 +1098,7 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
               onClick={onSignInToSync}
               className="w-full flex items-center gap-3 px-5 py-4 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
             >
-              <Cloud className="w-5 h-5" style={{ color: '#007AFF' }} strokeWidth={2} />
+              <Cloud className="w-5 h-5" style={{ color: '#3B82F6' }} strokeWidth={2} />
               <div className="flex-1 text-left">
                 <div style={{ color: '#1C1C1E', fontSize: '16px' }}>Sign in to back up & sync</div>
                 <div style={{ color: '#8E8E93', fontSize: '13px' }}>Keep your data safe across devices</div>
@@ -1107,7 +1107,7 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
             </button>
           ) : (
             <>
-              <div className="w-full flex items-center gap-3 px-5 py-4" style={{ borderBottom: '1px solid #F2F2F7' }}>
+              <div className="w-full flex items-center gap-3 px-5 py-4" style={{ borderBottom: '1px solid #F2F1ED' }}>
                 <Cloud className="w-5 h-5" style={{ color: syncMeta.color }} strokeWidth={2} />
                 <div className="flex-1 min-w-0">
                   <div style={{ color: '#1C1C1E', fontSize: '16px' }}>{syncMeta.label}</div>
@@ -1138,7 +1138,7 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
               setShowNameEditor(true);
             }}
             className="w-full flex items-center gap-3 px-5 py-4 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
-            style={{ borderBottom: '1px solid #F2F2F7' }}
+            style={{ borderBottom: '1px solid #F2F1ED' }}
           >
             {userAvatar && !avatarBroken ? (
               <img
@@ -1168,7 +1168,7 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
           <button 
             onClick={() => setShowCategories(true)}
             className="w-full flex items-center gap-3 px-5 py-4 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
-            style={{ borderBottom: '1px solid #F2F2F7' }}
+            style={{ borderBottom: '1px solid #F2F1ED' }}
           >
             <Layers className="w-5 h-5" style={{ color: '#8E8E93' }} strokeWidth={2} />
             <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '16px' }}>Categories</span>
@@ -1179,7 +1179,7 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
           <button
             onClick={() => setShowSources(true)}
             className="w-full flex items-center gap-3 px-5 py-4 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
-            style={{ borderBottom: '1px solid #F2F2F7' }}
+            style={{ borderBottom: '1px solid #F2F1ED' }}
           >
             <Landmark className="w-5 h-5" style={{ color: '#8E8E93' }} strokeWidth={2} />
             <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '16px' }}>Sources</span>
@@ -1190,7 +1190,7 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
           <button 
             onClick={() => setShowCurrencySelector(true)}
             className="w-full flex items-center gap-3 px-5 py-4 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
-            style={{ borderBottom: '1px solid #F2F2F7' }}
+            style={{ borderBottom: '1px solid #F2F1ED' }}
           >
             <Wallet className="w-5 h-5" style={{ color: '#8E8E93' }} strokeWidth={2} />
             <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '16px' }}>Main Currency</span>
@@ -1203,7 +1203,7 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
           <button
             onClick={openSupport}
             className="w-full flex items-center gap-3 px-5 py-4 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
-            style={{ borderBottom: '1px solid #F2F2F7' }}
+            style={{ borderBottom: '1px solid #F2F1ED' }}
           >
             <LifeBuoy className="w-5 h-5" style={{ color: '#8E8E93' }} strokeWidth={2} />
             <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '16px' }}>Contacts</span>
@@ -1229,7 +1229,7 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
             <button
               onClick={() => setShowImport(true)}
               className="w-full flex items-center gap-3 px-5 py-4 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
-              style={{ borderBottom: '1px solid #F2F2F7' }}
+              style={{ borderBottom: '1px solid #F2F1ED' }}
             >
               <Upload className="w-5 h-5" style={{ color: '#8E8E93' }} strokeWidth={2} />
               <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '16px' }}>Import data</span>
@@ -1240,7 +1240,7 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
             <button
               onClick={onExportData}
               className="w-full flex items-center gap-3 px-5 py-4 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
-              style={{ borderBottom: '1px solid #F2F2F7' }}
+              style={{ borderBottom: '1px solid #F2F1ED' }}
             >
               <Download className="w-5 h-5" style={{ color: '#8E8E93' }} strokeWidth={2} />
               <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '16px' }}>Export backup</span>
@@ -1251,7 +1251,7 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
             <button
               onClick={onExportCsv}
               className="w-full flex items-center gap-3 px-5 py-4 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
-              style={{ borderBottom: '1px solid #F2F2F7' }}
+              style={{ borderBottom: '1px solid #F2F1ED' }}
             >
               <FileSpreadsheet className="w-5 h-5" style={{ color: '#8E8E93' }} strokeWidth={2} />
               <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '16px' }}>Export CSV</span>
@@ -1261,7 +1261,7 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
           <button
             onClick={() => openConfirm('demo')}
             className="w-full flex items-center gap-3 px-5 py-4 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
-            style={hasDemoData && onEraseDemoData ? { borderBottom: '1px solid #F2F2F7' } : undefined}
+            style={hasDemoData && onEraseDemoData ? { borderBottom: '1px solid #F2F1ED' } : undefined}
           >
             <FlaskConical className="w-5 h-5" style={{ color: '#8E8E93' }} strokeWidth={2} />
             <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '16px' }}>Load demo data</span>
@@ -1289,7 +1289,7 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
           <button
             onClick={() => openConfirm('erase')}
             className="w-full flex items-start gap-3 px-5 py-4 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
-            style={onDeleteAccount && !isGuest ? { borderBottom: '1px solid #F2F2F7' } : undefined}
+            style={onDeleteAccount && !isGuest ? { borderBottom: '1px solid #F2F1ED' } : undefined}
           >
             <Trash2 className="w-5 h-5 flex-shrink-0 mt-0.5" style={{ color: '#EF4444' }} strokeWidth={2} />
             <div className="flex-1 text-left">

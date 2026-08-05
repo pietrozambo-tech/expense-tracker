@@ -51,7 +51,7 @@ export function SourceFilterModal({ isOpen, sources, selected, onClose, onSelect
                 ) : (
                   <span
                     className="flex items-center justify-center flex-shrink-0"
-                    style={{ width: 30, height: 30, borderRadius: 9, background: '#F2F2F7' }}
+                    style={{ width: 30, height: 30, borderRadius: 9, background: '#F2F1ED' }}
                   >
                     <Wallet className="w-4 h-4" style={{ color: '#8E8E93' }} />
                   </span>

@@ -146,7 +146,7 @@ const UNCATEGORIZED = '__uncategorized__';
 // Same treatment as the Overview hero card, so the headline numbers on both
 // tabs look like they belong to the same app.
 const TREND_STAT_CARD: React.CSSProperties = {
-  background: 'linear-gradient(150deg, #2E2E32 0%, #1C1C1E 100%)',
+  background: 'radial-gradient(120% 120% at 90% -20%, rgba(99,102,241,0.35) 0%, rgba(59,130,246,0.14) 42%, rgba(28,28,30,0) 68%), linear-gradient(150deg, #2E2E32 0%, #1C1C1E 100%)',
   boxShadow: '0 12px 30px rgba(28, 28, 30, 0.22)',
   border: '1px solid rgba(255, 255, 255, 0.06)',
 };
@@ -1802,7 +1802,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
       // pb-32 that clears the nav bar, so a full-viewport child overflows by
       // exactly that chrome and the page scrolls onto nothing. Undershoot
       // instead and let justify-center place the card.
-      <div className="flex flex-col" style={{ backgroundColor: '#F5F5F7', minHeight: 'calc(100dvh - 200px)' }}>
+      <div className="flex flex-col" style={{ backgroundColor: '#F6F5F2', minHeight: 'calc(100dvh - 200px)' }}>
         <div className="px-6 pt-1">
           <p style={{ color: '#8E8E93', fontSize: '14px', marginBottom: '2px' }}>{greeting}</p>
           <h1 style={{ color: '#1C1C1E', fontSize: '28px', fontWeight: '600', letterSpacing: '-0.5px' }}>
@@ -1812,7 +1812,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
         <div className="flex-1 flex flex-col justify-center px-6 pt-4 pb-4">
           <div className="rounded-2xl px-6 py-8 text-center" style={{ background: '#FFFFFF', boxShadow: '0 8px 24px rgba(0,0,0,0.06)', border: '1px solid #EEEEF1' }}>
             <div className="mx-auto mb-4 flex items-center justify-center" style={{ width: 56, height: 56, borderRadius: 999, background: '#EFF6FF' }}>
-              <Plus className="w-7 h-7" style={{ color: '#007AFF' }} strokeWidth={2.5} />
+              <Plus className="w-7 h-7" style={{ color: '#3B82F6' }} strokeWidth={2.5} />
             </div>
             <h2 style={{ color: '#1C1C1E', fontSize: 20, fontWeight: 700, letterSpacing: '-0.02em', marginBottom: 8 }}>
               Your first month starts here
@@ -1824,7 +1824,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
               <button
                 onClick={onAddFirstExpense}
                 className="w-full py-4 rounded-xl font-medium text-base transition-all active:scale-[0.98]"
-                style={{ backgroundColor: '#007AFF', color: '#FFFFFF', boxShadow: '0 2px 8px rgba(0,122,255,0.25)' }}
+                style={{ backgroundColor: '#3B82F6', color: '#FFFFFF', boxShadow: '0 2px 8px rgba(0,122,255,0.25)' }}
               >
                 Add your first expense
               </button>
@@ -1841,7 +1841,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
   }
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: '#F5F5F7' }}>
+    <div className="min-h-screen" style={{ backgroundColor: '#F6F5F2' }}>
       {view === 'overview' ? (
         <div className="px-6 pt-1 pb-3">
           {/* Personalized greeting — sits at the very top, visible for 2s on
@@ -1949,7 +1949,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
             <div
               className="rounded-2xl overflow-hidden"
               style={{
-                background: 'linear-gradient(150deg, #2E2E32 0%, #1C1C1E 100%)',
+                background: 'radial-gradient(120% 120% at 90% -20%, rgba(99,102,241,0.35) 0%, rgba(59,130,246,0.14) 42%, rgba(28,28,30,0) 68%), linear-gradient(150deg, #2E2E32 0%, #1C1C1E 100%)',
                 boxShadow: '0 12px 30px rgba(28, 28, 30, 0.22)',
                 border: '1px solid rgba(255, 255, 255, 0.06)'
               }}
@@ -2172,7 +2172,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                     <button
                       onClick={() => setCategorySortBy(categorySortBy === 'alphabetical' ? 'amount' : 'alphabetical')}
                       className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition-colors flex-shrink-0"
-                      style={{ backgroundColor: '#F2F2F7' }}
+                      style={{ backgroundColor: '#F2F1ED' }}
                       aria-label="Toggle sort order"
                     >
                       <ArrowUpDown className="w-3.5 h-3.5" style={{ color: '#8E8E93' }} />
@@ -2409,10 +2409,10 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                                 onClick={() => setDrilldownContext({ categoryName: item.name, subcategoryName: null })}
                                 className="flex items-center gap-1 py-1.5 w-full text-left active:bg-neutral-100 rounded-md px-1 transition-colors"
                               >
-                                <span className="text-[11px] font-medium" style={{ color: '#007AFF' }}>
+                                <span className="text-[11px] font-medium" style={{ color: '#3B82F6' }}>
                                   View all {extras.totalCount} transactions
                                 </span>
-                                <ChevronRight className="w-3.5 h-3.5" style={{ color: '#007AFF' }} />
+                                <ChevronRight className="w-3.5 h-3.5" style={{ color: '#3B82F6' }} />
                               </button>
                             </div>
                           )}
@@ -2693,7 +2693,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                                 key={`grid-${i}`}
                                 x1={marginLeft} y1={yOf(t.value)}
                                 x2={svgW - marginRight} y2={yOf(t.value)}
-                                stroke="#F2F2F7" strokeWidth={1} strokeDasharray="3 3"
+                                stroke="#F2F1ED" strokeWidth={1} strokeDasharray="3 3"
                               />
                             ))}
 
@@ -3046,7 +3046,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                         tapping Recurring still opens the breakdown. */}
                     <div
                       className="flex gap-0.5 h-2.5 rounded-full overflow-hidden mb-1"
-                      style={{ backgroundColor: '#F2F2F7' }}
+                      style={{ backgroundColor: '#F2F1ED' }}
                     >
                       {dataWithColors.map((item, index) => {
                         const isSelected = selectedRecurrenceSlice === item.name;
@@ -3100,7 +3100,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                             borderRight: 'none',
                             borderBottomWidth: index < dataWithColors.length - 1 ? '1px' : '0',
                             borderBottomStyle: 'solid',
-                            borderBottomColor: '#F5F5F7',
+                            borderBottomColor: '#F6F5F2',
                             background: 'transparent',
                             cursor: 'pointer',
                             opacity: selectedRecurrenceSlice === null || selectedRecurrenceSlice === item.name ? 1 : 0.5,
@@ -3234,7 +3234,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                             padding: '8px 0',
                             borderBottomWidth: index < withPct.length - 1 ? '1px' : '0',
                             borderBottomStyle: 'solid',
-                            borderBottomColor: '#F5F5F7',
+                            borderBottomColor: '#F6F5F2',
                           }}
                         >
                           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -3474,7 +3474,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                     }}
                     className="px-4 py-1.5 transition-all text-sm font-medium"
                     style={{
-                      backgroundColor: transactionType === 'savings' ? '#F2F2F7' : 'transparent',
+                      backgroundColor: transactionType === 'savings' ? '#F2F1ED' : 'transparent',
                       color: transactionType === 'savings' ? '#1C1C1E' : '#8E8E93'
                     }}
                   >
@@ -4437,7 +4437,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                     // the grey pill. This was the one sort control drawn
                     // differently - Clock icon, uppercase, darker pill.
                     className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition-colors"
-                    style={{ backgroundColor: '#F2F2F7' }}
+                    style={{ backgroundColor: '#F2F1ED' }}
                     aria-label="Toggle sort order"
                   >
                     <ArrowUpDown className="w-3.5 h-3.5" style={{ color: '#8E8E93' }} />
@@ -4450,7 +4450,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
             </div>
             
             {/* List */}
-            <div className="flex-1 overflow-y-auto pb-10 bg-[#F5F5F7]">
+            <div className="flex-1 overflow-y-auto pb-10 bg-[#F6F5F2]">
               {drilldownList.mode === 'empty' ? (
                 <div className="flex flex-col items-center justify-center h-full py-12 px-6 text-center">
                   <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mb-4 shadow-sm">

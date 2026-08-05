@@ -1563,7 +1563,7 @@ export default function App() {
   );
 
   const splash = (label?: string) => (
-    <div className="min-h-screen flex flex-col items-center justify-center gap-3" style={{ backgroundColor: '#F5F5F7' }}>
+    <div className="min-h-screen flex flex-col items-center justify-center gap-3" style={{ backgroundColor: '#F6F5F2' }}>
       <TracklyLogo size={64} />
       {label && <p style={{ color: '#8E8E93', fontSize: 14 }}>{label}</p>}
     </div>
@@ -1579,7 +1579,7 @@ export default function App() {
   // screen that could show the data itself.
   if (session && ownerConflict) {
     return (
-      <div className="flex flex-col max-w-[430px] mx-auto px-6" style={{ height: '100dvh', backgroundColor: '#F5F5F7' }}>
+      <div className="flex flex-col max-w-[430px] mx-auto px-6" style={{ height: '100dvh', backgroundColor: '#F6F5F2' }}>
         <div className="flex-1 flex flex-col items-center justify-center text-center">
           <TracklyLogo size={56} className="mb-5" />
           <h1 style={{ color: '#1C1C1E', fontSize: 22, fontWeight: 700, letterSpacing: '-0.02em', marginBottom: 10 }}>
@@ -1603,7 +1603,7 @@ export default function App() {
               setHydrateTick((t) => t + 1);
             }}
             className="w-full py-4 rounded-2xl font-medium text-base transition-all active:scale-[0.98]"
-            style={{ backgroundColor: '#007AFF', color: '#FFFFFF', boxShadow: '0 2px 8px rgba(0,122,255,0.25)' }}
+            style={{ backgroundColor: '#3B82F6', color: '#FFFFFF', boxShadow: '0 2px 8px rgba(0,122,255,0.25)' }}
           >
             Start fresh with my account
           </button>
@@ -1659,7 +1659,7 @@ export default function App() {
   // than as space we forgot to fill. Every rule for that is md: only, so the
   // phone rendering is untouched.
   return (
-    <div className="min-h-screen bg-[#F5F5F7] md:bg-[#EBEBEF]">
+    <div className="min-h-screen bg-[#F6F5F2] md:bg-[#ECEAE6]">
       <Toaster position="top-center" />
       {importSummary && (
         <ImportSummaryDialog
@@ -1713,10 +1713,10 @@ export default function App() {
           its transaction list scrolls; other tabs scroll as a whole page */}
       <div
         className={`max-w-[430px] mx-auto flex flex-col md:shadow-[0_0_40px_rgba(0,0,0,0.07)] ${currentTab === 'activity' ? 'overflow-hidden' : 'min-h-screen'}`}
-        style={{ backgroundColor: '#F5F5F7', ...(currentTab === 'activity' ? { height: '100dvh' } : {}) }}
+        style={{ backgroundColor: '#F6F5F2', ...(currentTab === 'activity' ? { height: '100dvh' } : {}) }}
       >
         {/* Status Bar Space — clears the iOS status bar when installed, minimal in a browser tab */}
-        <div className="app-top-inset flex-shrink-0" style={{ backgroundColor: '#F5F5F7' }} />
+        <div className="app-top-inset flex-shrink-0" style={{ backgroundColor: '#F6F5F2' }} />
 
         {/* Content - Different structure for activity tab vs others */}
         {currentTab === 'activity' ? (
@@ -2011,7 +2011,7 @@ export default function App() {
                     type="button"
                     onClick={() => setShowSourceSelector(true)}
                     className="flex items-center gap-1 rounded-full pl-1 pr-1.5 py-1 active:scale-95 transition-transform"
-                    style={{ backgroundColor: '#F2F2F7', WebkitTapHighlightColor: 'transparent' }}
+                    style={{ backgroundColor: '#F2F1ED', WebkitTapHighlightColor: 'transparent' }}
                     aria-label="Select source"
                   >
                     <SourceLogo source={sources.find(s => s.id === selectedSourceId)} size={24} />

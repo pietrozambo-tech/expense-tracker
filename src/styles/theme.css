@@ -14,7 +14,7 @@
   --text-2xl: 1.5rem;
   
   /* Premium light dark-grey background system */
-  --background: #F5F5F7;
+  --background: #F6F5F2;
   --background-elevated: #FAFAFA;
   --surface: #FFFFFF;
   --surface-secondary: #F9F9FB;
@@ -30,10 +30,10 @@
   
   --primary: #1C1C1E;
   --primary-foreground: #FFFFFF;
-  --secondary: #F2F2F7;
+  --secondary: #F2F1ED;
   --secondary-foreground: #1C1C1E;
   
-  --muted: #F2F2F7;
+  --muted: #F2F1ED;
   --muted-foreground: #8E8E93;
   
   --accent: #E5E5EA;
@@ -46,7 +46,7 @@
   --border-subtle: rgba(0, 0, 0, 0.04);
   
   --input: transparent;
-  --input-background: #F2F2F7;
+  --input-background: #F2F1ED;
   --switch-background: #C7C7CC;
   
   --font-weight-medium: 500;

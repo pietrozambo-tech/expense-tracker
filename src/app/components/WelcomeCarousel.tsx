@@ -67,7 +67,7 @@ function AddIllustration() {
           <span style={{ color: '#8E8E93', fontSize: 20, fontWeight: 500 }}>€</span>
           <span style={{ color: '#1C1C1E', fontSize: 30, fontWeight: 800, letterSpacing: '-0.02em' }}>24.90</span>
         </div>
-        <span className="flex items-center gap-1 rounded-full pl-1 pr-1.5 py-1" style={{ background: '#F2F2F7' }}>
+        <span className="flex items-center gap-1 rounded-full pl-1 pr-1.5 py-1" style={{ background: '#F2F1ED' }}>
           <SourceLogo source={SAMPLE_REVOLUT} size={22} />
           <ChevronDown className="w-3.5 h-3.5" style={{ color: '#8E8E93' }} strokeWidth={2.5} />
         </span>
@@ -87,7 +87,7 @@ function AddIllustration() {
       <div className="grid grid-cols-2 gap-2">
         {cats.slice(0, 2).map(({ name, Icon, bg, fg, on }) => (
           <div key={name} className="flex items-center gap-2 rounded-xl px-2.5 py-2"
-            style={{ background: on ? '#FFFFFF' : '#FAFAFB', boxShadow: on ? '0 0 0 2px #007AFF' : 'inset 0 0 0 1px #ECECEF' }}>
+            style={{ background: on ? '#FFFFFF' : '#FAFAFB', boxShadow: on ? '0 0 0 2px #3B82F6' : 'inset 0 0 0 1px #ECECEF' }}>
             <span className="flex items-center justify-center flex-shrink-0" style={{ width: 26, height: 26, borderRadius: 8, background: bg }}>
               <Icon className="w-4 h-4" style={{ color: fg }} />
             </span>
@@ -106,7 +106,7 @@ function AddIllustration() {
 
         {cats.slice(2).map(({ name, Icon, bg, fg, on }) => (
           <div key={name} className="flex items-center gap-2 rounded-xl px-2.5 py-2"
-            style={{ background: on ? '#FFFFFF' : '#FAFAFB', boxShadow: on ? '0 0 0 2px #007AFF' : 'inset 0 0 0 1px #ECECEF' }}>
+            style={{ background: on ? '#FFFFFF' : '#FAFAFB', boxShadow: on ? '0 0 0 2px #3B82F6' : 'inset 0 0 0 1px #ECECEF' }}>
             <span className="flex items-center justify-center flex-shrink-0" style={{ width: 26, height: 26, borderRadius: 8, background: bg }}>
               <Icon className="w-4 h-4" style={{ color: fg }} />
             </span>
@@ -199,7 +199,7 @@ function DashboardIllustration() {
             <span className="font-semibold" style={{ color: '#1C1C1E' }}>1,039€</span> of 1,500€
           </span>
         </div>
-        <div className="relative h-2 rounded-full overflow-hidden" style={{ backgroundColor: '#F2F2F7' }}>
+        <div className="relative h-2 rounded-full overflow-hidden" style={{ backgroundColor: '#F2F1ED' }}>
           <div className="h-full rounded-full" style={{ width: '69%', backgroundColor: '#5FC08C' }} />
         </div>
         <div className="relative" style={{ height: 0 }}>
@@ -279,7 +279,7 @@ function ImportIllustration() {
       <div className="rounded-2xl px-4 py-3" style={{ background: '#FFFFFF', boxShadow: '0 8px 24px rgba(0,0,0,0.06)', border: '1px solid #EEEEF1' }}>
         <div className="flex items-center justify-between mb-1.5">
           <span className="text-[12px] font-semibold" style={{ color: '#1C1C1E' }}>Activity</span>
-          <span className="text-[10px] font-medium rounded-full px-2 py-0.5" style={{ background: '#F2F2F7', color: '#8E8E93' }}>Imported</span>
+          <span className="text-[10px] font-medium rounded-full px-2 py-0.5" style={{ background: '#F2F1ED', color: '#8E8E93' }}>Imported</span>
         </div>
         {rows.map((r) => (
           <div key={r.name} className="flex items-center gap-2.5 py-1.5">
@@ -333,7 +333,7 @@ function DemoIllustration() {
             </div>
           </div>
         </div>
-        <Spark values={spark} labels={labels} color="#007AFF" />
+        <Spark values={spark} labels={labels} color="#3B82F6" />
       </div>
 
       {/* Reassurance: it's throwaway data */}
@@ -349,8 +349,8 @@ function SettingsIllustration() {
   return (
     <div className="rounded-2xl overflow-hidden" style={{ background: '#FFFFFF', boxShadow: '0 8px 24px rgba(0,0,0,0.06)', border: '1px solid #EEEEF1' }}>
       {/* Categories row (the priority) */}
-      <div className="flex items-center gap-3 px-4 py-3.5" style={{ borderBottom: '1px solid #F2F2F7' }}>
-        <span className="flex items-center justify-center flex-shrink-0" style={{ width: 30, height: 30, borderRadius: 9, background: '#F2F2F7' }}>
+      <div className="flex items-center gap-3 px-4 py-3.5" style={{ borderBottom: '1px solid #F2F1ED' }}>
+        <span className="flex items-center justify-center flex-shrink-0" style={{ width: 30, height: 30, borderRadius: 9, background: '#F2F1ED' }}>
           <Layers className="w-4 h-4" style={{ color: '#8E8E93' }} />
         </span>
         <span className="flex-1 text-[15px] font-medium" style={{ color: '#1C1C1E' }}>Categories</span>
@@ -359,7 +359,7 @@ function SettingsIllustration() {
       </div>
       {/* Sources row with the default banks */}
       <div className="flex items-center gap-3 px-4 py-3.5">
-        <span className="flex items-center justify-center flex-shrink-0" style={{ width: 30, height: 30, borderRadius: 9, background: '#F2F2F7' }}>
+        <span className="flex items-center justify-center flex-shrink-0" style={{ width: 30, height: 30, borderRadius: 9, background: '#F2F1ED' }}>
           <Landmark className="w-4 h-4" style={{ color: '#8E8E93' }} />
         </span>
         <span className="flex-1 text-[15px] font-medium" style={{ color: '#1C1C1E' }}>Sources</span>
@@ -381,7 +381,7 @@ export function WelcomeCarousel({ userName, onDone, onSetupCategories, onLoadDem
         <div className="flex flex-col items-center justify-center" style={{ minHeight: 220 }}>
           <TracklyLogo size={92} />
           <h2 style={{ color: '#1C1C1E', fontSize: 30, fontWeight: 700, letterSpacing: '-0.03em', marginTop: 18 }}>TracklyLab</h2>
-          <p style={{ color: '#007AFF', fontSize: 15, fontWeight: 600, marginTop: 4, letterSpacing: '0.02em' }}>Your Expense Lens</p>
+          <p style={{ color: '#3B82F6', fontSize: 15, fontWeight: 600, marginTop: 4, letterSpacing: '0.02em' }}>Your Expense Lens</p>
         </div>
       ),
       title: userName ? `Welcome, ${userName} 👋` : 'Welcome to TracklyLab 👋',
@@ -442,7 +442,7 @@ export function WelcomeCarousel({ userName, onDone, onSetupCategories, onLoadDem
     // simply grew the page and pushed the button below the fold, and the only
     // way to reach it was to scroll. Fixed height + a slide that scrolls inside
     // itself keeps Skip and the button pinned where they belong on any device.
-    <div className="flex flex-col max-w-[430px] mx-auto" style={{ height: '100dvh', backgroundColor: '#F5F5F7' }}>
+    <div className="flex flex-col max-w-[430px] mx-auto" style={{ height: '100dvh', backgroundColor: '#F6F5F2' }}>
       {/* Skip - the row keeps its height on the last slide so nothing shifts */}
       <div className="flex justify-end items-center px-5 flex-shrink-0" style={{ height: 40 }}>
         {!isLast && (
@@ -485,7 +485,7 @@ export function WelcomeCarousel({ userName, onDone, onSetupCategories, onLoadDem
                 width: i === index ? 20 : 7,
                 height: 7,
                 borderRadius: 999,
-                background: i === index ? '#007AFF' : '#D1D1D6',
+                background: i === index ? '#3B82F6' : '#D1D1D6',
                 transition: 'width 0.25s ease, background 0.25s ease',
               }}
             />
@@ -496,7 +496,7 @@ export function WelcomeCarousel({ userName, onDone, onSetupCategories, onLoadDem
             <button
               onClick={onSetupCategories}
               className="w-full py-4 rounded-xl font-medium text-base transition-all active:scale-[0.98]"
-              style={{ backgroundColor: '#007AFF', color: '#FFFFFF', boxShadow: '0 2px 8px rgba(0,122,255,0.25)' }}
+              style={{ backgroundColor: '#3B82F6', color: '#FFFFFF', boxShadow: '0 2px 8px rgba(0,122,255,0.25)' }}
             >
               Set up my categories
             </button>
@@ -509,7 +509,7 @@ export function WelcomeCarousel({ userName, onDone, onSetupCategories, onLoadDem
             <button
               onClick={() => { onLoadDemo(); next(); }}
               className="w-full py-4 rounded-xl font-medium text-base transition-all active:scale-[0.98] flex items-center justify-center gap-2"
-              style={{ backgroundColor: '#007AFF', color: '#FFFFFF', boxShadow: '0 2px 8px rgba(0,122,255,0.25)' }}
+              style={{ backgroundColor: '#3B82F6', color: '#FFFFFF', boxShadow: '0 2px 8px rgba(0,122,255,0.25)' }}
             >
               <FlaskConical className="w-4 h-4" /> Load sample data
             </button>
@@ -521,7 +521,7 @@ export function WelcomeCarousel({ userName, onDone, onSetupCategories, onLoadDem
           <button
             onClick={next}
             className="w-full py-4 rounded-xl font-medium text-base transition-all active:scale-[0.98]"
-            style={{ backgroundColor: '#007AFF', color: '#FFFFFF', boxShadow: '0 2px 8px rgba(0,122,255,0.25)' }}
+            style={{ backgroundColor: '#3B82F6', color: '#FFFFFF', boxShadow: '0 2px 8px rgba(0,122,255,0.25)' }}
           >
             Next
           </button>

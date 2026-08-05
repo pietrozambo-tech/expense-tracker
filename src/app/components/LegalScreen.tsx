@@ -10,8 +10,8 @@ interface LegalScreenProps {
 // Categories, Sources and the rest.
 export function LegalScreen({ doc, onBack }: LegalScreenProps) {
   return (
-    <div className="h-screen flex flex-col" style={{ backgroundColor: '#F5F5F7' }}>
-      <div style={{ backgroundColor: '#F5F5F7' }}>
+    <div className="h-screen flex flex-col" style={{ backgroundColor: '#F6F5F2' }}>
+      <div style={{ backgroundColor: '#F6F5F2' }}>
         <div className="px-6 pb-4 pt-0">
           <div className="flex items-center justify-center relative">
             <button
@@ -19,7 +19,7 @@ export function LegalScreen({ doc, onBack }: LegalScreenProps) {
               className="absolute left-0 -ml-2 px-2 py-1 rounded-lg active:bg-neutral-200 transition-colors"
               aria-label="Back"
             >
-              <ChevronLeft size={24} style={{ color: '#007AFF' }} />
+              <ChevronLeft size={24} style={{ color: '#3B82F6' }} />
             </button>
             <h1 style={{ color: '#1C1C1E', fontSize: '20px', fontWeight: '600', letterSpacing: '-0.3px' }}>
               {doc.title}

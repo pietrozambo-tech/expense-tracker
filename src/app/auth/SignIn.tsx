@@ -82,7 +82,7 @@ export function SignIn() {
   };
 
   // Soft brand halo at the top fading into the app background
-  const bg = 'radial-gradient(130% 65% at 50% -5%, rgba(99,102,241,0.12), rgba(59,130,246,0.06) 42%, #F5F5F7 72%)';
+  const bg = 'radial-gradient(130% 65% at 50% -5%, rgba(99,102,241,0.12), rgba(59,130,246,0.06) 42%, #F6F5F2 72%)';
 
   return (
     // Viewport height, not a minimum: this screen grows every time a provider

@@ -34,7 +34,7 @@ export class AppErrorBoundary extends Component<Props, State> {
           justifyContent: 'center',
           padding: 32,
           textAlign: 'center',
-          backgroundColor: '#F5F5F7',
+          backgroundColor: '#F6F5F2',
           fontFamily: 'system-ui, sans-serif',
         }}
       >
@@ -52,7 +52,7 @@ export class AppErrorBoundary extends Component<Props, State> {
             padding: '14px 32px',
             borderRadius: 12,
             border: 'none',
-            backgroundColor: '#007AFF',
+            backgroundColor: '#3B82F6',
             color: '#FFFFFF',
             fontSize: 16,
             fontWeight: 500,

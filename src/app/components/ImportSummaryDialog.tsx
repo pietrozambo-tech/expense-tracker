@@ -71,7 +71,7 @@ export function ImportSummaryDialog({
               <button
                 onClick={onReview}
                 className="w-full py-3 rounded-xl font-semibold text-white active:scale-[0.98] transition-transform"
-                style={{ backgroundColor: '#007AFF' }}
+                style={{ backgroundColor: '#3B82F6' }}
               >
                 Review in Activity
               </button>
@@ -86,7 +86,7 @@ export function ImportSummaryDialog({
             <button
               onClick={onClose}
               className="w-full py-3 rounded-xl font-semibold text-white active:scale-[0.98] transition-transform"
-              style={{ backgroundColor: '#007AFF' }}
+              style={{ backgroundColor: '#3B82F6' }}
             >
               OK
             </button>

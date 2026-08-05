@@ -319,9 +319,9 @@ export function Activity({
   ];
 
   return (
-    <div className="flex flex-col flex-1 min-h-0" style={{ backgroundColor: '#F5F5F7' }}>
+    <div className="flex flex-col flex-1 min-h-0" style={{ backgroundColor: '#F6F5F2' }}>
       {/* Fixed Header - Always Visible */}
-      <div className="flex-shrink-0 pt-0" style={{ backgroundColor: '#F5F5F7' }}>
+      <div className="flex-shrink-0 pt-0" style={{ backgroundColor: '#F6F5F2' }}>
         <div className="px-6 pb-4 flex items-center justify-between">
           <div className="flex-1">
             <h1 style={{ color: '#1C1C1E', fontSize: '28px', fontWeight: '600', letterSpacing: '-0.5px' }}>Activity</h1>
@@ -333,7 +333,7 @@ export function Activity({
             <button
               onClick={downloadActivity}
               className="flex-shrink-0 w-9 h-9 flex items-center justify-center rounded-full transition-colors active:bg-neutral-200"
-              style={{ backgroundColor: '#F2F2F7' }}
+              style={{ backgroundColor: '#F2F1ED' }}
             >
               <Download size={18} style={{ color: '#1C1C1E' }} />
             </button>

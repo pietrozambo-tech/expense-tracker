@@ -121,7 +121,7 @@ export function PeriodPickerModal({
         {/* The home indicator sits over the last row of cells otherwise. */}
         <div className="px-6 py-4" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 28px)' }}>
           {/* Month / Quarter / Year */}
-          <div className="flex p-1 rounded-xl" style={{ backgroundColor: '#F2F2F7' }}>
+          <div className="flex p-1 rounded-xl" style={{ backgroundColor: '#F2F1ED' }}>
             {(['month', 'quarter', 'year'] as const).map((t) => (
               <button
                 key={t}
@@ -168,7 +168,7 @@ export function PeriodPickerModal({
                       onClick={() => setDraftYear(y)}
                       className="px-3.5 py-1.5 rounded-full text-xs tabular-nums flex-shrink-0"
                       style={{
-                        backgroundColor: on ? '#1C1C1E' : '#F2F2F7',
+                        backgroundColor: on ? '#1C1C1E' : '#F2F1ED',
                         color: on ? '#FFFFFF' : '#8E8E93',
                         fontWeight: on ? 600 : 500,
                         transition: 'background-color 0.15s ease',

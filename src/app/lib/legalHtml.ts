@@ -30,16 +30,16 @@ export function renderLegalHtml(doc: LegalDoc): string {
          font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif;
          color: #1C1C1E; background: #fff; }
   header { border-bottom: 1px solid #E5E5EA; padding-bottom: 20px; margin-bottom: 28px; }
-  .brand { font-size: 13px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #007AFF; }
+  .brand { font-size: 13px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #3B82F6; }
   h1 { font-size: 30px; letter-spacing: -.5px; margin: 8px 0 6px; }
   .updated { color: #8E8E93; font-size: 14px; margin: 0; }
   .intro { font-size: 17px; color: #3A3A3C; }
   h2 { font-size: 17px; margin: 32px 0 8px; }
   p { color: #48484A; margin: 0 0 10px; }
   footer { margin-top: 48px; padding-top: 20px; border-top: 1px solid #E5E5EA; color: #8E8E93; font-size: 13px; }
-  a { color: #007AFF; }
+  a { color: #3B82F6; }
   @media (prefers-color-scheme: dark) {
-    body { color: #F2F2F7; background: #1C1C1E; }
+    body { color: #F2F1ED; background: #1C1C1E; }
     header, footer { border-color: #3A3A3C; }
     .intro { color: #D1D1D6; }
     p { color: #C7C7CC; }

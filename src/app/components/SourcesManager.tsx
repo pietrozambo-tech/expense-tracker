@@ -47,16 +47,16 @@ export function SourcesManager({
     // Same bound as the other Settings sub-screens: the tab wrapper already
     // contributes the top inset and the nav-clearing bottom padding, so a
     // full-viewport child overflows by exactly that (see SUBPAGE_HEIGHT).
-    <div className="flex flex-col overflow-hidden" style={{ height: 'calc(100dvh - 136px)', backgroundColor: '#F5F5F7' }}>
+    <div className="flex flex-col overflow-hidden" style={{ height: 'calc(100dvh - 136px)', backgroundColor: '#F6F5F2' }}>
       {/* Header */}
-      <div className="flex-shrink-0" style={{ backgroundColor: '#F5F5F7' }}>
+      <div className="flex-shrink-0" style={{ backgroundColor: '#F6F5F2' }}>
         <div className="px-6 pb-4 pt-0">
           <div className="flex items-center justify-center relative">
             <button
               onClick={onBack}
               className="absolute left-0 -ml-2 px-2 py-1 rounded-lg active:bg-neutral-200 transition-colors"
             >
-              <ChevronLeft size={24} style={{ color: '#007AFF' }} />
+              <ChevronLeft size={24} style={{ color: '#3B82F6' }} />
             </button>
             <h1 style={{ color: '#1C1C1E', fontSize: '20px', fontWeight: '600', letterSpacing: '-0.3px' }}>Sources</h1>
           </div>
@@ -77,7 +77,7 @@ export function SourcesManager({
             <button
               onClick={() => setPickerFor('expense')}
               className="w-full flex items-center gap-3 px-5 py-3.5 active:bg-neutral-50 transition-colors"
-              style={{ borderBottom: '1px solid #F2F2F7' }}
+              style={{ borderBottom: '1px solid #F2F1ED' }}
             >
               <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '15px' }}>Expenses paid with</span>
               <SourceLogo source={byId(defaultSourceExpense)} size={22} />
@@ -104,7 +104,7 @@ export function SourcesManager({
               <div
                 key={source.id}
                 className="flex items-center gap-3 px-5 py-3"
-                style={{ borderBottom: index < sources.length - 1 ? '1px solid #F2F2F7' : 'none' }}
+                style={{ borderBottom: index < sources.length - 1 ? '1px solid #F2F1ED' : 'none' }}
               >
                 <SourceLogo source={source} size={30} />
                 <span className="flex-1" style={{ color: '#1C1C1E', fontSize: '15px' }}>{source.name}</span>
@@ -128,7 +128,7 @@ export function SourcesManager({
           <button
             onClick={openAdd}
             className="w-full mt-4 py-3 rounded-xl font-medium flex items-center justify-center gap-2 active:scale-[0.99] transition-transform"
-            style={{ backgroundColor: '#007AFF', color: '#FFFFFF' }}
+            style={{ backgroundColor: '#3B82F6', color: '#FFFFFF' }}
           >
             <Plus className="w-5 h-5" />
             Add source
@@ -304,7 +304,7 @@ function SourceFormModal({
             disabled={!trimmed}
             className="w-full py-3.5 rounded-xl font-medium transition-all active:scale-[0.99]"
             style={{
-              backgroundColor: !trimmed ? '#E5E5EA' : '#007AFF',
+              backgroundColor: !trimmed ? '#E5E5EA' : '#3B82F6',
               color: '#FFFFFF',
               cursor: !trimmed ? 'not-allowed' : 'pointer',
             }}

@@ -94,24 +94,24 @@ export function AmountInput({ value, onChange, currency, onCurrencyChange, right
         key={code}
         onClick={() => handleCurrencySelect(code)}
         className="w-full flex items-center justify-between px-5 py-3.5 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
-        style={{ borderBottom: showBorder ? '1px solid #F2F2F7' : 'none' }}
+        style={{ borderBottom: showBorder ? '1px solid #F2F1ED' : 'none' }}
       >
         <div className="flex items-center gap-3">
           <div
             className="w-10 h-10 rounded-full flex items-center justify-center"
-            style={{ backgroundColor: currency === code ? '#E3F2FF' : '#F2F2F7', fontSize: '22px' }}
+            style={{ backgroundColor: currency === code ? '#E3F2FF' : '#F2F1ED', fontSize: '22px' }}
           >
             {currencyData.flag}
           </div>
           <div className="flex flex-col items-start">
-            <span className="font-medium" style={{ color: currency === code ? '#007AFF' : '#1C1C1E', fontSize: '16px' }}>
+            <span className="font-medium" style={{ color: currency === code ? '#3B82F6' : '#1C1C1E', fontSize: '16px' }}>
               {code}
             </span>
             <span className="text-neutral-500 text-sm">{currencyData.name}</span>
           </div>
         </div>
         {currency === code && (
-          <div className="w-6 h-6 rounded-full flex items-center justify-center" style={{ backgroundColor: '#007AFF' }}>
+          <div className="w-6 h-6 rounded-full flex items-center justify-center" style={{ backgroundColor: '#3B82F6' }}>
             <svg width="12" height="10" viewBox="0 0 12 10" fill="none">
               <path d="M1 5L4.5 8.5L11 1.5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
             </svg>

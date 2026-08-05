@@ -68,8 +68,8 @@ export function SeriesClaimDialog({
                     width: 22,
                     height: 22,
                     borderRadius: 7,
-                    backgroundColor: on ? '#007AFF' : '#FFFFFF',
-                    border: on ? '1px solid #007AFF' : '1.5px solid #D1D1D6',
+                    backgroundColor: on ? '#3B82F6' : '#FFFFFF',
+                    border: on ? '1px solid #3B82F6' : '1.5px solid #D1D1D6',
                   }}
                 >
                   {on && <Check className="w-3.5 h-3.5" style={{ color: '#FFFFFF' }} strokeWidth={3} />}
@@ -101,7 +101,7 @@ export function SeriesClaimDialog({
             disabled={total === 0}
             className="w-full py-3.5 rounded-xl font-medium text-[15px] transition-all active:scale-[0.98]"
             style={{
-              backgroundColor: total === 0 ? '#E5E5EA' : '#007AFF',
+              backgroundColor: total === 0 ? '#E5E5EA' : '#3B82F6',
               color: total === 0 ? '#9CA3AF' : '#FFFFFF',
             }}
           >

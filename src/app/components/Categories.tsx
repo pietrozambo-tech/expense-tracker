@@ -117,11 +117,11 @@ export function Categories({
   };
 
   return (
-    <div style={{ backgroundColor: '#F5F5F7' }}>
+    <div style={{ backgroundColor: '#F6F5F2' }}>
       {/* Empty State */}
       {categories.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 px-6">
-          <div className="w-16 h-16 rounded-full flex items-center justify-center mb-4" style={{ backgroundColor: '#F2F2F7' }}>
+          <div className="w-16 h-16 rounded-full flex items-center justify-center mb-4" style={{ backgroundColor: '#F2F1ED' }}>
             <Plus className="w-8 h-8" style={{ color: '#8E8E93' }} />
           </div>
           <h2 style={{ color: '#1C1C1E', fontWeight: '600', fontSize: '18px', marginBottom: '8px' }}>No categories yet</h2>
