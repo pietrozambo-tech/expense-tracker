@@ -146,7 +146,7 @@ const UNCATEGORIZED = '__uncategorized__';
 // Same treatment as the Overview hero card, so the headline numbers on both
 // tabs look like they belong to the same app.
 const TREND_STAT_CARD: React.CSSProperties = {
-  background: 'radial-gradient(120% 120% at 90% -20%, rgba(99,102,241,0.35) 0%, rgba(59,130,246,0.14) 42%, rgba(28,28,30,0) 68%), linear-gradient(150deg, #2E2E32 0%, #1C1C1E 100%)',
+  background: 'radial-gradient(120% 120% at 90% -20%, rgba(99,102,241,0.30) 0%, rgba(59,130,246,0.12) 42%, rgba(28,28,30,0) 68%), linear-gradient(150deg, #2E2E32 0%, #1C1C1E 100%)',
   boxShadow: '0 12px 30px rgba(28, 28, 30, 0.22)',
   border: '1px solid rgba(255, 255, 255, 0.06)',
 };
@@ -1867,8 +1867,9 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                 filters, with a label and a chevron hint. Kept on the light
                 background because the same control flashes black on tap when
                 placed on the dark card. */}
+            {/* One pill, not a labelled field: "Period: Month" said the same
+                thing twice, and the value alone reads as what it is. */}
             <div className="flex items-center gap-1.5 flex-shrink-0">
-              <span style={{ color: '#8E8E93', fontSize: '13px', fontWeight: '500' }}>Period</span>
               <div
                 className="relative"
                 style={{
@@ -1906,7 +1907,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                     // at an unrelated period under the new one.
                     setComparisonBaseline('previous');
                   }}
-                  className="pl-2.5 pr-7 py-1 rounded-md text-xs text-neutral-600 border border-neutral-200"
+                  className="pl-3 pr-7 py-1.5 rounded-full text-xs font-medium text-neutral-600 border border-neutral-200"
                   style={{
                     WebkitTapHighlightColor: 'rgba(255, 255, 255, 0)',
                     WebkitAppearance: 'none',
@@ -1914,7 +1915,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                     userSelect: 'none',
                     WebkitUserSelect: 'none',
                     touchAction: 'manipulation',
-                    backgroundColor: '#FAFAFA',
+                    backgroundColor: '#FFFFFF',
                     // Chevron drawn as the select's own background so it always
                     // paints (an overlay element gets hidden by the native
                     // control's compositing layer)
@@ -1925,9 +1926,9 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                     willChange: 'background-color'
                   }}
                 >
-                  <option value="month">Month</option>
-                  <option value="quarter">Quarter</option>
-                  <option value="year">Year</option>
+                  <option value="month">Monthly</option>
+                  <option value="quarter">Quarterly</option>
+                  <option value="year">Yearly</option>
                 </select>
               </div>
             </div>
@@ -1949,7 +1950,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
             <div
               className="rounded-2xl overflow-hidden"
               style={{
-                background: 'radial-gradient(120% 120% at 90% -20%, rgba(99,102,241,0.35) 0%, rgba(59,130,246,0.14) 42%, rgba(28,28,30,0) 68%), linear-gradient(150deg, #2E2E32 0%, #1C1C1E 100%)',
+                background: 'radial-gradient(120% 120% at 90% -20%, rgba(99,102,241,0.30) 0%, rgba(59,130,246,0.12) 42%, rgba(28,28,30,0) 68%), linear-gradient(150deg, #2E2E32 0%, #1C1C1E 100%)',
                 boxShadow: '0 12px 30px rgba(28, 28, 30, 0.22)',
                 border: '1px solid rgba(255, 255, 255, 0.06)'
               }}
