@@ -146,7 +146,7 @@ const UNCATEGORIZED = '__uncategorized__';
 // Same treatment as the Overview hero card, so the headline numbers on both
 // tabs look like they belong to the same app.
 const TREND_STAT_CARD: React.CSSProperties = {
-  background: 'radial-gradient(120% 120% at 90% -20%, rgba(99,102,241,0.30) 0%, rgba(59,130,246,0.12) 42%, rgba(28,28,30,0) 68%), linear-gradient(150deg, #2E2E32 0%, #1C1C1E 100%)',
+  background: 'radial-gradient(120% 120% at 90% -20%, rgba(99,102,241,0.30) 0%, rgba(59,130,246,0.12) 42%, rgba(28,28,30,0) 68%), radial-gradient(100% 100% at 6% 118%, rgba(59,130,246,0.10) 0%, rgba(99,102,241,0.04) 45%, rgba(28,28,30,0) 72%), linear-gradient(150deg, #2E2E32 0%, #1C1C1E 100%)',
   boxShadow: '0 12px 30px rgba(28, 28, 30, 0.22)',
   border: '1px solid rgba(255, 255, 255, 0.06)',
 };
@@ -1948,9 +1948,15 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
           {/* Total Spending/Income/Savings Card — premium dark hero */}
           <div className="px-6 mb-4">
             <div
-              className="rounded-2xl overflow-hidden"
+              className="overflow-hidden"
               style={{
-                background: 'radial-gradient(120% 120% at 90% -20%, rgba(99,102,241,0.30) 0%, rgba(59,130,246,0.12) 42%, rgba(28,28,30,0) 68%), linear-gradient(150deg, #2E2E32 0%, #1C1C1E 100%)',
+                // A corner reads relative to the box it turns: 16px on a
+                // surface this size looks clipped, where the same 16px is
+                // generous on the cards below. Matching the radius to the
+                // surface keeps the apparent curvature even and puts the hero
+                // where it belongs in the hierarchy.
+                borderRadius: 24,
+                background: 'radial-gradient(120% 120% at 90% -20%, rgba(99,102,241,0.30) 0%, rgba(59,130,246,0.12) 42%, rgba(28,28,30,0) 68%), radial-gradient(100% 100% at 6% 118%, rgba(59,130,246,0.10) 0%, rgba(99,102,241,0.04) 45%, rgba(28,28,30,0) 72%), linear-gradient(150deg, #2E2E32 0%, #1C1C1E 100%)',
                 boxShadow: '0 12px 30px rgba(28, 28, 30, 0.22)',
                 border: '1px solid rgba(255, 255, 255, 0.06)'
               }}
@@ -2107,31 +2113,33 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
 
           {/* Transaction Type Selector */}
           <div className="px-6 mb-4">
-            <div 
-              className="flex gap-0 rounded-lg overflow-hidden"
-              style={{ 
-                backgroundColor: '#FFFFFF',
-                border: '1px solid #E5E5EA'
-              }}
-            >
+            {/* One thumb that slides, rather than two boxes that light up: the
+                filled half used to read as a washed-out error banner. The
+                active label keeps its meaning-colour, so which side you are on
+                is still legible at a glance. */}
+            <div className="relative flex p-1 rounded-full" style={{ backgroundColor: '#ECEAE4' }}>
+              <div
+                className="absolute rounded-full"
+                style={{
+                  top: 4, bottom: 4, left: 4, width: 'calc(50% - 4px)',
+                  backgroundColor: '#FFFFFF',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.12)',
+                  transform: transactionType === 'income' ? 'translateX(100%)' : 'translateX(0)',
+                  transition: 'transform 220ms cubic-bezier(0.32, 0.72, 0, 1)',
+                }}
+                aria-hidden="true"
+              />
               <button
                 onClick={() => setTransactionType('expense')}
-                className="flex-1 px-4 py-1.5 transition-all text-sm font-medium"
-                style={{
-                  backgroundColor: transactionType === 'expense' ? '#FFE8E6' : 'transparent',
-                  color: transactionType === 'expense' ? '#D32F2F' : '#8E8E93',
-                  borderRight: '1px solid #E5E5EA'
-                }}
+                className="relative flex-1 py-1.5 text-sm font-medium transition-colors"
+                style={{ color: transactionType === 'expense' ? '#C2352B' : '#8E8E93' }}
               >
                 Expenses
               </button>
               <button
                 onClick={() => setTransactionType('income')}
-                className="flex-1 px-4 py-1.5 transition-all text-sm font-medium"
-                style={{
-                  backgroundColor: transactionType === 'income' ? '#E8F5E9' : 'transparent',
-                  color: transactionType === 'income' ? '#2E7D32' : '#8E8E93'
-                }}
+                className="relative flex-1 py-1.5 text-sm font-medium transition-colors"
+                style={{ color: transactionType === 'income' ? '#1F7A43' : '#8E8E93' }}
               >
                 Income
               </button>
