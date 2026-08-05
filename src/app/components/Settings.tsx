@@ -460,12 +460,15 @@ export function Settings({
 
           <div className="px-6">
             <p style={{ color: '#8E8E93', fontSize: 13, fontWeight: 500, marginBottom: 8 }}>NAME</p>
+            {/* No autoFocus. It was right when this page was only a name box
+                and typing was the one thing to do here; now the keyboard
+                covers the budget and the week start, so the page opens on a
+                screen you cannot read. */}
             <input
               type="text"
               value={editedName}
               onChange={(e) => setEditedName(e.target.value)}
               placeholder=""
-              autoFocus
               className="w-full px-4 py-4 rounded-xl text-base outline-none transition-all"
               style={{
                 backgroundColor: '#FFFFFF',
