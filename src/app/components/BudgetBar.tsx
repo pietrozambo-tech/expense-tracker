@@ -79,7 +79,7 @@ export function BudgetBar({ spent, budget, currency, daysLeft, monthProgress, us
       <div className="rounded-2xl px-4 py-3.5 bg-white shadow-sm">
         <div className="flex items-baseline justify-between mb-2 gap-2">
           <span className="flex-shrink-0" style={{ color: '#1C1C1E', fontSize: 13, fontWeight: 600 }}>
-            Monthly budget
+            Monthly Budget
           </span>
           {/* Two amounts and a currency code can outgrow the row - let them
               shrink rather than ellipsise the number the card exists to show. */}
@@ -205,7 +205,7 @@ export function BudgetNudge({ currency, onSave, onDismiss }: BudgetNudgeProps) {
         })}
       >
         <div className="flex items-center justify-between mb-2">
-          <span style={{ color: '#1C1C1E', fontSize: 13, fontWeight: 600 }}>Monthly budget</span>
+          <span style={{ color: '#1C1C1E', fontSize: 13, fontWeight: 600 }}>Monthly Budget</span>
           <button
             onClick={(e) => {
               e.stopPropagation();

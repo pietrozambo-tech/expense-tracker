@@ -194,7 +194,7 @@ function DashboardIllustration() {
           the hero and the categories. */}
       <div className="rounded-2xl px-4 py-3" style={{ background: '#FFFFFF', boxShadow: '0 8px 24px rgba(0,0,0,0.06)', border: '1px solid #EEEEF1' }}>
         <div className="flex items-baseline justify-between mb-2">
-          <span className="text-[13px] font-semibold" style={{ color: '#1C1C1E' }}>Monthly budget</span>
+          <span className="text-[13px] font-semibold" style={{ color: '#1C1C1E' }}>Monthly Budget</span>
           <span className="text-[13px] tabular-nums" style={{ color: '#8E8E93' }}>
             <span className="font-semibold" style={{ color: '#1C1C1E' }}>1,039€</span> of 1,500€
           </span>

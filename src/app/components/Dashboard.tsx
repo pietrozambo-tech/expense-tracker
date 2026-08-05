@@ -3438,57 +3438,43 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
             {/* Transaction Type Selector */}
             <div className="px-6 pt-2 pb-3 bg-white border-b border-neutral-100">
               <div className="flex items-center gap-3 justify-between">
-                <div 
-                  className="inline-flex gap-0 rounded-lg overflow-hidden"
-                  style={{ 
-                    backgroundColor: '#FFFFFF',
-                    border: '1px solid #E5E5EA'
-                  }}
-                >
-                  <button
-                    onClick={() => {
-                      setTransactionType('expense');
-                      setSelectedCategory('All');
-                      setSelectedSubcategory('All');
-                    }}
-                    className="px-4 py-1.5 transition-all text-sm font-medium"
+                {/* The same control as the Dashboard's, one segment wider:
+                    an inset track and a thumb that slides to the chosen third.
+                    Savings keeps a neutral label - it is a result, not a
+                    direction, so it has no meaning-colour of its own. */}
+                <div className="relative flex p-1 rounded-full flex-1 min-w-0" style={{ backgroundColor: '#ECEAE4' }}>
+                  <div
+                    className="absolute rounded-full"
                     style={{
-                      backgroundColor: transactionType === 'expense' ? '#FFE8E6' : 'transparent',
-                      color: transactionType === 'expense' ? '#D32F2F' : '#8E8E93',
-                      borderRight: '1px solid #E5E5EA'
+                      top: 4, bottom: 4, left: 4, width: 'calc((100% - 8px) / 3)',
+                      backgroundColor: '#FFFFFF',
+                      boxShadow: '0 1px 3px rgba(0,0,0,0.12)',
+                      transform:
+                        transactionType === 'income' ? 'translateX(100%)'
+                        : transactionType === 'savings' ? 'translateX(200%)'
+                        : 'translateX(0)',
+                      transition: 'transform 220ms cubic-bezier(0.32, 0.72, 0, 1)',
                     }}
-                  >
-                    Expenses
-                  </button>
-                  <button
-                    onClick={() => {
-                      setTransactionType('income');
-                      setSelectedCategory('All');
-                      setSelectedSubcategory('All');
-                    }}
-                    className="px-4 py-1.5 transition-all text-sm font-medium"
-                    style={{
-                      backgroundColor: transactionType === 'income' ? '#E8F5E9' : 'transparent',
-                      color: transactionType === 'income' ? '#2E7D32' : '#8E8E93',
-                      borderRight: '1px solid #E5E5EA'
-                    }}
-                  >
-                    Income
-                  </button>
-                  <button
-                    onClick={() => {
-                      setTransactionType('savings');
-                      setSelectedCategory('All');
-                      setSelectedSubcategory('All');
-                    }}
-                    className="px-4 py-1.5 transition-all text-sm font-medium"
-                    style={{
-                      backgroundColor: transactionType === 'savings' ? '#F2F1ED' : 'transparent',
-                      color: transactionType === 'savings' ? '#1C1C1E' : '#8E8E93'
-                    }}
-                  >
-                    Savings
-                  </button>
+                    aria-hidden="true"
+                  />
+                  {([
+                    { key: 'expense', label: 'Expenses', color: '#C2352B' },
+                    { key: 'income', label: 'Income', color: '#1F7A43' },
+                    { key: 'savings', label: 'Savings', color: '#1C1C1E' },
+                  ] as const).map(({ key, label, color }) => (
+                    <button
+                      key={key}
+                      onClick={() => {
+                        setTransactionType(key);
+                        setSelectedCategory('All');
+                        setSelectedSubcategory('All');
+                      }}
+                      className="relative flex-1 min-w-0 py-1.5 text-[13px] font-medium transition-colors"
+                      style={{ color: transactionType === key ? color : '#8E8E93' }}
+                    >
+                      {label}
+                    </button>
+                  ))}
                 </div>
                 
                 {/* Year Filter */}
