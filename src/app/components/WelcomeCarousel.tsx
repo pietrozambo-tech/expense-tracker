@@ -52,6 +52,21 @@ const SAMPLE_REVOLUT: Source = { id: 'revolut', name: 'Revolut', kind: 'bank', b
 
 // ── Slide illustrations (populated with sample data so nothing looks empty) ──
 
+// The mock amounts are typeset like the real ones: units carry the line, the
+// symbol and cents step back. Local rather than the shared AmountText because
+// these are strings in a picture, not values.
+function MockAmount({ value, symbol = '\u20AC', className, style }: { value: string; symbol?: string; className?: string; style?: React.CSSProperties }) {
+  const [int, frac] = value.split('.');
+  const quiet: React.CSSProperties = { fontSize: '0.72em', fontWeight: 500, opacity: 0.6 };
+  return (
+    <span className={className} style={style}>
+      {int}
+      {frac && <span style={quiet}>.{frac}</span>}
+      <span style={quiet}>{symbol}</span>
+    </span>
+  );
+}
+
 function AddIllustration() {
   const cats = [
     { name: 'Groceries', Icon: ShoppingCart, bg: '#E7F6EC', fg: '#2E9E5B', on: true },
@@ -63,10 +78,10 @@ function AddIllustration() {
     <div className="rounded-2xl px-4 py-4" style={{ background: '#FFFFFF', boxShadow: '0 8px 24px rgba(0,0,0,0.06)', border: '1px solid #EEEEF1' }}>
       {/* Amount + source */}
       <div className="flex items-center justify-between mb-3">
-        <div className="flex items-baseline gap-1">
-          <span style={{ color: '#8E8E93', fontSize: 20, fontWeight: 500 }}>€</span>
-          <span style={{ color: '#1C1C1E', fontSize: 30, fontWeight: 800, letterSpacing: '-0.02em' }}>24.90</span>
-        </div>
+        <MockAmount
+          value="24.90"
+          style={{ color: '#1C1C1E', fontSize: 30, fontWeight: 800, letterSpacing: '-0.02em' }}
+        />
         <span className="flex items-center gap-1 rounded-full pl-1 pr-1.5 py-1" style={{ background: '#F2F1ED' }}>
           <SourceLogo source={SAMPLE_REVOLUT} size={22} />
           <ChevronDown className="w-3.5 h-3.5" style={{ color: '#8E8E93' }} strokeWidth={2.5} />
@@ -162,7 +177,7 @@ function DashboardIllustration() {
   return (
     <div className="flex flex-col gap-3">
       {/* Hero summary */}
-      <div className="rounded-2xl px-5 py-4" style={{ background: 'linear-gradient(150deg, #2E2E32 0%, #1C1C1E 100%)', boxShadow: '0 12px 30px rgba(28,28,30,0.28)' }}>
+      <div className="px-5 py-4" style={{ borderRadius: 24, background: 'radial-gradient(120% 120% at 90% -20%, rgba(99,102,241,0.30) 0%, rgba(59,130,246,0.12) 42%, rgba(28,28,30,0) 68%), radial-gradient(100% 100% at 6% 118%, rgba(59,130,246,0.10) 0%, rgba(99,102,241,0.04) 45%, rgba(28,28,30,0) 72%), linear-gradient(150deg, #2E2E32 0%, #1C1C1E 100%)', boxShadow: '0 12px 30px rgba(28,28,30,0.28)' }}>
         <div className="text-center mb-3.5 text-sm font-semibold" style={{ color: '#FFFFFF' }}>{currentMonthLabel()}</div>
         <div className="grid grid-cols-2 gap-x-3 gap-y-3.5">
           {metrics.map((m) => (
@@ -172,7 +187,9 @@ function DashboardIllustration() {
               </span>
               <div>
                 <div className="text-[11px]" style={{ color: 'rgba(235,235,245,0.6)' }}>{m.label}</div>
-                <div className="text-[16px] font-bold tabular-nums" style={{ color: m.accent || '#FFFFFF' }}>{m.value}</div>
+                <div className="text-[16px] font-bold tabular-nums" style={{ color: m.accent || '#FFFFFF' }}>
+                  {m.value.endsWith('%') ? m.value : <MockAmount value={m.value.replace('\u20AC', '')} />}
+                </div>
               </div>
             </div>
           ))}
@@ -196,17 +213,25 @@ function DashboardIllustration() {
         <div className="flex items-baseline justify-between mb-2">
           <span className="text-[13px] font-semibold" style={{ color: '#1C1C1E' }}>Monthly Budget</span>
           <span className="text-[13px] tabular-nums" style={{ color: '#8E8E93' }}>
-            <span className="font-semibold" style={{ color: '#1C1C1E' }}>1,039€</span> of 1,500€
+            <MockAmount value="1,039" className="font-semibold" style={{ color: '#1C1C1E' }} /> of <MockAmount value="1,500" />
           </span>
         </div>
         <div className="relative h-2 rounded-full overflow-hidden" style={{ backgroundColor: '#F2F1ED' }}>
-          <div className="h-full rounded-full" style={{ width: '69%', backgroundColor: '#5FC08C' }} />
+          <div className="h-full rounded-full" style={{ width: '69%', background: 'linear-gradient(90deg, #5FC08C, #2BB3A3)' }} />
         </div>
         <div className="relative" style={{ height: 0 }}>
           <div className="absolute" style={{ left: '78%', top: -12, width: 2, height: 12, backgroundColor: 'rgba(0,0,0,0.22)', borderRadius: 1 }} />
         </div>
-        <div className="flex items-baseline justify-between mt-2">
-          <span className="text-[12px] font-semibold" style={{ color: '#2C7A54' }}>69% used · On track</span>
+        <div className="flex items-center justify-between mt-2">
+          <span className="flex items-center gap-1.5">
+            <span className="text-[12px] font-medium" style={{ color: '#8E8E93' }}>69% used</span>
+            <span
+              className="text-[11px] font-semibold"
+              style={{ color: '#2C7A54', backgroundColor: '#E7F4ED', padding: '2px 8px', borderRadius: 999 }}
+            >
+              On track
+            </span>
+          </span>
           <span className="text-[12px]" style={{ color: '#8E8E93' }}>7 days left</span>
         </div>
       </div>
@@ -231,11 +256,11 @@ function DashboardIllustration() {
             <div className="flex-1 min-w-0">
               <div className="text-[13px] font-medium mb-1" style={{ color: '#1C1C1E' }}>{r.name}</div>
               <div className="h-1 rounded-full overflow-hidden" style={{ background: 'rgba(0,0,0,0.08)' }}>
-                <div className="h-full rounded-full" style={{ width: `${r.pct}%`, background: r.fg }} />
+                <div className="h-full rounded-full" style={{ width: `${r.pct}%`, background: r.fg, opacity: 0.45 }} />
               </div>
             </div>
             <span className="text-[11px] tabular-nums" style={{ color: '#B0B0B5' }}>{r.pct}%</span>
-            <span className="text-[13px] font-bold tabular-nums w-12 text-right" style={{ color: '#1C1C1E' }}>{r.amt}</span>
+            <MockAmount value={r.amt.replace('\u20AC', '')} className="text-[13px] font-bold tabular-nums w-12 text-right" style={{ color: '#1C1C1E' }} />
             <span className="w-7 flex items-center justify-center flex-shrink-0">
               {r.trend === 'down' && <TrendingDown className="w-3.5 h-3.5" style={{ color: '#34C759' }} strokeWidth={2.5} />}
               {r.trend === 'flat' && <Minus className="w-3.5 h-3.5" style={{ color: '#8E8E93' }} strokeWidth={2.5} />}
@@ -290,7 +315,7 @@ function ImportIllustration() {
               <div className="text-[13px] font-medium leading-tight" style={{ color: '#1C1C1E' }}>{r.name}</div>
               <div className="text-[10px]" style={{ color: '#B0B0B5' }}>{r.cat}</div>
             </div>
-            <span className="text-[13px] font-bold tabular-nums" style={{ color: '#1C1C1E' }}>{r.amt}</span>
+            <MockAmount value={r.amt.replace('\u20AC', '')} className="text-[13px] font-bold tabular-nums" style={{ color: '#1C1C1E' }} />
           </div>
         ))}
       </div>

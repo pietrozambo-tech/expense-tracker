@@ -46,7 +46,7 @@ export const categories: Category[] = [
   },
   {
     id: 'health-personal-care',
-    name: 'Health & Personal Care',
+    name: 'Health & Care',
     icon: 'Heart',
     color: 'text-red-500',
     bgColor: 'bg-red-50',

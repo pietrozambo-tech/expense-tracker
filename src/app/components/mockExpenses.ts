@@ -159,7 +159,7 @@ const mockExpensesWithoutCurrency = [
     id: 'expense-2025-07-16',
     description: 'Massage',
     amount: 60.00,
-    category: getCategoryByName('Health & Personal Care', 'expense'),
+    category: getCategoryByName('Health & Care', 'expense'),
     subcategory: 'Wellness',
     date: '2025-07-16',
     type: 'expense' as const
@@ -397,7 +397,7 @@ const mockExpensesWithoutCurrency = [
     id: 'expense-2025-08-16',
     description: 'Pharmacy',
     amount: 35.00,
-    category: getCategoryByName('Health & Personal Care', 'expense'),
+    category: getCategoryByName('Health & Care', 'expense'),
     subcategory: 'Pharmacy',
     date: '2025-08-16',
     type: 'expense' as const
@@ -478,7 +478,7 @@ const mockExpensesWithoutCurrency = [
     id: 'expense-2025-08-25',
     description: 'Medicine',
     amount: 8.00,
-    category: getCategoryByName('Health & Personal Care', 'expense'),
+    category: getCategoryByName('Health & Care', 'expense'),
     subcategory: 'Pharmacy',
     date: '2025-08-25',
     type: 'expense' as const
@@ -635,7 +635,7 @@ const mockExpensesWithoutCurrency = [
     id: 'expense-2025-09-16',
     description: 'Massage',
     amount: 30.00,
-    category: getCategoryByName('Health & Personal Care', 'expense'),
+    category: getCategoryByName('Health & Care', 'expense'),
     subcategory: 'Wellness',
     date: '2025-09-16',
     type: 'expense' as const
@@ -716,7 +716,7 @@ const mockExpensesWithoutCurrency = [
     id: 'expense-2025-09-25',
     description: 'Medicine',
     amount: 8.00,
-    category: getCategoryByName('Health & Personal Care', 'expense'),
+    category: getCategoryByName('Health & Care', 'expense'),
     subcategory: 'Pharmacy',
     date: '2025-09-25',
     type: 'expense' as const
@@ -865,7 +865,7 @@ const mockExpensesWithoutCurrency = [
     id: 'expense-2025-10-16',
     description: 'Spa',
     amount: 25.00,
-    category: getCategoryByName('Health & Personal Care', 'expense'),
+    category: getCategoryByName('Health & Care', 'expense'),
     subcategory: 'Wellness',
     date: '2025-10-16',
     type: 'expense' as const
@@ -937,7 +937,7 @@ const mockExpensesWithoutCurrency = [
     id: 'expense-2025-10-24',
     description: 'Medicine',
     amount: 7.00,
-    category: getCategoryByName('Health & Personal Care', 'expense'),
+    category: getCategoryByName('Health & Care', 'expense'),
     subcategory: 'Pharmacy',
     date: '2025-10-24',
     type: 'expense' as const
@@ -1086,7 +1086,7 @@ const mockExpensesWithoutCurrency = [
     id: 'expense-2025-11-16',
     description: 'Massage',
     amount: 30.00,
-    category: getCategoryByName('Health & Personal Care', 'expense'),
+    category: getCategoryByName('Health & Care', 'expense'),
     subcategory: 'Wellness',
     date: '2025-11-16',
     type: 'expense' as const
@@ -1158,7 +1158,7 @@ const mockExpensesWithoutCurrency = [
     id: 'expense-2025-11-24',
     description: 'Medicine',
     amount: 7.50,
-    category: getCategoryByName('Health & Personal Care', 'expense'),
+    category: getCategoryByName('Health & Care', 'expense'),
     subcategory: 'Pharmacy',
     date: '2025-11-24',
     type: 'expense' as const
@@ -1315,7 +1315,7 @@ const mockExpensesWithoutCurrency = [
     id: 'expense-2025-12-16',
     description: 'Massage',
     amount: 225.00,
-    category: getCategoryByName('Health & Personal Care', 'expense'),
+    category: getCategoryByName('Health & Care', 'expense'),
     subcategory: 'Wellness',
     date: '2025-12-16',
     type: 'expense' as const
@@ -1454,7 +1454,7 @@ const mockExpensesWithoutCurrency = [
     id: 'expense-2026-01-02-1',
     description: 'Medicine',
     amount: 18.00,
-    category: getCategoryByName('Health & Personal Care', 'expense'),
+    category: getCategoryByName('Health & Care', 'expense'),
     subcategory: 'Pharmacy',
     date: '2026-01-02',
     type: 'expense' as const
@@ -1644,7 +1644,7 @@ const mockExpensesWithoutCurrency = [
     id: 'expense-2026-01-18-2',
     description: 'Pharmacy purchase',
     amount: 14.60,
-    category: getCategoryByName('Health & Personal Care', 'expense'),
+    category: getCategoryByName('Health & Care', 'expense'),
     subcategory: 'Pharmacy',
     date: '2026-01-18',
     type: 'expense' as const
@@ -1756,7 +1756,7 @@ const mockExpensesWithoutCurrency = [
     id: 'expense-2026-02-02-2',
     description: 'Pharmacy essentials',
     amount: 11.80,
-    category: getCategoryByName('Health & Personal Care', 'expense'),
+    category: getCategoryByName('Health & Care', 'expense'),
     subcategory: 'Pharmacy',
     date: '2026-02-02',
     type: 'expense' as const
