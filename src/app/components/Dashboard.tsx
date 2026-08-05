@@ -4,10 +4,12 @@ import { TrendCategoryBreakdown } from './TrendCategoryBreakdown';
 import React from 'react';
 import { formatAmount, formatCompactAmount, formatSummaryAmount, formatAmountListView, formatAbbreviatedAmount, CURRENCIES, homeAmount } from '../utils/currency';
 import { getCategoryIcon } from './categoryIcons';
+import { categoryHex } from './categoryColors';
 import { usualCurve, periodCurve } from '../lib/usual';
 import { dayOfWeekBreakdown, dowTakeaway } from '../lib/dayOfWeek';
 import { BudgetBar, BudgetNudge } from './BudgetBar';
 import { FitText } from './FitText';
+import { AmountText } from './AmountText';
 import { parseLocalDate } from '../lib/dates';
 import { CategoryFilterModal } from './CategoryFilterModal';
 import { SubcategoryFilterModal } from './SubcategoryFilterModal';
@@ -1197,10 +1199,14 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
       (longest, item) => Math.max(longest, formatAmountListView(item.amount, currency, 0).length),
       0,
     ) > 11;
+  // Abbreviated amounts stay plain strings; full ones get the quiet-symbol
+  // typesetting.
   const formatRowAmount = (amount: number) =>
-    abbreviateRowAmounts
-      ? formatAbbreviatedAmount(amount, currency)
-      : formatAmountListView(amount, currency, 0);
+    abbreviateRowAmounts ? (
+      formatAbbreviatedAmount(amount, currency)
+    ) : (
+      <AmountText amount={amount} currency={currency} decimals={0} />
+    );
 
   // Get subcategory totals for a specific category
   const getSubcategoryTotals = (categoryName: string) => {
@@ -2006,7 +2012,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                           className="font-bold leading-none tabular-nums"
                           style={{ color: '#FFFFFF' }}
                         >
-                          {formatAmountListView(totalSpending, currency, 0)}
+                          <AmountText amount={totalSpending} currency={currency} decimals={0} />
                         </FitText>
                       </div>
                     </div>
@@ -2024,7 +2030,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                           className="font-bold leading-none tabular-nums"
                           style={{ color: '#FFFFFF' }}
                         >
-                          {formatAmountListView(totalIncome, currency, 0)}
+                          <AmountText amount={totalIncome} currency={currency} decimals={0} />
                         </FitText>
                       </div>
                     </div>
@@ -2048,7 +2054,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                           className="font-bold leading-none tabular-nums"
                           style={{ color: savings < 0 ? '#FF6961' : savings > 0 ? '#30D158' : '#FFFFFF' }}
                         >
-                          {formatAmountListView(savings, currency, 0)}
+                          <AmountText amount={savings} currency={currency} decimals={0} />
                         </FitText>
                       </div>
                     </div>
@@ -2279,11 +2285,15 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                               </div>
                               <div className="flex-1 min-w-0 text-left">
                                 <div className="text-neutral-900 font-medium text-[13px] mb-1 leading-tight">{item.name}</div>
+                                {/* The bar in the category's own colour, stepped
+                                    back: the pastel bg class it used was near-
+                                    invisible against the track and read as an
+                                    underline artifact. */}
                                 {!isExpanded && (
-                                  <div className="h-1 rounded-full overflow-hidden" style={{ backgroundColor: 'rgba(0, 0, 0, 0.08)' }}>
-                                    <div 
-                                      className={`h-full ${item.category.bgColor}`}
-                                      style={{ width: `${item.percentage}%`, opacity: 1 }}
+                                  <div className="h-1 rounded-full overflow-hidden" style={{ backgroundColor: 'rgba(0, 0, 0, 0.06)' }}>
+                                    <div
+                                      className="h-full rounded-full"
+                                      style={{ width: `${item.percentage}%`, backgroundColor: categoryHex(item.category.color), opacity: 0.45 }}
                                     />
                                   </div>
                                 )}

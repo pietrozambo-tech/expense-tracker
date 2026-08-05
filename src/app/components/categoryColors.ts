@@ -37,3 +37,34 @@ export const colorOptions: CategoryColor[] = [
   { name: 'Neutral', color: 'text-neutral-500', bgColor: 'bg-neutral-50', selectedBg: 'bg-neutral-100', preview: 'bg-neutral-500' },
   { name: 'Stone', color: 'text-stone-500', bgColor: 'bg-stone-50', selectedBg: 'bg-stone-100', preview: 'bg-stone-500' },
 ];
+
+// The saturated hex behind each `text-*` class, for places that need the
+// category's colour as paint rather than as a Tailwind class - the tinted
+// share bars on the Dashboard, chiefly. Both the picker's shades and the
+// -500/-600 variants older stored categories carry.
+const TEXT_HEX: Record<string, string> = {
+  'text-red-500': '#EF4444', 'text-red-600': '#DC2626',
+  'text-orange-500': '#F97316', 'text-orange-600': '#EA580C',
+  'text-amber-500': '#F59E0B', 'text-amber-600': '#D97706',
+  'text-yellow-500': '#EAB308', 'text-yellow-600': '#CA8A04',
+  'text-lime-500': '#84CC16', 'text-lime-600': '#65A30D',
+  'text-green-500': '#22C55E', 'text-green-600': '#16A34A',
+  'text-emerald-500': '#10B981', 'text-emerald-600': '#059669',
+  'text-teal-500': '#14B8A6', 'text-teal-600': '#0D9488',
+  'text-cyan-500': '#06B6D4', 'text-cyan-600': '#0891B2',
+  'text-sky-500': '#0EA5E9', 'text-sky-600': '#0284C7',
+  'text-blue-500': '#3B82F6', 'text-blue-600': '#2563EB',
+  'text-indigo-500': '#6366F1', 'text-indigo-600': '#4F46E5',
+  'text-violet-500': '#8B5CF6', 'text-violet-600': '#7C3AED',
+  'text-purple-500': '#A855F7', 'text-purple-600': '#9333EA',
+  'text-fuchsia-500': '#D946EF', 'text-fuchsia-600': '#C026D3',
+  'text-pink-500': '#EC4899', 'text-pink-600': '#DB2777',
+  'text-rose-500': '#F43F5E', 'text-rose-600': '#E11D48',
+  'text-slate-500': '#64748B', 'text-slate-600': '#475569',
+  'text-gray-500': '#6B7280', 'text-gray-600': '#4B5563',
+  'text-zinc-500': '#71717A', 'text-zinc-600': '#52525B',
+  'text-neutral-500': '#737373', 'text-neutral-600': '#525252',
+  'text-stone-500': '#78716C', 'text-stone-600': '#57534E',
+};
+
+export const categoryHex = (colorClass?: string): string => TEXT_HEX[colorClass ?? ''] ?? '#8E8E93';

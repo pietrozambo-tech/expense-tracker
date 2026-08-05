@@ -1,5 +1,6 @@
 import { Trash2, Repeat } from 'lucide-react';
 import { formatAmountListView, homeAmount } from '../utils/currency';
+import { AmountText } from './AmountText';
 import { useState } from 'react';
 import { getCategoryIcon } from './categoryIcons';
 import { useSwipeToDelete } from '../lib/useSwipeToDelete';
@@ -112,15 +113,15 @@ export function ExpenseItem({ expense, onTap, onDelete, currency, showDate = fal
               {showConversion && convertedAmount !== null ? (
                 <>
                   <p className="text-neutral-900 font-bold tabular-nums text-sm" style={creditStyle}>
-                    {sign}{formatAmountListView(Math.abs(convertedAmount), currency, 2)}
+                    <AmountText sign={sign} amount={Math.abs(convertedAmount)} currency={currency} decimals={2} />
                   </p>
                   <p className="text-neutral-500 text-[10px] tabular-nums mt-0.5 font-medium">
-                    {sign}{formatAmountListView(Math.abs(expense.amount), transactionCurrency, 2)}
+                    <AmountText sign={sign} amount={Math.abs(expense.amount)} currency={transactionCurrency} decimals={2} />
                   </p>
                 </>
               ) : (
                 <p className="text-neutral-900 font-bold tabular-nums text-sm" style={creditStyle}>
-                  {sign}{formatAmountListView(Math.abs(expense.amount), transactionCurrency, 2)}
+                  <AmountText sign={sign} amount={Math.abs(expense.amount)} currency={transactionCurrency} decimals={2} />
                 </p>
               )}
             </div>

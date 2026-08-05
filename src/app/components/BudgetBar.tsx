@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { X } from 'lucide-react';
 import { formatAmountListView, formatAbbreviatedAmount, CURRENCIES } from '../utils/currency';
+import { AmountText } from './AmountText';
 import { FitText } from './FitText';
 
 // Softer than the iOS system colours the rest of the app uses for accents. A
@@ -91,10 +92,10 @@ export function BudgetBar({ spent, budget, currency, daysLeft, monthProgress, us
               style={{ color: '#8E8E93' }}
             >
               <span style={{ color: over ? tone.text : '#1C1C1E', fontWeight: 600 }}>
-                {formatAmountListView(spent, currency, 0)}
+                <AmountText amount={spent} currency={currency} decimals={0} />
               </span>
               {' of '}
-              {formatAmountListView(budget, currency, 0)}
+              <AmountText amount={budget} currency={currency} decimals={0} />
             </FitText>
           </div>
         </div>
@@ -103,7 +104,13 @@ export function BudgetBar({ spent, budget, currency, daysLeft, monthProgress, us
         <div className="relative h-2 rounded-full overflow-hidden" style={{ backgroundColor: '#F2F2F7' }}>
           <div
             className="h-full rounded-full transition-all"
-            style={{ width: `${Math.min(100, Math.max(ratio * 100, spent > 0 ? 2 : 0))}%`, backgroundColor: tone.fill }}
+            style={{
+              width: `${Math.min(100, Math.max(ratio * 100, spent > 0 ? 2 : 0))}%`,
+              // Healthy spending gets a living green-to-teal sweep; the warning
+              // and over states stay flat - a gradient would prettify exactly
+              // the states that should feel plain.
+              background: tone === TONES.good ? 'linear-gradient(90deg, #5FC08C, #2BB3A3)' : tone.fill,
+            }}
           />
         </div>
         {/* Expected-pace marker, drawn outside the clipped track so it stays visible */}
@@ -124,9 +131,25 @@ export function BudgetBar({ spent, budget, currency, daysLeft, monthProgress, us
           </div>
         )}
 
-        <div className="flex items-baseline justify-between mt-2">
-          <span style={{ color: tone.text, fontSize: 12, fontWeight: 600 }}>
-            {pct}% used · {status}
+        <div className="flex items-center justify-between mt-2">
+          <span className="flex items-center gap-1.5 min-w-0">
+            <span className="flex-shrink-0" style={{ color: '#8E8E93', fontSize: 12, fontWeight: 500 }}>
+              {pct}% used
+            </span>
+            {/* Status as a chip: the state gets a shape, not just a colour. */}
+            <span
+              className="truncate"
+              style={{
+                color: tone.text,
+                backgroundColor: tone === TONES.good ? '#E7F4ED' : tone === TONES.warn ? '#FAF0DC' : '#FAE7E4',
+                fontSize: 11,
+                fontWeight: 600,
+                padding: '2px 8px',
+                borderRadius: 999,
+              }}
+            >
+              {status}
+            </span>
           </span>
           {isLive && (
             <span style={{ color: '#8E8E93', fontSize: 12 }}>
