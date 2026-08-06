@@ -342,6 +342,8 @@ export const it: Record<keyof typeof en, string> = {
   'set.weekStartsOn': 'LA SETTIMANA INIZIA DI',
   'set.weekHint': 'Imposta l’ordine dei giorni nella vista per giorno della settimana del Trend.',
   'set.categories': 'Categorie',
+  'set.subcatCount.one': '{n} sottocategoria',
+  'set.subcatCount.other': '{n} sottocategorie',
   'set.sources': 'Conti',
   'set.currency': 'Valuta Principale',
   'set.currencyTitle': 'Valuta',

@@ -1,5 +1,6 @@
 import { ChevronRight, ChevronLeft, UserCircle, Wallet, HelpCircle, ShieldCheck, ScrollText, Layers, FlaskConical, Trash2, Landmark, Cloud, LogOut, Upload, Copy, Download, FileSpreadsheet, Palmtree, UserX, Mail, LifeBuoy, CheckCircle2, Globe } from 'lucide-react';
 import { sendSupportMessage, supportLimitReached } from '../lib/support';
+import { switchGlow } from './categoryColors';
 
 // Where messages from Settings > Contacts go. Easy to swap when the domain changes.
 const SUPPORT_EMAIL = 'support@tracklylab.com';
@@ -677,34 +678,35 @@ export function Settings({
 
           {/* Toggle Switch */}
           <div className="px-6 pb-4">
-            <div 
-              className="flex gap-0 rounded-lg overflow-hidden"
-              style={{ 
-                backgroundColor: '#1C1C1E',
-                border: '1px solid #2C2C2E'
-              }}
-            >
+            {/* The same sliding thumb as Dashboard, Trend, Activity and Add.
+                This one was still the old dark filled bar - and, being
+                hardcoded, the only Expense/Income control that never
+                translated. */}
+            <div className="relative flex p-1 rounded-full" style={{ backgroundColor: '#ECEAE4' }}>
+              <div
+                className="absolute rounded-full"
+                style={{
+                  top: 4, bottom: 4, left: 4, width: 'calc(50% - 4px)',
+                  backgroundColor: '#FFFFFF',
+                  boxShadow: switchGlow(categoryType),
+                  transform: categoryType === 'income' ? 'translateX(100%)' : 'translateX(0)',
+                  transition: 'transform 220ms cubic-bezier(0.32, 0.72, 0, 1)',
+                }}
+                aria-hidden="true"
+              />
               <button
                 onClick={() => setCategoryType('expense')}
-                className="flex-1 px-4 py-1.5 transition-all text-sm font-medium"
-                style={{
-                  backgroundColor: categoryType === 'expense' ? '#3A3A3C' : 'transparent',
-                  color: '#FFFFFF',
-                  boxShadow: categoryType === 'expense' ? '0 2px 8px rgba(0, 0, 0, 0.3), inset 0 1px 2px rgba(255, 255, 255, 0.1)' : 'none'
-                }}
+                className="relative flex-1 py-1.5 text-sm font-medium transition-colors"
+                style={{ color: categoryType === 'expense' ? '#C2352B' : '#8E8E93' }}
               >
-                Expense
+                {t('seg.expenses')}
               </button>
               <button
                 onClick={() => setCategoryType('income')}
-                className="flex-1 px-4 py-1.5 transition-all text-sm font-medium"
-                style={{
-                  backgroundColor: categoryType === 'income' ? '#3A3A3C' : 'transparent',
-                  color: '#FFFFFF',
-                  boxShadow: categoryType === 'income' ? '0 2px 8px rgba(0, 0, 0, 0.3), inset 0 1px 2px rgba(255, 255, 255, 0.1)' : 'none'
-                }}
+                className="relative flex-1 py-1.5 text-sm font-medium transition-colors"
+                style={{ color: categoryType === 'income' ? '#1F7A43' : '#8E8E93' }}
               >
-                Income
+                {t('seg.income')}
               </button>
             </div>
           </div>

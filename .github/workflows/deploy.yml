@@ -55,14 +55,16 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - id: deployment
+        # Do NOT add `with: timeout:` here hoping to survive a slow Pages
+        # queue - it cannot work. The action hard-caps the input:
+        #
+        #   const MAX_TIMEOUT = 600000
+        #   this.timeout = Math.min(timeoutInput, MAX_TIMEOUT)
+        #
+        # so anything above ten minutes is silently clamped back down. When
+        # that limit is hit the action does not merely fail the run, it
+        # cancels the deployment, and `deployment_cancelled` is a permanent
+        # status keyed by commit SHA - so re-running the same commit dies
+        # instantly with "Deployment cancelled". Recovery is a NEW commit
+        # (an empty one is enough), never a re-run.
         uses: actions/deploy-pages@v4
-        with:
-          # The action's default is 600000 (10 minutes), and this repo's
-          # deployments routinely sit in "deployment_queued" for 3-6 minutes
-          # before Pages picks them up - so the default leaves almost no
-          # margin. Two of six deploys on 2026-08-06 crossed ten minutes and
-          # were aborted, which does not just fail the run: the action cancels
-          # the deployment on its way out, permanently burning that commit SHA.
-          # Half an hour costs nothing on a normal deploy and turns a slow
-          # queue into a slow success instead of an unrecoverable failure.
-          timeout: 1800000

@@ -167,7 +167,12 @@ export function Categories({
                           <div style={{ color: '#1C1C1E', fontWeight: '500', fontSize: '15px' }}>{category.name}</div>
                           <div className="flex items-center gap-1 mt-0.5">
                             <span style={{ color: '#8E8E93', fontSize: '11px' }}>
-                              {category.subcategories?.length || 0} subcategories
+                              {t(
+                                (category.subcategories?.length || 0) === 1
+                                  ? 'set.subcatCount.one'
+                                  : 'set.subcatCount.other',
+                                { n: category.subcategories?.length || 0 },
+                              )}
                             </span>
                             {isExpanded ? (
                               <ChevronDown className="w-3 h-3" style={{ color: '#8E8E93' }} />

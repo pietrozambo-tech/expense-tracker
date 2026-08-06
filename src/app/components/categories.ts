@@ -200,18 +200,27 @@ export const incomeCategories: Category[] = [
 
 interface CategoryTranslation {
   name: string;
-  // Parallel to the English subcategory list, position by position.
+  // Replaces the English subcategory list wholesale. Usually one-for-one, but
+  // it may be shorter: a subcategory that does not earn its place in a
+  // language is simply left out.
   subcategories?: string[];
 }
 
-const IT_EXPENSE: Record<string, CategoryTranslation> = {
-  'office-food': { name: 'Pausa Pranzo', subcategories: ['Colazione', 'Pranzo', 'Spuntino'] },
+// `null` means the category is not part of this language's starter set at all.
+// Not every category survives translation: Office Food has no natural Italian
+// name ("Pausa Pranzo" says lunch BREAK, which is a moment in the day rather
+// than a kind of spending), and a starter category nobody recognises is worse
+// than one less category. The Italian demo data drops the rows filed under a
+// removed category too, so the samples never point at something absent from
+// the catalogue.
+const IT_EXPENSE: Record<string, CategoryTranslation | null> = {
+  'office-food': null,
   'food-drinks': { name: 'Cibo & Bevande', subcategories: ['Ristorante', 'Aperitivo', 'Spuntino'] },
   gifts: { name: 'Regali', subcategories: ['Matrimonio', 'Compleanno'] },
   groceries: { name: 'Spesa', subcategories: ['Supermercato'] },
   'health-personal-care': { name: 'Salute & Cura', subcategories: ['Farmacia', 'Cosmetici', 'Benessere'] },
   housing: { name: 'Casa', subcategories: ['Affitto', 'Bollette', 'Pulizie'] },
-  leisure: { name: 'Tempo Libero', subcategories: ['Cinema', 'Concerti', 'Discoteca'] },
+  leisure: { name: 'Tempo Libero', subcategories: ['Cinema', 'Concerti'] },
   shopping: { name: 'Shopping', subcategories: ['Abbigliamento', 'Elettronica'] },
   // Barry's is a boutique-gym brand; the Italian starter list wants the
   // generic word, not the brand.
@@ -223,23 +232,41 @@ const IT_EXPENSE: Record<string, CategoryTranslation> = {
   others: { name: 'Altro', subcategories: ['Donazioni', 'Imprevisti'] },
 };
 
-const IT_INCOME: Record<string, CategoryTranslation> = {
+const IT_INCOME: Record<string, CategoryTranslation | null> = {
   salary: { name: 'Stipendio' },
   'real-estate': { name: 'Immobili' },
   dividends: { name: 'Dividendi' },
   royalties: { name: 'Royalties' },
 };
 
-function localise(list: Category[], table: Record<string, CategoryTranslation>): Category[] {
-  return list.map((cat) => {
+function localise(list: Category[], table: Record<string, CategoryTranslation | null>): Category[] {
+  return list.flatMap((cat) => {
+    // Explicit null drops the category; merely absent means "no translation
+    // needed", which is a different thing and keeps the English name.
+    if (cat.id in table && table[cat.id] === null) return [];
     const tr = table[cat.id];
-    if (!tr) return cat;
-    return {
+    if (!tr) return [cat];
+    return [{
       ...cat,
       name: tr.name,
       ...(cat.subcategories ? { subcategories: tr.subcategories ?? cat.subcategories } : {}),
-    };
+    }];
   });
+}
+
+/**
+ * Category ids a language deliberately leaves out of its starter set. The demo
+ * dataset filters its rows through this, so an Italian sample never files
+ * spending under a category the Italian catalogue does not contain - which
+ * would orphan the row and drop it off the Dashboard.
+ */
+export function droppedCategoryIdsFor(lang: Language): Set<string> {
+  if (lang !== 'it') return new Set();
+  const dropped = new Set<string>();
+  for (const [id, tr] of [...Object.entries(IT_EXPENSE), ...Object.entries(IT_INCOME)]) {
+    if (tr === null) dropped.add(id);
+  }
+  return dropped;
 }
 
 export function defaultCategoriesFor(lang: Language): Category[] {

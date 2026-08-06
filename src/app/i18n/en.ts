@@ -341,6 +341,8 @@ export const en = {
   'set.weekStartsOn': 'WEEK STARTS ON',
   'set.weekHint': "Sets the day order in the Trend tab's day-of-week view.",
   'set.categories': 'Categories',
+  'set.subcatCount.one': '{n} subcategory',
+  'set.subcatCount.other': '{n} subcategories',
   'set.sources': 'Sources',
   'set.currency': 'Main Currency',
   'set.currencyTitle': 'Currency',

@@ -124,7 +124,6 @@ const SUB_IT: Record<string, string> = {
   Cleaning: 'Pulizie',
   Movies: 'Cinema',
   Concerts: 'Concerti',
-  Clubbing: 'Discoteca',
   Clothing: 'Abbigliamento',
   Electronics: 'Elettronica',
   Tennis: 'Tennis',

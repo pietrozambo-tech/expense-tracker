@@ -29,7 +29,8 @@ try {
 import { mockExpenses } from '${join(root, 'src/app/components/mockExpenses.ts').replace(/\\/g, '/')}';
 import { demoTranslationGaps, localiseDemoRow } from '${join(root, 'src/app/lib/demoItalian.ts').replace(/\\/g, '/')}';
 import { setLanguage } from '${join(root, 'src/app/i18n/store.ts').replace(/\\/g, '/')}';
-import { defaultCategoriesFor, defaultIncomeCategoriesFor } from '${join(root, 'src/app/components/categories.ts').replace(/\\/g, '/')}';
+import { defaultCategoriesFor, defaultIncomeCategoriesFor, droppedCategoryIdsFor } from '${join(root, 'src/app/components/categories.ts').replace(/\\/g, '/')}';
+import { getDemoTransactions } from '${join(root, 'src/app/lib/demoData.ts').replace(/\\/g, '/')}';
 
 const gaps = demoTranslationGaps(mockExpenses);
 let failed = false;
@@ -44,13 +45,27 @@ if (gaps.subcategories.length) {
   for (const s of gaps.subcategories) console.error('  - ' + s);
 }
 
-// Every demo category id must exist in the Italian catalogue, or the row
-// keeps its English category object after localisation.
+// Every demo category id must either exist in the Italian catalogue or be one
+// the language drops on purpose - anything else keeps its English category
+// object after localisation and orphans the row.
 const itIds = new Set([...defaultCategoriesFor('it'), ...defaultIncomeCategoriesFor('it')].map((c) => c.id));
-const missing = [...new Set(mockExpenses.map((t) => t.category?.id).filter((id) => id && !itIds.has(id)))];
+const itDropped = droppedCategoryIdsFor('it');
+const missing = [
+  ...new Set(mockExpenses.map((t) => t.category?.id).filter((id) => id && !itIds.has(id) && !itDropped.has(id))),
+];
 if (missing.length) {
   failed = true;
   console.error('Demo category ids missing from the Italian catalogue: ' + missing.join(', '));
+}
+
+// A dropped category must be dropped in both directions: gone from the
+// catalogue AND gone from the sample rows, so the Italian demo never shows
+// spending under a category the user cannot see.
+for (const id of itDropped) {
+  if (itIds.has(id)) {
+    failed = true;
+    console.error('Category ' + id + ' is marked dropped for Italian but still in the catalogue');
+  }
 }
 
 // And the localised rows must actually come out Italian-named when the user's
@@ -62,6 +77,33 @@ if (sample.description !== 'Affitto mensile' || sample.category.name !== 'Casa' 
   failed = true;
   console.error('localiseDemoRow spot check failed: ' + JSON.stringify({ d: sample.description, c: sample.category.name, s: sample.subcategory }));
 }
+
+// The generated Italian demo must carry no row from a dropped category, and
+// must still carry those rows in English - the drop is per language, not a
+// deletion from the dataset.
+const itDemo = getDemoTransactions('EUR', itCatalogue);
+const leaked = itDemo.filter((t) => itDropped.has(t.category?.id));
+if (leaked.length) {
+  failed = true;
+  console.error('Italian demo still contains ' + leaked.length + ' row(s) from dropped categories');
+}
+if (itDemo.length === 0) {
+  failed = true;
+  console.error('Italian demo came out empty');
+}
+setLanguage('en');
+const enCatalogue = [...defaultCategoriesFor('en'), ...defaultIncomeCategoriesFor('en')];
+const enDemo = getDemoTransactions('EUR', enCatalogue);
+const enOfficeFood = enDemo.filter((t) => t.category?.id === 'office-food').length;
+if (enOfficeFood === 0) {
+  failed = true;
+  console.error('English demo lost its Office Food rows - the drop must be Italian-only');
+}
+if (enDemo.length <= itDemo.length) {
+  failed = true;
+  console.error('Expected the Italian demo to be smaller: en=' + enDemo.length + ' it=' + itDemo.length);
+}
+console.log('demo rows: en=' + enDemo.length + ' it=' + itDemo.length + ' (office-food in en: ' + enOfficeFood + ')');
 
 console.log(failed ? 'FAILED' : 'All demo strings covered: ' + mockExpenses.length + ' rows, gaps: none.');
 process.exit(failed ? 1 : 0);

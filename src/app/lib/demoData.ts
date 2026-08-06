@@ -2,6 +2,7 @@ import { mockExpenses } from '../components/mockExpenses';
 import { convertAmount, BASE_CURRENCY } from '../utils/currency';
 import { getLanguage } from '../i18n/store';
 import { localiseDemoRow, bindDemoRow } from './demoItalian';
+import { droppedCategoryIdsFor } from '../components/categories';
 import type { Category, Transaction } from '../types';
 
 // The sample dataset has fixed dates. Shift every transaction by whole months
@@ -120,7 +121,17 @@ export function getDemoTransactions(currency: string, userCategories: Category[]
       ? (t) => localiseDemoRow(t, userCategories)
       : (t) => bindDemoRow(t, userCategories);
 
-  return [...recent, ...history].map(localise).map((transaction) => {
+  // A language may leave a starter category out entirely (Italian drops Office
+  // Food). Its sample rows go with it: kept, they would bind to a category the
+  // user's catalogue does not have, and the Dashboard would silently drop them
+  // anyway - but they would still be counted in totals and exports.
+  const dropped = droppedCategoryIdsFor(getLanguage());
+  const rows =
+    dropped.size === 0
+      ? [...recent, ...history]
+      : [...recent, ...history].filter((t) => !t.category?.id || !dropped.has(t.category.id));
+
+  return rows.map(localise).map((transaction) => {
     // Most sample rows are priced in the user's own currency, so they are
     // converted from the EUR figures in the file. A handful carry an explicit
     // foreign currency - a trip abroad - and those keep it: converting them
