@@ -1,5 +1,7 @@
 import { mockExpenses } from '../components/mockExpenses';
 import { convertAmount, BASE_CURRENCY } from '../utils/currency';
+import { getLanguage } from '../i18n/store';
+import { localiseDemoRow } from './demoItalian';
 import type { Transaction } from '../types';
 
 // The sample dataset has fixed dates. Shift every transaction by whole months
@@ -109,7 +111,14 @@ export function getDemoTransactions(currency: string): Transaction[] {
     }
   }
 
-  return [...recent, ...history].map((transaction) => {
+  // In an Italian app the samples speak Italian: descriptions from the
+  // translation table, categories swapped by id for the Italian catalogue -
+  // the one onboarding seeded, so the demo files rows under the user's actual
+  // category names.
+  const localise: (t: Transaction) => Transaction =
+    getLanguage() === 'it' ? localiseDemoRow : (t) => t;
+
+  return [...recent, ...history].map(localise).map((transaction) => {
     // Most sample rows are priced in the user's own currency, so they are
     // converted from the EUR figures in the file. A handful carry an explicit
     // foreign currency - a trip abroad - and those keep it: converting them
