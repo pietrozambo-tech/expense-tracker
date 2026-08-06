@@ -1,4 +1,5 @@
 import { useRef, useState, type ReactNode } from 'react';
+import { monthsFull } from '../i18n/store';
 import {
   Minus, Plus, Wallet, Gauge, Calendar, Repeat, ChevronDown, ChevronRight, TrendingDown,
   ShoppingCart, Car, Home, Clapperboard, Landmark, Layers,
@@ -149,7 +150,7 @@ function recentMonthLabels(count: number): string[] {
 
 /** "September 2026" for the month we are in. */
 function currentMonthLabel(): string {
-  return new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  return `${monthsFull()[new Date().getMonth()]} ${new Date().getFullYear()}`;
 }
 
 /** "Aug" - what the Dashboard's category trends are measured against. */

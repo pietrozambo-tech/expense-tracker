@@ -1,4 +1,5 @@
-import { CURRENCIES } from '../utils/currency';
+import { CURRENCIES, abbreviateNumber } from '../utils/currency';
+import { numberLocale, decimalSeparator, groupSeparator } from '../i18n/store';
 
 // An amount typeset the way money is worn, not printed: the units carry the
 // line, the currency symbol and the cents step back. "1,039€" with every glyph
@@ -42,25 +43,17 @@ export function AmountText({
   const rounded = Math.round((amount ?? 0) * factor) / factor;
   const abs = Math.abs(rounded);
   const showFrac = decimals > 0 && !Number.isInteger(rounded);
-  let intText = Math.trunc(abs).toLocaleString('en-US');
+  let intText = Math.trunc(abs).toLocaleString(numberLocale());
   let fracText = showFrac ? abs.toFixed(decimals).split('.')[1] : null;
 
-  // Above each formatter's threshold the number collapses to a single
+  // Above each mode's threshold the number collapses to a single
   // magnitude-suffixed figure, and there are no cents left to quiet.
-  const threshold = abbreviate === 'summary' ? 100000 : abbreviate === 'fit' ? 10000 : Infinity;
-  if (abs >= threshold) {
+  // abbreviateNumber is the same helper the string formatter uses, so the
+  // component and the FitText fallback can never disagree.
+  const threshold = abbreviate === 'summary' ? 0 : abbreviate === 'fit' ? 10000 : Infinity;
+  if (abs >= threshold && abbreviate) {
     fracText = null;
-    intText =
-      abs >= 1000000
-        ? `${(abs / 1000000).toFixed(1)}MM`
-        : abbreviate === 'summary'
-          ? `${Math.round(abs / 1000).toLocaleString('en-US')}K`
-          : `${(abs / 1000).toFixed(1).replace(/\.0$/, '')}K`;
-  } else if (abbreviate === 'summary') {
-    // Below the threshold formatSummaryAmount is whole-number, whatever the
-    // caller asked for in decimals.
-    fracText = null;
-    intText = Math.round(abs).toLocaleString('en-US');
+    intText = abbreviateNumber(abs, abbreviate);
   }
 
   // Multi-letter symbols (CHF) read better with a space, same as the formatter.
@@ -70,7 +63,7 @@ export function AmountText({
     <span className={className} style={style}>
       {sign || (rounded < 0 ? '-' : '')}
       {intText}
-      {fracText && <span style={QUIET}>.{fracText}</span>}
+      {fracText && <span style={QUIET}>{decimalSeparator()}{fracText}</span>}
       <span style={QUIET}>{sep}{cur.symbol}</span>
     </span>
   );
@@ -85,7 +78,12 @@ const QUIET: React.CSSProperties = { fontSize: '0.72em', fontWeight: 500, opacit
 // choose its phrasing has to be assembled as a string, and the amounts inside
 // it come back as text or not at all.
 export function AmountFromText({ text }: { text: string }) {
-  const parts = /^(-?[\d,]+)(\.\d+)?(.*)$/.exec(text);
+  // The input comes from formatAmountListView in the CURRENT locale, so the
+  // separators are known, not guessed: "1,234.56" in English, "1.234,56" in
+  // Italian - the same glyphs with swapped jobs, which is exactly why this
+  // cannot be one hard-coded pattern.
+  const dec = decimalSeparator();
+  const parts = new RegExp(`^(-?[\\d\\${groupSeparator()}]+)(\\${dec}\\d+)?(.*)$`).exec(text);
   if (!parts) return <>{text}</>;
   const [, whole, cents, symbol] = parts;
   return (

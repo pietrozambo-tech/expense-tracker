@@ -1,5 +1,6 @@
 import { Trash2, Repeat } from 'lucide-react';
 import { homeAmount } from '../utils/currency';
+import { dateLocale, translateRecurrence } from '../i18n/store';
 import { AmountText } from './AmountText';
 import { useState } from 'react';
 import { getCategoryIcon } from './categoryIcons';
@@ -33,7 +34,7 @@ interface ExpenseItemProps {
 const formatShortDate = (dateString: string) => {
   const parsed = parseLocalDate(dateString);
   if (isNaN(parsed.getTime())) return dateString;
-  return parsed.toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
+  return parsed.toLocaleDateString(dateLocale(), { day: 'numeric', month: 'short' });
 };
 
 export function ExpenseItem({ expense, onTap, onDelete, currency, showDate = false }: ExpenseItemProps) {
@@ -98,7 +99,7 @@ export function ExpenseItem({ expense, onTap, onDelete, currency, showDate = fal
               </p>
             ) : isRecurrent ? (
               <p className="text-neutral-400 text-[10px] mt-0.5 font-medium uppercase tracking-tight">
-                {expense.recurrence}
+                {translateRecurrence(expense.recurrence ?? '')}
               </p>
             ) : null}
           </div>

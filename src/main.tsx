@@ -4,7 +4,8 @@ import { AuthProvider } from "./app/auth/AuthProvider.tsx";
 import { AppErrorBoundary } from "./app/components/AppErrorBoundary.tsx";
 import { initAnalytics } from "./app/lib/analytics.ts";
 import { initFx } from "./app/lib/fx.ts";
-import { hydrateStorage } from "./app/lib/storage.ts";
+import { hydrateStorage, loadSettings } from "./app/lib/storage.ts";
+import { setLanguage, deviceLanguageGuess } from "./app/i18n/store.ts";
 import "./styles/index.css";
 
 initAnalytics();
@@ -55,6 +56,12 @@ if ('serviceWorker' in navigator) {
 // The .catch is belt-and-braces: hydrateStorage never rejects today, but a
 // storage fault must degrade to localStorage, never white-screen the app.
 void hydrateStorage().catch(() => {}).then(() => {
+  // Language before first render. A stored choice always wins; an onboarded
+  // account with none is English (it predates the choice and must not flip
+  // because the phone is Italian); only a genuinely fresh device follows the
+  // system language, as a suggestion the onboarding step confirms.
+  const s = loadSettings();
+  setLanguage(s.language === 'it' ? 'it' : s.onboarded ? 'en' : deviceLanguageGuess());
   createRoot(document.getElementById("root")!).render(
     <AppErrorBoundary>
       <AuthProvider>

@@ -21,6 +21,7 @@ export interface SyncPayload {
     defaultSourceExpense?: string;
     defaultSourceIncome?: string;
     weekStartsOn?: number;
+    language?: 'en' | 'it';
   };
 }
 
@@ -332,6 +333,7 @@ export function mergePayloads(
       defaultSourceExpense: pick('defaultSourceExpense'),
       defaultSourceIncome: pick('defaultSourceIncome'),
       weekStartsOn: pick('weekStartsOn'),
+      language: pick('language'),
     };
   };
 

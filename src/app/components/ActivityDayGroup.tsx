@@ -2,6 +2,8 @@ import { ExpenseItem } from './ExpenseItem';
 import { IncomeItem } from './IncomeItem';
 import { homeAmount } from '../utils/currency';
 import { AmountText } from './AmountText';
+import { t } from '../i18n';
+import { dateLocale } from '../i18n/store';
 import type { Transaction } from '../types';
 import { parseLocalDate } from '../lib/dates';
 
@@ -29,13 +31,13 @@ export function ActivityDayGroup({
     const selectedDate = new Date(parsed);
     selectedDate.setHours(0, 0, 0, 0);
 
-    if (selectedDate.getTime() === today.getTime()) return 'Today';
+    if (selectedDate.getTime() === today.getTime()) return t('date.today');
 
     const yesterday = new Date(today);
     yesterday.setDate(yesterday.getDate() - 1);
-    if (selectedDate.getTime() === yesterday.getTime()) return 'Yesterday';
+    if (selectedDate.getTime() === yesterday.getTime()) return t('date.yesterday');
 
-    return parsed.toLocaleDateString('en-US', {
+    return parsed.toLocaleDateString(dateLocale(), {
       weekday: 'long',
       month: 'long',
       day: 'numeric'

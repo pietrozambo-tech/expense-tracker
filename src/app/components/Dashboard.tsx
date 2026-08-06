@@ -3,6 +3,7 @@ import { ChevronRight, ArrowUpDown, TrendingUp, TrendingDown, Minus, Plus, Recei
 import { TrendCategoryBreakdown } from './TrendCategoryBreakdown';
 import React from 'react';
 import { formatAmountListView, formatAbbreviatedAmount, CURRENCIES, homeAmount } from '../utils/currency';
+import { monthsShort, monthsFull, daysFull, daysShort, numberLocale, getLanguage } from '../i18n/store';
 import { getCategoryIcon } from './categoryIcons';
 import { categoryHex } from './categoryColors';
 import { usualCurve, periodCurve } from '../lib/usual';
@@ -67,9 +68,9 @@ function InsightLine({ text }: { text: string }) {
 function formatAxisTick(value: number, axisMax: number): string {
   if (value === 0) return '0'; // "0k" is nonsense in any notation
   if (axisMax >= 10000) {
-    return `${(value / 1000).toFixed(1).replace(/\.0$/, '')}k`;
+    return `${(value / 1000).toLocaleString(numberLocale(), { maximumFractionDigits: 1, useGrouping: false })}k`;
   }
-  return Math.round(value).toLocaleString('en-US');
+  return Math.round(value).toLocaleString(numberLocale());
 }
 
 interface Expense {
@@ -572,10 +573,10 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
   }, [transactionType, timePeriodType, selectedMonth, selectedQuarter, selectedYear]);
 
   // Helper function to convert month name to month number (0-11)
-  const getMonthNumber = (monthName: string): number => {
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    return months.indexOf(monthName);
-  };
+  // trendData rows carry the month as its short label, so this must index the
+  // SAME array that wrote them (monthsShort) - both run in the same language,
+  // a switch remounts everything, and the round-trip stays exact.
+  const getMonthNumber = (monthName: string): number => monthsShort().indexOf(monthName);
 
   // Get current period expenses
   const getCurrentMonthExpenses = () => {
@@ -682,7 +683,9 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
       case 'month': {
         const d = new Date(selectedYear, selectedMonth - back, 1);
         const sameYear = d.getFullYear() === selectedYear;
-        return d.toLocaleDateString('en-US', { month: 'short', ...(sameYear ? {} : { year: '2-digit' }) });
+        return sameYear
+          ? monthsShort()[d.getMonth()]
+          : `${monthsShort()[d.getMonth()]} ${String(d.getFullYear()).slice(-2)}`;
       }
       case 'quarter': {
         const q = selectedQuarter - back;
@@ -705,7 +708,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
     switch (timePeriodType) {
       case 'month': {
         const d = new Date(selectedYear, selectedMonth - back, 1);
-        return d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+        return `${monthsFull()[d.getMonth()]} ${d.getFullYear()}`;
       }
       case 'quarter': {
         const q = selectedQuarter - back;
@@ -778,7 +781,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
     switch (timePeriodType) {
       case 'month':
         const date = new Date(selectedYear, selectedMonth, 1);
-        return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+        return `${monthsFull()[date.getMonth()]} ${date.getFullYear()}`;
       case 'quarter':
         return `Q${selectedQuarter + 1} ${selectedYear}`;
       case 'year':
@@ -1026,8 +1029,9 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
         return `Q${(((q % 4) + 4) % 4) + 1}${y !== selectedYear ? ` ${y}` : ''}`;
       }
       const dte = new Date(selectedYear, selectedMonth - back, 1);
-      return dte.toLocaleDateString('en-US',
-        dte.getFullYear() === selectedYear ? { month: 'long' } : { month: 'long', year: 'numeric' });
+      return dte.getFullYear() === selectedYear
+        ? monthsFull()[dte.getMonth()]
+        : `${monthsFull()[dte.getMonth()]} ${dte.getFullYear()}`;
     })();
     const aboveRef = usualMode ? 'above your usual' : `more than ${refLabel}`;
     const belowRef = usualMode ? 'below usual' : `less than ${refLabel}`;
@@ -1446,7 +1450,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
         const savingsAmount = monthIncome - monthSpending;
         
         trend.push({
-          month: monthStart.toLocaleDateString('en-US', { month: 'short' }),
+          month: monthsShort()[monthStart.getMonth()],
           year: monthStart.getFullYear(),
           amount: savingsAmount,
           total: savingsAmount,
@@ -1553,7 +1557,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
       }
       
       trend.push({
-        month: monthStart.toLocaleDateString('en-US', { month: 'short' }),
+        month: monthsShort()[monthStart.getMonth()],
         year: monthStart.getFullYear(),
         amount,
         total: monthTotal,
@@ -1675,7 +1679,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
       }
     } else if (timePeriodType === 'year') {
       // Monthly granularity
-      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const monthNames = monthsShort();
       const yearStart = new Date(selectedYear, 0, 1);
       const isCurrentYear = selectedYear === now.getFullYear();
       
@@ -2502,7 +2506,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                 ? (lastYear ? 'lastYear' : 'usual')
                 : (usual ? 'usual' : lastYear ? 'lastYear' : 'usual');
             const benchCurve = benchmarkMode === 'lastYear' ? lastYear : usual;
-            const M3 = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            const M3 = monthsShort();
             const lastYearLabel =
               timePeriodType === 'month' ? `${M3[selectedMonth]} ${selectedYear - 1}`
               : timePeriodType === 'quarter' ? `Q${selectedQuarter + 1} ${selectedYear - 1}`
@@ -2589,19 +2593,21 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
               let periodLabel = point.label;
               if (timePeriodType === 'month') {
                 const day = parseInt(point.label);
-                const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-                const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
                 const date = new Date(selectedYear, selectedMonth, day);
                 const getOrdinal = (nn: number) => {
                   const suf = ['th', 'st', 'nd', 'rd'];
                   const v = nn % 100;
                   return nn + (suf[(v - 20) % 10] || suf[v] || suf[0]);
                 };
-                periodLabel = `${dayNames[date.getDay()]}, ${monthNames[selectedMonth]} ${getOrdinal(day)}`;
+                // Ordinals are an English habit; Italian dates are plain
+                // numbers, day first.
+                periodLabel = getLanguage() === 'it'
+                  ? `${daysShort()[date.getDay()]} ${day} ${monthsShort()[selectedMonth]}`
+                  : `${daysShort()[date.getDay()]}, ${monthsShort()[selectedMonth]} ${getOrdinal(day)}`;
               } else if (timePeriodType === 'year') {
                 // The x-axis shows just the month initial when zoomed to a year;
                 // spell it out fully in the tooltip where there's room.
-                periodLabel = new Date(selectedYear, i, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+                periodLabel = `${monthsFull()[i]} ${selectedYear}`;
               }
 
               setTooltipData({
@@ -3975,8 +3981,8 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
             const dowExcludedCount = dowAll.reduce((s, b) => s + b.txCount, 0) - dowOneOff.reduce((s, b) => s + b.txCount, 0);
             const dowMax = Math.max(...dowBuckets.map((b) => b.avg), 0);
             const dowLine = showDow ? dowTakeaway(dowBuckets) : null;
-            const M3 = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-            const MFULL = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+            const M3 = monthsShort();
+            const MFULL = monthsFull();
             return (
             <div className="px-6 py-3 bg-white mb-2">
               <div className="flex items-baseline justify-between mb-2">
@@ -4083,7 +4089,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                       <div className="space-y-0">
                         {dowBuckets.map((b) => (
                           <div key={b.day} className="w-full flex items-center gap-2.5 py-2.5">
-                            <div className="w-[72px] flex-shrink-0 text-left text-[11px] text-neutral-600">{b.label}</div>
+                            <div className="w-[72px] flex-shrink-0 text-left text-[11px] text-neutral-600">{daysFull()[b.day]}</div>
                             <div className="relative flex-1 min-w-0 h-1.5 bg-neutral-100 rounded-full overflow-hidden">
                               <div
                                 className="h-full rounded-full bg-neutral-400 transition-all"

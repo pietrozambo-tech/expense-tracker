@@ -2,21 +2,31 @@ import { useState } from 'react';
 import { ChevronRight } from 'lucide-react';
 import { CURRENCIES, MAIN_CURRENCY_CODES } from '../utils/currency';
 import { CurrencySearchList } from './CurrencySearchList';
+import { t, setLanguage, useLanguage, type Language } from '../i18n';
 
 interface OnboardingProps {
-  onComplete: (userName: string, currency: string) => void;
+  onComplete: (userName: string, currency: string, language: Language) => void;
   initialName?: string; // pre-fill (e.g. first name from a Google account)
 }
+
+const LANGUAGE_OPTIONS: { code: Language; flag: string; label: string }[] = [
+  { code: 'en', flag: '🇬🇧', label: 'English' },
+  { code: 'it', flag: '🇮🇹', label: 'Italiano' },
+];
 
 export function Onboarding({ onComplete, initialName = '' }: OnboardingProps) {
   const [name, setName] = useState(initialName);
   const [currency, setCurrency] = useState('EUR');
   const [showAllCurrencies, setShowAllCurrencies] = useState(false);
+  // Pre-selected from the device language (set in main.tsx for fresh installs);
+  // tapping a flag flips the whole screen immediately, which doubles as the
+  // preview of what the choice means.
+  const language = useLanguage();
   // A non-main pick (e.g. CHF) is surfaced on the "Others" card itself
   const nonMainPick = MAIN_CURRENCY_CODES.includes(currency) ? null : CURRENCIES[currency];
 
   const handleGetStarted = () => {
-    onComplete(name.trim(), currency);
+    onComplete(name.trim(), currency, language);
   };
 
   return (
@@ -30,25 +40,65 @@ export function Onboarding({ onComplete, initialName = '' }: OnboardingProps) {
           letterSpacing: '-0.7px',
           marginBottom: '8px'
         }}>
-          Welcome 👋
+          {t('onboarding.title')}
         </h1>
         <p style={{ color: '#8E8E93', fontSize: '15px', lineHeight: '1.4' }}>
-          Track your expenses in seconds. Let's set things up.
+          {t('onboarding.subtitle')}
         </p>
 
-        {/* Name */}
-        <div className="mt-10">
+        {/* Language - first, so the rest of the setup already speaks it */}
+        <div className="mt-8">
           <label
             className="block mb-2"
             style={{ color: '#1C1C1E', fontSize: '15px', fontWeight: '600' }}
           >
-            What's your name?
+            {t('onboarding.language')}
+          </label>
+          <div className="grid grid-cols-2 gap-3">
+            {LANGUAGE_OPTIONS.map((option) => {
+              const isSelected = language === option.code;
+              return (
+                <button
+                  key={option.code}
+                  onClick={() => setLanguage(option.code)}
+                  className="flex items-center gap-3 p-4 rounded-xl text-left outline-none transition-all"
+                  style={{
+                    backgroundColor: isSelected ? '#F2F1ED' : '#FFFFFF',
+                    border: isSelected ? '2px solid #3B82F6' : '1px solid #E5E5EA',
+                    boxShadow: isSelected
+                      ? '0 0 0 3px rgba(0, 122, 255, 0.08)'
+                      : '0 1px 3px rgba(0, 0, 0, 0.04)'
+                  }}
+                >
+                  <span style={{ fontSize: '22px' }}>{option.flag}</span>
+                  <span
+                    style={{
+                      color: isSelected ? '#3B82F6' : '#1C1C1E',
+                      fontSize: '15px',
+                      fontWeight: '600'
+                    }}
+                  >
+                    {option.label}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Name */}
+        <div className="mt-8">
+          <label
+            className="block mb-2"
+            style={{ color: '#1C1C1E', fontSize: '15px', fontWeight: '600' }}
+          >
+            {t('onboarding.name')}
           </label>
           <input
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="Your name"
+            placeholder={t('onboarding.namePlaceholder')}
             autoComplete="given-name"
             className="w-full px-4 py-4 rounded-xl text-base outline-none transition-all"
             style={{
@@ -74,7 +124,7 @@ export function Onboarding({ onComplete, initialName = '' }: OnboardingProps) {
             className="block mb-2"
             style={{ color: '#1C1C1E', fontSize: '15px', fontWeight: '600' }}
           >
-            Main currency
+            {t('onboarding.currency')}
           </label>
           <div className="grid grid-cols-2 gap-3">
             {MAIN_CURRENCY_CODES.map((code) => CURRENCIES[code]).map((option) => {
@@ -131,7 +181,7 @@ export function Onboarding({ onComplete, initialName = '' }: OnboardingProps) {
                 </div>
               </>
             ) : (
-              <span className="flex-1" style={{ color: '#1C1C1E', fontSize: '15px', fontWeight: '600' }}>Others</span>
+              <span className="flex-1" style={{ color: '#1C1C1E', fontSize: '15px', fontWeight: '600' }}>{t('onboarding.otherCurrencies')}</span>
             )}
             <ChevronRight className="w-5 h-5" style={{ color: '#C7C7CC' }} />
           </button>
@@ -149,7 +199,7 @@ export function Onboarding({ onComplete, initialName = '' }: OnboardingProps) {
             style={{ backgroundColor: '#F6F5F2', height: '88vh' }}
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 className="text-lg font-semibold text-neutral-900 mb-3">Select currency</h3>
+            <h3 className="text-lg font-semibold text-neutral-900 mb-3">{t('onboarding.selectCurrency')}</h3>
             <CurrencySearchList
               selected={currency}
               onSelect={(code) => {
@@ -174,7 +224,7 @@ export function Onboarding({ onComplete, initialName = '' }: OnboardingProps) {
             cursor: !name.trim() ? 'not-allowed' : 'pointer'
           }}
         >
-          Get started
+          {t('onboarding.cta')}
         </button>
       </div>
     </div>

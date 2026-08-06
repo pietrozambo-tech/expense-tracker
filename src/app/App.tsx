@@ -124,8 +124,10 @@ import {
   type SyncPayload,
 } from './lib/cloud';
 import { track } from './lib/analytics';
-import { categories as initialCategories, incomeCategories as initialIncomeCategories } from './components/categories';
+import { categories as initialCategories, incomeCategories as initialIncomeCategories, defaultCategoriesFor, defaultIncomeCategoriesFor } from './components/categories';
 import { reassignToOthers, CATCHALL_RE } from './lib/categoryOps';
+import { t, getLanguage, setLanguage, type Language } from './i18n';
+import { defaultSourcesFor } from './components/sources';
 
 export default function App() {
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(() => loadSettings().onboarded);
@@ -217,6 +219,12 @@ export default function App() {
   // First day of the week for the day-of-week breakdown: 1 Monday (default),
   // 0 Sunday, 6 Saturday.
   const [weekStartsOn, setWeekStartsOn] = useState<number>(() => loadSettings().weekStartsOn ?? 1);
+  // The i18n store is initialised from settings in main.tsx, before this
+  // renders; this state mirrors it so React owns persistence and sync.
+  const [language, setAppLanguage] = useState<Language>(() => getLanguage());
+  useEffect(() => {
+    setLanguage(language);
+  }, [language]);
   const [selectedSourceId, setSelectedSourceId] = useState<string | null>(
     () => loadSettings().defaultSourceExpense || DEFAULT_SOURCE_EXPENSE
   );
@@ -309,8 +317,9 @@ export default function App() {
       defaultSourceExpense,
       defaultSourceIncome,
       weekStartsOn,
+      language,
     });
-  }, [hasCompletedOnboarding, userName, userCurrency, monthlyBudget, budgetNudgeDismissed, hasSeenIntro, defaultSourceExpense, defaultSourceIncome, weekStartsOn]);
+  }, [hasCompletedOnboarding, userName, userCurrency, monthlyBudget, budgetNudgeDismissed, hasSeenIntro, defaultSourceExpense, defaultSourceIncome, weekStartsOn, language]);
 
   // Warm the tab chunks once the first screen has settled. Deliberately on an
   // idle callback with a timeout rather than straight after mount: the point
@@ -390,6 +399,7 @@ export default function App() {
       defaultSourceExpense,
       defaultSourceIncome,
       weekStartsOn,
+      language,
     },
   });
 
@@ -411,6 +421,10 @@ export default function App() {
     setDefaultSourceExpense(s.defaultSourceExpense ?? DEFAULT_SOURCE_EXPENSE);
     setDefaultSourceIncome(s.defaultSourceIncome ?? DEFAULT_SOURCE_INCOME);
     setWeekStartsOn(s.weekStartsOn ?? 1);
+    // Absent means English, deliberately - never the device guess: an account
+    // that predates the language choice must not flip because the phone is
+    // Italian.
+    setAppLanguage(s.language === 'it' ? 'it' : 'en');
   }, []);
 
   // Keep the ref holding current local state fresh, for the listeners below
@@ -564,7 +578,7 @@ export default function App() {
   // budgetNudgeDismissed is in the payload, so it belongs in the deps -
   // without it, dismissing the nudge didn't sync until the next unrelated
   // change, and a re-hydrate on another device could re-show the card.
-  }, [userId, cloudHydrated, syncRetryTick, expenses, recurringRules, categories, incomeCategories, sources, hasCompletedOnboarding, userName, userCurrency, monthlyBudget, budgetNudgeDismissed, hasSeenIntro, defaultSourceExpense, defaultSourceIncome, weekStartsOn]);
+  }, [userId, cloudHydrated, syncRetryTick, expenses, recurringRules, categories, incomeCategories, sources, hasCompletedOnboarding, userName, userCurrency, monthlyBudget, budgetNudgeDismissed, hasSeenIntro, defaultSourceExpense, defaultSourceIncome, weekStartsOn, language]);
 
   // Coming back to the app pulls anything another device wrote while we were
   // away. Previously returning to the foreground only ever pushed, so a device
@@ -1216,11 +1230,22 @@ export default function App() {
     toast.success(scope === 'one' ? 'Transaction deleted' : 'Deleted - schedule stopped', { duration: 1600 });
   };
 
-  const handleOnboardingComplete = (name: string, currency: string) => {
+  const handleOnboardingComplete = (name: string, currency: string, lang: Language) => {
     setUserName(name);
     setUserCurrency(currency);
+    setAppLanguage(lang);
+    // Seed the starter catalogue in the chosen language. Onboarding only ever
+    // runs on a fresh account (a returning cloud user skips it), so what's
+    // being replaced is the untouched default set, never the user's own work.
+    // This is the ONLY moment names follow the language: from here on,
+    // categories and sources are the user's data, and switching the app
+    // language later must not rename them (an Italian user may well keep
+    // "Travel" - that's their call, not the translator's).
+    setCategories(defaultCategoriesFor(lang));
+    setIncomeCategories(defaultIncomeCategoriesFor(lang));
+    setSources(defaultSourcesFor(lang));
     setHasCompletedOnboarding(true);
-    track('onboarding_completed', { currency });
+    track('onboarding_completed', { currency, language: lang });
   };
 
   // Demo data (for testing) — date-shifted samples, each with a random source
@@ -1658,7 +1683,11 @@ export default function App() {
   // than as space we forgot to fill. Every rule for that is md: only, so the
   // phone rendering is untouched.
   return (
-    <div className="min-h-screen bg-[#F6F5F2] md:bg-[#ECEAE6]">
+    // key={language}: a language switch remounts the whole content tree, which
+    // is what flushes every memoised label and sentence built under the old
+    // language. Lifted view state (period, filters) lives above this node and
+    // survives; only transient state resets, exactly as on a reload.
+    <div key={language} className="min-h-screen bg-[#F6F5F2] md:bg-[#ECEAE6]">
       <Toaster position="top-center" />
       {importSummary && (
         <ImportSummaryDialog
@@ -1785,6 +1814,8 @@ export default function App() {
                 incomeCategories={incomeCategories}
                 weekStartsOn={weekStartsOn}
                 onSetWeekStartsOn={setWeekStartsOn}
+                language={language}
+                onSetLanguage={setAppLanguage}
                 onAddCategory={handleAddCategory}
                 onEditCategory={handleEditCategory}
                 onDeleteCategory={handleDeleteCategory}
@@ -1879,7 +1910,7 @@ export default function App() {
                   className="text-[10px] font-medium whitespace-nowrap"
                   style={{ color: currentTab === 'dashboard' ? '#FFFFFF' : '#8E8E93' }}
                 >
-                  Dashboard
+                  {t('tab.dashboard')}
                 </span>
               </button>
               <button
@@ -1895,7 +1926,7 @@ export default function App() {
                   className="text-[10px] font-medium whitespace-nowrap"
                   style={{ color: currentTab === 'activity' ? '#FFFFFF' : '#8E8E93' }}
                 >
-                  Activity
+                  {t('tab.activity')}
                 </span>
               </button>
               <button
@@ -1928,7 +1959,7 @@ export default function App() {
                   className="text-[10px] font-medium whitespace-nowrap"
                   style={{ color: currentTab === 'trend' ? '#FFFFFF' : '#8E8E93' }}
                 >
-                  Trend
+                  {t('tab.trend')}
                 </span>
               </button>
               <button 
@@ -1944,7 +1975,7 @@ export default function App() {
                   className="text-[10px] font-medium whitespace-nowrap" 
                   style={{ color: currentTab === 'settings' ? '#FFFFFF' : '#8E8E93' }}
                 >
-                  Settings
+                  {t('tab.settings')}
                 </span>
               </button>
             </div>

@@ -33,6 +33,9 @@ try {
     copyFileSync(join(root, 'src/app/lib', f), join(tmp, 'lib', f));
   }
   copyFileSync(join(root, 'src/app/utils/currency.ts'), join(tmp, 'utils/currency.ts'));
+  // currency.ts reads the app language for locale-aware formatting.
+  mkdirSync(join(tmp, 'i18n'));
+  copyFileSync(join(root, 'src/app/i18n/store.ts'), join(tmp, 'i18n/store.ts'));
   copyFileSync(join(root, 'scripts/import-test/scenarios.ts'), join(tmp, 'scenarios.ts'));
 
   const bundle = join(tmp, 'scenarios.mjs');

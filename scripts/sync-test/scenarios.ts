@@ -48,6 +48,7 @@ class Phone {
   categories: any[] = [];
   budget: number | undefined = undefined;
   userName = '';
+  language: 'en' | 'it' | undefined = undefined;
   base: SyncPayload | null = null;
   version: string | null = null;
 
@@ -68,6 +69,7 @@ class Phone {
         currency: 'EUR',
         hasSeenIntro: true,
         monthlyBudget: this.budget,
+        language: this.language,
       },
     };
   }
@@ -82,6 +84,7 @@ class Phone {
       this.categories = merged.categories;
       this.budget = merged.settings.monthlyBudget;
       this.userName = merged.settings.userName;
+      this.language = merged.settings.language;
       this.base = cloud.payload;
       this.version = cloud.version;
     }
@@ -125,6 +128,7 @@ class Phone {
       this.categories = merged.categories;
       this.budget = merged.settings.monthlyBudget;
       this.userName = merged.settings.userName;
+      this.language = merged.settings.language;
       this.base = remote.payload;
       this.version = remote.version;
     }
@@ -159,6 +163,7 @@ class Phone {
     this.categories = merged.categories;
     this.budget = merged.settings.monthlyBudget;
     this.userName = merged.settings.userName;
+    this.language = merged.settings.language;
     this.refreshes++;
     say(`${this.name} polls -> pulls changes and re-renders  -> ${this.list()}`);
   }
@@ -175,6 +180,7 @@ class Phone {
           this.categories = merged.categories;
           this.budget = merged.settings.monthlyBudget;
           this.userName = merged.settings.userName;
+          this.language = merged.settings.language;
           this.base = remote.payload;
           this.version = remote.version;
           say(`${this.name} pulls what changed  -> phone now has ${this.list()}`);
@@ -542,6 +548,35 @@ async function scenarioSettingsEdit() {
   expect('and the phone picks it up', String(phone.budget), '2500');
 }
 
+// Language follows the same field-by-field rules as the budget: a choice made
+// on one device reaches the others, and a device with no opinion cannot revert
+// it just by syncing.
+async function scenarioSettingsLanguage() {
+  heading("12b. The app language syncs like any other setting");
+  reset();
+  const phone = new Phone('Phone ');
+  const pc = new Phone('PC    ');
+  await phone.openApp();
+  phone.add('t1', 'Affitto', 1);
+  phone.language = 'it';
+  say('Phone  switches the app to Italian');
+  await phone.sync();
+
+  console.log('');
+  await pc.openApp();
+  expect('a new device comes up in Italian', String(pc.language), 'it');
+  await pc.sync();
+  const serverLang = String(((db.rows[0]?.data as any)?.settings)?.language);
+  expect('and does not revert the server', serverLang, 'it');
+
+  console.log('');
+  pc.language = 'en';
+  say('PC     switches back to English');
+  await pc.sync();
+  await phone.foreground();
+  expect('the phone follows', String(phone.language), 'en');
+}
+
 // Clearing a budget is a real edit, not a missing value - it must stick.
 async function scenarioSettingsClear() {
   heading('12. Clearing the budget is not mistaken for "no opinion"');
@@ -822,6 +857,7 @@ async function main() {
   await scenarioStaleBaseNoLocal();
   await scenarioSettingsNewDevice();
   await scenarioSettingsEdit();
+  await scenarioSettingsLanguage();
   await scenarioSettingsClear();
   await scenarioEditPropagates();
   await scenarioEditConflict();

@@ -97,4 +97,7 @@ export interface UserSettings {
   // First day of the week for day-of-week views: 1 Monday (default), 0 Sunday,
   // 6 Saturday
   weekStartsOn?: number;
+  // UI language. Absent means English: existing accounts predate the choice,
+  // and must never flip language just because the device is Italian.
+  language?: 'en' | 'it';
 }

@@ -1,4 +1,5 @@
 import type { Source } from '../types';
+import type { Language } from '../i18n/store';
 
 // Starter set of payment sources. Users manage these in Settings › Sources.
 // `brand` is each provider's approximate brand colour; the tile draws a white
@@ -10,6 +11,14 @@ export const DEFAULT_SOURCES: Source[] = [
   { id: 'intesa', name: 'Intesa Sanpaolo', kind: 'bank', brand: '#00854A', monogram: 'IS', mark: 'monogram' },
   { id: 'santander', name: 'Santander', kind: 'bank', brand: '#EC0000', monogram: 'S', mark: 'monogram' },
 ];
+
+// The starter set in the onboarding language. Bank names are brands and don't
+// translate; only Cash does. Seeded once - after onboarding, source names are
+// the user's data and a language switch never renames them.
+export function defaultSourcesFor(lang: Language): Source[] {
+  if (lang !== 'it') return DEFAULT_SOURCES;
+  return DEFAULT_SOURCES.map((s) => (s.id === 'cash' ? { ...s, name: 'Contanti' } : s));
+}
 
 // Both directions default to Revolut out of the box (user can change either).
 export const DEFAULT_SOURCE_EXPENSE = 'revolut';

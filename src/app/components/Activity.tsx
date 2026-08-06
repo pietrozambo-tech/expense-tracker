@@ -70,6 +70,9 @@ export function Activity({
 }: ActivityProps) {
   const now = new Date();
   const currentYear = String(now.getFullYear());
+  // Deliberately en-US: selectedMonth is a view-state KEY ('Aug', 'Full
+  // Year'), compared and persisted as a string. The Activity translation pass
+  // converts the key to a month index before its labels can localise.
   const currentMonth = now.toLocaleString('en-US', { month: 'short' });
 
   // Restore what the user had set up, unless a preset ("Imported", from the

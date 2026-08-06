@@ -1,7 +1,10 @@
 import type { Category, Transaction } from '../types';
+import { getLanguage } from '../i18n/store';
 
 // A category name that acts as the catch-all bucket for anything unmatched.
-export const CATCHALL_RE = /^(other|others|miscellaneous|misc|uncategori[sz]ed)$/i;
+// Both languages are always recognised: an Italian-seeded "Altro" must be
+// found even while the app is being used in English, and vice versa.
+export const CATCHALL_RE = /^(other|others|miscellaneous|misc|uncategori[sz]ed|altro|altri|varie|non categorizzat[oaie])$/i;
 
 // Deleting a category must not orphan the transactions that used it. Reassign
 // every affected transaction to an "Others" bucket (created if the list has
@@ -24,7 +27,7 @@ export function reassignToOthers(
   if (!others) {
     others = {
       id: remaining.some((c) => c.id === 'others') ? `others-${Date.now().toString(36)}` : 'others',
-      name: 'Others',
+      name: getLanguage() === 'it' ? 'Altro' : 'Others',
       icon: 'MoreHorizontal',
       color: 'text-neutral-500',
       bgColor: 'bg-neutral-50',

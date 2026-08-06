@@ -23,6 +23,9 @@ import { LegalScreen } from './LegalScreen';
 import { PRIVACY_POLICY, TERMS_OF_SERVICE, type LegalDoc } from '../lib/legalContent';
 import type { Source } from '../types';
 import type { ImportPayload } from '../lib/importData';
+import { t, type Language as AppLanguage } from '../i18n';
+import { CATCHALL_RE } from '../lib/categoryOps';
+import { dateLocale, daysFull } from '../i18n/store';
 import { isBackupFile } from '../lib/backup';
 
 interface SettingsProps {
@@ -31,6 +34,8 @@ interface SettingsProps {
   // First day of the week for day-of-week views: 1 Monday, 0 Sunday, 6 Saturday
   weekStartsOn?: number;
   onSetWeekStartsOn?: (day: number) => void;
+  language?: AppLanguage;
+  onSetLanguage?: (lang: AppLanguage) => void;
   onAddCategory: (category: any) => void;
   onEditCategory: (id: string, updatedCategory: any) => void;
   onDeleteCategory: (id: string) => void;
@@ -80,6 +85,8 @@ export function Settings({
   incomeCategories,
   weekStartsOn = 1,
   onSetWeekStartsOn,
+  language = 'en',
+  onSetLanguage,
   onAddCategory,
   onEditCategory,
   onDeleteCategory,
@@ -221,6 +228,13 @@ export function Settings({
     setShowAllCurrencies(false);
   };
 
+  // Language is picked in the sheet but applied on Save, unlike the weekday
+  // preference: applying it live remounts the app (that is how every cached
+  // English label gets flushed), and yanking the sheet out from under the user
+  // mid-edit is worse than asking for one more tap. On Save the sheet closes
+  // anyway, so the remount lands where the user was already going.
+  const [editedLanguage, setEditedLanguage] = useState<AppLanguage>(language);
+
   const handleNameSave = () => {
     if (!editedName.trim()) return;
     onUserNameChange(editedName.trim());
@@ -229,6 +243,7 @@ export function Settings({
     const parsed = raw === '' ? undefined : Math.max(0, parseFloat(raw));
     onMonthlyBudgetChange?.(parsed && isFinite(parsed) && parsed > 0 ? parsed : undefined);
     setShowNameEditor(false);
+    if (editedLanguage !== language) onSetLanguage?.(editedLanguage);
   };
 
   const openConfirm = (action: 'demo' | 'erase' | 'erase-demo' | 'restore' | 'delete-account') => {
@@ -309,7 +324,7 @@ export function Settings({
     if (s < 60) return 'just now';
     if (s < 3600) return `${Math.floor(s / 60)}m ago`;
     if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
-    return new Date(ts).toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
+    return new Date(ts).toLocaleDateString(dateLocale(), { day: 'numeric', month: 'short' });
   };
   const syncMeta =
     syncStatus === 'pending'
@@ -520,7 +535,7 @@ export function Settings({
               className="flex p-1 rounded-xl"
               style={{ backgroundColor: '#FFFFFF', border: '1px solid #E5E5EA', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}
             >
-              {[{ day: 1, label: 'Monday' }, { day: 6, label: 'Saturday' }, { day: 0, label: 'Sunday' }].map(({ day, label }) => (
+              {[1, 6, 0].map((day) => ({ day, label: daysFull()[day] })).map(({ day, label }) => (
                 <button
                   key={day}
                   onClick={() => onSetWeekStartsOn?.(day)}
@@ -539,6 +554,41 @@ export function Settings({
             </div>
             <p style={{ color: '#B0B0B5', fontSize: 12, marginTop: 6, lineHeight: 1.45 }}>
               Sets the day order in the Trend tab's day-of-week view.
+            </p>
+
+            <p style={{ color: '#8E8E93', fontSize: 13, fontWeight: 500, margin: '24px 0 8px' }}>
+              {t('settings.language').toUpperCase()}
+            </p>
+            <div
+              className="flex p-1 rounded-xl"
+              style={{ backgroundColor: '#FFFFFF', border: '1px solid #E5E5EA', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}
+            >
+              {([
+                { code: 'en', flag: '🇬🇧', label: 'English' },
+                { code: 'it', flag: '🇮🇹', label: 'Italiano' },
+              ] as { code: AppLanguage; flag: string; label: string }[]).map(({ code, flag, label }) => (
+                <button
+                  key={code}
+                  onClick={() => setEditedLanguage(code)}
+                  className="flex-1 py-2 rounded-lg text-sm"
+                  style={{
+                    backgroundColor: editedLanguage === code ? '#1C1C1E' : 'transparent',
+                    color: editedLanguage === code ? '#FFFFFF' : '#8E8E93',
+                    fontWeight: editedLanguage === code ? 600 : 500,
+                    transition: 'background-color 0.15s ease',
+                    WebkitTapHighlightColor: 'rgba(255, 255, 255, 0)',
+                  }}
+                >
+                  {flag} {label}
+                </button>
+              ))}
+            </div>
+            {/* Names the user already owns stay put on purpose: categories,
+                subcategories and sources are their data, not UI copy. */}
+            <p style={{ color: '#B0B0B5', fontSize: 12, marginTop: 6, lineHeight: 1.45 }}>
+              {editedLanguage === 'it'
+                ? "Cambia la lingua dell'app. I nomi delle tue categorie e delle tue fonti restano come sono."
+                : 'Changes the app language. Your category and source names stay as they are.'}
             </p>
 
             <button
@@ -751,7 +801,7 @@ export function Settings({
     // If the user has a catch-all category ("Others"), name it as the fallback
     // so unmatched rows land there instead of a vague "closest" category.
     const catchAll: any = categories.find((c: any) =>
-      /^(other|others|miscellaneous|misc|uncategori[sz]ed)$/i.test(String(c.name).trim()),
+      CATCHALL_RE.test(String(c.name).trim()),
     );
     const fallbackLine = catchAll
       ? `- If nothing fits at all, use "${catchAll.name}" and put the ORIGINAL category name in "subcategory" (e.g. "Dining out") so I can re-sort later - never drop the row or leave the category blank.`
@@ -1135,6 +1185,7 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
             onClick={() => {
               setEditedName(userName);
               setEditedBudget(monthlyBudget ? String(monthlyBudget) : '');
+              setEditedLanguage(language);
               setShowNameEditor(true);
             }}
             className="w-full flex items-center gap-3 px-5 py-4 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"

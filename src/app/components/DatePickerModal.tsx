@@ -1,4 +1,5 @@
 import React from 'react';
+import { monthsShort, monthsFull } from '../i18n/store';
 import { parseLocalDate } from '../lib/dates';
 
 interface DatePickerModalProps {
@@ -122,10 +123,10 @@ export function DatePickerModal({
           <div className="flex-shrink-0 px-6 py-3 bg-blue-50">
             <p className="text-blue-900 text-xs font-medium">
               {tempStartDate && !tempEndDate && (
-                <>Selected: {new Date(tempStartDate.year, tempStartDate.month).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</>
+                <>Selected: {`${monthsFull()[tempStartDate.month]} ${tempStartDate.year}`}</>
               )}
               {tempStartDate && tempEndDate && (
-                <>Range: {new Date(tempStartDate.year, tempStartDate.month).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })} - {new Date(tempEndDate.year, tempEndDate.month).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}</>
+                <>Range: {`${monthsShort()[tempStartDate.month]} ${tempStartDate.year}`} - {`${monthsShort()[tempEndDate.month]} ${tempEndDate.year}`}</>
               )}
             </p>
           </div>
@@ -139,7 +140,7 @@ export function DatePickerModal({
           <div className="grid grid-cols-3 gap-2">
             {sortedMonths.map(({ month, year, key }) => {
               const date = new Date(year, month, 1);
-              const label = date.toLocaleDateString('en-US', { month: 'short' });
+              const label = monthsShort()[date.getMonth()];
               const yearLabel = date.getFullYear().toString().slice(-2);
               
               return (

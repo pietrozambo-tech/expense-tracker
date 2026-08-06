@@ -1,4 +1,5 @@
 import { X, ListFilter, Database } from 'lucide-react';
+import { numberLocale } from '../i18n/store';
 
 // "Download" on the Activity tab is ambiguous, and silently guessing is the
 // one thing it must not do: the tab opens filtered to the current month, so
@@ -21,7 +22,7 @@ interface ExportScopeModalProps {
   onClose: () => void;
 }
 
-const count = (n: number) => `${n.toLocaleString('en-US')} transaction${n === 1 ? '' : 's'}`;
+const count = (n: number) => `${n.toLocaleString(numberLocale())} transaction${n === 1 ? '' : 's'}`;
 
 export function ExportScopeModal({ filteredCount, totalCount, filters, onSelect, onClose }: ExportScopeModalProps) {
   const Option = ({ Icon, title, subtitle, rows, onClick }: {
@@ -43,7 +44,7 @@ export function ExportScopeModal({ filteredCount, totalCount, filters, onSelect,
         <div className="text-[15px] font-semibold" style={{ color: '#1C1C1E' }}>{title}</div>
         <div className="text-[13px] leading-snug mt-0.5 truncate" style={{ color: '#8E8E93' }}>{subtitle}</div>
       </div>
-      <div className="text-[13px] tabular-nums flex-shrink-0" style={{ color: '#8E8E93' }}>{rows.toLocaleString('en-US')}</div>
+      <div className="text-[13px] tabular-nums flex-shrink-0" style={{ color: '#8E8E93' }}>{rows.toLocaleString(numberLocale())}</div>
     </button>
   );
 

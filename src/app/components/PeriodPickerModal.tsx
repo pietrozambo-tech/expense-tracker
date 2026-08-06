@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { monthsShort } from '../i18n/store';
 import { X } from 'lucide-react';
 
 // Jump straight to any period instead of stepping the arrows there. Reaching
@@ -32,8 +33,12 @@ interface PeriodPickerModalProps {
   onClose: () => void;
 }
 
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-const QUARTER_RANGE = ['Jan–Mar', 'Apr–Jun', 'Jul–Sep', 'Oct–Dec'];
+// Labels only - selection is by index, so these can be in any language.
+const MONTHS = () => monthsShort();
+const QUARTER_RANGE = () => {
+  const m = monthsShort();
+  return [`${m[0]}–${m[2]}`, `${m[3]}–${m[5]}`, `${m[6]}–${m[8]}`, `${m[9]}–${m[11]}`];
+};
 
 // One period, month or quarter or year. Module scope, not a closure inside the
 // sheet: a component declared during render is a new type on every keystroke of
@@ -95,7 +100,7 @@ export function PeriodPickerModal({
   const monthHasData = (y: number, m: number) => activeMonths.has(`${y}-${m}`);
   const quarterHasData = (y: number, q: number) =>
     [0, 1, 2].some((i) => monthHasData(y, q * 3 + i));
-  const yearHasData = (y: number) => MONTHS.some((_, m) => monthHasData(y, m));
+  const yearHasData = (y: number) => MONTHS().some((_, m) => monthHasData(y, m));
 
   // The arrows already stop at today; the picker must not offer a way past it.
   const monthAhead = (y: number, m: number) => y > curY || (y === curY && m > curM);
@@ -183,7 +188,7 @@ export function PeriodPickerModal({
 
               {draftType === 'month' ? (
                 <div className="grid grid-cols-4 gap-2.5 mt-4">
-                  {MONTHS.map((label, m) => (
+                  {MONTHS().map((label, m) => (
                     <Cell
                       key={label}
                       label={label}
@@ -200,7 +205,7 @@ export function PeriodPickerModal({
                     <Cell
                       key={q}
                       label={`Q${q + 1}`}
-                      sub={QUARTER_RANGE[q]}
+                      sub={QUARTER_RANGE()[q]}
                       selected={type === 'quarter' && draftYear === year && q === quarter}
                       disabled={quarterAhead(draftYear, q)}
                       hasData={quarterHasData(draftYear, q)}

@@ -1,6 +1,7 @@
 // Currency configuration and conversion utilities
 import { convert as fxConvert } from '../lib/fx';
 import { CURRENCY_DEFS } from '../lib/currencyData';
+import { numberLocale } from '../i18n/store';
 
 export interface Currency {
   code: string;
@@ -57,6 +58,33 @@ export function homeAmount(
 // places that genuinely need a plain string: sentences, width measurement and
 // the FitText fallback.
 
+// A large number folded to a magnitude suffix, in the current locale:
+// "86.4K" / "86,4K", "1.2MM" / "1,2MM". The single source both the string
+// formatter below and <AmountText abbreviate> draw from, so the two can never
+// disagree about what an abbreviated amount looks like.
+//
+// `mode` preserves two historically different behaviours:
+//   'fit'     - FitText's fallback: kicks in at 10K, always drops ".0".
+//   'summary' - the category-average style: whole numbers up to 100K, keeps
+//               the ".0" on millions ("9.0MM").
+export function abbreviateNumber(abs: number, mode: 'fit' | 'summary'): string {
+  const loc = numberLocale();
+  if (abs >= 1000000) {
+    const n = abs / 1000000;
+    return mode === 'summary'
+      ? `${n.toLocaleString(loc, { minimumFractionDigits: 1, maximumFractionDigits: 1, useGrouping: false })}MM`
+      : `${n.toLocaleString(loc, { maximumFractionDigits: 1, useGrouping: false })}MM`;
+  }
+  if (mode === 'summary') {
+    if (abs >= 100000) return `${Math.round(abs / 1000).toLocaleString(loc)}K`;
+    return Math.round(abs).toLocaleString(loc);
+  }
+  if (abs >= 10000) {
+    return `${(abs / 1000).toLocaleString(loc, { maximumFractionDigits: 1, useGrouping: false })}K`;
+  }
+  return Math.round(abs).toLocaleString(loc);
+}
+
 // The shortest honest rendering of an amount: "86.4K CHF", "1.2MM CHF".
 //
 // Only for the fallback in FitText, when the full number cannot fit the space
@@ -69,11 +97,9 @@ export const formatAbbreviatedAmount = (amount: number, currencyCode: string): s
   if (abs < 10000) return formatAmountListView(amount, currencyCode, 0);
 
   const currency = CURRENCIES[currencyCode] || CURRENCIES.EUR;
-  const [scaled, suffix] = abs >= 1000000 ? [amount / 1000000, 'MM'] : [amount / 1000, 'K'];
-  // One decimal, but "86.0K" reads worse than "86K".
-  const number = scaled.toFixed(1).replace(/\.0$/, '');
+  const sign = amount < 0 ? '-' : '';
   const sep = currency.symbol.length > 1 ? ' ' : '';
-  return `${number}${suffix}${sep}${currency.symbol}`;
+  return `${sign}${abbreviateNumber(abs, 'fit')}${sep}${currency.symbol}`;
 };
 
 // Format amount with currency symbol ALWAYS after the number (for list views).
@@ -92,7 +118,7 @@ export const formatAmountListView = (amount: number, currencyCode: string, decim
   const factor = 10 ** decimals;
   const rounded = Math.round(amount * factor) / factor;
 
-  const formattedNumber = rounded.toLocaleString('en-US', {
+  const formattedNumber = rounded.toLocaleString(numberLocale(), {
     minimumFractionDigits: Number.isInteger(rounded) ? 0 : decimals,
     maximumFractionDigits: decimals
   });

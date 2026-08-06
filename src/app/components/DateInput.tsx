@@ -1,4 +1,6 @@
 import { Calendar, ChevronLeft, ChevronRight, Repeat } from 'lucide-react';
+import { t } from '../i18n';
+import { dateLocale, translateRecurrence } from '../i18n/store';
 import { useRef, useEffect, useState } from 'react';
 
 interface DateInputProps {
@@ -45,16 +47,16 @@ export function DateInput({ value, onChange, showDatePicker, setShowDatePicker, 
     selectedDate.setHours(0, 0, 0, 0);
     
     if (selectedDate.getTime() === today.getTime()) {
-      return 'Today';
+      return t('date.today');
     }
     
     const yesterday = new Date(today);
     yesterday.setDate(yesterday.getDate() - 1);
     if (selectedDate.getTime() === yesterday.getTime()) {
-      return 'Yesterday';
+      return t('date.yesterday');
     }
-    
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+
+    return date.toLocaleDateString(dateLocale(), { month: 'short', day: 'numeric', year: 'numeric' });
   };
 
   const resetToToday = () => {
@@ -179,7 +181,7 @@ export function DateInput({ value, onChange, showDatePicker, setShowDatePicker, 
                       fontSize: '16px'
                     }}
                   >
-                    {option}
+                    {translateRecurrence(option)}
                   </span>
                   {recurrenceState === option && (
                     <div

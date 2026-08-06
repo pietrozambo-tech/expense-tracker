@@ -1,4 +1,5 @@
 import type { Category } from '../types';
+import type { Language } from '../i18n/store';
 
 export type { Category };
 
@@ -185,3 +186,66 @@ export const incomeCategories: Category[] = [
     type: 'income' as const
   }
 ];
+
+// ── Language-specific starter catalogues ────────────────────────────────────
+//
+// Only NAMES differ by language; ids, icons and colours are shared, which is
+// what lets the demo dataset and any future tooling address a category by id
+// regardless of the language it was seeded in.
+//
+// These apply exactly once, when onboarding seeds a fresh account. After that,
+// category and subcategory names are the user's data: switching the app
+// language never renames them (an Italian user may deliberately keep
+// "Travel"), the same way it doesn't rewrite their transaction descriptions.
+
+interface CategoryTranslation {
+  name: string;
+  // Parallel to the English subcategory list, position by position.
+  subcategories?: string[];
+}
+
+const IT_EXPENSE: Record<string, CategoryTranslation> = {
+  'office-food': { name: 'Pausa Pranzo', subcategories: ['Colazione', 'Pranzo', 'Spuntino'] },
+  'food-drinks': { name: 'Cibo & Bevande', subcategories: ['Ristorante', 'Aperitivo', 'Spuntino'] },
+  gifts: { name: 'Regali', subcategories: ['Matrimonio', 'Compleanno'] },
+  groceries: { name: 'Spesa', subcategories: ['Supermercato'] },
+  'health-personal-care': { name: 'Salute & Cura', subcategories: ['Farmacia', 'Cosmetici', 'Benessere'] },
+  housing: { name: 'Casa', subcategories: ['Affitto', 'Bollette', 'Pulizie'] },
+  leisure: { name: 'Tempo Libero', subcategories: ['Cinema', 'Concerti', 'Discoteca'] },
+  shopping: { name: 'Shopping', subcategories: ['Abbigliamento', 'Elettronica'] },
+  // Barry's is a boutique-gym brand; the Italian starter list wants the
+  // generic word, not the brand.
+  sport: { name: 'Sport', subcategories: ['Tennis', 'Palestra'] },
+  subscriptions: { name: 'Abbonamenti', subcategories: ['Streaming', 'Cloud'] },
+  'tax-fees': { name: 'Tasse & Commissioni', subcategories: ['Tasse sul Reddito', 'Tasse sulla Casa', 'Commissioni Bancarie'] },
+  transports: { name: 'Trasporti', subcategories: ['Mezzi Pubblici', 'Uber/Taxi', 'Benzina'] },
+  travel: { name: 'Viaggi', subcategories: ['Voli', 'Hotel', 'Cibo', 'Attività', 'Trasporti'] },
+  others: { name: 'Altro', subcategories: ['Donazioni', 'Imprevisti'] },
+};
+
+const IT_INCOME: Record<string, CategoryTranslation> = {
+  salary: { name: 'Stipendio' },
+  'real-estate': { name: 'Immobili' },
+  dividends: { name: 'Dividendi' },
+  royalties: { name: 'Royalties' },
+};
+
+function localise(list: Category[], table: Record<string, CategoryTranslation>): Category[] {
+  return list.map((cat) => {
+    const tr = table[cat.id];
+    if (!tr) return cat;
+    return {
+      ...cat,
+      name: tr.name,
+      ...(cat.subcategories ? { subcategories: tr.subcategories ?? cat.subcategories } : {}),
+    };
+  });
+}
+
+export function defaultCategoriesFor(lang: Language): Category[] {
+  return lang === 'it' ? localise(categories, IT_EXPENSE) : categories;
+}
+
+export function defaultIncomeCategoriesFor(lang: Language): Category[] {
+  return lang === 'it' ? localise(incomeCategories, IT_INCOME) : incomeCategories;
+}
