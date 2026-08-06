@@ -42,7 +42,7 @@ export function CurrencySearchList({ selected, onSelect, autoFocus = true }: Cur
         style={{ WebkitOverflowScrolling: 'touch' }}
       >
         {codes.length === 0 ? (
-          <div className="text-center py-8 text-neutral-400 text-sm">No currency found</div>
+          <div className="text-center py-8 text-neutral-400 text-sm">{t('add.noCurrency')}</div>
         ) : (
           codes.map((code, i) => {
             const c = CURRENCIES[code];

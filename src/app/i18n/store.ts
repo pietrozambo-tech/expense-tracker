@@ -86,6 +86,14 @@ export function numberLocale(): string {
 }
 export const dateLocale = numberLocale;
 
+// Intl's Italian (CLDR) only groups from five digits up - "1736" but
+// "28.000" - which is typographically defensible and reads like a bug in a
+// money app where the two sit in the same column. 'always' forces the
+// separator from four digits in every language; English output is unchanged
+// (en-US already grouped four digits), and engines too old for the string
+// value coerce it to plain truthy grouping, which is the same thing.
+export const GROUPED: Intl.NumberFormatOptions = { useGrouping: 'always' as unknown as boolean };
+
 /** '.' in English, ',' in Italian - what AmountText renders between units and cents. */
 export function decimalSeparator(): string {
   return current === 'it' ? ',' : '.';

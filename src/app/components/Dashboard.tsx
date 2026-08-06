@@ -3,7 +3,7 @@ import { ChevronRight, ArrowUpDown, TrendingUp, TrendingDown, Minus, Plus, Recei
 import { TrendCategoryBreakdown } from './TrendCategoryBreakdown';
 import React from 'react';
 import { formatAmountListView, formatAbbreviatedAmount, CURRENCIES, homeAmount } from '../utils/currency';
-import { monthsShort, monthsFull, daysFull, daysShort, numberLocale, getLanguage } from '../i18n/store';
+import { monthsShort, monthsFull, daysFull, daysShort, numberLocale, getLanguage, GROUPED } from '../i18n/store';
 import { t } from '../i18n';
 import { translateRecurrence } from '../i18n/store';
 import { getCategoryIcon } from './categoryIcons';
@@ -72,7 +72,7 @@ function formatAxisTick(value: number, axisMax: number): string {
   if (axisMax >= 10000) {
     return `${(value / 1000).toLocaleString(numberLocale(), { maximumFractionDigits: 1, useGrouping: false })}k`;
   }
-  return Math.round(value).toLocaleString(numberLocale());
+  return Math.round(value).toLocaleString(numberLocale(), GROUPED);
 }
 
 interface Expense {

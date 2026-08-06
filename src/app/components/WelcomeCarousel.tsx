@@ -60,10 +60,15 @@ const SAMPLE_REVOLUT: Source = { id: 'revolut', name: 'Revolut', kind: 'bank', b
 function MockAmount({ value, symbol = '\u20AC', className, style }: { value: string; symbol?: string; className?: string; style?: React.CSSProperties }) {
   const [int, frac] = value.split('.');
   const quiet: React.CSSProperties = { fontSize: '0.72em', fontWeight: 500, opacity: 0.6 };
+  // The mock values are written en-US ("1,039.50"); an Italian screenshot
+  // must show Italian separators or the illustration contradicts the app
+  // it's illustrating.
+  const it = getLanguage() === 'it';
+  const intText = it ? int.replace(/,/g, '.') : int;
   return (
     <span className={className} style={style}>
-      {int}
-      {frac && <span style={quiet}>.{frac}</span>}
+      {intText}
+      {frac && <span style={quiet}>{it ? ',' : '.'}{frac}</span>}
       <span style={quiet}>{symbol}</span>
     </span>
   );
@@ -71,10 +76,10 @@ function MockAmount({ value, symbol = '\u20AC', className, style }: { value: str
 
 function AddIllustration() {
   const cats = [
-    { name: 'Groceries', Icon: ShoppingCart, bg: '#E7F6EC', fg: '#2E9E5B', on: true },
-    { name: 'Transport', Icon: Car, bg: '#E3EDFF', fg: '#3B6FE0', on: false },
-    { name: 'Housing', Icon: Home, bg: '#EDE9FE', fg: '#7C5CE0', on: false },
-    { name: 'Leisure', Icon: Clapperboard, bg: '#FDE7F1', fg: '#D6459A', on: false },
+    { name: getLanguage() === 'it' ? 'Spesa' : 'Groceries', Icon: ShoppingCart, bg: '#E7F6EC', fg: '#2E9E5B', on: true },
+    { name: getLanguage() === 'it' ? 'Trasporti' : 'Transport', Icon: Car, bg: '#E3EDFF', fg: '#3B6FE0', on: false },
+    { name: getLanguage() === 'it' ? 'Casa' : 'Housing', Icon: Home, bg: '#EDE9FE', fg: '#7C5CE0', on: false },
+    { name: getLanguage() === 'it' ? 'Tempo Libero' : 'Leisure', Icon: Clapperboard, bg: '#FDE7F1', fg: '#D6459A', on: false },
   ];
   return (
     <div className="rounded-2xl px-4 py-4" style={{ background: '#FFFFFF', boxShadow: '0 8px 24px rgba(0,0,0,0.06)', border: '1px solid #EEEEF1' }}>
@@ -92,10 +97,10 @@ function AddIllustration() {
       {/* Date + recurrence chips */}
       <div className="flex items-center gap-2 mb-3">
         <span className="flex items-center gap-1.5 rounded-full px-2.5 py-1.5 text-xs font-medium" style={{ background: '#F2F2F5', color: '#3C3C43' }}>
-          <Calendar className="w-3.5 h-3.5" style={{ color: '#8E8E93' }} /> Today
+          <Calendar className="w-3.5 h-3.5" style={{ color: '#8E8E93' }} /> {t('date.today')}
         </span>
         <span className="flex items-center gap-1.5 rounded-full px-2.5 py-1.5 text-xs font-medium" style={{ background: '#F2F2F5', color: '#3C3C43' }}>
-          <Repeat className="w-3.5 h-3.5" style={{ color: '#8E8E93' }} /> Monthly
+          <Repeat className="w-3.5 h-3.5" style={{ color: '#8E8E93' }} /> {getLanguage() === 'it' ? 'Mensile' : 'Monthly'}
           <ChevronDown className="w-3 h-3" style={{ color: '#8E8E93' }} />
         </span>
       </div>
@@ -114,10 +119,10 @@ function AddIllustration() {
 
         {/* Subcategory panel for the selected Groceries */}
         <div className="col-span-2 rounded-xl px-3 py-2.5" style={{ background: '#FFFFFF', border: '1px solid #ECECEF', boxShadow: '0 1px 4px rgba(0,0,0,0.05)' }}>
-          <div className="text-[10px] font-semibold mb-1.5" style={{ color: '#8E8E93', letterSpacing: '0.06em' }}>SUBCATEGORY</div>
+          <div className="text-[10px] font-semibold mb-1.5" style={{ color: '#8E8E93', letterSpacing: '0.06em' }}>{t('add.subcategory')}</div>
           <div className="flex gap-2">
-            <span className="rounded-lg px-2.5 py-1 text-xs border" style={{ background: '#EFF6FF', color: '#2563EB', borderColor: '#BFDBFE' }}>Supermarket</span>
-            <span className="rounded-lg px-2.5 py-1 text-xs border" style={{ background: '#FFFFFF', color: '#4B5563', borderColor: '#E5E7EB' }}>Market</span>
+            <span className="rounded-lg px-2.5 py-1 text-xs border" style={{ background: '#EFF6FF', color: '#2563EB', borderColor: '#BFDBFE' }}>{getLanguage() === 'it' ? 'Supermercato' : 'Supermarket'}</span>
+            <span className="rounded-lg px-2.5 py-1 text-xs border" style={{ background: '#FFFFFF', color: '#4B5563', borderColor: '#E5E7EB' }}>{getLanguage() === 'it' ? 'Mercato' : 'Market'}</span>
           </div>
         </div>
 
@@ -163,18 +168,18 @@ function previousMonthLabel(): string {
 function DashboardIllustration() {
   const metrics = [
     // Match the real hero: a red "−" for Spending and a green "+" for Income.
-    { label: 'Spending', value: '1,039€', Icon: Minus, tint: 'rgba(255,105,97,0.16)', color: '#FF6961', sw: 3 },
-    { label: 'Income', value: '3,380€', Icon: Plus, tint: 'rgba(48,209,88,0.16)', color: '#30D158', sw: 3 },
-    { label: 'Savings', value: '2,341€', Icon: Wallet, tint: 'rgba(100,160,255,0.16)', color: '#64A0FF', accent: '#30D158', sw: 2.5 },
-    { label: 'Saving Rate', value: '69%', Icon: Gauge, tint: 'rgba(100,160,255,0.16)', color: '#64A0FF', accent: '#30D158', sw: 2.5 },
+    { label: t('dash.spending'), value: '1,039€', Icon: Minus, tint: 'rgba(255,105,97,0.16)', color: '#FF6961', sw: 3 },
+    { label: t('dash.income'), value: '3,380€', Icon: Plus, tint: 'rgba(48,209,88,0.16)', color: '#30D158', sw: 3 },
+    { label: t('dash.savings'), value: '2,341€', Icon: Wallet, tint: 'rgba(100,160,255,0.16)', color: '#64A0FF', accent: '#30D158', sw: 2.5 },
+    { label: t('dash.savingRate'), value: '69%', Icon: Gauge, tint: 'rgba(100,160,255,0.16)', color: '#64A0FF', accent: '#30D158', sw: 2.5 },
   ];
   // `trend` mirrors the real rows: flat when the month matches the last one,
   // an arrow when it does not, and the word when there is no earlier figure to
   // compare against at all.
   const rows = [
-    { name: 'Housing', Icon: Home, bg: '#E3EDFF', fg: '#3B6FE0', pct: 87, amt: '900€', trend: 'flat' as const },
-    { name: 'Groceries', Icon: ShoppingCart, bg: '#E7F6EC', fg: '#2E9E5B', pct: 8, amt: '84€', trend: 'down' as const },
-    { name: 'Transport', Icon: Car, bg: '#E3EDFF', fg: '#4589D6', pct: 5, amt: '55€', trend: 'new' as const },
+    { name: getLanguage() === 'it' ? 'Casa' : 'Housing', Icon: Home, bg: '#E3EDFF', fg: '#3B6FE0', pct: 87, amt: '900€', trend: 'flat' as const },
+    { name: getLanguage() === 'it' ? 'Spesa' : 'Groceries', Icon: ShoppingCart, bg: '#E7F6EC', fg: '#2E9E5B', pct: 8, amt: '84€', trend: 'down' as const },
+    { name: getLanguage() === 'it' ? 'Trasporti' : 'Transport', Icon: Car, bg: '#E3EDFF', fg: '#4589D6', pct: 5, amt: '55€', trend: 'new' as const },
   ];
   return (
     <div className="flex flex-col gap-3">
@@ -213,9 +218,9 @@ function DashboardIllustration() {
           the hero and the categories. */}
       <div className="rounded-2xl px-4 py-3" style={{ background: '#FFFFFF', boxShadow: '0 8px 24px rgba(0,0,0,0.06)', border: '1px solid #EEEEF1' }}>
         <div className="flex items-baseline justify-between mb-2">
-          <span className="text-[13px] font-semibold" style={{ color: '#1C1C1E' }}>Monthly Budget</span>
+          <span className="text-[13px] font-semibold" style={{ color: '#1C1C1E' }}>{t('budget.title')}</span>
           <span className="text-[13px] tabular-nums" style={{ color: '#8E8E93' }}>
-            <MockAmount value="1,039" className="font-semibold" style={{ color: '#1C1C1E' }} /> of <MockAmount value="1,500" />
+            <MockAmount value="1,039" className="font-semibold" style={{ color: '#1C1C1E' }} /> {t('budget.of')} <MockAmount value="1,500" />
           </span>
         </div>
         <div className="relative h-2 rounded-full overflow-hidden" style={{ backgroundColor: '#F2F1ED' }}>
@@ -226,22 +231,22 @@ function DashboardIllustration() {
         </div>
         <div className="flex items-center justify-between mt-2">
           <span className="flex items-center gap-1.5">
-            <span className="text-[12px] font-medium" style={{ color: '#8E8E93' }}>69% used</span>
+            <span className="text-[12px] font-medium" style={{ color: '#8E8E93' }}>{t('budget.pctUsed', { pct: 69 })}</span>
             <span
               className="text-[11px] font-semibold"
               style={{ color: '#2C7A54', backgroundColor: '#E7F4ED', padding: '2px 8px', borderRadius: 999 }}
             >
-              On track
+              {t('budget.onTrack')}
             </span>
           </span>
-          <span className="text-[12px]" style={{ color: '#8E8E93' }}>7 days left</span>
+          <span className="text-[12px]" style={{ color: '#8E8E93' }}>{t('budget.dayLeft.other', { n: 7 })}</span>
         </div>
       </div>
 
       {/* Category breakdown */}
       <div className="rounded-2xl px-4 py-3" style={{ background: '#FFFFFF', boxShadow: '0 8px 24px rgba(0,0,0,0.06)', border: '1px solid #EEEEF1' }}>
         <div className="flex items-baseline justify-between mb-1.5">
-          <span className="text-sm font-semibold" style={{ color: '#1C1C1E' }}>Categories</span>
+          <span className="text-sm font-semibold" style={{ color: '#1C1C1E' }}>{t('cat.title')}</span>
           {/* Sits over the last column, as it does in the app - it labels the
               trend markers and nothing else. The chevron is the whole tell that
               the baseline can be changed, so the illustration carries it too. */}
@@ -266,7 +271,7 @@ function DashboardIllustration() {
             <span className="w-7 flex items-center justify-center flex-shrink-0">
               {r.trend === 'down' && <TrendingDown className="w-3.5 h-3.5" style={{ color: '#34C759' }} strokeWidth={2.5} />}
               {r.trend === 'flat' && <Minus className="w-3.5 h-3.5" style={{ color: '#8E8E93' }} strokeWidth={2.5} />}
-              {r.trend === 'new' && <span className="text-[9px] font-semibold" style={{ color: '#6B6B75' }}>New</span>}
+              {r.trend === 'new' && <span className="text-[9px] font-semibold" style={{ color: '#6B6B75' }}>{t('cat.new')}</span>}
             </span>
           </div>
         ))}
@@ -279,9 +284,9 @@ function ImportIllustration() {
   // Mirrors the real Import screen's two use-case cards, then shows the
   // outcome: rows landing in Activity, already categorised.
   const rows = [
-    { name: 'Ferry a/r', cat: 'Travel', amt: '-61.60€', Icon: Palmtree, tint: '#E1F0FF', ink: '#0A84FF' },
-    { name: 'Esselunga', cat: 'Groceries', amt: '-21.04€', Icon: ShoppingCart, tint: '#E7F6EC', ink: '#2E9E5B' },
-    { name: 'Cena', cat: 'Food & Drinks', amt: '-83.00€', Icon: UtensilsCrossed, tint: '#FFF1E2', ink: '#C77700' },
+    { name: 'Ferry a/r', cat: getLanguage() === 'it' ? 'Viaggi' : 'Travel', amt: '-61.60€', Icon: Palmtree, tint: '#E1F0FF', ink: '#0A84FF' },
+    { name: 'Esselunga', cat: getLanguage() === 'it' ? 'Spesa' : 'Groceries', amt: '-21.04€', Icon: ShoppingCart, tint: '#E7F6EC', ink: '#2E9E5B' },
+    { name: 'Cena', cat: getLanguage() === 'it' ? 'Cibo & Bevande' : 'Food & Drinks', amt: '-83.00€', Icon: UtensilsCrossed, tint: '#FFF1E2', ink: '#C77700' },
   ];
   return (
     <div className="flex flex-col gap-3">
@@ -290,23 +295,23 @@ function ImportIllustration() {
           <span className="flex items-center justify-center mb-2" style={{ width: 34, height: 34, borderRadius: 11, background: '#E7F6EC' }}>
             <FileSpreadsheet className="w-4.5 h-4.5" style={{ color: '#2E9E5B', width: 18, height: 18 }} />
           </span>
-          <div className="text-[13px] font-bold leading-tight" style={{ color: '#1C1C1E' }}>Banks &amp; spreadsheets</div>
-          <div className="text-[11px] mt-1 leading-snug" style={{ color: '#8E8E93' }}>Statements, Excel, even screenshots</div>
+          <div className="text-[13px] font-bold leading-tight" style={{ color: '#1C1C1E' }}>{getLanguage() === 'it' ? 'Banche e fogli di calcolo' : 'Banks & spreadsheets'}</div>
+          <div className="text-[11px] mt-1 leading-snug" style={{ color: '#8E8E93' }}>{getLanguage() === 'it' ? 'Estratti conto, Excel, persino screenshot' : 'Statements, Excel, even screenshots'}</div>
         </div>
         <div className="rounded-2xl px-4 py-3.5" style={{ background: '#FFFFFF', boxShadow: '0 8px 24px rgba(0,0,0,0.06)', border: '1px solid #EEEEF1' }}>
           <span className="flex items-center justify-center mb-2" style={{ width: 34, height: 34, borderRadius: 11, background: '#E1F0FF' }}>
             <Palmtree style={{ color: '#0A84FF', width: 18, height: 18 }} />
           </span>
-          <div className="text-[13px] font-bold leading-tight" style={{ color: '#1C1C1E' }}>Trips &amp; splits</div>
-          <div className="text-[11px] mt-1 leading-snug" style={{ color: '#8E8E93' }}>Splitwise lands as your share only</div>
+          <div className="text-[13px] font-bold leading-tight" style={{ color: '#1C1C1E' }}>{getLanguage() === 'it' ? 'Viaggi e spese condivise' : 'Trips & splits'}</div>
+          <div className="text-[11px] mt-1 leading-snug" style={{ color: '#8E8E93' }}>{getLanguage() === 'it' ? 'Splitwise arriva come sola tua quota' : 'Splitwise lands as your share only'}</div>
         </div>
       </div>
 
       {/* The result: recognisable Activity rows, already categorised */}
       <div className="rounded-2xl px-4 py-3" style={{ background: '#FFFFFF', boxShadow: '0 8px 24px rgba(0,0,0,0.06)', border: '1px solid #EEEEF1' }}>
         <div className="flex items-center justify-between mb-1.5">
-          <span className="text-[12px] font-semibold" style={{ color: '#1C1C1E' }}>Activity</span>
-          <span className="text-[10px] font-medium rounded-full px-2 py-0.5" style={{ background: '#F2F1ED', color: '#8E8E93' }}>Imported</span>
+          <span className="text-[12px] font-semibold" style={{ color: '#1C1C1E' }}>{t('act.title')}</span>
+          <span className="text-[10px] font-medium rounded-full px-2 py-0.5" style={{ background: '#F2F1ED', color: '#8E8E93' }}>{t('act.type.imported')}</span>
         </div>
         {rows.map((r) => (
           <div key={r.name} className="flex items-center gap-2.5 py-1.5">
@@ -336,7 +341,7 @@ function DemoIllustration() {
           className="absolute flex items-center gap-1 rounded-full px-2 py-0.5"
           style={{ top: 12, right: 12, background: '#FEF3E2', color: '#C77700', fontSize: 10, fontWeight: 700, letterSpacing: '0.04em' }}
         >
-          <FlaskConical className="w-3 h-3" /> SAMPLE
+          <FlaskConical className="w-3 h-3" />{' '}{getLanguage() === 'it' ? 'ESEMPIO' : 'SAMPLE'}
         </span>
         {/* Mini hero: Spending (−) and Income (+) */}
         <div className="flex items-center pr-16 mb-3">
@@ -345,7 +350,7 @@ function DemoIllustration() {
               <Minus className="w-3.5 h-3.5" style={{ color: '#FF6961' }} strokeWidth={3} />
             </span>
             <div className="min-w-0">
-              <div className="text-[10px]" style={{ color: '#8E8E93' }}>Spending</div>
+              <div className="text-[10px]" style={{ color: '#8E8E93' }}>{t('dash.spending')}</div>
               <div className="text-[15px] font-bold tabular-nums" style={{ color: '#1C1C1E' }}>820€</div>
             </div>
           </div>
@@ -355,7 +360,7 @@ function DemoIllustration() {
               <Plus className="w-3.5 h-3.5" style={{ color: '#30D158' }} strokeWidth={3} />
             </span>
             <div className="min-w-0">
-              <div className="text-[10px]" style={{ color: '#8E8E93' }}>Income</div>
+              <div className="text-[10px]" style={{ color: '#8E8E93' }}>{t('dash.income')}</div>
               <div className="text-[15px] font-bold tabular-nums" style={{ color: '#1C1C1E' }}>2,400€</div>
             </div>
           </div>
@@ -366,7 +371,7 @@ function DemoIllustration() {
       {/* Reassurance: it's throwaway data */}
       <div className="flex items-center justify-center gap-1.5">
         <Trash2 className="w-3.5 h-3.5" style={{ color: '#8E8E93' }} />
-        <span style={{ color: '#8E8E93', fontSize: 12.5 }}>Remove it all in one tap, anytime</span>
+        <span style={{ color: '#8E8E93', fontSize: 12.5 }}>{getLanguage() === 'it' ? 'Rimuovi tutto con un tocco, quando vuoi' : 'Remove it all in one tap, anytime'}</span>
       </div>
     </div>
   );
@@ -380,7 +385,7 @@ function SettingsIllustration() {
         <span className="flex items-center justify-center flex-shrink-0" style={{ width: 30, height: 30, borderRadius: 9, background: '#F2F1ED' }}>
           <Layers className="w-4 h-4" style={{ color: '#8E8E93' }} />
         </span>
-        <span className="flex-1 text-[15px] font-medium" style={{ color: '#1C1C1E' }}>Categories</span>
+        <span className="flex-1 text-[15px] font-medium" style={{ color: '#1C1C1E' }}>{t('cat.title')}</span>
         <span className="text-[14px]" style={{ color: '#8E8E93' }}>18</span>
         <ChevronRight className="w-4 h-4 flex-shrink-0" style={{ color: '#C7C7CC' }} />
       </div>
@@ -389,7 +394,7 @@ function SettingsIllustration() {
         <span className="flex items-center justify-center flex-shrink-0" style={{ width: 30, height: 30, borderRadius: 9, background: '#F2F1ED' }}>
           <Landmark className="w-4 h-4" style={{ color: '#8E8E93' }} />
         </span>
-        <span className="flex-1 text-[15px] font-medium" style={{ color: '#1C1C1E' }}>Sources</span>
+        <span className="flex-1 text-[15px] font-medium" style={{ color: '#1C1C1E' }}>{t('set.sources')}</span>
         <div className="flex items-center" style={{ gap: 5 }}>
           {DEFAULT_SOURCES.map((s) => (
             <SourceLogo key={s.id} source={s} size={22} />

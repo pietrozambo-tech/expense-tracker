@@ -425,4 +425,11 @@ export const it: Record<keyof typeof en, string> = {
   'mgmt.parentCategoryLocked': 'Categoria Principale (non modificabile)',
   'mgmt.subName': 'Nome Sottocategoria',
   'mgmt.subPlaceholder': 'es. Netflix',
+
+  // Row delete sheets + misc
+  'del.txExpenseTitle': 'Eliminare la spesa?',
+  'del.txIncomeTitle': 'Eliminare l’entrata?',
+  'del.txBody': 'Vuoi davvero eliminare "{name}"? Questa azione non si può annullare.',
+  'set.version': 'Versione 1.0',
+  'set.signature': 'Realizzato da Zambop',
 };

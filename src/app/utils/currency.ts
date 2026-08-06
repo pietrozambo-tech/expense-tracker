@@ -1,7 +1,7 @@
 // Currency configuration and conversion utilities
 import { convert as fxConvert } from '../lib/fx';
 import { CURRENCY_DEFS } from '../lib/currencyData';
-import { numberLocale } from '../i18n/store';
+import { numberLocale, GROUPED } from '../i18n/store';
 
 export interface Currency {
   code: string;
@@ -77,12 +77,12 @@ export function abbreviateNumber(abs: number, mode: 'fit' | 'summary'): string {
   }
   if (mode === 'summary') {
     if (abs >= 100000) return `${Math.round(abs / 1000).toLocaleString(loc)}K`;
-    return Math.round(abs).toLocaleString(loc);
+    return Math.round(abs).toLocaleString(loc, GROUPED);
   }
   if (abs >= 10000) {
     return `${(abs / 1000).toLocaleString(loc, { maximumFractionDigits: 1, useGrouping: false })}K`;
   }
-  return Math.round(abs).toLocaleString(loc);
+  return Math.round(abs).toLocaleString(loc, GROUPED);
 }
 
 // The shortest honest rendering of an amount: "86.4K CHF", "1.2MM CHF".
@@ -119,6 +119,7 @@ export const formatAmountListView = (amount: number, currencyCode: string, decim
   const rounded = Math.round(amount * factor) / factor;
 
   const formattedNumber = rounded.toLocaleString(numberLocale(), {
+    ...GROUPED,
     minimumFractionDigits: Number.isInteger(rounded) ? 0 : decimals,
     maximumFractionDigits: decimals
   });

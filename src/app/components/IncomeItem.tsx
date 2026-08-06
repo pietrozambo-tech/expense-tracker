@@ -1,4 +1,5 @@
 import { Trash2, Repeat } from 'lucide-react';
+import { t } from '../i18n';
 import { homeAmount } from '../utils/currency';
 import { dateLocale, translateRecurrence } from '../i18n/store';
 import { AmountText } from './AmountText';
@@ -135,16 +136,16 @@ export function IncomeItem({ income, onTap, onDelete, currency, showDate = false
             onClick={(e) => e.stopPropagation()}
             style={{ transform: 'translateZ(0)' }}
           >
-            <h3 className="text-lg font-semibold text-neutral-900 mb-2">Delete Income?</h3>
+            <h3 className="text-lg font-semibold text-neutral-900 mb-2">{t('del.txIncomeTitle')}</h3>
             <p className="text-neutral-600 text-sm mb-6">
-              Are you sure you want to delete "{income.description}"? This action cannot be undone.
+              {t('del.txBody', { name: income.description })}
             </p>
             <div className="flex gap-3">
               <button
                 onClick={() => setShowDeleteConfirm(false)}
                 className="flex-1 px-4 py-3 rounded-xl font-medium bg-neutral-100 text-neutral-900 active:bg-neutral-200"
               >
-                Cancel
+                {t('common.cancel')}
               </button>
               <button
                 onClick={() => {
@@ -153,7 +154,7 @@ export function IncomeItem({ income, onTap, onDelete, currency, showDate = false
                 }}
                 className="flex-1 px-4 py-3 rounded-xl font-medium bg-red-500 text-white active:bg-red-600"
               >
-                Delete
+                {t('common.delete')}
               </button>
             </div>
           </div>

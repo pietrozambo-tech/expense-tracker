@@ -176,7 +176,9 @@ export function Settings({
     if (!canSendSupport || sendingSupport) return;
     if (supportLimitReached()) {
       toast.error('Daily limit reached', {
-        description: `You can send up to 10 messages a day - or email us directly at ${SUPPORT_EMAIL}.`,
+        description: getLanguage() === 'it'
+          ? `Puoi inviare fino a 10 messaggi al giorno - oppure scrivici direttamente a ${SUPPORT_EMAIL}.`
+          : `You can send up to 10 messages a day - or email us directly at ${SUPPORT_EMAIL}.`,
         duration: 3500,
       });
       return;
@@ -715,7 +717,7 @@ export function Settings({
             <TracklyLogo size={80} className="mb-4" />
             <h2 style={{ color: '#1C1C1E', fontSize: '28px', fontWeight: 700, letterSpacing: '-0.03em' }}>TracklyLab</h2>
             <p style={{ color: '#3B82F6', fontSize: '14px', fontWeight: 600, marginTop: '4px', letterSpacing: '0.02em' }}>Your Expense Lens</p>
-            <p style={{ color: '#8E8E93', fontSize: '13px', marginTop: '6px' }}>Version 1.0</p>
+            <p style={{ color: '#8E8E93', fontSize: '13px', marginTop: '6px' }}>{t('set.version')}</p>
             {/* Which BUILD this device is actually running. When two devices
                 disagree, comparing this line answers "is one of them stale?"
                 in five seconds. */}
@@ -757,7 +759,7 @@ export function Settings({
 
           {/* Signature */}
           <div className="mt-10 text-center px-6">
-            <p style={{ color: '#B0B0B5', fontSize: '13px', fontStyle: 'italic' }}>Brought to you by Zambop</p>
+            <p style={{ color: '#B0B0B5', fontSize: '13px', fontStyle: 'italic' }}>{t('set.signature')}</p>
             <p style={{ color: '#C7C7CC', fontSize: '12px', marginTop: '4px' }}>© {new Date().getFullYear()} TracklyLab</p>
           </div>
         </div>
@@ -1092,8 +1094,9 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
             {t('set.chooseFile')}
           </button>
           <p style={{ color: '#A5A5AD', fontSize: 12, lineHeight: 1.5, marginTop: 10, textAlign: 'center' }}>
-            Imported transactions are added to your current data. Choosing a TracklyLab
-            backup file (from Export) restores it instead.
+            {getLanguage() === 'it'
+              ? 'Le transazioni importate si aggiungono ai tuoi dati attuali. Se scegli un file di backup TracklyLab (da Esporta), viene invece ripristinato.'
+              : 'Imported transactions are added to your current data. Choosing a TracklyLab backup file (from Export) restores it instead.'}
           </p>
         </div>
       </div>
@@ -1129,7 +1132,7 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
               >
                 <ChevronLeft size={24} style={{ color: '#3B82F6' }} />
               </button>
-              <h1 style={{ color: '#1C1C1E', fontSize: '20px', fontWeight: '600', letterSpacing: '-0.3px' }}>Contacts</h1>
+              <h1 style={{ color: '#1C1C1E', fontSize: '20px', fontWeight: '600', letterSpacing: '-0.3px' }}>{t('set.support')}</h1>
             </div>
           </div>
         </div>
@@ -1202,7 +1205,7 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
             </button>
 
             <p className="text-center mt-4" style={{ color: '#8E8E93', fontSize: 13, lineHeight: 1.5 }}>
-              Or email us directly at{' '}
+              {getLanguage() === 'it' ? 'Oppure scrivici direttamente a' : 'Or email us directly at'}{' '}
               <a href={`mailto:${SUPPORT_EMAIL}`} style={{ color: '#3B82F6', fontWeight: 500 }}>{SUPPORT_EMAIL}</a>
             </p>
           </div>
@@ -1431,9 +1434,11 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
             <div className="flex-1 text-left">
               <div style={{ color: '#EF4444', fontSize: '16px' }}>{t('set.eraseAll')}</div>
               <div style={{ color: '#8E8E93', fontSize: '13px', marginTop: 2 }}>
-                {isGuest
-                  ? 'Deletes your transactions and settings'
-                  : 'Starts fresh. You keep your account'}
+                {getLanguage() === 'it'
+                  ? (isGuest ? 'Elimina transazioni e impostazioni' : 'Riparte da zero. Il tuo account resta')
+                  : isGuest
+                    ? 'Deletes your transactions and settings'
+                    : 'Starts fresh. You keep your account'}
               </div>
             </div>
           </button>
@@ -1459,7 +1464,7 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
         <div className="mt-8 mb-1 text-center">
           <p style={{ color: '#B0B0B5', fontSize: '12px', fontWeight: 500 }}>TracklyLab · v0.1</p>
           <p style={{ color: '#B0B0B5', fontSize: '12px', fontStyle: 'italic', marginTop: '2px' }}>
-            Brought to you by Zambop
+            {t('set.signature')}
           </p>
         </div>
 

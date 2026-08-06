@@ -1,5 +1,5 @@
 import { X, ListFilter, Database } from 'lucide-react';
-import { numberLocale } from '../i18n/store';
+import { numberLocale, GROUPED } from '../i18n/store';
 import { t } from '../i18n';
 
 // "Download" on the Activity tab is ambiguous, and silently guessing is the
@@ -23,7 +23,7 @@ interface ExportScopeModalProps {
   onClose: () => void;
 }
 
-const count = (n: number) => t(n === 1 ? 'act.header.one' : 'act.header.other', { n: n.toLocaleString(numberLocale()) });
+const count = (n: number) => t(n === 1 ? 'act.header.one' : 'act.header.other', { n: n.toLocaleString(numberLocale(), GROUPED) });
 
 export function ExportScopeModal({ filteredCount, totalCount, filters, onSelect, onClose }: ExportScopeModalProps) {
   const Option = ({ Icon, title, subtitle, rows, onClick }: {
@@ -45,7 +45,7 @@ export function ExportScopeModal({ filteredCount, totalCount, filters, onSelect,
         <div className="text-[15px] font-semibold" style={{ color: '#1C1C1E' }}>{title}</div>
         <div className="text-[13px] leading-snug mt-0.5 truncate" style={{ color: '#8E8E93' }}>{subtitle}</div>
       </div>
-      <div className="text-[13px] tabular-nums flex-shrink-0" style={{ color: '#8E8E93' }}>{rows.toLocaleString(numberLocale())}</div>
+      <div className="text-[13px] tabular-nums flex-shrink-0" style={{ color: '#8E8E93' }}>{rows.toLocaleString(numberLocale(), GROUPED)}</div>
     </button>
   );
 

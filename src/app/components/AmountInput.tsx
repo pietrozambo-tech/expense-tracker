@@ -171,7 +171,7 @@ export function AmountInput({ value, onChange, currency, onCurrencyChange, right
           >
             {!showAllCurrencies ? (
               <>
-                <h3 className="text-lg font-semibold text-neutral-900 mb-4">Select Currency</h3>
+                <h3 className="text-lg font-semibold text-neutral-900 mb-4">{t('add.selectCurrency')}</h3>
                 <div className="bg-white rounded-2xl overflow-hidden">
                   {MAIN_CURRENCY_CODES.map((code, i) => renderCurrencyRow(code, i < MAIN_CURRENCY_CODES.length - 1))}
                 </div>
