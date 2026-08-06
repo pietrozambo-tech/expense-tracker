@@ -9,7 +9,7 @@ import { usualCurve, periodCurve } from '../lib/usual';
 import { dayOfWeekBreakdown, dowTakeaway } from '../lib/dayOfWeek';
 import { BudgetBar, BudgetNudge } from './BudgetBar';
 import { FitText } from './FitText';
-import { AmountText } from './AmountText';
+import { AmountText, AmountFromText } from './AmountText';
 import { parseLocalDate } from '../lib/dates';
 import { CategoryFilterModal } from './CategoryFilterModal';
 import { SubcategoryFilterModal } from './SubcategoryFilterModal';
@@ -44,6 +44,26 @@ function niceAxis(maxValue: number, targetTicks = 5): { max: number; step: numbe
 
 // Y-axis tick label. One notation per axis, decided by its top tick: an axis
 // that reads "10k, 8,000, 6,000" is switching units halfway down.
+// The period summary builds its sentences as strings - it measures them to
+// decide how much to say, and reshapes them with replace() - so the amounts
+// inside cannot be React nodes at the point they are written. They are fenced
+// with an invisible separator instead, and InsightLine turns each fenced run
+// back into a typeset amount at render. U+2063 is zero-width and carries no
+// meaning of its own, so a sentence that somehow escapes the renderer still
+// reads correctly.
+const AMOUNT_MARK = '⁣';
+
+function InsightLine({ text }: { text: string }) {
+  return (
+    <>
+      {text.split(AMOUNT_MARK).map((part, i) =>
+        // Odd indices are what sat between a pair of marks.
+        i % 2 === 1 ? <AmountFromText key={i} text={part} /> : part
+      )}
+    </>
+  );
+}
+
 function formatAxisTick(value: number, axisMax: number): string {
   if (value === 0) return '0'; // "0k" is nonsense in any notation
   if (axisMax >= 10000) {
@@ -956,7 +976,9 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
       const top = [...totals.entries()].sort((a, b) => b[1] - a[1])[0];
       return {
         line1: `Your first tracked ${unitName}.`,
-        line2: top ? `Biggest category: ${top[0]}, ${formatAmountListView(top[1], currency, 0)}.` : undefined,
+        line2: top
+          ? `Biggest category: ${top[0]}, ${AMOUNT_MARK}${formatAmountListView(top[1], currency, 0)}${AMOUNT_MARK}.`
+          : undefined,
       };
     }
 
@@ -989,7 +1011,8 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
     const ups = movers.filter((m) => m.delta > 0);
     const downs = movers.filter((m) => m.delta < 0);
 
-    const money = (v: number) => formatAmountListView(Math.abs(v), currency, 0);
+    const money = (v: number) =>
+      `${AMOUNT_MARK}${formatAmountListView(Math.abs(v), currency, 0)}${AMOUNT_MARK}`;
     const unit = unitName;
 
     // How the comparison is worded. Either the user's own baseline, or a named
@@ -1054,9 +1077,11 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
     // One line, always. Prefer the fuller phrasing, drop the bracketed sum when
     // it would push the sentence onto a second row and steal the next line.
     const MAX_LINE = 52;
+    // The fences are zero-width, so they do not count towards the line.
+    const visibleLength = (s: string) => s.replace(/⁣/g, '').length;
     const fitted = (build: (withMoney: boolean) => string) => {
       const full = build(true);
-      return full.length <= MAX_LINE ? full : build(false);
+      return visibleLength(full) <= MAX_LINE ? full : build(false);
     };
 
     const WORTH_NAMING = 100;
@@ -2101,10 +2126,12 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                           <div className="text-[11px] leading-snug truncate">{heroNote}</div>
                         ) : (
                           <>
-                            <div className="text-[11px] leading-snug">{periodSummary!.line1}</div>
+                            <div className="text-[11px] leading-snug">
+                              <InsightLine text={periodSummary!.line1} />
+                            </div>
                             {periodSummary!.line2 && (
                               <div className="text-[11px] leading-snug mt-0.5" style={{ color: 'rgba(235,235,245,0.45)' }}>
-                                {periodSummary!.line2}
+                                <InsightLine text={periodSummary!.line2} />
                               </div>
                             )}
                           </>

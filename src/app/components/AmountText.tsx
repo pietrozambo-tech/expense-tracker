@@ -65,14 +65,34 @@ export function AmountText({
 
   // Multi-letter symbols (CHF) read better with a space, same as the formatter.
   const sep = cur.symbol.length > 1 ? ' ' : '';
-  const quiet: React.CSSProperties = { fontSize: '0.72em', fontWeight: 500, opacity: 0.6 };
 
   return (
     <span className={className} style={style}>
       {sign || (rounded < 0 ? '-' : '')}
       {intText}
-      {fracText && <span style={quiet}>.{fracText}</span>}
-      <span style={quiet}>{sep}{cur.symbol}</span>
+      {fracText && <span style={QUIET}>.{fracText}</span>}
+      <span style={QUIET}>{sep}{cur.symbol}</span>
     </span>
+  );
+}
+
+/** The half-step back the symbol and cents take. */
+const QUIET: React.CSSProperties = { fontSize: '0.72em', fontWeight: 500, opacity: 0.6 };
+
+// The same typesetting for an amount that arrives already formatted, by
+// formatAmountListView, as text. Not the path to prefer - AmountText knows the
+// number and cannot misread it - but a sentence that measures its own length to
+// choose its phrasing has to be assembled as a string, and the amounts inside
+// it come back as text or not at all.
+export function AmountFromText({ text }: { text: string }) {
+  const parts = /^(-?[\d,]+)(\.\d+)?(.*)$/.exec(text);
+  if (!parts) return <>{text}</>;
+  const [, whole, cents, symbol] = parts;
+  return (
+    <>
+      {whole}
+      {cents && <span style={QUIET}>{cents}</span>}
+      {symbol && <span style={QUIET}>{symbol}</span>}
+    </>
   );
 }
