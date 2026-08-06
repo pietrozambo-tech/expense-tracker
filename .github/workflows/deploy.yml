@@ -54,17 +54,56 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
+      # This is what actions/deploy-pages@v4 does on its first two API calls -
+      # find the artifact, mint an OIDC token, create the deployment - and then
+      # it stops. The action's remaining job is to POLL until Pages reports
+      # success, and that polling is what kept breaking this repo:
+      #
+      #   const MAX_TIMEOUT = 600000
+      #   this.timeout = Math.min(timeoutInput, MAX_TIMEOUT)
+      #
+      # The ten-minute limit is hard-capped, so the `timeout` input cannot buy
+      # more room. Worse, on timeout the action CANCELS the deployment it just
+      # created, and `deployment_cancelled` is permanent and keyed by commit
+      # SHA - so that commit can never be published, and even a re-run dies
+      # instantly. On 2026-08-06 five consecutive deploys died this way while
+      # sitting in `deployment_queued`, purely because the queue was slow.
+      #
+      # Creating the deployment and exiting removes the timeout and the cancel
+      # together: Pages publishes whenever its queue gets there. The trade-off
+      # is real and deliberate - this job goes green once the deployment is
+      # ACCEPTED, not once the site is live, so a failure inside Pages itself
+      # will no longer turn the run red. The status URL is printed for that.
       - id: deployment
-        # Do NOT add `with: timeout:` here hoping to survive a slow Pages
-        # queue - it cannot work. The action hard-caps the input:
-        #
-        #   const MAX_TIMEOUT = 600000
-        #   this.timeout = Math.min(timeoutInput, MAX_TIMEOUT)
-        #
-        # so anything above ten minutes is silently clamped back down. When
-        # that limit is hit the action does not merely fail the run, it
-        # cancels the deployment, and `deployment_cancelled` is a permanent
-        # status keyed by commit SHA - so re-running the same commit dies
-        # instantly with "Deployment cancelled". Recovery is a NEW commit
-        # (an empty one is enough), never a re-run.
-        uses: actions/deploy-pages@v4
+        name: Queue the Pages deployment (without waiting for it)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          artifact_id="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts" \
+            --jq 'first(.artifacts[] | select(.name == "github-pages") | .id)')"
+          if [ -z "$artifact_id" ]; then
+            echo "::error::No 'github-pages' artifact on run $GITHUB_RUN_ID - did the build job upload it?"
+            exit 1
+          fi
+
+          # Same OIDC token the action requests: default audience, no argument.
+          id_token="$(curl -sS --fail \
+            -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL" | jq -r '.value')"
+          echo "::add-mask::$id_token"
+
+          # -F sends artifact_id as a number; -f would make it a string and the
+          # API rejects it.
+          response="$(gh api -X POST "repos/$GITHUB_REPOSITORY/pages/deployments" \
+            -F artifact_id="$artifact_id" \
+            -f pages_build_version="$GITHUB_SHA" \
+            -f oidc_token="$id_token")"
+
+          page_url="$(jq -r '.page_url // empty' <<<"$response")"
+          status_url="$(jq -r '.status_url // empty' <<<"$response")"
+          echo "page_url=$page_url" >> "$GITHUB_OUTPUT"
+          echo "Queued Pages deployment for $GITHUB_SHA"
+          echo "  site:   $page_url"
+          echo "  status: $status_url"
