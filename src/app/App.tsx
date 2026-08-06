@@ -126,6 +126,7 @@ import {
 import { track } from './lib/analytics';
 import { categories as initialCategories, incomeCategories as initialIncomeCategories, defaultCategoriesFor, defaultIncomeCategoriesFor } from './components/categories';
 import { reassignToOthers, CATCHALL_RE } from './lib/categoryOps';
+import { switchGlow } from './components/categoryColors';
 import { t, getLanguage, setLanguage, type Language } from './i18n';
 import { defaultSourcesFor } from './components/sources';
 
@@ -2038,7 +2039,7 @@ export default function App() {
                     style={{
                       top: 4, bottom: 4, left: 4, width: 'calc(50% - 4px)',
                       backgroundColor: '#FFFFFF',
-                      boxShadow: '0 1px 3px rgba(0,0,0,0.12)',
+                      boxShadow: switchGlow(transactionType === 'income' ? 'income' : 'expense'),
                       transform: transactionType === 'income' ? 'translateX(100%)' : 'translateX(0)',
                       transition: 'transform 220ms cubic-bezier(0.32, 0.72, 0, 1)',
                     }}

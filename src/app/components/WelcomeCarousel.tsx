@@ -1,4 +1,4 @@
-import { useRef, useState, type ReactNode } from 'react';
+import { useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { monthsFull, getLanguage } from '../i18n/store';
 import { t } from '../i18n';
 import {
@@ -406,6 +406,75 @@ function SettingsIllustration() {
   );
 }
 
+// One slide, sized to the space it actually has.
+//
+// The illustrations are fixed-height mock UI and the copy runs to four lines;
+// on a shorter phone the pair overflowed and the scroller quietly cut the last
+// line of the description in half - the words were reachable, but nothing said
+// so, and a tour slide that looks broken is worse than one that is small.
+//
+// The text always gets the room it needs; the illustration takes what is left,
+// scaled down to fit. offsetHeight ignores transforms, so both measurements
+// are of the UNSCALED layout and one pass settles it.
+function Slide({ illustration, title, desc }: { illustration: ReactNode; title: string; desc: string }) {
+  const boxRef = useRef<HTMLDivElement>(null);
+  const artRef = useRef<HTMLDivElement>(null);
+  const textRef = useRef<HTMLDivElement>(null);
+  const [art, setArt] = useState<{ scale: number; height: number }>({ scale: 1, height: 0 });
+
+  useLayoutEffect(() => {
+    const fit = () => {
+      const box = boxRef.current, a = artRef.current, txt = textRef.current;
+      if (!box || !a || !txt) return;
+      const natural = a.offsetHeight;
+      if (!natural) return;
+      const GAP = 24; // the mb-6 between picture and words
+      const PADDING = 8; // py-1 on the column below
+      const ROUNDING = 2; // sub-pixel line boxes; a hair of slack beats a clip
+      const room = box.clientHeight - txt.offsetHeight - GAP - PADDING - ROUNDING;
+      // Below ~62% the mock UI stops reading as a screenshot and starts
+      // reading as a thumbnail; past that point let the slide scroll.
+      const scale = room >= natural ? 1 : Math.max(0.62, room / natural);
+      setArt((prev) =>
+        Math.abs(prev.scale - scale) < 0.005 && prev.height === natural ? prev : { scale, height: natural },
+      );
+    };
+    fit();
+    const ro = new ResizeObserver(fit);
+    if (boxRef.current) ro.observe(boxRef.current);
+    document.fonts?.ready.then(fit).catch(() => {});
+    return () => ro.disconnect();
+  }, [illustration, desc]);
+
+  return (
+    <div
+      ref={boxRef}
+      className="flex-shrink-0 w-full overflow-y-auto px-7"
+      style={{ scrollSnapAlign: 'center' }}
+    >
+      {/* min-h-full, not justify-center on the scroller: centring a container
+          that overflows clips the TOP of the content. This centres while it
+          fits and grows downwards when it doesn't. */}
+      <div className="min-h-full flex flex-col justify-center py-1">
+        <div
+          className="mb-6"
+          style={{ height: art.height ? art.height * art.scale : undefined, overflow: 'hidden' }}
+        >
+          <div ref={artRef} style={{ transform: `scale(${art.scale})`, transformOrigin: 'top center' }}>
+            {illustration}
+          </div>
+        </div>
+        <div ref={textRef}>
+          <h2 style={{ color: '#1C1C1E', fontSize: 26, fontWeight: 700, letterSpacing: '-0.4px', marginBottom: 10, textWrap: 'balance' } as any}>
+            {title}
+          </h2>
+          <p style={{ color: '#8E8E93', fontSize: 16, lineHeight: 1.45 }}>{desc}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function WelcomeCarousel({ userName, onDone, onSetupCategories, onLoadDemo }: WelcomeCarouselProps) {
   const slides: Array<{ illustration: ReactNode; title: string; desc: string; cta?: 'demo' }> = [
     {
@@ -506,18 +575,7 @@ export function WelcomeCarousel({ userName, onDone, onSetupCategories, onLoadDem
         style={{ scrollSnapType: 'x mandatory', WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none' }}
       >
         {slides.map((slide, i) => (
-          <div key={i} className="flex-shrink-0 w-full overflow-y-auto px-7" style={{ scrollSnapAlign: 'center' }}>
-            {/* min-h-full, not justify-center on the scroller: centring a
-                container that overflows clips the top of the content. This
-                centres while it fits and grows downwards when it doesn't. */}
-            <div className="min-h-full flex flex-col justify-center py-1">
-              <div className="mb-6">{slide.illustration}</div>
-              <h2 style={{ color: '#1C1C1E', fontSize: 26, fontWeight: 700, letterSpacing: '-0.4px', marginBottom: 10, textWrap: 'balance' } as any}>
-                {slide.title}
-              </h2>
-              <p style={{ color: '#8E8E93', fontSize: 16, lineHeight: 1.45 }}>{slide.desc}</p>
-            </div>
-          </div>
+          <Slide key={i} illustration={slide.illustration} title={slide.title} desc={slide.desc} />
         ))}
       </div>
 

@@ -30,9 +30,15 @@ export function Onboarding({ onComplete, initialName = '' }: OnboardingProps) {
   };
 
   return (
-    <div className="min-h-screen flex flex-col max-w-[430px] mx-auto" style={{ backgroundColor: '#F6F5F2' }}>
+    // Fixed viewport height with the form scrolling inside it, not
+    // min-h-screen: the language step made this screen tall enough that on a
+    // shorter phone the CTA fell below the fold with nothing to say so.
+    <div className="flex flex-col max-w-[430px] mx-auto" style={{ height: '100dvh', backgroundColor: '#F6F5F2' }}>
       {/* Content */}
-      <div className="flex-1 flex flex-col px-6 pt-20">
+      <div
+        className="flex-1 min-h-0 overflow-y-auto flex flex-col px-6"
+        style={{ paddingTop: 'max(32px, env(safe-area-inset-top))' }}
+      >
         <h1 style={{
           color: '#1C1C1E',
           fontSize: '32px',
@@ -186,6 +192,7 @@ export function Onboarding({ onComplete, initialName = '' }: OnboardingProps) {
             <ChevronRight className="w-5 h-5" style={{ color: '#C7C7CC' }} />
           </button>
         </div>
+        <div className="h-6 flex-shrink-0" />
       </div>
 
       {/* Full currency list - tall sheet so results clear the keyboard */}
@@ -212,7 +219,12 @@ export function Onboarding({ onComplete, initialName = '' }: OnboardingProps) {
       )}
 
       {/* Fixed Bottom CTA */}
-      <div className="px-6 pb-8 pt-6">
+      {/* The CTA keeps clear of the home indicator on a modern iPhone, where
+          a flat pb-8 put it right on the bar. */}
+      <div
+        className="px-6 pt-5 flex-shrink-0"
+        style={{ paddingBottom: 'max(24px, calc(env(safe-area-inset-bottom) + 12px))' }}
+      >
         <button
           onClick={handleGetStarted}
           disabled={!name.trim()}

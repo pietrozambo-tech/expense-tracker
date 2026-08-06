@@ -68,3 +68,14 @@ const TEXT_HEX: Record<string, string> = {
 };
 
 export const categoryHex = (colorClass?: string): string => TEXT_HEX[colorClass ?? ''] ?? '#8E8E93';
+
+// The segmented Expense/Income/Savings switches carry their meaning-colour in
+// the thumb's SHADOW rather than its fill: a white thumb keeps the active
+// label crisp, and the glow underneath says which side you are on without
+// putting a coloured block on the card. Savings is a result, not a direction,
+// so it glows neutral.
+export function switchGlow(type: 'expense' | 'income' | 'savings'): string {
+  if (type === 'income') return '0 2px 8px rgba(31, 122, 67, 0.30)';
+  if (type === 'savings') return '0 2px 8px rgba(28, 28, 30, 0.26)';
+  return '0 2px 8px rgba(194, 53, 43, 0.30)';
+}

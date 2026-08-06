@@ -7,7 +7,7 @@ import { monthsShort, monthsFull, daysFull, daysShort, numberLocale, getLanguage
 import { t } from '../i18n';
 import { translateRecurrence } from '../i18n/store';
 import { getCategoryIcon } from './categoryIcons';
-import { categoryHex } from './categoryColors';
+import { categoryHex, switchGlow } from './categoryColors';
 import { usualCurve, periodCurve } from '../lib/usual';
 import { dayOfWeekBreakdown, dowTakeaway } from '../lib/dayOfWeek';
 import { BudgetBar, BudgetNudge } from './BudgetBar';
@@ -2228,7 +2228,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                 style={{
                   top: 4, bottom: 4, left: 4, width: 'calc(50% - 4px)',
                   backgroundColor: '#FFFFFF',
-                  boxShadow: '0 1px 3px rgba(0,0,0,0.12)',
+                  boxShadow: switchGlow(transactionType === 'income' ? 'income' : 'expense'),
                   transform: transactionType === 'income' ? 'translateX(100%)' : 'translateX(0)',
                   transition: 'transform 220ms cubic-bezier(0.32, 0.72, 0, 1)',
                 }}
@@ -3570,7 +3570,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                     style={{
                       top: 4, bottom: 4, left: 4, width: 'calc((100% - 8px) / 3)',
                       backgroundColor: '#FFFFFF',
-                      boxShadow: '0 1px 3px rgba(0,0,0,0.12)',
+                      boxShadow: switchGlow(transactionType),
                       transform:
                         transactionType === 'income' ? 'translateX(100%)'
                         : transactionType === 'savings' ? 'translateX(200%)'
