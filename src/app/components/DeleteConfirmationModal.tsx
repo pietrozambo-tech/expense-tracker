@@ -1,4 +1,5 @@
 import { AlertTriangle } from 'lucide-react';
+import { t } from '../i18n';
 
 interface DeleteConfirmationModalProps {
   type: 'category' | 'subcategory';
@@ -28,16 +29,16 @@ export function DeleteConfirmationModal({
         {/* Content */}
         <div className="px-6 py-4 text-center">
           <h3 className="text-neutral-900 font-semibold text-lg mb-2">
-            {type === 'category' ? 'Delete Category?' : 'Delete Subcategory?'}
+            {type === 'category' ? t('del.catTitle') : t('del.subTitle')}
           </h3>
           
           {type === 'category' ? (
             <p className="text-neutral-600 text-sm">
-              Deleting "<span className="font-medium">{categoryName}</span>" will also delete all subcategories and unlink existing expenses from this category.
+              {t('del.catBodyPre')}<span className="font-medium">{categoryName}</span>{t('del.catBodyPost')}
             </p>
           ) : (
             <p className="text-neutral-600 text-sm">
-              Are you sure you want to delete "<span className="font-medium">{subcategoryName}</span>" from {categoryName}?
+              {t('del.subBodyPre')}<span className="font-medium">{subcategoryName}</span>{t('del.subBodyPost')}
             </p>
           )}
         </div>
@@ -48,13 +49,13 @@ export function DeleteConfirmationModal({
             onClick={onConfirm}
             className="w-full py-3 bg-red-500 text-white rounded-xl font-medium active:bg-red-600 transition-colors"
           >
-            Delete
+            {t('common.delete')}
           </button>
           <button
             onClick={onCancel}
             className="w-full py-3 bg-neutral-100 text-neutral-900 rounded-xl font-medium active:bg-neutral-200 transition-colors"
           >
-            Cancel
+            {t('common.cancel')}
           </button>
         </div>
       </div>

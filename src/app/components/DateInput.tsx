@@ -122,7 +122,7 @@ export function DateInput({ value, onChange, showDatePicker, setShowDatePicker, 
             type="button"
           >
             <Repeat className="w-4 h-4" strokeWidth={1.5} />
-            <span>{recurrenceState}</span>
+            <span>{translateRecurrence(recurrenceState)}</span>
           </button>
         </div>
         

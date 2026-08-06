@@ -1,4 +1,5 @@
 import { CheckCircle2, AlertTriangle } from 'lucide-react';
+import { t } from '../i18n';
 import type { ImportResult } from '../lib/importData';
 
 // Shown after an import when something needs the user: transactions that
@@ -40,7 +41,7 @@ export function ImportSummaryDialog({
 
         <div className="px-6 pt-4 pb-1 text-center">
           <h3 className="text-neutral-900 font-bold text-lg">
-            {failed ? 'Nothing imported' : `${added} transaction${added === 1 ? '' : 's'} imported`}
+            {failed ? t('imp.failed') : t(added === 1 ? 'imp.done.one' : 'imp.done.other', { n: added })}
           </h3>
         </div>
 
@@ -49,18 +50,17 @@ export function ImportSummaryDialog({
             <>
               <p className="text-neutral-700 text-sm leading-relaxed">
                 <span className="font-bold">{uncategorized}</span>{' '}
-                couldn&apos;t be matched to your categories.
+                {t('imp.uncatPost')}
               </p>
               <p className="text-neutral-500 text-[13px] leading-relaxed">
-                Review them in Activity with the <span className="font-semibold">Imported</span> filter
-                and set the right category as you go.
+                {t('imp.reviewPre')} <span className="font-semibold">{t('act.type.imported')}</span>{' '}
+                {t('imp.reviewPost')}
               </p>
             </>
           )}
           {realSkips.length > 0 && (
             <p className="text-neutral-400 text-xs leading-relaxed">
-              {realSkips.length} row{realSkips.length === 1 ? '' : 's'} couldn&apos;t be read and{' '}
-              {realSkips.length === 1 ? 'was' : 'were'} left out.
+              {t(realSkips.length === 1 ? 'imp.skipped.one' : 'imp.skipped.other', { n: realSkips.length })}
             </p>
           )}
         </div>
@@ -73,13 +73,13 @@ export function ImportSummaryDialog({
                 className="w-full py-3 rounded-xl font-semibold text-white active:scale-[0.98] transition-transform"
                 style={{ backgroundColor: '#3B82F6' }}
               >
-                Review in Activity
+                {t('imp.reviewCta')}
               </button>
               <button
                 onClick={onClose}
                 className="w-full py-2.5 rounded-xl font-medium text-neutral-500 active:bg-neutral-100 transition-colors"
               >
-                Not now
+                {t('common.notNow')}
               </button>
             </>
           ) : (

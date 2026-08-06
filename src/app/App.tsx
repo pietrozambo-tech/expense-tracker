@@ -679,7 +679,7 @@ export default function App() {
       setRefreshKey((prev) => prev + 1);
     }
     if (res.createdCount > 0) {
-      toast.success(`${res.createdCount} recurring transaction${res.createdCount === 1 ? '' : 's'} added`, {
+      toast.success(t(res.createdCount === 1 ? 'toast.recAdded.one' : 'toast.recAdded.other', { n: res.createdCount }), {
         duration: 2000,
       });
     }
@@ -795,12 +795,12 @@ export default function App() {
     if (isSaving) return;
     
     if (!amount || parseFloat(amount) === 0) {
-      toast.error('Please enter an amount');
+      toast.error(t('toast.amountRequired'));
       return;
     }
 
     if (!selectedCategory) {
-      toast.error('Please select a category');
+      toast.error(t('toast.categoryRequired'));
       return;
     }
 
@@ -871,7 +871,7 @@ export default function App() {
       // Force refresh
       setRefreshKey(prev => prev + 1);
       
-      toast.success(`${transactionType === 'expense' ? 'Expense' : 'Income'} updated`, {
+      toast.success(t(transactionType === 'expense' ? 'toast.expenseUpdated' : 'toast.incomeUpdated'), {
         duration: 1400,
       });
     } else {
@@ -921,7 +921,7 @@ export default function App() {
       const formattedToastAmount = `${amount}${sep}${currencyData.symbol}`;
 
 
-      toast.success(`${formattedToastAmount} saved for ${categoryName}`, {
+      toast.success(t('toast.saved', { amt: formattedToastAmount, cat: categoryName ?? '' }), {
         duration: 1400,
       });
     }
@@ -967,7 +967,7 @@ export default function App() {
     };
     setCategories([...categories, newCategory]);
     setRefreshKey(prev => prev + 1);
-    toast.success('Category added', {
+    toast.success(t('toast.catAdded'), {
       duration: 1400,
     });
   };
@@ -986,7 +986,7 @@ export default function App() {
     ));
     
     setRefreshKey(prev => prev + 1);
-    toast.success('Category updated', {
+    toast.success(t('toast.catUpdated'), {
       duration: 1400,
     });
   };
@@ -999,7 +999,7 @@ export default function App() {
     setCategories(cats);
     setExpenses(txns);
     setRefreshKey(prev => prev + 1);
-    toast.success('Category deleted', {
+    toast.success(t('toast.catDeleted'), {
       duration: 1400,
     });
   };
@@ -1026,7 +1026,7 @@ export default function App() {
   const handleAddSubcategory = (categoryId: string, subcategoryName: string) => {
     editSubcategories(categoryId, (subs) => [...subs, subcategoryName]);
     setRefreshKey(prev => prev + 1);
-    toast.success('Subcategory added', {
+    toast.success(t('toast.subAdded'), {
       duration: 1400,
     });
   };
@@ -1043,7 +1043,7 @@ export default function App() {
     ));
 
     setRefreshKey(prev => prev + 1);
-    toast.success('Subcategory updated', {
+    toast.success(t('toast.subUpdated'), {
       duration: 1400,
     });
   };
@@ -1059,7 +1059,7 @@ export default function App() {
     ));
 
     setRefreshKey(prev => prev + 1);
-    toast.success('Subcategory deleted', {
+    toast.success(t('toast.subDeleted'), {
       duration: 1400,
     });
   };
@@ -1073,7 +1073,7 @@ export default function App() {
     };
     setIncomeCategories([...incomeCategories, newCategory]);
     setRefreshKey(prev => prev + 1);
-    toast.success('Income category added', {
+    toast.success(t('toast.incCatAdded'), {
       duration: 1400,
     });
   };
@@ -1092,7 +1092,7 @@ export default function App() {
     ));
     
     setRefreshKey(prev => prev + 1);
-    toast.success('Income category updated', {
+    toast.success(t('toast.incCatUpdated'), {
       duration: 1400,
     });
   };
@@ -1106,24 +1106,24 @@ export default function App() {
     setIncomeCategories(cats);
     setExpenses(txns);
     setRefreshKey(prev => prev + 1);
-    toast.success('Income category deleted', {
+    toast.success(t('toast.incCatDeleted'), {
       duration: 1400,
     });
   };
 
   const handleDeleteExpense = (id: string) => {
-    const t = expenses.find((e) => e.id === id);
-    const chainRule = t?.recurrenceOf
-      ? recurringRules.find((r) => r.id === t.recurrenceOf && isActiveRule(r))
+    const txn = expenses.find((e) => e.id === id);
+    const chainRule = txn?.recurrenceOf
+      ? recurringRules.find((r) => r.id === txn.recurrenceOf && isActiveRule(r))
       : undefined;
-    if (t && chainRule) {
+    if (txn && chainRule) {
       // Recurring: ask whether to delete just this occurrence or stop the chain.
-      setPendingRecurringDelete(t);
+      setPendingRecurringDelete(txn);
       return;
     }
     setExpenses(expenses.filter(expense => expense.id !== id));
     setRefreshKey(prev => prev + 1);
-    toast.success('Expense deleted', {
+    toast.success(t('toast.txDeleted'), {
       duration: 1400,
     });
   };
@@ -1198,7 +1198,7 @@ export default function App() {
     }
     setPendingRecurringEdit(null);
     setRefreshKey((prev) => prev + 1);
-    toast.success('Transaction updated', { duration: 1400 });
+    toast.success(t('toast.txUpdated'), { duration: 1400 });
     finishAddFlow(true);
   };
 
@@ -1264,8 +1264,8 @@ export default function App() {
     setRefreshKey(prev => prev + 1);
     setCurrentTab('dashboard');
     track('demo_loaded');
-    toast.success('Demo data loaded', {
-      description: 'Added on top of your data — remove it anytime',
+    toast.success(t('toast.demoLoaded'), {
+      description: t('toast.demoLoadedDesc'),
       duration: 1600,
     });
   };
@@ -1277,7 +1277,7 @@ export default function App() {
     setExpenses((prev) => prev.filter((e) => !e.id.startsWith('demo-')));
     setRefreshKey((prev) => prev + 1);
     setCurrentTab('dashboard');
-    toast.success('Demo data removed', { duration: 1400 });
+    toast.success(t('toast.demoRemoved'), { duration: 1400 });
   };
 
   // Export everything as a single backup file: settings, categories,
@@ -1300,12 +1300,12 @@ export default function App() {
         })
       );
       track('data_exported', { count: expenses.length });
-      toast.success('Backup exported', {
-        description: `${expenses.length} transaction${expenses.length === 1 ? '' : 's'} saved to a file`,
+      toast.success(t('toast.backupExported'), {
+        description: t(expenses.length === 1 ? 'toast.backupExportedDesc.one' : 'toast.backupExportedDesc.other', { n: expenses.length }),
         duration: 2000,
       });
     } catch {
-      toast.error('Export failed');
+      toast.error(t('toast.exportFailed'));
     }
   };
 
@@ -1342,12 +1342,12 @@ export default function App() {
     try {
       downloadTransactionsCsv(buildTransactionsCsv(expenses, userCurrency, sources));
       track('data_exported_csv', { count: expenses.length });
-      toast.success('CSV exported', {
-        description: `${expenses.length} transaction${expenses.length === 1 ? '' : 's'} - opens in any spreadsheet`,
+      toast.success(t('toast.csvExported'), {
+        description: t(expenses.length === 1 ? 'toast.csvExportedDesc.one' : 'toast.csvExportedDesc.other', { n: expenses.length }),
         duration: 2000,
       });
     } catch {
-      toast.error('Export failed');
+      toast.error(t('toast.exportFailed'));
     }
   };
 
@@ -1378,8 +1378,8 @@ export default function App() {
     setRefreshKey((prev) => prev + 1);
     setCurrentTab('dashboard');
     track('backup_restored', { count });
-    toast.success('Backup restored', {
-      description: `${count} transaction${count === 1 ? '' : 's'} loaded`,
+    toast.success(t('toast.backupRestored'), {
+      description: t(count === 1 ? 'toast.backupRestoredDesc.one' : 'toast.backupRestoredDesc.other', { n: count }),
       duration: 2000,
     });
   };
@@ -1412,8 +1412,8 @@ export default function App() {
       // guard is bookkeeping, not news.
       setImportSummary(res);
     } else {
-      toast.success(`Imported ${res.added} transaction${res.added === 1 ? '' : 's'}`, {
-        description: 'All matched to your categories',
+      toast.success(t(res.added === 1 ? 'toast.imported.one' : 'toast.imported.other', { n: res.added }), {
+        description: t('toast.importedDesc'),
         duration: 2200,
       });
       // The import may have dropped a year of one-offs behind series that
@@ -1440,7 +1440,7 @@ export default function App() {
     const realSkips = res.skipped.filter((sk) => sk.reason !== 'zero amount');
     if (res.added === 0) {
       if (realSkips.length) setImportSummary(res);
-      else toast.error('Nothing imported', { description: 'No transactions found in the file', duration: 2200 });
+      else toast.error(t('toast.nothingImported'), { description: t('toast.nothingImportedFile'), duration: 2200 });
       return res;
     }
     if (res.proposedSubcategories.length > 0) {
@@ -1481,8 +1481,8 @@ export default function App() {
       // Erasing must clear the cloud copy too, or the next sign-in silently
       // resurrects the "erased" data. Refuse rather than half-erase.
       if (typeof navigator !== 'undefined' && navigator.onLine === false) {
-        toast.error("You're offline", {
-          description: 'Erasing also clears your cloud backup, which needs a connection. Try again when back online.',
+        toast.error(t('toast.offline'), {
+          description: t('toast.offlineEraseDesc'),
           duration: 3200,
         });
         return;
@@ -1492,8 +1492,8 @@ export default function App() {
         await deleteCloud(userId);
       } catch {
         setCloudHydrated(true);
-        toast.error("Couldn't erase your cloud data", {
-          description: 'Check your connection and try again.',
+        toast.error(t('toast.eraseCloudFailed'), {
+          description: t('toast.checkConnection'),
           duration: 3200,
         });
         return;
@@ -1560,15 +1560,15 @@ export default function App() {
     setUserCurrency(newCurrency);
     setRefreshKey(prev => prev + 1); // Force refresh of dashboard
     
-    toast.success(`Currency updated to ${newCurrency}`, {
-      description: 'New transactions will use this currency',
+    toast.success(t('toast.currencyUpdated', { c: newCurrency }), {
+      description: t('toast.currencyUpdatedDesc'),
       duration: 1400,
     });
   };
 
   const handleUserNameChange = (newName: string) => {
     setUserName(newName);
-    toast.success('Name updated successfully', {
+    toast.success(t('toast.nameUpdated'), {
       duration: 1400,
     });
   };
@@ -1607,13 +1607,24 @@ export default function App() {
         <div className="flex-1 flex flex-col items-center justify-center text-center">
           <TracklyLogo size={56} className="mb-5" />
           <h1 style={{ color: '#1C1C1E', fontSize: 22, fontWeight: 700, letterSpacing: '-0.02em', marginBottom: 10 }}>
-            This device holds another account's data
+            {t('guard.title')}
           </h1>
           <p style={{ color: '#6B6B75', fontSize: 15, lineHeight: 1.5, maxWidth: 320 }}>
-            You're signed in as <span style={{ color: '#1C1C1E', fontWeight: 600 }}>{userEmail}</span>, but the
-            expenses stored here belong to{' '}
-            <span style={{ color: '#1C1C1E', fontWeight: 600 }}>{ownerConflict.email || 'a different account'}</span>.
-            To protect them, nothing has been uploaded to your account.
+            {getLanguage() === 'it' ? (
+              <>
+                Hai effettuato l'accesso come <span style={{ color: '#1C1C1E', fontWeight: 600 }}>{userEmail}</span>,
+                ma le spese salvate qui appartengono a{' '}
+                <span style={{ color: '#1C1C1E', fontWeight: 600 }}>{ownerConflict.email || 'un altro account'}</span>.
+                Per proteggerle, nulla è stato caricato sul tuo account.
+              </>
+            ) : (
+              <>
+                You're signed in as <span style={{ color: '#1C1C1E', fontWeight: 600 }}>{userEmail}</span>, but the
+                expenses stored here belong to{' '}
+                <span style={{ color: '#1C1C1E', fontWeight: 600 }}>{ownerConflict.email || 'a different account'}</span>.
+                To protect them, nothing has been uploaded to your account.
+              </>
+            )}
           </p>
         </div>
         <div className="pt-4 flex-shrink-0" style={{ paddingBottom: 'max(24px, env(safe-area-inset-bottom))' }}>
@@ -1629,14 +1640,15 @@ export default function App() {
             className="w-full py-4 rounded-2xl font-medium text-base transition-all active:scale-[0.98]"
             style={{ backgroundColor: '#3B82F6', color: '#FFFFFF', boxShadow: '0 2px 8px rgba(0,122,255,0.25)' }}
           >
-            Start fresh with my account
+            {t('guard.fresh')}
           </button>
           <p className="text-center mt-2 px-4" style={{ color: '#A5A5AD', fontSize: 12, lineHeight: 1.45 }}>
-            Removes that data from this device only. {ownerConflict.email || 'The other account'} keeps
-            whatever was last backed up to its own account.
+            {getLanguage() === 'it'
+              ? <>Rimuove quei dati solo da questo dispositivo. {ownerConflict.email || "L'altro account"} conserva l'ultimo backup fatto sul proprio account.</>
+              : <>Removes that data from this device only. {ownerConflict.email || 'The other account'} keeps whatever was last backed up to its own account.</>}
           </p>
           <button onClick={() => void signOut()} className="w-full py-3 mt-1 text-[15px] font-medium" style={{ color: '#8E8E93' }}>
-            Go back
+            {t('guard.back')}
           </button>
         </div>
       </div>
@@ -1650,7 +1662,7 @@ export default function App() {
   // let the cloud merge in behind: the app is offline-first, so blocking every
   // launch on a network round trip made the whole UI hostage to the slowest
   // connection (measured at 5.5s on a bad one, for data already on the device).
-  if (session && !cloudHydrated && expenses.length === 0) return splash('Loading your data…');
+  if (session && !cloudHydrated && expenses.length === 0) return splash(t('guard.loading'));
 
   // Show onboarding if not completed. Pre-fill the name with the first name
   // from the signed-in account (Google gives `given_name`), surname excluded.
@@ -1732,7 +1744,7 @@ export default function App() {
           onCancel={() => {
             setPendingImport(null);
             track('import_review_cancelled', { proposed: pendingImport.proposedSubcategories.length });
-            toast('Import cancelled', { description: 'Nothing was added', duration: 2000 });
+            toast('Import cancelled', { description: t('toast.nothingAdded'), duration: 2000 });
           }}
         />
       )}
@@ -1931,7 +1943,7 @@ export default function App() {
               </button>
               <button
                 onClick={() => setCurrentTab('add')}
-                aria-label="Add transaction"
+                aria-label={t('add.aria')}
                 className="flex flex-col items-center pointer-events-auto justify-self-center"
               >
                 <div
@@ -2017,7 +2029,7 @@ export default function App() {
                       borderRight: '1px solid #E5E5EA'
                     }}
                   >
-                    Expense
+                    {t('add.expense')}
                   </button>
                   <button
                     onClick={() => handleTransactionTypeChange('income')}
@@ -2027,7 +2039,7 @@ export default function App() {
                       color: transactionType === 'income' ? '#2E7D32' : '#8E8E93'
                     }}
                   >
-                    Income
+                    {t('add.income')}
                   </button>
                 </div>
               </div>
@@ -2044,7 +2056,7 @@ export default function App() {
                     onClick={() => setShowSourceSelector(true)}
                     className="flex items-center gap-1 rounded-full pl-1 pr-1.5 py-1 active:scale-95 transition-transform"
                     style={{ backgroundColor: '#F2F1ED', WebkitTapHighlightColor: 'transparent' }}
-                    aria-label="Select source"
+                    aria-label={t('add.selectSource')}
                   >
                     <SourceLogo source={sources.find(s => s.id === selectedSourceId)} size={24} />
                     <ChevronDown className="w-3.5 h-3.5" style={{ color: '#8E8E93' }} strokeWidth={2.5} />
@@ -2075,7 +2087,7 @@ export default function App() {
                 <div className="px-6 -mt-2 pb-4 flex items-center gap-1.5">
                   <Repeat className="w-3.5 h-3.5 flex-shrink-0" style={{ color: '#8E8E93' }} strokeWidth={2} />
                   <span style={{ color: '#8E8E93', fontSize: 12.5, lineHeight: 1.4 }}>
-                    Added automatically by your recurring schedule. Edits change only this occurrence.
+                    {t('add.occurrenceNote')}
                   </span>
                 </div>
               )}
@@ -2120,10 +2132,10 @@ export default function App() {
       {pendingRecurringEdit && (
         <div className="relative z-[60]">
           <RecurringScopeDialog
-            title="Save changes?"
-            message="This transaction repeats. Apply your changes to just this one, or to this one and the future ones?"
-            onlyThisLabel="Only this transaction"
-            futureLabel="This and future ones"
+            title={t('dlg.saveChanges')}
+            message={t('dlg.repeatEditMsg')}
+            onlyThisLabel={t('dlg.onlyThis')}
+            futureLabel={t('dlg.future')}
             onOnlyThis={() => confirmRecurringEdit('one')}
             onFuture={() => confirmRecurringEdit('future')}
             onCancel={() => setPendingRecurringEdit(null)}
@@ -2134,10 +2146,10 @@ export default function App() {
         <div className="relative z-[60]">
           <RecurringScopeDialog
             variant="danger"
-            title="Delete recurring transaction?"
-            message="This transaction repeats. Delete just this one, or this one and stop the schedule from here on?"
-            onlyThisLabel="Only this transaction"
-            futureLabel="This and future ones"
+            title={t('dlg.deleteRecurring')}
+            message={t('dlg.repeatDeleteMsg')}
+            onlyThisLabel={t('dlg.onlyThis')}
+            futureLabel={t('dlg.future')}
             onOnlyThis={() => confirmRecurringDelete('one')}
             onFuture={() => confirmRecurringDelete('future')}
             onCancel={() => setPendingRecurringDelete(null)}
@@ -2162,7 +2174,7 @@ export default function App() {
                 const ids = new Set(pendingDuplicates.map((d) => d.generated.id));
                 setExpenses((prev) => prev.filter((e) => !ids.has(e.id)));
                 setRefreshKey((prev) => prev + 1);
-                toast.success(`${n} duplicate${n === 1 ? '' : 's'} removed`, { duration: 1600 });
+                toast.success(t(n === 1 ? 'toast.dupes.one' : 'toast.dupes.other', { n }), { duration: 1600 });
                 setPendingDuplicates(null);
                 // The tidy-up offer, if any, waits for the next open.
               }}
@@ -2200,7 +2212,7 @@ export default function App() {
                 .filter((id) => !approvedIds.has(id));
               if (declined.length) saveBackTagDismissed([...new Set([...loadBackTagDismissed(), ...declined])]);
               setRefreshKey((prev) => prev + 1);
-              toast.success(`${total} transaction${total === 1 ? '' : 's'} marked as recurring`, { duration: 1600 });
+              toast.success(t(total === 1 ? 'toast.markedRec.one' : 'toast.markedRec.other', { n: total }), { duration: 1600 });
               setPendingSeriesCleanup(null);
             }}
             onCancel={() => {
@@ -2222,13 +2234,19 @@ export default function App() {
           <ConfirmDialog
             variant="neutral"
             icon={Repeat}
-            title="Include earlier ones?"
-            message={`${pendingBackTag.ids.length} past transaction${pendingBackTag.ids.length === 1 ? '' : 's'} named "${pendingBackTag.name}" ${pendingBackTag.ids.length === 1 ? 'is' : 'are'} not marked as recurring. Mark ${pendingBackTag.ids.length === 1 ? 'it' : 'them'} as part of this series too?`}
-            confirmLabel={`Mark ${pendingBackTag.ids.length === 1 ? 'it' : 'all ' + pendingBackTag.ids.length} recurring`}
+            title={getLanguage() === 'it' ? 'Includere anche le precedenti?' : 'Include earlier ones?'}
+            message={getLanguage() === 'it'
+              ? (pendingBackTag.ids.length === 1
+                  ? `1 transazione passata chiamata "${pendingBackTag.name}" non è segnata come ricorrente. Segnarla come parte di questa serie?`
+                  : `${pendingBackTag.ids.length} transazioni passate chiamate "${pendingBackTag.name}" non sono segnate come ricorrenti. Segnarle come parte di questa serie?`)
+              : `${pendingBackTag.ids.length} past transaction${pendingBackTag.ids.length === 1 ? '' : 's'} named "${pendingBackTag.name}" ${pendingBackTag.ids.length === 1 ? 'is' : 'are'} not marked as recurring. Mark ${pendingBackTag.ids.length === 1 ? 'it' : 'them'} as part of this series too?`}
+            confirmLabel={getLanguage() === 'it'
+              ? (pendingBackTag.ids.length === 1 ? 'Segnala come ricorrente' : `Segna tutte e ${pendingBackTag.ids.length}`)
+              : `Mark ${pendingBackTag.ids.length === 1 ? 'it' : 'all ' + pendingBackTag.ids.length} recurring`}
             onConfirm={() => {
               setExpenses((prev) => tagPastSeries(prev, pendingBackTag.ids, pendingBackTag.rule));
               setRefreshKey((prev) => prev + 1);
-              toast.success(`${pendingBackTag.ids.length} transaction${pendingBackTag.ids.length === 1 ? '' : 's'} marked as recurring`, { duration: 1600 });
+              toast.success(t(pendingBackTag.ids.length === 1 ? 'toast.markedRec.one' : 'toast.markedRec.other', { n: pendingBackTag.ids.length }), { duration: 1600 });
               setPendingBackTag(null);
             }}
             onCancel={() => setPendingBackTag(null)}

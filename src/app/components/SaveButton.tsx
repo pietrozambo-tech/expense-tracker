@@ -1,3 +1,5 @@
+import { t } from '../i18n';
+
 interface SaveButtonProps {
   onClick: () => void;
   disabled: boolean;
@@ -6,10 +8,10 @@ interface SaveButtonProps {
 }
 
 export function SaveButton({ onClick, disabled, isEditing = false, transactionType }: SaveButtonProps) {
-  const transactionLabel = transactionType === 'expense' ? 'Expense' : 'Income';
+  const transactionLabel = transactionType === 'expense' ? t('add.expense') : t('add.income');
   const buttonText = isEditing
-    ? `Update ${transactionLabel}`
-    : `Save ${transactionLabel}`;
+    ? t('save.update', { type: transactionLabel })
+    : t('save.new', { type: transactionLabel });
 
   return (
     <div className="fixed bottom-0 left-0 right-0 bg-gradient-to-t from-white from-60% via-white/80 to-transparent pt-8 pb-6 z-30 pointer-events-none max-w-[430px] mx-auto">

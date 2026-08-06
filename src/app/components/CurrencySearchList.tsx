@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { t } from '../i18n';
 import { Search } from 'lucide-react';
 import { CURRENCIES } from '../utils/currency';
 
@@ -28,7 +29,7 @@ export function CurrencySearchList({ selected, onSelect, autoFocus = true }: Cur
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search currency"
+          placeholder={t('add.searchCurrency')}
           autoFocus={autoFocus}
           // 16px (text-base) prevents iOS Safari from auto-zooming on focus
           className="w-full pl-9 pr-3 py-2.5 bg-white rounded-xl text-base outline-none shadow-sm focus:ring-2 focus:ring-blue-500"

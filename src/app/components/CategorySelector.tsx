@@ -1,4 +1,5 @@
 import { Fragment } from 'react';
+import { t } from '../i18n';
 import { X } from 'lucide-react';
 import { getCategoryIcon } from './categoryIcons';
 
@@ -46,7 +47,7 @@ export function CategorySelector({
 
   return (
     <div className="px-6 pb-6">
-      <h3 className="text-neutral-700 font-semibold mb-2.5">Category</h3>
+      <h3 className="text-neutral-700 font-semibold mb-2.5">{t('add.category')}</h3>
 
       <div className="grid grid-cols-2 gap-2.5">
         {sortedCategories.map((category, index) => {
@@ -109,12 +110,12 @@ export function CategorySelector({
                       className="text-[11px] font-semibold"
                       style={{ color: '#8E8E93', letterSpacing: '0.06em' }}
                     >
-                      SUBCATEGORY
+                      {t('add.subcategory')}
                     </span>
                     <button
                       onClick={() => onSelectSubcategory?.(null)}
                       className="w-6 h-6 -mr-1 flex items-center justify-center rounded-full active:bg-neutral-100"
-                      aria-label="Clear subcategory"
+                      aria-label={t('add.clearSub')}
                       style={{
                         visibility: selectedSubcategory ? 'visible' : 'hidden',
                         pointerEvents: selectedSubcategory ? 'auto' : 'none'

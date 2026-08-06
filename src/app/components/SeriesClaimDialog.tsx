@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { t } from '../i18n';
 import { Check, Repeat } from 'lucide-react';
 import type { SeriesClaim } from '../lib/recurrence';
 import { AmountText } from './AmountText';
@@ -44,10 +45,9 @@ export function SeriesClaimDialog({
         </div>
 
         <div className="px-6 pt-4 pb-1 text-center">
-          <h3 className="text-neutral-900 font-bold text-lg">Mark past transactions as recurring?</h3>
+          <h3 className="text-neutral-900 font-bold text-lg">{t('series.title')}</h3>
           <p className="text-neutral-500 text-[13px] leading-relaxed mt-1.5">
-            These older transactions look like history of series you already have. Marking
-            them only labels the past - your schedules stay exactly as they are.
+            {t('series.body')}
           </p>
         </div>
 
@@ -79,7 +79,7 @@ export function SeriesClaimDialog({
                     {c.label}
                   </span>
                   <span className="block text-[12px]" style={{ color: '#8E8E93' }}>
-                    {c.rows.length} transaction{c.rows.length === 1 ? '' : 's'} · typically{' '}
+                    {t(c.rows.length === 1 ? 'act.header.one' : 'act.header.other', { n: c.rows.length })} · {t('series.typically')}{' '}
                     <AmountText amount={c.medianAmount} currency={currency} decimals={0} />
                   </span>
                   {/* Say WHY, so a claim on a differently worded bill can be
@@ -87,7 +87,7 @@ export function SeriesClaimDialog({
                   {/* Wraps rather than truncates: a claim made on shape has to
                       be readable in full to be judged. */}
                   <span className="block text-[12px] leading-snug" style={{ color: sameWording ? '#8E8E93' : '#C77700' }}>
-                    {sameWording ? `joins "${seriesName}"` : `joins "${seriesName}" - same category, similar amount, monthly`}
+                    {t(sameWording ? 'series.joins' : 'series.joinsShape', { name: seriesName })}
                   </span>
                 </span>
               </button>
@@ -105,10 +105,10 @@ export function SeriesClaimDialog({
               color: total === 0 ? '#9CA3AF' : '#FFFFFF',
             }}
           >
-            {total === 0 ? 'Nothing selected' : `Mark ${total} transaction${total === 1 ? '' : 's'} recurring`}
+            {total === 0 ? t('series.nothing') : t(total === 1 ? 'series.mark.one' : 'series.mark.other', { n: total })}
           </button>
           <button onClick={onCancel} className="w-full py-2.5 text-[14px] font-medium" style={{ color: '#8E8E93' }}>
-            Not now
+            {t('common.notNow')}
           </button>
         </div>
       </div>

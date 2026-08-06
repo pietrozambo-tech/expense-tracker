@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { t } from '../i18n';
 import { CURRENCIES, MAIN_CURRENCY_CODES } from '../utils/currency';
 import { ChevronDown, ChevronRight, ChevronLeft, Search } from 'lucide-react';
 
@@ -178,7 +179,7 @@ export function AmountInput({ value, onChange, currency, onCurrencyChange, right
                   onClick={() => setShowAllCurrencies(true)}
                   className="w-full flex items-center justify-between px-5 py-4 mt-3 rounded-2xl bg-neutral-50 active:bg-neutral-100 transition-colors"
                 >
-                  <span className="font-medium text-neutral-700" style={{ fontSize: '16px' }}>Others</span>
+                  <span className="font-medium text-neutral-700" style={{ fontSize: '16px' }}>{t('add.otherCurrencies')}</span>
                   <ChevronRight className="w-5 h-5 text-neutral-400" />
                 </button>
               </>
@@ -197,7 +198,7 @@ export function AmountInput({ value, onChange, currency, onCurrencyChange, right
                     <input
                       value={currencySearch}
                       onChange={(e) => setCurrencySearch(e.target.value)}
-                      placeholder="Search currency"
+                      placeholder={t('add.searchCurrency')}
                       autoFocus
                       // 16px (text-base) prevents iOS Safari from auto-zooming
                       // when the field is focused.
@@ -207,7 +208,7 @@ export function AmountInput({ value, onChange, currency, onCurrencyChange, right
                 </div>
                 <div className="bg-white rounded-2xl overflow-y-auto flex-1 min-h-0" style={{ WebkitOverflowScrolling: 'touch' }}>
                   {allCurrencyCodes.length === 0 ? (
-                    <div className="text-center py-8 text-neutral-400 text-sm">No currency found</div>
+                    <div className="text-center py-8 text-neutral-400 text-sm">{t('add.noCurrency')}</div>
                   ) : (
                     allCurrencyCodes.map((code, i) => renderCurrencyRow(code, i < allCurrencyCodes.length - 1))
                   )}

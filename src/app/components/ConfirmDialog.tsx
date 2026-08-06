@@ -1,4 +1,5 @@
 import { AlertTriangle, FlaskConical, type LucideIcon } from 'lucide-react';
+import { t } from '../i18n';
 
 interface ConfirmDialogProps {
   title: string;
@@ -54,7 +55,7 @@ export function ConfirmDialog({
             className="flex-1 py-3 rounded-xl font-medium text-base transition-colors active:scale-[0.98]"
             style={{ backgroundColor: '#F2F1ED', color: '#1C1C1E' }}
           >
-            Cancel
+            {t('common.cancel')}
           </button>
           <button
             onClick={onConfirm}

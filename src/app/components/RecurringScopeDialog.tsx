@@ -1,4 +1,5 @@
 import { Repeat } from 'lucide-react';
+import { t } from '../i18n';
 
 interface RecurringScopeDialogProps {
   title: string;
@@ -61,9 +62,7 @@ export function RecurringScopeDialog({
             onClick={onCancel}
             className="w-full py-2.5 rounded-xl font-medium text-[15px]"
             style={{ color: '#8E8E93' }}
-          >
-            Cancel
-          </button>
+          >{t('common.cancel')}</button>
         </div>
       </div>
     </div>

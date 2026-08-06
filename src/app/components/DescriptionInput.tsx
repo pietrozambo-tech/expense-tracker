@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { t } from '../i18n';
 import type { DescriptionSuggestion } from '../lib/suggestions';
 
 interface DescriptionInputProps {
@@ -25,8 +26,8 @@ export function DescriptionInput({
   const [picked, setPicked] = useState<string | null>(null);
 
   const placeholder = transactionType === 'income'
-    ? 'e.g. App royalties, PRY dividends'
-    : 'e.g. Burger, Uber airport, Cinema';
+    ? t('add.descPlaceholderIncome')
+    : t('add.descPlaceholderExpense');
 
   const open =
     focused && !!onPickSuggestion && suggestions.length > 0 &&
@@ -48,7 +49,7 @@ export function DescriptionInput({
 
   return (
     <div className="px-6 pb-6">
-      <h3 className="text-neutral-700 font-semibold mb-2.5">Description</h3>
+      <h3 className="text-neutral-700 font-semibold mb-2.5">{t('add.description')}</h3>
       <input
         type="text"
         value={value}

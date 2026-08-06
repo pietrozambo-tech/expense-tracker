@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { t } from '../i18n';
 import { Check, Layers } from 'lucide-react';
 import type { ImportResult, ProposedSubcategory } from '../lib/importData';
 import { proposalKey } from '../lib/importData';
@@ -42,12 +43,11 @@ export function ImportReviewDialog({
         <div className="px-6 pt-4 pb-1 text-center">
           <h3 className="text-neutral-900 font-bold text-lg">
             {proposals.length === 1
-              ? 'This import adds a new subcategory'
-              : `This import adds ${proposals.length} new subcategories`}
+              ? t('imp.newSub.one')
+              : t('imp.newSub.other', { n: proposals.length })}
           </h3>
           <p className="text-neutral-500 text-[13px] leading-relaxed mt-1.5">
-            Only checked ones are added to your categories. Unchecked ones import their
-            transactions without a subcategory.
+            {t('imp.newSubBody')}
           </p>
         </div>
 
@@ -91,11 +91,9 @@ export function ImportReviewDialog({
             className="w-full py-3.5 rounded-xl font-medium text-[15px] transition-all active:scale-[0.98]"
             style={{ backgroundColor: '#3B82F6', color: '#FFFFFF' }}
           >
-            Import {result.added} transaction{result.added === 1 ? '' : 's'}
+            {t(result.added === 1 ? 'imp.importCta.one' : 'imp.importCta.other', { n: result.added })}
           </button>
-          <button onClick={onCancel} className="w-full py-2.5 text-[14px] font-medium" style={{ color: '#8E8E93' }}>
-            Cancel import
-          </button>
+          <button onClick={onCancel} className="w-full py-2.5 text-[14px] font-medium" style={{ color: '#8E8E93' }}>{t('imp.cancelImport')}</button>
         </div>
       </div>
     </div>
