@@ -50,14 +50,6 @@ jobs:
             --jq '"site: build_type=\(.build_type) url=\(.html_url)"' \
             || echo "(could not read site config)"
 
-          # Calibration probe: on 2026-08-06 this endpoint reported
-          # deployment_in_progress for a SHA that never had a deployment
-          # created, so it appears to echo the site's current state rather
-          # than answer per-SHA. A garbage SHA settles it: same answer means
-          # the endpoint is an echo and per-SHA readings from it are noise.
-          s="$(gh api "repos/$GITHUB_REPOSITORY/pages/deployment/status/0000000000000000000000000000000000000000" --jq '.status' 2>/dev/null)" || s="(error)"
-          echo "garbage-sha probe: $s"
-
           # The repo Deployments API is job truth, not publish truth: its
           # statuses are written when the Actions job ends (285a48f read
           # "success at 14:31:07" - the second its watch job completed -
@@ -117,50 +109,23 @@ jobs:
   deploy:
     needs: build
     runs-on: ubuntu-latest
-    # Job-level override: everything the workflow grants, plus actions:write
-    # so the unclog step below can cancel the zombie runs from the stall.
+    # Job-level override: everything the workflow grants, plus contents:write
+    # so the branch-publishing fallback can push gh-pages.
+    #
+    # History, so nobody re-learns 2026-08-06 the hard way: the site stopped
+    # publishing for ~2.5 hours after a deploy-pages timeout cancelled a
+    # deployment mid-publish. The stranded deployments that piled up jammed
+    # the per-site pipe; cancelling the superseded ones (safe precisely
+    # because cancellation poisons a SHA - they were builds nobody needed
+    # again) unjammed it and the backlog drained within minutes.
     permissions:
-      contents: read
+      contents: write
       pages: write
       id-token: write
-      actions: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      # One-time unclogging for the 2026-08-06 stall. Pages publishes
-      # serially per site; the pipe has not served anything new since the
-      # 12:27 cancel-during-publish race. Cancelling a deployment poisons
-      # its SHA forever, which is precisely why these are safe to cancel:
-      # every one of them is a superseded build nobody will ever need to
-      # publish again. Only this run's own HEAD must stay untouched.
-      # Delete this step once the site serves a current build again.
-      - name: Cancel superseded deployments jamming the pipe (one-time)
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -uo pipefail
-          for sha in \
-            562677c6231ad83e4e3b11dcdab6ef397b03b1d1 \
-            285a48fb10e69fefa4b92ce1e48c361d930a88df \
-            848758ff802e8ec5ef9c572e327fa6b24b1f7487 \
-            6fed8e418c8d0793356279d35ef00123cc0424a2 \
-            e6d452f26e31432e832e09194128aa42f049d3f3 \
-            09c9d6b2c94859b96d7be2a872882946e7bc09af \
-          ; do
-            [ "$sha" = "$GITHUB_SHA" ] && continue
-            out="$(gh api -X POST "repos/$GITHUB_REPOSITORY/pages/deployments/$sha/cancel" 2>&1)" \
-              && echo "cancelled ${sha:0:7}" \
-              || echo "cancel ${sha:0:7}: $(head -c 120 <<<"$out")"
-          done
-          # And the zombie runs still holding the old concurrency lock:
-          # the pending one would otherwise wake up later and deploy a
-          # superseded build on top of ours.
-          for run_id in 31111496571 31111648469; do
-            gh api -X POST "repos/$GITHUB_REPOSITORY/actions/runs/$run_id/cancel" >/dev/null 2>&1 \
-              && echo "cancelled run $run_id" \
-              || echo "run $run_id: already finished or cancel failed (fine)"
-          done
       # This is what actions/deploy-pages@v4 does on its first two API calls -
       # find the artifact, mint an OIDC token, create the deployment - and then
       # it stops. The action's remaining job is to POLL until Pages reports
@@ -184,12 +149,29 @@ jobs:
       # real failure - the run went green at 13:41 on 2026-08-06 while the site
       # stayed on the previous build, because "accepted" is not "published".
       # Hence the watcher: green now means the site is actually live.
+      # The exact bytes the build job uploaded, so the branch-publishing
+      # fallback serves a bit-identical site and the content-hash check
+      # below stays valid for either path.
+      - uses: actions/download-artifact@v4
+        with:
+          name: github-pages
+          path: pages-artifact
+
       - id: deployment
-        name: Queue the Pages deployment (without waiting for it)
+        name: Queue the Pages deployment (skipped in branch mode)
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
+
+          mode="$(gh api "repos/$GITHUB_REPOSITORY/pages" --jq '.build_type // "workflow"')"
+          page_url="$(gh api "repos/$GITHUB_REPOSITORY/pages" --jq '.html_url')"
+          echo "mode=$mode" >> "$GITHUB_OUTPUT"
+          echo "page_url=$page_url" >> "$GITHUB_OUTPUT"
+          if [ "$mode" != "workflow" ]; then
+            echo "Site publishes from a branch ('$mode' mode) - no API deployment to create."
+            exit 0
+          fi
 
           artifact_id="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts" \
             --jq 'first(.artifacts[] | select(.name == "github-pages") | .id)')"
@@ -229,6 +211,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           SITE: ${{ steps.deployment.outputs.page_url }}
+          MODE: ${{ steps.deployment.outputs.mode }}
           ASSET: ${{ needs.build.outputs.asset }}
         run: |
           set -uo pipefail
@@ -237,8 +220,47 @@ jobs:
             echo "::error::Build job produced no asset fingerprint"
             exit 1
           fi
-          echo "waiting for the site to reference: $ASSET"
+          echo "waiting for the site to reference: $ASSET (mode: $MODE)"
 
+          # Publish through GitHub's other, older ingestion path: the same
+          # artifact bytes pushed to a gh-pages branch, with the site flipped
+          # to branch publishing. Exists because on 2026-08-06 the workflow
+          # deployment pipeline stopped publishing this site entirely while
+          # every status API kept saying everything was fine.
+          publish_branch() {
+            workdir="$(mktemp -d)"
+            tar -xf pages-artifact/artifact.tar -C "$workdir"
+            touch "$workdir/.nojekyll"
+            git -C "$workdir" init -q -b gh-pages
+            git -C "$workdir" add -A
+            git -C "$workdir" -c user.name="deploy" -c user.email="deploy@users.noreply.github.com" \
+              commit -qm "Publish $GITHUB_SHA"
+            git -C "$workdir" push -q --force \
+              "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" gh-pages \
+              && echo "pushed the built site to gh-pages"
+          }
+          flip_to_branch_mode() {
+            if gh api -X PUT "repos/$GITHUB_REPOSITORY/pages" \
+                 -f build_type=legacy -f 'source[branch]=gh-pages' -f 'source[path]=/' >/dev/null 2>&1; then
+              echo "site flipped to branch publishing (gh-pages)"
+            else
+              echo "::warning::Could not flip publishing mode via the API. In repo Settings > Pages, set Source to 'Deploy from a branch', branch 'gh-pages', folder '/'."
+            fi
+            gh api -X POST "repos/$GITHUB_REPOSITORY/pages/builds" >/dev/null 2>&1 || true
+          }
+
+          fallback_done=""
+          if [ "$MODE" != "workflow" ]; then
+            # Already in branch mode: the gh-pages push IS the publish.
+            publish_branch
+            gh api -X POST "repos/$GITHUB_REPOSITORY/pages/builds" >/dev/null 2>&1 || true
+            fallback_done=1
+          fi
+
+          # 20 minutes of patience before switching publishing modes: even
+          # freshly unjammed, the pipe took ~13 minutes on 2026-08-06, and
+          # flipping to branch mode over mere slowness would be over-eager.
+          fallback_at=$(( $(date +%s) + 1200 ))
           deadline=$(( $(date +%s) + 3600 ))
           last=""
           beat=0
@@ -252,9 +274,19 @@ jobs:
               echo "::notice::LIVE: site now serves $ASSET (build $stamp)"
               exit 0
             fi
-            echo_status="$(gh api "repos/$GITHUB_REPOSITORY/pages/deployment/status/$GITHUB_SHA" \
-              --jq '.status' 2>/dev/null)" || echo_status="?"
-            line="serving ${served:-(unreadable)} | echo-status $echo_status"
+            if [ -z "$fallback_done" ] && [ "$(date +%s)" -ge "$fallback_at" ]; then
+              echo "$(date -u +%H:%M:%S)  20 minutes without publication - falling back to branch publishing"
+              publish_branch
+              flip_to_branch_mode
+              fallback_done=1
+            fi
+            if [ -n "$fallback_done" ]; then
+              extra="$(gh api "repos/$GITHUB_REPOSITORY/pages/builds/latest" \
+                --jq '"branch-build \(.status)\(if .error.message then ": " + .error.message else "" end)"' 2>/dev/null)" || extra="branch-build ?"
+            else
+              extra="echo-status $(gh api "repos/$GITHUB_REPOSITORY/pages/deployment/status/$GITHUB_SHA" --jq '.status' 2>/dev/null || echo '?')"
+            fi
+            line="serving ${served:-(unreadable)} | $extra"
             beat=$((beat + 1))
             # Log every change, plus a heartbeat every ~5 min so a long
             # stretch of silence in this log is never ambiguous.
@@ -264,4 +296,5 @@ jobs:
             fi
             sleep 15
           done
-          echo "::warning::After 60 min the site still does not serve $ASSET. The deployment is alive and may still publish - this job does not cancel it."
+          echo "::warning::After 60 min the site still does not serve $ASSET on either publishing path."
+          exit 1
