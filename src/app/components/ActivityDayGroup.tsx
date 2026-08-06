@@ -1,6 +1,7 @@
 import { ExpenseItem } from './ExpenseItem';
 import { IncomeItem } from './IncomeItem';
-import { formatAmountListView, homeAmount } from '../utils/currency';
+import { homeAmount } from '../utils/currency';
+import { AmountText } from './AmountText';
 import type { Transaction } from '../types';
 import { parseLocalDate } from '../lib/dates';
 
@@ -47,19 +48,21 @@ export function ActivityDayGroup({
     const converted = homeAmount(t, currency);
     return t.type === 'income' ? sum + converted : sum - converted;
   }, 0);
-  const totalLabel = `${netTotal >= 0 ? '+' : '-'}${formatAmountListView(Math.abs(netTotal), currency, 2)}`;
+  const totalSign = netTotal >= 0 ? '+' : '-';
 
   return (
     <div className="mb-3">
       {/* Day Header */}
       <div className="flex items-center justify-between px-6 py-1 bg-neutral-50/50">
         <h3 className="text-neutral-500 font-bold text-[10px] uppercase tracking-wider">{formatDate(date)}</h3>
-        <span
+        <AmountText
+          sign={totalSign}
+          amount={Math.abs(netTotal)}
+          currency={currency}
+          decimals={2}
           className="text-[10px] font-medium tabular-nums pr-4"
           style={{ minWidth: '80px', textAlign: 'right', color: '#A3A3A3' }}
-        >
-          {totalLabel}
-        </span>
+        />
       </div>
 
       {/* Transaction rows: income entries render green with +, expenses plain */}

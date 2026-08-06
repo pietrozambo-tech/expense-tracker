@@ -902,12 +902,11 @@ export default function App() {
       // Success feedback with navigation option
       const categoryName = categoryData?.name;
       const currencyData = CURRENCIES[selectedTransactionCurrency] || CURRENCIES.EUR;
-      const currencySymbol = currencyData.symbol;
-      
-      const formattedToastAmount = currencyData.position === 'before' 
-        ? `${currencySymbol}${amount}` 
-        : `${amount}${currencySymbol}`;
-        
+      // Symbol after the number, like every amount the app shows.
+      const sep = currencyData.symbol.length > 1 ? ' ' : '';
+      const formattedToastAmount = `${amount}${sep}${currencyData.symbol}`;
+
+
       toast.success(`${formattedToastAmount} saved for ${categoryName}`, {
         duration: 1400,
       });

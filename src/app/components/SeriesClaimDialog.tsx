@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Check, Repeat } from 'lucide-react';
 import type { SeriesClaim } from '../lib/recurrence';
-import { formatAmountListView } from '../utils/currency';
+import { AmountText } from './AmountText';
 
 // Older transactions that look like the history of series the user already
 // has. A checklist rather than a single yes/no, because the match is no longer
@@ -80,7 +80,7 @@ export function SeriesClaimDialog({
                   </span>
                   <span className="block text-[12px]" style={{ color: '#8E8E93' }}>
                     {c.rows.length} transaction{c.rows.length === 1 ? '' : 's'} · typically{' '}
-                    {formatAmountListView(c.medianAmount, currency, 0)}
+                    <AmountText amount={c.medianAmount} currency={currency} decimals={0} />
                   </span>
                   {/* Say WHY, so a claim on a differently worded bill can be
                       judged rather than just trusted. */}

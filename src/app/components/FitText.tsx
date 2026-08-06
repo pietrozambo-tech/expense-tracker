@@ -8,6 +8,13 @@ interface FitTextProps {
   min: number;
   /** Shorter rendering of the same value, e.g. "86.4K CHF" for "86,420 CHF". */
   compact?: string;
+  /**
+   * What to actually render once shortened, when the abbreviated form needs the
+   * same typesetting as `children` (an <AmountText abbreviate="fit" />).
+   * `compact` stays the plain string either way - it is what the effects below
+   * key on, and a node's identity changes on every render.
+   */
+  compactNode?: React.ReactNode;
   className?: string;
   style?: React.CSSProperties;
 }
@@ -26,7 +33,7 @@ interface FitTextProps {
 //
 // Measured rather than guessed from character counts, because glyph widths vary
 // (a comma is not a digit) and the available width depends on the viewport.
-export function FitText({ children, max, min, compact, className = '', style }: FitTextProps) {
+export function FitText({ children, max, min, compact, compactNode, className = '', style }: FitTextProps) {
   const ref = useRef<HTMLSpanElement>(null);
   // Width of the full text at `max`, remembered so we can tell whether it would
   // fit again after a resize without having to render it to find out.
@@ -53,19 +60,33 @@ export function FitText({ children, max, min, compact, className = '', style }: 
     if (!el || !box) return;
     let cancelled = false;
 
+    // Fractional width of the text as laid out. scrollWidth rounds to whole
+    // pixels, so a tenth of a pixel of overflow reads back as "it fits" while
+    // the browser goes right on drawing the ellipsis - and an amount built from
+    // differently sized spans (the quiet currency symbol) lands on fractions
+    // constantly. A Range over the contents measures what is actually there.
+    const measure = () => {
+      const range = document.createRange();
+      range.selectNodeContents(el);
+      const width = range.getBoundingClientRect().width;
+      range.detach();
+      return width;
+    };
+
     const fit = () => {
       if (cancelled) return;
-      const available = box.clientWidth;
-      if (!available) return;
+      // clientWidth rounds too, and can round up - half a pixel of headroom
+      // that does not exist. Spend it rather than clip.
+      const available = box.clientWidth - 0.5;
+      if (available <= 0) return;
 
       // `min` is the point at which shortening the number beats shrinking it.
       // Once shortened there is nothing further to fall back to, so let the
       // abbreviated form go smaller rather than clip it.
       const floor = abbreviated ? Math.min(min, 11) : min;
 
-      // The span is overflow-hidden, so scrollWidth is exactly the text width.
       el.style.fontSize = `${max}px`;
-      const wanted = el.scrollWidth;
+      const wanted = measure();
 
       if (abbreviated) {
         // Room for the full number again (wider screen, smaller total)? Width
@@ -88,14 +109,14 @@ export function FitText({ children, max, min, compact, className = '', style }: 
       let next = Math.max(floor, Math.floor(((max * available) / wanted) * 2) / 2);
       el.style.fontSize = `${next}px`;
       let guard = 8;
-      while (next > floor && el.scrollWidth > available && guard-- > 0) {
+      while (next > floor && measure() > available && guard-- > 0) {
         next -= 0.5;
         el.style.fontSize = `${next}px`;
       }
 
       // Still overflowing at the smallest size we are willing to use: shorten
       // the number rather than shrink it into illegibility.
-      if (!abbreviated && compact && el.scrollWidth > available) {
+      if (!abbreviated && compact && measure() > available) {
         setAbbreviated(true);
         return;
       }
@@ -120,7 +141,7 @@ export function FitText({ children, max, min, compact, className = '', style }: 
 
   return (
     <span ref={ref} className={`block truncate ${className}`} style={{ ...style, fontSize: size }}>
-      {abbreviated && compact ? compact : children}
+      {abbreviated && compact ? compactNode ?? compact : children}
     </span>
   );
 }

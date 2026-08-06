@@ -6,7 +6,8 @@ import { SubcategoryFilterModal } from './SubcategoryFilterModal';
 import { SourceFilterModal } from './SourceFilterModal';
 import { SearchModal } from './SearchModal';
 import { ExportScopeModal } from './ExportScopeModal';
-import { formatAmount, CURRENCIES, homeAmount } from '../utils/currency';
+import { CURRENCIES, homeAmount } from '../utils/currency';
+import { AmountText } from './AmountText';
 import { Download } from 'lucide-react';
 import { buildTransactionsCsv, downloadTransactionsCsv } from '../lib/csv';
 import { toast } from 'sonner';
@@ -252,11 +253,13 @@ export function Activity({
     return t.type === 'income' ? sum + converted : sum - converted;
   }, 0);
   const headerTotal =
-    activityType === 'expense'
-      ? formatAmount(-netTotal, currency)
-      : activityType === 'income'
-        ? `+${formatAmount(netTotal, currency)}`
-        : `${netTotal >= 0 ? '+' : '-'}${formatAmount(Math.abs(netTotal), currency)}`;
+    activityType === 'expense' ? (
+      <AmountText amount={-netTotal} currency={currency} />
+    ) : activityType === 'income' ? (
+      <AmountText sign="+" amount={netTotal} currency={currency} />
+    ) : (
+      <AmountText sign={netTotal >= 0 ? '+' : '-'} amount={Math.abs(netTotal)} currency={currency} />
+    );
 
   // CSV Export
   // The tab opens filtered - to this month, at least - so "download" meant one

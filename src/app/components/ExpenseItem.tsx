@@ -1,5 +1,5 @@
 import { Trash2, Repeat } from 'lucide-react';
-import { formatAmountListView, homeAmount } from '../utils/currency';
+import { homeAmount } from '../utils/currency';
 import { AmountText } from './AmountText';
 import { useState } from 'react';
 import { getCategoryIcon } from './categoryIcons';

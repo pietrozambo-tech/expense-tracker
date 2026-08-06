@@ -50,99 +50,12 @@ export function homeAmount(
   return fxConvert(txn.amount, from, homeCurrency);
 }
 
-export const formatAmount = (amount: number, currencyCode: string, decimals: number = 2): string => {
-  // Handle null/undefined amounts
-  if (amount === null || amount === undefined) {
-    amount = 0;
-  }
-  
-  const currency = CURRENCIES[currencyCode] || CURRENCIES.EUR;
-
-  // Format the number with locale
-  const formattedNumber = amount.toLocaleString('en-US', {
-    minimumFractionDigits: decimals,
-    maximumFractionDigits: decimals
-  });
-
-  // Multi-letter symbols (e.g. AED) read better with a space
-  const sep = currency.symbol.length > 1 ? ' ' : '';
-  return currency.position === 'before'
-    ? `${currency.symbol}${sep}${formattedNumber}`
-    : `${formattedNumber}${sep}${currency.symbol}`;
-};
-
-export const formatCompactAmount = (amount: number, currencyCode: string): string => {
-  // Handle null/undefined amounts
-  if (amount === null || amount === undefined) {
-    amount = 0;
-  }
-  
-  const currency = CURRENCIES[currencyCode] || CURRENCIES.EUR;
-  const absAmount = Math.abs(amount);
-  const sign = amount < 0 ? '-' : '';
-  
-  let formattedNumber: string;
-  
-  // 1 million or more: use MM
-  if (absAmount >= 1000000) {
-    const millions = absAmount / 1000000;
-    formattedNumber = `${millions.toFixed(1)}MM`;
-  }
-  // 100,000 or more (6+ digits): use K
-  else if (absAmount >= 100000) {
-    const thousands = absAmount / 1000;
-    formattedNumber = `${Math.round(thousands)}K`;
-  }
-  // Less than 100,000: use normal formatting
-  else {
-    formattedNumber = absAmount.toLocaleString('en-US', {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
-    });
-  }
-  
-  const withSign = `${sign}${formattedNumber}`;
-  
-  const sep = currency.symbol.length > 1 ? ' ' : '';
-  return currency.position === 'before'
-    ? `${currency.symbol}${sep}${withSign}`
-    : `${withSign}${sep}${currency.symbol}`;
-};
-
-export const formatSummaryAmount = (amount: number, currencyCode: string): string => {
-  // Handle null/undefined amounts
-  if (amount === null || amount === undefined) {
-    amount = 0;
-  }
-  
-  const currency = CURRENCIES[currencyCode] || CURRENCIES.EUR;
-  const absAmount = Math.abs(amount);
-  const sign = amount < 0 ? '-' : '';
-  
-  let formattedNumber: string;
-  
-  // 1 million or more: use MM
-  if (absAmount >= 1000000) {
-    const millions = absAmount / 1000000;
-    formattedNumber = `${millions.toFixed(1)}MM`;
-  }
-  // 100,000 or more (6+ digits): use K
-  else if (absAmount >= 100000) {
-    const thousands = absAmount / 1000;
-    formattedNumber = `${Math.round(thousands)}K`;
-  }
-  // Less than 100,000: use whole number formatting
-  else {
-    formattedNumber = Math.round(absAmount).toLocaleString('en-US');
-  }
-  
-  const withSign = `${sign}${formattedNumber}`;
-  
-  const sep = currency.symbol.length > 1 ? ' ' : '';
-  return currency.position === 'before'
-    ? `${currency.symbol}${sep}${withSign}`
-    : `${withSign}${sep}${currency.symbol}`;
-};
+// Amounts are typeset by <AmountText> now (quiet symbol + cents), not by a
+// string formatter, so the three helpers that used to live here -
+// formatAmount, formatCompactAmount and formatSummaryAmount - are gone.
+// formatAmountListView below is what AmountText mirrors, and is kept for the
+// places that genuinely need a plain string: sentences, width measurement and
+// the FitText fallback.
 
 // The shortest honest rendering of an amount: "86.4K CHF", "1.2MM CHF".
 //

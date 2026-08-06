@@ -1,7 +1,8 @@
 import { ChevronRight, ArrowUpDown } from 'lucide-react';
 import { getCategoryIcon } from './categoryIcons';
 import { useState } from 'react';
-import { formatSummaryAmount, CURRENCIES, homeAmount } from '../utils/currency';
+import { CURRENCIES, homeAmount } from '../utils/currency';
+import { AmountText } from './AmountText';
 
 interface TrendCategoryBreakdownProps {
   trendFilteredTransactions: any[];
@@ -141,7 +142,7 @@ export function TrendCategoryBreakdown({
                 <div className="flex items-center gap-0.5 flex-shrink-0 ml-1">
                   <div className="text-neutral-400 text-[11px] tabular-nums text-right w-9">{item.weightPercentage.toFixed(0)}%</div>
                   <div className="text-neutral-900 font-bold text-sm tabular-nums text-right w-16">
-                    {formatSummaryAmount(item.monthlyAvg, currency)}
+                    <AmountText amount={item.monthlyAvg} currency={currency} abbreviate="summary" />
                   </div>
                 </div>
               </button>
@@ -161,7 +162,7 @@ export function TrendCategoryBreakdown({
                         <div className="flex items-center gap-0.5 flex-shrink-0 ml-1">
                           <div className="text-neutral-400 text-[10px] tabular-nums text-right w-9">{sub.weightPercentage.toFixed(0)}%</div>
                           <div className="text-neutral-600 font-normal text-xs tabular-nums text-right w-16">
-                            {formatSummaryAmount(sub.monthlyAvg, currency)}
+                            <AmountText amount={sub.monthlyAvg} currency={currency} abbreviate="summary" />
                           </div>
                         </div>
                       </div>

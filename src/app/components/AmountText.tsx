@@ -15,20 +15,56 @@ interface AmountTextProps {
   decimals?: number;
   /** Explicit sign to show ("+", "-"). Negatives render their own minus. */
   sign?: string;
+  /**
+   * Shorten large numbers, matching a string formatter exactly so a screen can
+   * swap one for the other without the value reading differently:
+   *   'fit'     - formatAbbreviatedAmount: 10K and up become "86.4K" / "1.2MM".
+   *   'summary' - formatSummaryAmount: whole numbers to 100K, then "86K" / "1.2MM".
+   * The magnitude suffix is part of the number, so it stays full size; only the
+   * currency symbol steps back.
+   */
+  abbreviate?: 'fit' | 'summary';
   className?: string;
   style?: React.CSSProperties;
 }
 
-export function AmountText({ amount, currency, decimals = 2, sign = '', className, style }: AmountTextProps) {
+export function AmountText({
+  amount,
+  currency,
+  decimals = 2,
+  sign = '',
+  abbreviate,
+  className,
+  style
+}: AmountTextProps) {
   const cur = CURRENCIES[currency] || CURRENCIES.EUR;
   const factor = 10 ** decimals;
   const rounded = Math.round((amount ?? 0) * factor) / factor;
   const abs = Math.abs(rounded);
   const showFrac = decimals > 0 && !Number.isInteger(rounded);
-  const intText = Math.trunc(abs).toLocaleString('en-US');
-  const fracText = showFrac ? abs.toFixed(decimals).split('.')[1] : null;
+  let intText = Math.trunc(abs).toLocaleString('en-US');
+  let fracText = showFrac ? abs.toFixed(decimals).split('.')[1] : null;
+
+  // Above each formatter's threshold the number collapses to a single
+  // magnitude-suffixed figure, and there are no cents left to quiet.
+  const threshold = abbreviate === 'summary' ? 100000 : abbreviate === 'fit' ? 10000 : Infinity;
+  if (abs >= threshold) {
+    fracText = null;
+    intText =
+      abs >= 1000000
+        ? `${(abs / 1000000).toFixed(1)}MM`
+        : abbreviate === 'summary'
+          ? `${Math.round(abs / 1000).toLocaleString('en-US')}K`
+          : `${(abs / 1000).toFixed(1).replace(/\.0$/, '')}K`;
+  } else if (abbreviate === 'summary') {
+    // Below the threshold formatSummaryAmount is whole-number, whatever the
+    // caller asked for in decimals.
+    fracText = null;
+    intText = Math.round(abs).toLocaleString('en-US');
+  }
+
   // Multi-letter symbols (CHF) read better with a space, same as the formatter.
-  const sep = cur.symbol.length > 1 ? ' ' : '';
+  const sep = cur.symbol.length > 1 ? ' ' : '';
   const quiet: React.CSSProperties = { fontSize: '0.72em', fontWeight: 500, opacity: 0.6 };
 
   return (

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { X } from 'lucide-react';
-import { formatAmountListView, formatAbbreviatedAmount, CURRENCIES } from '../utils/currency';
+import { formatAbbreviatedAmount, CURRENCIES } from '../utils/currency';
 import { AmountText } from './AmountText';
 import { FitText } from './FitText';
 
@@ -64,15 +64,17 @@ export function BudgetBar({ spent, budget, currency, daysLeft, monthProgress, us
   // once there is nothing left to track, and restating the percentage next to
   // "N% used" just says the same thing twice.
   const settled = Math.round(Math.abs(budget - spent)) === 0;
-  const status = over
-    ? `Over by ${formatAmountListView(spent - budget, currency, 0)}`
-    : settled
-      ? 'Right on budget'
-      : !isLive
-        ? `Under by ${formatAmountListView(budget - spent, currency, 0)}`
-        : aheadOfPace
-          ? 'Spending faster than usual'
-          : 'On track';
+  const status = over ? (
+    <>Over by <AmountText amount={spent - budget} currency={currency} decimals={0} /></>
+  ) : settled ? (
+    'Right on budget'
+  ) : !isLive ? (
+    <>Under by <AmountText amount={budget - spent} currency={currency} decimals={0} /></>
+  ) : aheadOfPace ? (
+    'Spending faster than usual'
+  ) : (
+    'On track'
+  );
 
   return (
     <div className="px-6 mb-4">
@@ -88,6 +90,15 @@ export function BudgetBar({ spent, budget, currency, daysLeft, monthProgress, us
               max={13}
               min={11}
               compact={`${formatAbbreviatedAmount(spent, currency)} of ${formatAbbreviatedAmount(budget, currency)}`}
+              compactNode={
+                <>
+                  <span style={{ color: over ? tone.text : '#1C1C1E', fontWeight: 600 }}>
+                    <AmountText amount={spent} currency={currency} decimals={0} abbreviate="fit" />
+                  </span>
+                  {' of '}
+                  <AmountText amount={budget} currency={currency} decimals={0} abbreviate="fit" />
+                </>
+              }
               className="tabular-nums"
               style={{ color: '#8E8E93' }}
             >

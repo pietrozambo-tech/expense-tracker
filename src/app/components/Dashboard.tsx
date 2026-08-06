@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { ChevronRight, ArrowUpDown, TrendingUp, TrendingDown, Minus, Plus, Receipt, ChevronLeft, ChevronDown, X, Wallet, Gauge } from 'lucide-react';
 import { TrendCategoryBreakdown } from './TrendCategoryBreakdown';
 import React from 'react';
-import { formatAmount, formatCompactAmount, formatSummaryAmount, formatAmountListView, formatAbbreviatedAmount, CURRENCIES, homeAmount } from '../utils/currency';
+import { formatAmountListView, formatAbbreviatedAmount, CURRENCIES, homeAmount } from '../utils/currency';
 import { getCategoryIcon } from './categoryIcons';
 import { categoryHex } from './categoryColors';
 import { usualCurve, periodCurve } from '../lib/usual';
@@ -160,13 +160,15 @@ function TrendStatCard({
   label,
   value,
   compact,
+  compactNode,
   footnote,
   corner,
   valueColor = '#FFFFFF',
 }: {
   label: string;
-  value: string;
+  value: React.ReactNode;
   compact: string;
+  compactNode?: React.ReactNode;
   footnote?: React.ReactNode;
   // Small note on the label row's right edge (e.g. "3 months") - context that
   // would otherwise cost a whole footnote line above the Saving Rate panel.
@@ -188,6 +190,7 @@ function TrendStatCard({
           max={17}
           min={14}
           compact={compact}
+          compactNode={compactNode}
           className="font-bold leading-none tabular-nums"
           style={{ color: valueColor }}
         >
@@ -1199,14 +1202,14 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
       (longest, item) => Math.max(longest, formatAmountListView(item.amount, currency, 0).length),
       0,
     ) > 11;
-  // Abbreviated amounts stay plain strings; full ones get the quiet-symbol
-  // typesetting.
-  const formatRowAmount = (amount: number) =>
-    abbreviateRowAmounts ? (
-      formatAbbreviatedAmount(amount, currency)
-    ) : (
-      <AmountText amount={amount} currency={currency} decimals={0} />
-    );
+  const formatRowAmount = (amount: number) => (
+    <AmountText
+      amount={amount}
+      currency={currency}
+      decimals={0}
+      abbreviate={abbreviateRowAmounts ? 'fit' : undefined}
+    />
+  );
 
   // Get subcategory totals for a specific category
   const getSubcategoryTotals = (categoryName: string) => {
@@ -2016,6 +2019,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                           max={17}
                           min={14}
                           compact={formatAbbreviatedAmount(totalSpending, currency)}
+                          compactNode={<AmountText amount={totalSpending} currency={currency} decimals={0} abbreviate="fit" />}
                           className="font-bold leading-none tabular-nums"
                           style={{ color: '#FFFFFF' }}
                         >
@@ -2034,6 +2038,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                           max={17}
                           min={14}
                           compact={formatAbbreviatedAmount(totalIncome, currency)}
+                          compactNode={<AmountText amount={totalIncome} currency={currency} decimals={0} abbreviate="fit" />}
                           className="font-bold leading-none tabular-nums"
                           style={{ color: '#FFFFFF' }}
                         >
@@ -2058,6 +2063,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                           max={17}
                           min={14}
                           compact={formatAbbreviatedAmount(savings, currency)}
+                          compactNode={<AmountText amount={savings} currency={currency} decimals={0} abbreviate="fit" />}
                           className="font-bold leading-none tabular-nums"
                           style={{ color: savings < 0 ? '#FF6961' : savings > 0 ? '#30D158' : '#FFFFFF' }}
                         >
@@ -2803,9 +2809,12 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                           <div className="flex items-center gap-1.5" style={{ whiteSpace: 'nowrap' }}>
                             <span style={{ width: 6, height: 6, borderRadius: 999, backgroundColor: color, flexShrink: 0 }} />
                             <span style={{ color: '#8E8E93', fontSize: 11 }}>{label}</span>
-                            <span style={{ color: '#1C1C1E', fontSize: 12, fontWeight: 600, marginLeft: 'auto' }}>
-                              {formatAmountListView(amount, currency, 0)}
-                            </span>
+                            <AmountText
+                              amount={amount}
+                              currency={currency}
+                              decimals={0}
+                              style={{ color: '#1C1C1E', fontSize: 12, fontWeight: 600, marginLeft: 'auto' }}
+                            />
                           </div>
                         );
 
@@ -3003,7 +3012,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                         aria-hidden="true"
                       />
                       <span style={{ color: '#8E8E93', fontSize: 13 }}>
-                        All {formatAmountListView(only.value, currency, 0)} was{' '}
+                        All <AmountText amount={only.value} currency={currency} decimals={0} /> was{' '}
                         {only.name.toLowerCase()}.
                       </span>
                     </div>
@@ -3042,9 +3051,13 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                         </button>
                       ) : (
                         /* The donut used to carry the total in its hole. */
-                        <span className="tabular-nums" style={{ color: '#8E8E93', fontSize: '12px' }}>
-                          {formatAmountListView(totalValue, currency, 0)}
-                        </span>
+                        <AmountText
+                          amount={totalValue}
+                          currency={currency}
+                          decimals={0}
+                          className="tabular-nums"
+                          style={{ color: '#8E8E93', fontSize: '12px' }}
+                        />
                       )}
                     </div>
                     
@@ -3144,15 +3157,18 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                             }}>
                               {item.percentage.toFixed(0)}%
                             </span>
-                            <span style={{ 
-                              color: '#1C1C1E', 
-                              fontSize: '13px',
-                              fontWeight: '600',
-                              minWidth: '70px',
-                              textAlign: 'right'
-                            }}>
-                              {formatAmountListView(item.value, currency, 0)}
-                            </span>
+                            <AmountText
+                              amount={item.value}
+                              currency={currency}
+                              decimals={0}
+                              style={{
+                                color: '#1C1C1E',
+                                fontSize: '13px',
+                                fontWeight: '600',
+                                minWidth: '70px',
+                                textAlign: 'right'
+                              }}
+                            />
                           </div>
                         </button>
                       ))}
@@ -3225,7 +3241,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                         <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', textAlign: 'center', pointerEvents: 'none' }}>
                           <p style={{ color: '#8E8E93', fontSize: '10px', margin: 0, marginBottom: '2px' }}>Total</p>
                           <p style={{ color: '#1C1C1E', fontSize: '13px', fontWeight: '600', margin: 0 }}>
-                            {formatAmountListView(totalValue, currency, 0)}
+                            <AmountText amount={totalValue} currency={currency} decimals={0} />
                           </p>
                         </div>
                       </div>
@@ -3256,9 +3272,12 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                           </div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                             <span style={{ color: '#8E8E93', fontSize: '12px' }}>{item.percentage.toFixed(0)}%</span>
-                            <span style={{ color: '#1C1C1E', fontSize: '13px', fontWeight: '600', minWidth: '70px', textAlign: 'right' }}>
-                              {formatAmountListView(item.value, currency, 0)}
-                            </span>
+                            <AmountText
+                              amount={item.value}
+                              currency={currency}
+                              decimals={0}
+                              style={{ color: '#1C1C1E', fontSize: '13px', fontWeight: '600', minWidth: '70px', textAlign: 'right' }}
+                            />
                           </div>
                         </div>
                       ))}
@@ -3619,8 +3638,9 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                   <div className="grid grid-cols-2 gap-2">
                     <TrendStatCard
                       label="Total Saved"
-                      value={formatAmountListView(totalSpent, currency, 0)}
+                      value={<AmountText amount={totalSpent} currency={currency} decimals={0} />}
                       compact={formatAbbreviatedAmount(totalSpent, currency)}
+                      compactNode={<AmountText amount={totalSpent} currency={currency} decimals={0} abbreviate="fit" />}
                       valueColor={savingsColor(totalSpent)}
                       corner={trendData.length === 1 ? "This month" : `${trendData.length} months`}
                       footnote={
@@ -3635,8 +3655,9 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                     />
                     <TrendStatCard
                       label="Monthly Average"
-                      value={formatAmountListView(avgAmount, currency, 0)}
+                      value={<AmountText amount={avgAmount} currency={currency} decimals={0} />}
                       compact={formatAbbreviatedAmount(avgAmount, currency)}
+                      compactNode={<AmountText amount={avgAmount} currency={currency} decimals={0} abbreviate="fit" />}
                       valueColor={savingsColor(avgAmount)}
                       // A rate needs income to divide by. With none recorded there
                       // is nothing to report, and "0%" would read as "you saved
@@ -3674,14 +3695,16 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                   <div className="grid grid-cols-2 gap-2">
                     <TrendStatCard
                       label={isExpense ? "Total Spent" : "Total Earned"}
-                      value={formatAmountListView(totalSpent, currency, 0)}
+                      value={<AmountText amount={totalSpent} currency={currency} decimals={0} />}
                       compact={formatAbbreviatedAmount(totalSpent, currency)}
+                      compactNode={<AmountText amount={totalSpent} currency={currency} decimals={0} abbreviate="fit" />}
                       footnote={isExpense ? `${months} · ${transactions(txCount)}` : months}
                     />
                     <TrendStatCard
                       label="Monthly Average"
-                      value={formatAmountListView(avgAmount, currency, 0)}
+                      value={<AmountText amount={avgAmount} currency={currency} decimals={0} />}
                       compact={formatAbbreviatedAmount(avgAmount, currency)}
+                      compactNode={<AmountText amount={avgAmount} currency={currency} decimals={0} abbreviate="fit" />}
                       footnote={isExpense ? transactions(avgTxCount) : undefined}
                     />
                   </div>
@@ -3704,9 +3727,9 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                   <div className="relative">
                     {/* Y-axis labels */}
                     <div className="absolute left-0 top-0 h-24 flex flex-col justify-between text-[10px] text-neutral-400 tabular-nums pr-2 w-12 font-medium">
-                      <span>{formatAmountListView(yMax, currency, 0)}</span>
-                      <span>{formatAmountListView(yMin + yRange / 2, currency, 0)}</span>
-                      <span>{formatAmountListView(yMin, currency, 0)}</span>
+                      <AmountText amount={yMax} currency={currency} decimals={0} />
+                      <AmountText amount={yMin + yRange / 2} currency={currency} decimals={0} />
+                      <AmountText amount={yMin} currency={currency} decimals={0} />
                     </div>
                     
                     {/* Chart container */}
@@ -3962,7 +3985,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                 {!showDow && transactionType === 'expense' && selectedCategory === 'All' && !!monthlyBudget && monthlyBudget > 0 && (
                   <span className="flex items-baseline gap-1.5 text-[10px]" style={{ color: '#A0A0A8' }}>
                     <span className="self-center w-0.5 h-2.5 rounded-full" style={{ backgroundColor: 'rgba(28,28,30,0.35)' }} />
-                    Budget {formatAmountListView(monthlyBudget, currency, 0)}
+                    Budget <AmountText amount={monthlyBudget} currency={currency} decimals={0} />
                   </span>
                 )}
               </div>
@@ -4041,7 +4064,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                               />
                             </div>
                             <div className="w-16 flex-shrink-0 text-xs font-semibold tabular-nums text-right text-neutral-900">
-                              {formatAmountListView(b.avg, currency, 0)}
+                              <AmountText amount={b.avg} currency={currency} decimals={0} />
                             </div>
                             <div className="w-8 flex-shrink-0 text-right text-[11px] text-neutral-400 tabular-nums">
                               {b.occurrences > 0 ? `x${b.occurrences}` : '-'}
@@ -4058,9 +4081,14 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                           are relative, so the picture barely moves. */}
                       {trendDowOneOffs && (
                         <p className="mt-1 text-[11px]" style={{ color: '#B0B0B5' }}>
-                          {dowExcludedCount > 0
-                            ? `Leaving out ${dowExcludedCount} recurring transaction${dowExcludedCount === 1 ? '' : 's'} (${formatAmountListView(dowExcludedTotal, currency, 0)}).`
-                            : 'Nothing here is recurring, so this view matches All.'}
+                          {dowExcludedCount > 0 ? (
+                            <>
+                              Leaving out {dowExcludedCount} recurring transaction{dowExcludedCount === 1 ? '' : 's'}{' '}
+                              (<AmountText amount={dowExcludedTotal} currency={currency} decimals={0} />).
+                            </>
+                          ) : (
+                            'Nothing here is recurring, so this view matches All.'
+                          )}
                         </p>
                       )}
                     </>
@@ -4071,7 +4099,8 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                       </p>
                       {trendDowOneOffs && dowExcludedCount > 0 && (
                         <p className="mt-1 text-[11px]" style={{ color: '#B0B0B5' }}>
-                          Leaving out {dowExcludedCount} recurring transaction{dowExcludedCount === 1 ? '' : 's'} ({formatAmountListView(dowExcludedTotal, currency, 0)}).
+                          Leaving out {dowExcludedCount} recurring transaction{dowExcludedCount === 1 ? '' : 's'}{' '}
+                          (<AmountText amount={dowExcludedTotal} currency={currency} decimals={0} />).
                         </p>
                       )}
                     </div>
@@ -4212,9 +4241,9 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                       
                       {/* Amount */}
                       <div className={`${selectedCategory === 'All' ? 'w-16' : 'w-14'} flex-shrink-0 text-xs font-semibold tabular-nums text-right self-center text-neutral-900`}>
-                        {formatAmountListView(item.amount, currency, 0)}
+                        <AmountText amount={item.amount} currency={currency} decimals={0} />
                       </div>
-                      
+
                       {/* Weight % - only for category/subcategory */}
                       {selectedCategory !== 'All' && (
                         <div className="flex-shrink-0 w-10 text-right text-[11px] text-neutral-400 tabular-nums self-center">
@@ -4411,13 +4440,12 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                   <div className="flex items-center gap-1.5 text-xs font-medium">
                     <span className="text-neutral-500">{getPeriodDisplayName()}</span>
                     <span className="text-neutral-300">·</span>
-                    <span style={{ color: transactionType === 'expense' ? '#D32F2F' : '#2E7D32' }}>
-                      {formatAmountListView(
-                        drilldownTransactions.reduce((sum, txn) => sum + homeAmount(txn, currency), 0),
-                        currency,
-                        0
-                      )}
-                    </span>
+                    <AmountText
+                      amount={drilldownTransactions.reduce((sum, txn) => sum + homeAmount(txn, currency), 0)}
+                      currency={currency}
+                      decimals={0}
+                      style={{ color: transactionType === 'expense' ? '#D32F2F' : '#2E7D32' }}
+                    />
                   </div>
                 </div>
                 
