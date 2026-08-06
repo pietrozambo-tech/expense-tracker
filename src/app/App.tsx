@@ -240,6 +240,10 @@ export default function App() {
   const [showSourceSelector, setShowSourceSelector] = useState(false);
   const [openSourcesOnSettings, setOpenSourcesOnSettings] = useState(false); // deep-link Settings → Sources
   const [openCategoriesOnSettings, setOpenCategoriesOnSettings] = useState(false); // deep-link Settings → Categories
+  // Set when the language is changed from Settings, so the remount lands back
+  // on the Language page instead of the Settings root. App state, deliberately:
+  // it has to outlive the key={language} remount that does the retranslating.
+  const [openLanguageOnSettings, setOpenLanguageOnSettings] = useState(false);
 
   // Auth + cloud sync
   const { session, loading: authLoading, guest, signOut, deleteAccount, leaveGuest } = useAuth();
@@ -1836,7 +1840,10 @@ export default function App() {
                 weekStartsOn={weekStartsOn}
                 onSetWeekStartsOn={setWeekStartsOn}
                 language={language}
-                onSetLanguage={adoptLanguage}
+                onSetLanguage={(lang) => {
+                  setOpenLanguageOnSettings(true);
+                  adoptLanguage(lang);
+                }}
                 onAddCategory={handleAddCategory}
                 onEditCategory={handleEditCategory}
                 onDeleteCategory={handleDeleteCategory}
@@ -1871,6 +1878,8 @@ export default function App() {
                 onSourcesOpened={() => setOpenSourcesOnSettings(false)}
                 openCategoriesOnMount={openCategoriesOnSettings}
                 onCategoriesOpened={() => setOpenCategoriesOnSettings(false)}
+                openLanguageOnMount={openLanguageOnSettings}
+                onLanguageOpened={() => setOpenLanguageOnSettings(false)}
                 userEmail={userEmail}
                 userAvatar={userAvatar}
                 syncStatus={syncStatus}

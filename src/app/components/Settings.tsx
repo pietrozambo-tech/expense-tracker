@@ -28,6 +28,16 @@ import { CATCHALL_RE } from '../lib/categoryOps';
 import { dateLocale, daysFull, getLanguage } from '../i18n/store';
 import { isBackupFile } from '../lib/backup';
 
+// The languages the app ships in. The row leads with the ENDONYM - someone
+// looking for their language scans for its own name, not its English one - and
+// carries the name in the current UI language underneath, which is only worth
+// a line when the two actually differ ("Italiano / Italian", but not
+// "English / English").
+const LANGUAGE_OPTIONS: { code: AppLanguage; flag: string; native: string }[] = [
+  { code: 'en', flag: '🇬🇧', native: 'English' },
+  { code: 'it', flag: '🇮🇹', native: 'Italiano' },
+];
+
 interface SettingsProps {
   categories: any[];
   incomeCategories: any[];
@@ -70,6 +80,12 @@ interface SettingsProps {
   onSourcesOpened?: () => void;
   openCategoriesOnMount?: boolean;
   onCategoriesOpened?: () => void;
+  // Changing the language remounts the whole content tree - that is what
+  // retranslates it - which wipes this component's local state and would drop
+  // the user out of the Language page they are standing on. App remembers the
+  // page across the remount and hands it back here.
+  openLanguageOnMount?: boolean;
+  onLanguageOpened?: () => void;
   userEmail?: string | null;
   userAvatar?: string | null;
   syncStatus?: 'synced' | 'pending' | 'offline' | 'error';
@@ -121,6 +137,8 @@ export function Settings({
   onSourcesOpened,
   openCategoriesOnMount,
   onCategoriesOpened,
+  openLanguageOnMount,
+  onLanguageOpened,
   userEmail,
   userAvatar,
   syncStatus = 'synced',
@@ -140,6 +158,7 @@ export function Settings({
   const [showImport, setShowImport] = useState(false);
   const [categoryType, setCategoryType] = useState<'expense' | 'income'>('expense');
   const [showCurrencySelector, setShowCurrencySelector] = useState(false);
+  const [showLanguage, setShowLanguage] = useState(false);
   const [showAllCurrencies, setShowAllCurrencies] = useState(false);
   const [showNameEditor, setShowNameEditor] = useState(false);
   const [showSupport, setShowSupport] = useState(false);
@@ -157,7 +176,7 @@ export function Settings({
   // scroll position of the main Settings list.
   useEffect(() => {
     window.scrollTo(0, 0);
-  }, [showCategories, showSources, showAbout, showImport, showCurrencySelector, showNameEditor, showSupport, legalDoc]);
+  }, [showCategories, showSources, showAbout, showImport, showCurrencySelector, showLanguage, showNameEditor, showSupport, legalDoc]);
 
   const openSupport = () => {
     setSupportSent(false);
@@ -208,6 +227,14 @@ export function Settings({
   }, [openSourcesOnMount, onSourcesOpened]);
 
   // Deep-link from the welcome carousel opens Categories directly
+  useEffect(() => {
+    if (openLanguageOnMount) {
+      setShowLanguage(true);
+      onLanguageOpened?.();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openLanguageOnMount, onLanguageOpened]);
+
   useEffect(() => {
     if (openCategoriesOnMount) {
       setShowCategories(true);
@@ -328,6 +355,80 @@ export function Settings({
         : syncStatus === 'error'
           ? { label: "Sync issue - retrying automatically", color: '#FF3B30' }
           : { label: lastSyncedAt ? `Synced · ${relTime(lastSyncedAt)}` : 'Synced', color: '#30D158' };
+
+  // Show Language subpage — same shape as the currency picker: a list you
+  // choose from, not a control sitting open on the root menu.
+  if (showLanguage) {
+    return (
+      <div className="flex flex-col" style={{ height: SUBPAGE_HEIGHT, backgroundColor: '#F6F5F2' }}>
+        <div style={{ backgroundColor: '#F6F5F2' }}>
+          <div className="px-6 pb-4 pt-0">
+            <div className="flex items-center justify-center relative">
+              <button
+                onClick={() => setShowLanguage(false)}
+                className="absolute left-0 -ml-2 px-2 py-1 rounded-lg active:bg-neutral-200 transition-colors"
+              >
+                <ChevronLeft size={24} style={{ color: '#3B82F6' }} />
+              </button>
+              <h1 style={{ color: '#1C1C1E', fontSize: '20px', fontWeight: '600', letterSpacing: '-0.3px' }}>{t('settings.language')}</h1>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto pb-24">
+          <div className="px-6 pb-6">
+            <p style={{ color: '#8E8E93', fontSize: '13px' }}>{t('set.languageHint')}</p>
+          </div>
+
+          <div className="px-6">
+            <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+              {LANGUAGE_OPTIONS.map(({ code, flag, native }, index) => {
+                const inThisLanguage = t(code === 'it' ? 'lang.it' : 'lang.en');
+                return (
+                <button
+                  key={code}
+                  onClick={() => { if (code !== language) onSetLanguage?.(code); }}
+                  className="w-full flex items-center justify-between px-5 py-4 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
+                  style={{ borderBottom: index < LANGUAGE_OPTIONS.length - 1 ? '1px solid #F2F1ED' : 'none' }}
+                >
+                  <div className="flex items-center gap-3">
+                    <div
+                      className="w-10 h-10 rounded-full flex items-center justify-center"
+                      style={{ backgroundColor: language === code ? '#E3F2FF' : '#F2F1ED', fontSize: '22px' }}
+                    >
+                      {flag}
+                    </div>
+                    <div className="flex flex-col items-start">
+                      <span className="font-medium" style={{ color: language === code ? '#3B82F6' : '#1C1C1E', fontSize: '16px' }}>
+                        {native}
+                      </span>
+                      {inThisLanguage !== native && (
+                        <span className="text-neutral-500 text-sm">{inThisLanguage}</span>
+                      )}
+                    </div>
+                  </div>
+                  {language === code && (
+                    <div className="w-6 h-6 rounded-full flex items-center justify-center" style={{ backgroundColor: '#3B82F6' }}>
+                      <svg width="12" height="10" viewBox="0 0 12 10" fill="none">
+                        <path d="M1 5L4.5 8.5L11 1.5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    </div>
+                  )}
+                </button>
+                );
+              })}
+            </div>
+
+            {/* Names the user already owns stay put on purpose: categories,
+                subcategories and sources are their data, not UI copy. */}
+            <p className="px-1 mt-4" style={{ color: '#B0B0B5', fontSize: 12, lineHeight: 1.45 }}>
+              {t('set.languageNote')}
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // Show Currency Selector
   if (showCurrencySelector) {
@@ -1259,47 +1360,22 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
             <span style={{ color: '#8E8E93', fontSize: '15px' }}>{userName}</span>
             <ChevronRight className="w-5 h-5" style={{ color: '#C7C7CC' }} />
           </button>
-        </div>
 
-        {/* Language — its own section, right below Profile. Applies on tap:
-            the switch remounts the app in place, and this control is exactly
-            where the user lands afterwards, showing its new state. */}
-        <div className="bg-white rounded-2xl shadow-sm px-5 py-4 mt-4">
-          <div className="flex items-center gap-3 mb-3">
+          {/* Language — a row that opens its own page, like Currency. */}
+          <button
+            onClick={() => setShowLanguage(true)}
+            className="w-full flex items-center gap-3 px-5 py-4 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
+            style={{ borderBottom: '1px solid #F2F1ED' }}
+          >
             <Globe className="w-5 h-5" style={{ color: '#8E8E93' }} strokeWidth={2} />
-            <span style={{ color: '#1C1C1E', fontSize: '16px' }}>{t('settings.language')}</span>
-          </div>
-          <div className="flex p-1 rounded-xl" style={{ backgroundColor: '#F2F1ED' }}>
-            {([
-              { code: 'en', flag: '🇬🇧', label: 'English' },
-              { code: 'it', flag: '🇮🇹', label: 'Italiano' },
-            ] as { code: AppLanguage; flag: string; label: string }[]).map(({ code, flag, label }) => (
-              <button
-                key={code}
-                onClick={() => { if (code !== language) onSetLanguage?.(code); }}
-                className="flex-1 py-2 rounded-lg text-sm"
-                style={{
-                  backgroundColor: language === code ? '#1C1C1E' : 'transparent',
-                  color: language === code ? '#FFFFFF' : '#8E8E93',
-                  fontWeight: language === code ? 600 : 500,
-                  transition: 'background-color 0.15s ease',
-                  WebkitTapHighlightColor: 'rgba(255, 255, 255, 0)',
-                }}
-              >
-                {flag} {label}
-              </button>
-            ))}
-          </div>
-          {/* Names the user already owns stay put on purpose: categories,
-              subcategories and sources are their data, not UI copy. */}
-          <p style={{ color: '#B0B0B5', fontSize: 12, marginTop: 8, lineHeight: 1.45 }}>
-            {language === 'it'
-              ? "Cambia la lingua dell'app. I nomi delle tue categorie e dei tuoi conti restano come sono."
-              : 'Changes the app language. Your category and source names stay as they are.'}
-          </p>
-        </div>
+            <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '16px' }}>{t('settings.language')}</span>
+            <span style={{ color: '#8E8E93', fontSize: '15px' }}>
+              {LANGUAGE_OPTIONS.find((l) => l.code === language)?.flag}{' '}
+              {LANGUAGE_OPTIONS.find((l) => l.code === language)?.native}
+            </span>
+            <ChevronRight className="w-5 h-5" style={{ color: '#C7C7CC' }} />
+          </button>
 
-        <div className="bg-white rounded-2xl shadow-sm overflow-hidden mt-4">
           <button 
             onClick={() => setShowCategories(true)}
             className="w-full flex items-center gap-3 px-5 py-4 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
