@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { getLanguage } from '../i18n/store';
 import { Mail, ArrowLeft } from 'lucide-react';
 import { useAuth } from './AuthProvider';
 import { TracklyLogo } from '../components/TracklyLogo';
@@ -103,9 +104,9 @@ export function SignIn() {
             {authError && (
               <div className="mb-4 px-4 py-3 rounded-xl" style={{ backgroundColor: '#FFF0EF', border: '1px solid #FFD5D2' }}>
                 <p style={{ color: '#C4271C', fontSize: 13, lineHeight: 1.4 }}>
-                  <span style={{ fontWeight: 600 }}>Sign-in didn't complete.</span> {authError}
+                  <span style={{ fontWeight: 600 }}>{getLanguage() === 'it' ? "L'accesso non è andato a buon fine." : "Sign-in didn't complete."}</span> {authError}
                 </p>
-                <button onClick={clearAuthError} className="mt-1.5 text-[13px] font-medium" style={{ color: '#C4271C' }}>Dismiss</button>
+                <button onClick={clearAuthError} className="mt-1.5 text-[13px] font-medium" style={{ color: '#C4271C' }}>{getLanguage() === 'it' ? 'Chiudi' : 'Dismiss'}</button>
               </div>
             )}
 
@@ -118,7 +119,7 @@ export function SignIn() {
                 style={{ backgroundColor: '#000000', color: '#FFFFFF', boxShadow: '0 2px 10px rgba(0,0,0,0.12)' }}
               >
                 <AppleLogo />
-                Continue with Apple
+                {getLanguage() === 'it' ? 'Continua con Apple' : 'Continue with Apple'}
               </button>
             )}
 
@@ -130,11 +131,11 @@ export function SignIn() {
               style={{ backgroundColor: '#FFFFFF', color: '#1C1C1E', border: '1px solid #E5E5EA', boxShadow: '0 2px 10px rgba(17,24,39,0.05)' }}
             >
               <GoogleG />
-              Continue with Google
+              {getLanguage() === 'it' ? 'Continua con Google' : 'Continue with Google'}
             </button>
 
             <p className="text-center mt-3.5 px-6" style={{ color: '#8E8E93', fontSize: 13, lineHeight: 1.45 }}>
-              Sign in to back up your data and sync it across your devices.
+              {getLanguage() === 'it' ? 'Accedi per salvare i tuoi dati e sincronizzarli su tutti i tuoi dispositivi.' : 'Sign in to back up your data and sync it across your devices.'}
             </p>
 
             {error && <p className="mt-3" style={{ color: '#FF3B30', fontSize: 13 }}>{error}</p>}
@@ -172,12 +173,11 @@ export function SignIn() {
         ) : (
           <div style={{ paddingTop: 'clamp(28px, 7vh, 64px)' }}>
             <button onClick={() => { setStep('start'); setError(null); }} className="flex items-center gap-1 -ml-1 mb-5 self-start" style={{ color: '#3B82F6', fontSize: 15 }}>
-              <ArrowLeft className="w-4 h-4" /> Back
-            </button>
+              <ArrowLeft className="w-4 h-4" />{getLanguage() === 'it' ? 'Indietro' : 'Back'}</button>
             <TracklyLogo size={48} className="mb-5" />
-            <h1 style={{ color: '#1C1C1E', fontSize: 28, fontWeight: 700, letterSpacing: '-0.02em', marginBottom: 8 }}>Enter your code</h1>
+            <h1 style={{ color: '#1C1C1E', fontSize: 28, fontWeight: 700, letterSpacing: '-0.02em', marginBottom: 8 }}>{getLanguage() === 'it' ? 'Inserisci il codice' : 'Enter your code'}</h1>
             <p style={{ color: '#6B6B75', fontSize: 15, lineHeight: 1.45 }}>
-              We emailed a sign-in code to <span style={{ color: '#1C1C1E', fontWeight: 600 }}>{email.trim()}</span>. Enter it below.
+              {getLanguage() === 'it' ? 'Abbiamo inviato un codice di accesso a' : 'We emailed a sign-in code to'} <span style={{ color: '#1C1C1E', fontWeight: 600 }}>{email.trim()}</span>{getLanguage() === 'it' ? '. Inseriscilo qui sotto.' : '. Enter it below.'}
             </p>
             <input
               type="text"
@@ -196,7 +196,7 @@ export function SignIn() {
             />
             {error && <p className="mt-3" style={{ color: '#FF3B30', fontSize: 13 }}>{error}</p>}
             <button onClick={send} disabled={busy} className="mt-4 text-[15px] font-medium self-start" style={{ color: '#3B82F6' }}>
-              Resend code
+              {getLanguage() === 'it' ? 'Invia di nuovo il codice' : 'Resend code'}
             </button>
           </div>
         )}
@@ -213,15 +213,15 @@ export function SignIn() {
                 className="w-full py-4 rounded-2xl font-medium text-base transition-all active:scale-[0.98]"
                 style={{ backgroundColor: !emailValid ? '#E5E5EA' : '#1C1C1E', color: '#FFFFFF', boxShadow: !emailValid ? 'none' : '0 6px 18px rgba(28,28,30,0.22)', cursor: !emailValid ? 'not-allowed' : 'pointer' }}
               >
-                {busy ? 'Sending…' : 'Email me a code'}
+                {busy ? (getLanguage() === 'it' ? 'Invio…' : 'Sending…') : (getLanguage() === 'it' ? 'Inviami un codice via email' : 'Email me a code')}
               </button>
             )}
             <button onClick={continueAsGuest} className="w-full py-3 mt-2 text-[15px] font-medium" style={{ color: '#8E8E93' }}>
-              Continue without an account
+              {getLanguage() === 'it' ? 'Continua senza account' : 'Continue without an account'}
             </button>
             <p className="text-center mt-3 px-4" style={{ color: '#A5A5AD', fontSize: 12, lineHeight: 1.5 }}>
               By continuing you agree to our{' '}
-              <span style={{ color: '#8E8E93', fontWeight: 500 }}>Terms</span> &{' '}
+              <span style={{ color: '#8E8E93', fontWeight: 500 }}>{getLanguage() === 'it' ? 'Termini' : 'Terms'}</span> &{' '}
               <span style={{ color: '#8E8E93', fontWeight: 500 }}>Privacy Policy</span>.
             </p>
           </>
@@ -232,7 +232,7 @@ export function SignIn() {
             className="w-full py-4 rounded-2xl font-medium text-base transition-all active:scale-[0.98]"
             style={{ backgroundColor: !codeValid ? '#E5E5EA' : '#1C1C1E', color: '#FFFFFF', boxShadow: !codeValid ? 'none' : '0 6px 18px rgba(28,28,30,0.22)', cursor: !codeValid ? 'not-allowed' : 'pointer' }}
           >
-            {busy ? 'Verifying…' : 'Verify & sign in'}
+            {busy ? (getLanguage() === 'it' ? 'Verifica…' : 'Verifying…') : (getLanguage() === 'it' ? 'Verifica e accedi' : 'Verify & sign in')}
           </button>
         )}
       </div>

@@ -1,5 +1,6 @@
 import { useRef, useState, type ReactNode } from 'react';
-import { monthsFull } from '../i18n/store';
+import { monthsFull, getLanguage } from '../i18n/store';
+import { t } from '../i18n';
 import {
   Minus, Plus, Wallet, Gauge, Calendar, Repeat, ChevronDown, ChevronRight, TrendingDown,
   ShoppingCart, Car, Home, Clapperboard, Landmark, Layers,
@@ -200,10 +201,10 @@ function DashboardIllustration() {
         <div className="h-px mt-3" style={{ background: 'rgba(255,255,255,0.07)' }} />
         <div className="pt-2.5">
           <div className="text-[11px] leading-snug" style={{ color: 'rgba(235,235,245,0.6)' }}>
-            Groceries drove the month, 2x usual (+180€).
+            {getLanguage() === 'it' ? 'Spesa ha trainato il mese: 2x il solito (+180€).' : 'Groceries drove the month, 2x usual (+180€).'}
           </div>
           <div className="text-[11px] leading-snug mt-0.5" style={{ color: 'rgba(235,235,245,0.45)' }}>
-            Transport was 40% below usual (55€).
+            {getLanguage() === 'it' ? 'Trasporti: 40% sotto il solito (55€).' : 'Transport was 40% below usual (55€).'}
           </div>
         </div>
       </div>
@@ -410,34 +411,48 @@ export function WelcomeCarousel({ userName, onDone, onSetupCategories, onLoadDem
           <p style={{ color: '#3B82F6', fontSize: 15, fontWeight: 600, marginTop: 4, letterSpacing: '0.02em' }}>Your Expense Lens</p>
         </div>
       ),
-      title: userName ? `Welcome, ${userName} 👋` : 'Welcome to TracklyLab 👋',
-      desc: 'A quick look at what you can do - it takes 20 seconds.',
+      title: userName
+        ? (getLanguage() === 'it' ? `Benvenuto, ${userName} 👋` : `Welcome, ${userName} 👋`)
+        : getLanguage() === 'it' ? 'Benvenuto su TracklyLab 👋' : 'Welcome to TracklyLab 👋',
+      desc: getLanguage() === 'it'
+        ? 'Uno sguardo veloce a cosa puoi fare - ci vogliono 20 secondi.'
+        : 'A quick look at what you can do - it takes 20 seconds.',
     },
     {
       illustration: <AddIllustration />,
-      title: 'Add in seconds',
-      desc: 'Enter an amount, choose a category and subcategory, then set how often it repeats and which account it came from.',
+      title: getLanguage() === 'it' ? 'Aggiungi in pochi secondi' : 'Add in seconds',
+      desc: getLanguage() === 'it'
+        ? "Inserisci un importo, scegli categoria e sottocategoria, poi imposta ogni quanto si ripete e da quale conto arriva."
+        : 'Enter an amount, choose a category and subcategory, then set how often it repeats and which account it came from.',
     },
     {
       illustration: <ImportIllustration />,
-      title: 'Bring your history',
-      desc: 'Import from a spreadsheet, bank statements, or a Splitwise trip 🏝️ - an AI assistant converts it all, no manual re-entry.',
+      title: getLanguage() === 'it' ? 'Porta qui il tuo storico' : 'Bring your history',
+      desc: getLanguage() === 'it'
+        ? 'Importa da un foglio di calcolo, estratti conto o un viaggio Splitwise 🏝️ - un assistente AI converte tutto, senza reinserire nulla a mano.'
+        : 'Import from a spreadsheet, bank statements, or a Splitwise trip 🏝️ - an AI assistant converts it all, no manual re-entry.',
     },
     {
       illustration: <DashboardIllustration />,
-      title: 'Your money at a glance',
-      desc: 'Spending, income and savings at a glance - and once a month is done, a line telling you in plain words how it compared with your own usual.',
+      title: getLanguage() === 'it' ? 'I tuoi soldi a colpo d’occhio' : 'Your money at a glance',
+      desc: getLanguage() === 'it'
+        ? 'Spese, entrate e risparmi a colpo d’occhio - e a mese concluso, una riga che ti dice in parole semplici com’è andato rispetto al tuo solito.'
+        : 'Spending, income and savings at a glance - and once a month is done, a line telling you in plain words how it compared with your own usual.',
     },
     {
       illustration: <DemoIllustration />,
-      title: 'Want to look around first?',
-      desc: 'Load a set of sample transactions and explore the dashboard and trends with real-looking data. Remove it all in one tap whenever you want.',
+      title: getLanguage() === 'it' ? 'Vuoi prima dare un’occhiata?' : 'Want to look around first?',
+      desc: getLanguage() === 'it'
+        ? 'Carica un set di transazioni di esempio ed esplora dashboard e trend con dati realistici. Rimuovi tutto con un tocco quando vuoi.'
+        : 'Load a set of sample transactions and explore the dashboard and trends with real-looking data. Remove it all in one tap whenever you want.',
       cta: 'demo',
     },
     {
       illustration: <SettingsIllustration />,
-      title: 'Make it yours',
-      desc: 'Start with your categories - tailor them to how you spend. Add your banks as sources, and export a full backup of everything whenever you like.',
+      title: getLanguage() === 'it' ? 'Fallo tuo' : 'Make it yours',
+      desc: getLanguage() === 'it'
+        ? 'Parti dalle categorie - adattale a come spendi. Aggiungi le tue banche come fonti ed esporta un backup completo quando vuoi.'
+        : 'Start with your categories - tailor them to how you spend. Add your banks as sources, and export a full backup of everything whenever you like.',
     },
   ];
 
@@ -473,7 +488,7 @@ export function WelcomeCarousel({ userName, onDone, onSetupCategories, onLoadDem
       <div className="flex justify-end items-center px-5 flex-shrink-0" style={{ height: 40 }}>
         {!isLast && (
           <button onClick={onDone} className="px-2 py-1 text-sm font-medium" style={{ color: '#8E8E93' }}>
-            Skip
+            {getLanguage() === 'it' ? 'Salta' : 'Skip'}
           </button>
         )}
       </div>
@@ -524,10 +539,10 @@ export function WelcomeCarousel({ userName, onDone, onSetupCategories, onLoadDem
               className="w-full py-4 rounded-xl font-medium text-base transition-all active:scale-[0.98]"
               style={{ backgroundColor: '#3B82F6', color: '#FFFFFF', boxShadow: '0 2px 8px rgba(0,122,255,0.25)' }}
             >
-              Set up my categories
+              {getLanguage() === 'it' ? 'Configura le mie categorie' : 'Set up my categories'}
             </button>
             <button onClick={onDone} className="py-2.5 text-[15px] font-medium" style={{ color: '#8E8E93' }}>
-              I'll do it later
+              {getLanguage() === 'it' ? 'Lo faccio dopo' : "I'll do it later"}
             </button>
           </div>
         ) : isDemoSlide ? (
@@ -537,10 +552,10 @@ export function WelcomeCarousel({ userName, onDone, onSetupCategories, onLoadDem
               className="w-full py-4 rounded-xl font-medium text-base transition-all active:scale-[0.98] flex items-center justify-center gap-2"
               style={{ backgroundColor: '#3B82F6', color: '#FFFFFF', boxShadow: '0 2px 8px rgba(0,122,255,0.25)' }}
             >
-              <FlaskConical className="w-4 h-4" /> Load sample data
+              <FlaskConical className="w-4 h-4" /> {getLanguage() === 'it' ? 'Carica dati di esempio' : 'Load sample data'}
             </button>
             <button onClick={next} className="py-2.5 text-[15px] font-medium" style={{ color: '#8E8E93' }}>
-              Maybe later
+              {getLanguage() === 'it' ? 'Magari dopo' : 'Maybe later'}
             </button>
           </div>
         ) : (
@@ -548,9 +563,7 @@ export function WelcomeCarousel({ userName, onDone, onSetupCategories, onLoadDem
             onClick={next}
             className="w-full py-4 rounded-xl font-medium text-base transition-all active:scale-[0.98]"
             style={{ backgroundColor: '#3B82F6', color: '#FFFFFF', boxShadow: '0 2px 8px rgba(0,122,255,0.25)' }}
-          >
-            Next
-          </button>
+          >{getLanguage() === 'it' ? 'Avanti' : 'Next'}</button>
         )}
       </div>
     </div>
