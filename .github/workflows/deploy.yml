@@ -121,6 +121,16 @@ jobs:
         run: |
           set -uo pipefail
 
+          # Is GitHub itself degraded? The runner can reach the status page
+          # (the dev sandbox cannot), so put the answer in the log where the
+          # "is it us or them" question actually gets asked.
+          curl -sS --max-time 10 https://www.githubstatus.com/api/v2/summary.json 2>/dev/null \
+            | jq -r '
+                (.components[] | select(.name == "Pages" or .name == "Actions")
+                  | "githubstatus: \(.name) = \(.status)"),
+                (.incidents[] | "githubstatus incident [\(.status)]: \(.name)")
+              ' || echo "githubstatus: (unreachable)"
+
           # build_type must be "workflow" for API deployments to publish at
           # all; if it ever reads "legacy" the site is wired to a branch and
           # every deployment here is a no-op.
@@ -128,13 +138,26 @@ jobs:
             --jq '"site: build_type=\(.build_type) status=\(.status) url=\(.html_url)"' \
             || echo "(could not read site config)"
 
-          deadline=$(( $(date +%s) + 1800 ))
+          # Forensics for the 2026-08-06 pipeline stall: two deployments were
+          # created and never confirmed published. Report what became of them.
+          # Drop these lines once both read "succeed".
+          for sha in 562677c6231ad83e4e3b11dcdab6ef397b03b1d1 285a48fb10e69fefa4b92ce1e48c361d930a88df; do
+            [ "$sha" = "$GITHUB_SHA" ] && continue
+            s="$(gh api "repos/$GITHUB_REPOSITORY/pages/deployment/status/$sha" --jq '.status' 2>/dev/null)" || s="(no record)"
+            echo "earlier deployment ${sha:0:7}: $s"
+          done
+
+          deadline=$(( $(date +%s) + 3600 ))
           last=""
+          beat=0
           while [ "$(date +%s)" -lt "$deadline" ]; do
             status="$(gh api "repos/$GITHUB_REPOSITORY/pages/deployment/status/$GITHUB_SHA" \
               --jq '.status' 2>/dev/null)" || status=""
             [ -n "$status" ] || status="(not reported yet)"
-            if [ "$status" != "$last" ]; then
+            beat=$((beat + 1))
+            # Log every transition, plus a heartbeat every ~5 min so a long
+            # stretch of silence in this log is never ambiguous.
+            if [ "$status" != "$last" ] || [ $((beat % 20)) -eq 0 ]; then
               echo "$(date -u +%H:%M:%S)  $status"
               last="$status"
             fi
@@ -150,4 +173,4 @@ jobs:
             esac
             sleep 15
           done
-          echo "::warning::Pages still reports '$last' after 30 min. The deployment is alive and will publish when the queue drains - this job does not cancel it."
+          echo "::warning::Pages still reports '$last' after 60 min. The deployment is alive and will publish when the pipeline recovers - this job does not cancel it."
