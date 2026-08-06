@@ -869,6 +869,9 @@ async function main() {
   await scenarioCategoryRenameVsChip();
   await scenarioIdlePolling();
   await scenarioNoOpPull();
+  await scenarioChipDeletionFuzz();
+  await scenarioChipDeleteThenBaseLoss();
+  await scenarioNewDeviceDefaultChips();
 
   console.log('\n================================================================');
   console.log(failures === 0 ? ' All checks passed - nothing lost.' : ` ${failures} check(s) FAILED.`);
@@ -877,3 +880,126 @@ async function main() {
 }
 
 void main();
+
+// ---------------------------------------------------------------------------
+// Fuzz: a deleted subcategory must never come back.
+//
+// Reported live: chips deleted on the phone reappeared after closing the app,
+// while the laptop still showed them. The eight-case truth table inside
+// mergeChips is correct, so any resurrection has to come from an interleaving
+// that leaves a device merging against the wrong base - which is exactly the
+// kind of thing a hand-written scenario misses and a fuzz finds.
+//
+// Chips are never re-added once deleted, so the invariant is unambiguous:
+// anything deleted at any point must be absent everywhere at quiescence.
+async function scenarioChipDeletionFuzz() {
+  heading('24. Fuzz: a deleted subcategory never comes back');
+  const CHIPS = ['Rewe', 'Lidl', 'Aldi', 'Edeka', 'Netto'];
+  let firstFailure: string | null = null;
+  let runs = 0;
+
+  const quiet = console.log;
+  for (let seed = 1; seed <= 400 && !firstFailure; seed++) {
+    // Deterministic PRNG so a failure is reproducible from its seed alone.
+    let s = seed;
+    const rnd = () => (s = (s * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff;
+    const pick = <T,>(xs: T[]) => xs[Math.floor(rnd() * xs.length)];
+
+    console.log = () => {};
+    reset();
+    const a = new Phone('iPhone');
+    const b = new Phone('laptop');
+    a.seedCategory('groceries', 'Groceries', [...CHIPS]);
+    await a.sync();
+    await b.openApp();
+
+    const deleted = new Set<string>();
+    const log: string[] = [];
+    const live = () => CHIPS.filter((c) => !deleted.has(c));
+
+    for (let step = 0; step < 12; step++) {
+      const who = rnd() < 0.5 ? a : b;
+      const op = pick(['delete', 'sync', 'open', 'poll', 'foreground']);
+      try {
+        if (op === 'delete') {
+          const avail = live();
+          if (!avail.length) continue;
+          const chip = pick(avail);
+          deleted.add(chip);
+          who.removeChip('groceries', chip);
+          log.push(`${who.name} deletes ${chip}`);
+        } else if (op === 'sync') { await who.sync(); log.push(`${who.name} sync`); }
+        else if (op === 'open') { await who.openApp(); log.push(`${who.name} open`); }
+        else if (op === 'poll') { await who.poll(); log.push(`${who.name} poll`); }
+        else if (op === 'foreground') { await who.foreground(); log.push(`${who.name} foreground`); }
+        else { who.signOut(); await who.openApp(); log.push(`${who.name} signs out and back in`); }
+      } catch { /* network-ish failures are not what this is looking for */ }
+    }
+
+    // Settle: everyone syncs and pulls until nothing moves.
+    for (let i = 0; i < 6; i++) { await a.sync(); await b.sync(); await a.poll(); await b.poll(); }
+
+    console.log = quiet;
+    runs++;
+    const want = `Groceries[${live().join(',')}]`;
+    for (const [name, got] of [['iPhone', a.chips('groceries')], ['laptop', b.chips('groceries')]]) {
+      if (got !== want) {
+        firstFailure = `seed ${seed}: ${name} has ${got}, expected ${want}\n` +
+          log.map((l) => `           ${l}`).join('\n');
+        break;
+      }
+    }
+  }
+  console.log = quiet;
+  say(`ran ${runs} randomised sessions`);
+  expectExact(
+    'no deleted subcategory ever came back',
+    firstFailure ? `FAILED -> ${firstFailure}` : 'clean',
+    'clean',
+  );
+}
+
+// The deliberate version of what the fuzz gropes for: a deletion that has not
+// yet reached the server, on a device that then loses its base.
+async function scenarioChipDeleteThenBaseLoss() {
+  heading('25. A chip deleted offline, then the base is lost before it syncs');
+  reset();
+  const a = new Phone('iPhone');
+  const b = new Phone('laptop');
+  a.seedCategory('groceries', 'Groceries', ['Rewe', 'Lidl']);
+  await a.sync();
+  await b.openApp();
+
+  a.removeChip('groceries', 'Rewe');   // deleted, not yet pushed
+  a.signOut();                          // base cleared
+  await a.openApp();                    // merges against a null base
+  expect('the deletion survives losing the base', a.chips('groceries'), 'Groceries[Lidl]');
+  await a.sync();
+  await b.foreground();
+  expect('and the laptop agrees', b.chips('groceries'), 'Groceries[Lidl]');
+}
+
+// The likeliest way to meet this in the wild, with no sign-out involved: a
+// second device signing in for the first time has no base either, and it
+// starts from the SEEDED categories - which ship with default chips. Union
+// meant those defaults came back and overwrote a deletion made elsewhere.
+async function scenarioNewDeviceDefaultChips() {
+  heading('26. A new device must not resurrect chips deleted on the old one');
+  reset();
+  const a = new Phone('iPhone');
+  const b = new Phone('laptop');
+  a.seedCategory('groceries', 'Groceries', ['Supermarket', 'Rewe']);
+  await a.sync();
+
+  a.removeChip('groceries', 'Rewe');
+  a.removeChip('groceries', 'Supermarket');
+  await a.sync();
+
+  // Fresh browser: seeded defaults, never synced, so no base at all.
+  b.seedCategory('groceries', 'Groceries', ['Supermarket', 'Rewe']);
+  await b.openApp();
+  expect('the new device honours the deletions', b.chips('groceries'), 'Groceries[]');
+  await b.sync();
+  await a.foreground();
+  expect('and does not push them back', a.chips('groceries'), 'Groceries[]');
+}

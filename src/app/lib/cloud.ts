@@ -299,7 +299,42 @@ export function mergePayloads(
       const ours = l.get(cat.id);
       const theirs = r.get(cat.id);
       if (!ours || !theirs) return cat;
-      const chips = mergeChips(b.get(cat.id)?.subcategories, ours.subcategories, theirs.subcategories);
+      const baseCat = b.get(cat.id);
+      // No base entry for this category - the device signed out and back in,
+      // or iOS evicted its localStorage (see lib/kv.ts). Set membership alone
+      // cannot tell "I deleted this chip" from "they added it", and mergeChips
+      // reads every unknown as an addition: a union. That is what made deleted
+      // subcategories come back, then travel to the other device and come back
+      // again on the next merge - permanently, since each pass re-taught both
+      // sides that the chip was wanted.
+      //
+      // Both sides stamp the category on every chip edit (editSubcategories in
+      // App.tsx), so when the stamps differ there IS a newer statement about
+      // this chip list - believe it, exactly as mergeList already believes the
+      // newer stamp for the category's name and colour. Its absences are
+      // deliberate deletions.
+      //
+      // A missing stamp is a signal too, not a gap: the seeded categories ship
+      // without one and only ever get stamped by an edit, so a stamped copy
+      // outranks an unstamped one. Without that half the rule never fires in
+      // practice - the other device's copy of an untouched category has no
+      // stamp to compare against.
+      //
+      // Only when neither side can claim to be newer (identical stamps, or
+      // neither stamped) is there nothing to go on, and union stays the safe
+      // answer: re-adding a chip is a nuisance, and no transaction is lost
+      // either way - a chip is a label, not a record.
+      const newerChips = (): string[] | null => {
+        const x = ours.updatedAt;
+        const y = theirs.updatedAt;
+        if (x && y) return x === y ? null : (x > y ? ours : theirs).subcategories ?? [];
+        if (x) return ours.subcategories ?? [];
+        if (y) return theirs.subcategories ?? [];
+        return null;
+      };
+      const chips = baseCat
+        ? mergeChips(baseCat.subcategories, ours.subcategories, theirs.subcategories)
+        : newerChips() ?? mergeChips(undefined, ours.subcategories, theirs.subcategories);
       const same = (x: string[] = []) => x.join(' ');
       return same(chips) === same(cat.subcategories) ? cat : { ...cat, subcategories: chips };
     });
