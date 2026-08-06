@@ -1254,7 +1254,7 @@ export default function App() {
   // removes only them and the real data is untouched. Re-loading first drops any
   // existing demo rows so it stays idempotent.
   const handleLoadDemoData = () => {
-    const demo = getDemoTransactions(userCurrency).map((t) => ({
+    const demo = getDemoTransactions(userCurrency, [...categories, ...incomeCategories]).map((t) => ({
       ...t,
       sourceId: sources.length
         ? sources[Math.floor(Math.random() * sources.length)].id

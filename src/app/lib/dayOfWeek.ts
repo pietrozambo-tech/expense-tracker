@@ -1,4 +1,5 @@
 import { homeAmount } from '../utils/currency';
+import { getLanguage, daysFull, numberLocale } from '../i18n/store';
 import { parseLocalDate } from './dates';
 
 // Spending by day of the week: the rhythm view. "Which day does the money
@@ -119,18 +120,30 @@ export function dowTakeaway(buckets: DayBucket[]): string | null {
   const spending = seen.filter((b) => b.avg > 0);
   if (spending.length < 2) return null;
 
+  const IT = getLanguage() === 'it';
   const max = spending.reduce((a, b) => (b.avg > a.avg ? b : a));
   const plural = (label: string) => `${label}s`;
+  // Italian talks about weekdays with the article, lowercase and singular:
+  // "il sabato costa..." - no plural form needed.
+  const dayIt = (b: DayBucket) => daysFull()[b.day].toLowerCase();
 
   // Some weekday saw no spending at all: a ratio against zero says nothing.
   if (spending.length < seen.length) {
-    return `Most spending lands on ${plural(max.label)}.`;
+    return IT
+      ? `La maggior parte delle spese cade di ${dayIt(max)}.`
+      : `Most spending lands on ${plural(max.label)}.`;
   }
   const min = spending.reduce((a, b) => (b.avg < a.avg ? b : a));
   const ratio = max.avg / min.avg;
-  if (ratio < 1.25) return 'Spending is spread fairly evenly across the week.';
+  if (ratio < 1.25) {
+    return IT
+      ? 'Le spese sono distribuite in modo abbastanza uniforme sulla settimana.'
+      : 'Spending is spread fairly evenly across the week.';
+  }
   // One decimal, but "2.0x" reads better as "2x".
   const r = Math.round(ratio * 10) / 10;
-  const rText = Number.isInteger(r) ? String(r) : r.toFixed(1);
-  return `${plural(max.label)} cost ${rText}x a typical ${min.label}.`;
+  const rText = Number.isInteger(r) ? String(r) : r.toLocaleString(numberLocale(), { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  return IT
+    ? `Il ${dayIt(max)} costa ${rText}x un tipico ${dayIt(min)}.`
+    : `${plural(max.label)} cost ${rText}x a typical ${min.label}.`;
 }

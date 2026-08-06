@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { X } from 'lucide-react';
 import { formatAbbreviatedAmount, CURRENCIES } from '../utils/currency';
+import { t } from '../i18n';
 import { AmountText } from './AmountText';
 import { FitText } from './FitText';
 
@@ -65,15 +66,15 @@ export function BudgetBar({ spent, budget, currency, daysLeft, monthProgress, us
   // "N% used" just says the same thing twice.
   const settled = Math.round(Math.abs(budget - spent)) === 0;
   const status = over ? (
-    <>Over by <AmountText amount={spent - budget} currency={currency} decimals={0} /></>
+    <>{t('budget.overBy')} <AmountText amount={spent - budget} currency={currency} decimals={0} /></>
   ) : settled ? (
-    'Right on budget'
+    t('budget.onBudget')
   ) : !isLive ? (
-    <>Under by <AmountText amount={budget - spent} currency={currency} decimals={0} /></>
+    <>{t('budget.underBy')} <AmountText amount={budget - spent} currency={currency} decimals={0} /></>
   ) : aheadOfPace ? (
-    'Spending faster than usual'
+    t('budget.faster')
   ) : (
-    'On track'
+    t('budget.onTrack')
   );
 
   return (
@@ -81,7 +82,7 @@ export function BudgetBar({ spent, budget, currency, daysLeft, monthProgress, us
       <div className="rounded-2xl px-4 py-3.5 bg-white shadow-sm">
         <div className="flex items-baseline justify-between mb-2 gap-2">
           <span className="flex-shrink-0" style={{ color: '#1C1C1E', fontSize: 13, fontWeight: 600 }}>
-            Monthly Budget
+            {t('budget.title')}
           </span>
           {/* Two amounts and a currency code can outgrow the row - let them
               shrink rather than ellipsise the number the card exists to show. */}
@@ -89,13 +90,13 @@ export function BudgetBar({ spent, budget, currency, daysLeft, monthProgress, us
             <FitText
               max={13}
               min={11}
-              compact={`${formatAbbreviatedAmount(spent, currency)} of ${formatAbbreviatedAmount(budget, currency)}`}
+              compact={`${formatAbbreviatedAmount(spent, currency)} ${t('budget.of')} ${formatAbbreviatedAmount(budget, currency)}`}
               compactNode={
                 <>
                   <span style={{ color: over ? tone.text : '#1C1C1E', fontWeight: 600 }}>
                     <AmountText amount={spent} currency={currency} decimals={0} abbreviate="fit" />
                   </span>
-                  {' of '}
+                  {` ${t('budget.of')} `}
                   <AmountText amount={budget} currency={currency} decimals={0} abbreviate="fit" />
                 </>
               }
@@ -105,7 +106,7 @@ export function BudgetBar({ spent, budget, currency, daysLeft, monthProgress, us
               <span style={{ color: over ? tone.text : '#1C1C1E', fontWeight: 600 }}>
                 <AmountText amount={spent} currency={currency} decimals={0} />
               </span>
-              {' of '}
+              {` ${t('budget.of')} `}
               <AmountText amount={budget} currency={currency} decimals={0} />
             </FitText>
           </div>
@@ -145,7 +146,7 @@ export function BudgetBar({ spent, budget, currency, daysLeft, monthProgress, us
         <div className="flex items-center justify-between mt-2">
           <span className="flex items-center gap-1.5 min-w-0">
             <span className="flex-shrink-0" style={{ color: '#8E8E93', fontSize: 12, fontWeight: 500 }}>
-              {pct}% used
+              {t('budget.pctUsed', { pct })}
             </span>
             {/* Status as a chip: the state gets a shape, not just a colour. */}
             <span
@@ -164,7 +165,9 @@ export function BudgetBar({ spent, budget, currency, daysLeft, monthProgress, us
           </span>
           {isLive && (
             <span style={{ color: '#8E8E93', fontSize: 12 }}>
-              {daysLeft === 0 ? 'Last day' : `${daysLeft} day${daysLeft === 1 ? '' : 's'} left`}
+              {daysLeft === 0
+                ? t('budget.lastDay')
+                : t(daysLeft === 1 ? 'budget.dayLeft.one' : 'budget.dayLeft.other', { n: daysLeft })}
             </span>
           )}
         </div>
@@ -205,7 +208,7 @@ export function BudgetNudge({ currency, onSave, onDismiss }: BudgetNudgeProps) {
         {...(!editing && {
           role: 'button',
           tabIndex: 0,
-          'aria-label': 'Set a monthly budget',
+          'aria-label': t('budget.nudge.aria'),
           onClick: () => setEditing(true),
           onKeyDown: (e: React.KeyboardEvent) => {
             if (e.key === 'Enter' || e.key === ' ') {
@@ -216,14 +219,14 @@ export function BudgetNudge({ currency, onSave, onDismiss }: BudgetNudgeProps) {
         })}
       >
         <div className="flex items-center justify-between mb-2">
-          <span style={{ color: '#1C1C1E', fontSize: 13, fontWeight: 600 }}>Monthly Budget</span>
+          <span style={{ color: '#1C1C1E', fontSize: 13, fontWeight: 600 }}>{t('budget.title')}</span>
           <button
             onClick={(e) => {
               e.stopPropagation();
               if (editing) setEditing(false);
               else onDismiss();
             }}
-            aria-label={editing ? 'Cancel' : 'Hide budget suggestion'}
+            aria-label={editing ? t('budget.nudge.cancel') : t('budget.nudge.hide')}
             className="-m-1 p-1 rounded-full transition-colors"
             style={{ color: '#C7C7CC' }}
           >
@@ -251,7 +254,7 @@ export function BudgetNudge({ currency, onSave, onDismiss }: BudgetNudgeProps) {
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') save();
                   }}
-                  placeholder="How much per month?"
+                  placeholder={t('budget.nudge.placeholder')}
                   className="flex-1 min-w-0 py-2 bg-transparent outline-none tabular-nums"
                   style={{ fontSize: 15, color: '#1C1C1E' }}
                 />
@@ -266,11 +269,11 @@ export function BudgetNudge({ currency, onSave, onDismiss }: BudgetNudgeProps) {
                   fontSize: 14,
                 }}
               >
-                Save
+                {t('budget.nudge.save')}
               </button>
             </div>
             <p style={{ color: '#B0B0B5', fontSize: 12, marginTop: 6 }}>
-              Change it anytime in Settings - Profile.
+              {t('budget.nudge.hint')}
             </p>
           </>
         ) : (
@@ -278,7 +281,7 @@ export function BudgetNudge({ currency, onSave, onDismiss }: BudgetNudgeProps) {
             <div className="h-2 rounded-full" style={{ backgroundColor: '#F2F1ED' }} />
             <div className="mt-2">
               <span style={{ color: '#3B82F6', fontSize: 12, fontWeight: 600 }}>
-                Set a monthly limit to track how you're doing
+                {t('budget.nudge.body')}
               </span>
             </div>
           </>

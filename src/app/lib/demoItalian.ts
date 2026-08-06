@@ -1,5 +1,5 @@
 import type { Transaction } from '../types';
-import { defaultCategoriesFor, defaultIncomeCategoriesFor, type Category } from '../components/categories';
+import type { Category } from '../components/categories';
 
 // The sample dataset, spoken in Italian. One dataset, translated at load:
 // keeping a second hand-written mockExpenses in Italian would drift the moment
@@ -146,17 +146,6 @@ const SUB_IT: Record<string, string> = {
   Unexpected: 'Imprevisti',
 };
 
-let itById: Map<string, Category> | null = null;
-function italianCategoryById(id: string | undefined): Category | undefined {
-  if (!id) return undefined;
-  if (!itById) {
-    itById = new Map(
-      [...defaultCategoriesFor('it'), ...defaultIncomeCategoriesFor('it')].map((c) => [c.id, c]),
-    );
-  }
-  return itById.get(id);
-}
-
 /**
  * Which strings in a set of demo rows have no Italian entry. Empty arrays mean
  * full coverage; scripts/test-demo-i18n.mjs runs this over mockExpenses so a
@@ -175,12 +164,37 @@ export function demoTranslationGaps(rows: Pick<Transaction, 'description' | 'sub
   return { descriptions: [...d].sort(), subcategories: [...s].sort() };
 }
 
-/** One demo row, translated. Unknown strings pass through untouched. */
-export function localiseDemoRow(t: Transaction): Transaction {
+/**
+ * One demo row, translated for an Italian UI - against the categories the USER
+ * actually has, not the Italian catalogue blindly. The UI language and the
+ * seeded catalogue can genuinely differ: someone who onboarded in English and
+ * switched later has English category names by design (names are their data),
+ * and demo rows must land inside THAT catalogue or the Dashboard drops them.
+ * So: descriptions follow the UI language (pure cosmetics), the category
+ * object is the user's own (matched by id, since ids are shared across
+ * languages), and a subcategory is translated only when the translated name
+ * exists on the user's category - otherwise the original is what matches.
+ */
+export function localiseDemoRow(t: Transaction, userCategories: Category[]): Transaction {
+  const own = t.category?.id ? userCategories.find((c) => c.id === t.category.id) : undefined;
+  const cat = own ?? t.category;
+  let sub = t.subcategory;
+  if (sub) {
+    const translated = SUB_IT[sub];
+    if (translated && (cat.subcategories ?? []).includes(translated)) sub = translated;
+  }
   return {
     ...t,
     description: DESC_IT[t.description] ?? t.description,
-    category: italianCategoryById(t.category?.id) ?? t.category,
-    ...(t.subcategory ? { subcategory: SUB_IT[t.subcategory] ?? t.subcategory } : {}),
+    category: cat,
+    ...(sub ? { subcategory: sub } : {}),
   };
+}
+
+/** English UI: no text changes, but demo rows still bind to the user's own
+ *  category objects by id, so a renamed or reseeded catalogue keeps them on
+ *  screen instead of orphaning them under the default names. */
+export function bindDemoRow(t: Transaction, userCategories: Category[]): Transaction {
+  const own = t.category?.id ? userCategories.find((c) => c.id === t.category.id) : undefined;
+  return own ? { ...t, category: own } : t;
 }

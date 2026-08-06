@@ -4,6 +4,8 @@ import { TrendCategoryBreakdown } from './TrendCategoryBreakdown';
 import React from 'react';
 import { formatAmountListView, formatAbbreviatedAmount, CURRENCIES, homeAmount } from '../utils/currency';
 import { monthsShort, monthsFull, daysFull, daysShort, numberLocale, getLanguage } from '../i18n/store';
+import { t } from '../i18n';
+import { translateRecurrence } from '../i18n/store';
 import { getCategoryIcon } from './categoryIcons';
 import { categoryHex } from './categoryColors';
 import { usualCurve, periodCurve } from '../lib/usual';
@@ -967,7 +969,17 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
     const spent = totalOf(0);
     if (spent === 0) return null;
     const mean = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length;
+    // The sentences are assembled per language rather than looked up: Italian
+    // needs different word order, prepositions and no verb agreement gambles
+    // (category names have grammatical gender the code cannot know). The
+    // BRANCHING - which shape fires when - is shared; only phrasing differs.
+    const IT = getLanguage() === 'it';
     const unitName = timePeriodType === 'month' ? 'month' : timePeriodType === 'quarter' ? 'quarter' : 'year';
+    const unitIt = timePeriodType === 'month' ? 'mese' : timePeriodType === 'quarter' ? 'trimestre' : 'anno';
+    // "a month" / "al mese" - the per-period phrase in "your usual X a month".
+    const perUnit = IT
+      ? (timePeriodType === 'month' ? 'al mese' : timePeriodType === 'quarter' ? 'a trimestre' : "all'anno")
+      : `a ${unitName}`;
 
     // Nothing before it: say so, rather than leaving a blank that looks like a
     // bug. It also explains why later periods start carrying a comparison.
@@ -978,9 +990,9 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
       }
       const top = [...totals.entries()].sort((a, b) => b[1] - a[1])[0];
       return {
-        line1: `Your first tracked ${unitName}.`,
+        line1: IT ? `Il tuo primo ${unitIt} registrato.` : `Your first tracked ${unitName}.`,
         line2: top
-          ? `Biggest category: ${top[0]}, ${AMOUNT_MARK}${formatAmountListView(top[1], currency, 0)}${AMOUNT_MARK}.`
+          ? `${IT ? 'Categoria più grande' : 'Biggest category'}: ${top[0]}, ${AMOUNT_MARK}${formatAmountListView(top[1], currency, 0)}${AMOUNT_MARK}.`
           : undefined,
       };
     }
@@ -1029,12 +1041,16 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
         return `Q${(((q % 4) + 4) % 4) + 1}${y !== selectedYear ? ` ${y}` : ''}`;
       }
       const dte = new Date(selectedYear, selectedMonth - back, 1);
-      return dte.getFullYear() === selectedYear
-        ? monthsFull()[dte.getMonth()]
-        : `${monthsFull()[dte.getMonth()]} ${dte.getFullYear()}`;
+      // Italian lowercases month names mid-sentence ("come a gennaio").
+      const m = IT ? monthsFull()[dte.getMonth()].toLowerCase() : monthsFull()[dte.getMonth()];
+      return dte.getFullYear() === selectedYear ? m : `${m} ${dte.getFullYear()}`;
     })();
-    const aboveRef = usualMode ? 'above your usual' : `more than ${refLabel}`;
-    const belowRef = usualMode ? 'below usual' : `less than ${refLabel}`;
+    const aboveRef = IT
+      ? (usualMode ? 'sopra il tuo solito' : `in più rispetto a ${refLabel}`)
+      : (usualMode ? 'above your usual' : `more than ${refLabel}`);
+    const belowRef = IT
+      ? (usualMode ? 'sotto il solito' : `in meno rispetto a ${refLabel}`)
+      : (usualMode ? 'below usual' : `less than ${refLabel}`);
 
     // Is this the priciest period on record? Only worth saying when true.
     let record = false;
@@ -1065,15 +1081,23 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
       const pct = Math.round(Math.abs(m.delta / m.was) * 100);
       return pct >= 15 ? `${pct}%` : null;
     };
-    const refWord = usualMode ? 'usual' : refLabel;
-    // "was 5x usual" / "was 54% below usual" / "ran 1,477EUR more than January"
+    const refWord = IT ? (usualMode ? 'il solito' : refLabel) : (usualMode ? 'usual' : refLabel);
+    // "was 5x usual" / "was 54% below usual" / "ran 1,477EUR more than January".
+    // The Italian forms are verbless ("5x il solito") - callers join them with
+    // a colon, which sidesteps gender agreement with category names entirely.
     const detail = (m: { name: string; was: number; now: number; delta: number }, withMoney = true) => {
       const rel = relative(m);
       // No usable proportion: the sum is the sentence.
-      if (!rel) return `ran ${money(m.delta)} ${m.delta > 0 ? aboveRef : belowRef}`;
+      if (!rel) {
+        return IT
+          ? `${money(m.delta)} ${m.delta > 0 ? aboveRef : belowRef}`
+          : `ran ${money(m.delta)} ${m.delta > 0 ? aboveRef : belowRef}`;
+      }
       const core = rel.endsWith('x')
-        ? `was ${rel} ${refWord}`
-        : `was ${rel} ${m.delta > 0 ? 'above' : 'below'} ${refWord}`;
+        ? (IT ? `${rel} ${refWord}` : `was ${rel} ${refWord}`)
+        : IT
+          ? `${rel} ${m.delta > 0 ? 'sopra' : 'sotto'} ${refWord}`
+          : `was ${rel} ${m.delta > 0 ? 'above' : 'below'} ${refWord}`;
       // The sum rides along in brackets, because a proportion alone cannot say
       // whether 9x usual is 90EUR or 1,090EUR.
       return withMoney ? `${core} (${m.delta > 0 ? '+' : ''}${money(m.delta)})` : core;
@@ -1101,9 +1125,11 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
       // A category that went to zero is best said plainly; "0.0x usual" is not
       // a sentence anyone reads.
       if (next.now === 0 && next.was >= RELATIVE_FLOOR) {
-        return `Nothing in ${next.name}, ${money(next.delta)} ${belowRef}.`;
+        return IT
+          ? `Niente in ${next.name}: ${money(next.delta)} ${belowRef}.`
+          : `Nothing in ${next.name}, ${money(next.delta)} ${belowRef}.`;
       }
-      return fitted((w) => `${next.name} ${detail(next, w)}.`);
+      return fitted((w) => (IT ? `${next.name}: ${detail(next, w)}.` : `${next.name} ${detail(next, w)}.`));
     };
     const bigUps = ups.filter((m) => m.delta >= Math.max(WORTH_NAMING, Math.abs(delta) * 0.15));
     const bigDowns = downs.filter((m) => Math.abs(m.delta) >= WORTH_NAMING);
@@ -1114,37 +1140,63 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
     let shape: string | null;
     let evidence: string | undefined;
     if (flat) {
-      shape = ups[0] ? fitted((w) => `Steady overall, though ${ups[0].name} ${detail(ups[0], w)}.`) : null;
+      shape = ups[0]
+        ? fitted((w) =>
+            IT
+              ? `Nel complesso stabile, ma ${ups[0].name}: ${detail(ups[0], w)}.`
+              : `Steady overall, though ${ups[0].name} ${detail(ups[0], w)}.`,
+          )
+        : null;
       if (shape) evidence = runnerUp(ups[0]);
     } else if (delta < 0) {
       shape = !topSame
-        ? `Quieter ${usualMode ? 'than usual' : `than ${refLabel}`}, ${money(delta)} below.`
+        ? IT
+          ? `Più tranquillo ${usualMode ? 'del solito' : `di ${refLabel}`}: ${money(delta)} in meno.`
+          : `Quieter ${usualMode ? 'than usual' : `than ${refLabel}`}, ${money(delta)} below.`
         : topSame.now === 0 && topSame.was >= RELATIVE_FLOOR
-          ? `Nothing in ${topSame.name}, ${money(topSame.delta)} ${belowRef}.`
-          : fitted((w) => `${topSame.name} pulled the ${unit} down, ${detail(topSame, w).replace(/^(was|ran) /, '')}.`);
+          ? IT
+            ? `Niente in ${topSame.name}: ${money(topSame.delta)} ${belowRef}.`
+            : `Nothing in ${topSame.name}, ${money(topSame.delta)} ${belowRef}.`
+          : fitted((w) =>
+              IT
+                ? `${topSame.name} ha tirato giù il ${unitIt}: ${detail(topSame, w)}.`
+                : `${topSame.name} pulled the ${unit} down, ${detail(topSame, w).replace(/^(was|ran) /, '')}.`,
+            );
       evidence = runnerUp(topSame);
     } else if (share >= 0.6 && topSame) {
-      shape = fitted((w) => `${topSame.name} drove the ${unit}, ${detail(topSame, w).replace(/^(was|ran) /, '')}.`);
+      shape = fitted((w) =>
+        IT
+          ? `${topSame.name} ha trainato il ${unitIt}: ${detail(topSame, w)}.`
+          : `${topSame.name} drove the ${unit}, ${detail(topSame, w).replace(/^(was|ran) /, '')}.`,
+      );
       evidence = runnerUp(topSame);
     } else {
       // Deliberately no count. A count would have to be of categories above
       // some threshold, while the sentence reads as "all of them" - eight rose
       // in July, four by an amount worth reading. The shape is the point.
-      shape = usualMode
-        ? `Higher than usual across several categories:`
-        : `Higher than ${refLabel} across several categories:`;
+      shape = IT
+        ? usualMode
+          ? `Più alto del solito in diverse categorie:`
+          : `Più alto rispetto a ${refLabel} in diverse categorie:`
+        : usualMode
+          ? `Higher than usual across several categories:`
+          : `Higher than ${refLabel} across several categories:`;
       evidence = bigUps.slice(0, 3).map((m) => `${m.name} +${money(m.delta)}`).join(', ') + '.';
     }
 
-    const inLine = usualMode
-      ? `In line with your usual ${money(base)} a ${unit}.`
-      : `Much the same as ${refLabel}, ${money(base)}.`;
+    const inLine = IT
+      ? usualMode
+        ? `In linea con il tuo solito: ${money(base)} ${perUnit}.`
+        : `Più o meno come ${refLabel}: ${money(base)}.`
+      : usualMode
+        ? `In line with your usual ${money(base)} a ${unit}.`
+        : `Much the same as ${refLabel}, ${money(base)}.`;
     if (timePeriodType === 'month') {
       // No leading comparison: the budget bar below already reports the month
       // against its limit, and repeating the idea costs a line.
       return {
         line1: shape ?? inLine,
-        line2: evidence ?? (record ? `Your most expensive ${unit} so far.` : undefined),
+        line2: evidence ?? (record ? (IT ? `Il tuo ${unitIt} più caro finora.` : `Your most expensive ${unit} so far.`) : undefined),
       };
     }
     // Quarters and years have no budget bar, so they keep the comparison. A
@@ -1152,9 +1204,13 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
     return {
       line1: flat
         ? inLine
-        : usualMode
-          ? `${money(delta)} ${delta > 0 ? 'above' : 'below'} your usual ${money(base)} a ${unit}.`
-          : `${money(delta)} ${delta > 0 ? 'more' : 'less'} than ${refLabel}, which was ${money(base)}.`,
+        : IT
+          ? usualMode
+            ? `${money(delta)} ${delta > 0 ? 'sopra' : 'sotto'} il tuo solito di ${money(base)} ${perUnit}.`
+            : `${money(delta)} ${delta > 0 ? 'in più' : 'in meno'} rispetto a ${refLabel} (${money(base)}).`
+          : usualMode
+            ? `${money(delta)} ${delta > 0 ? 'above' : 'below'} your usual ${money(base)} a ${unit}.`
+            : `${money(delta)} ${delta > 0 ? 'more' : 'less'} than ${refLabel}, which was ${money(base)}.`,
       line2: shape ?? undefined,
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1168,11 +1224,17 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
       .filter((t) => t.type === 'income' && parseLocalDate(t.date) < periodStart)
       .map((t) => Number(t.date.slice(8, 10)))
       .sort((a, b) => a - b);
-    if (days.length === 0) return 'No income recorded yet this month.';
+    if (days.length === 0) {
+      return getLanguage() === 'it'
+        ? 'Nessuna entrata registrata questo mese.'
+        : 'No income recorded yet this month.';
+    }
     const day = days[Math.floor(days.length / 2)]; // median: robust to one odd month
     const ord = (n: number) =>
       `${n}${n % 10 === 1 && n !== 11 ? 'st' : n % 10 === 2 && n !== 12 ? 'nd' : n % 10 === 3 && n !== 13 ? 'rd' : 'th'}`;
-    return `Income usually lands around the ${ord(day)}.`;
+    return getLanguage() === 'it'
+      ? `Le entrate di solito arrivano intorno al ${day}.`
+      : `Income usually lands around the ${ord(day)}.`;
   })();
 
   // Filter by transaction type for category display
@@ -1399,7 +1461,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
   // comparison was lopsided; now that the previous period is cut to the same
   // number of days elapsed, "vs. Jun" is simply true.
   const comparisonLabel = () =>
-    comparisonBaseline === 'average' ? 'vs. Avg' : `vs. ${periodShortLabel(resolvedBack())}`;
+    comparisonBaseline === 'average' ? t('cat.vsAvg') : `vs. ${periodShortLabel(resolvedBack())}`;
 
   // Get trend data for overall spending, category, or subcategory (Year-to-Date)
   const getTrendData = (identifier: string, txnType: TransactionType) => {
@@ -1800,7 +1862,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
         const source = sources.find((s) => s.id === id) || null;
         return {
           id,
-          name: source?.name || 'No source',
+          name: source?.name || t('src.noSource'),
           color: source?.brand || '#C7C7CC',
           source,
           value,
@@ -1816,13 +1878,19 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
   const getGreeting = () => {
     const hour = new Date().getHours();
     if (hour < 5) return 'Good night';
-    if (hour < 12) return 'Good morning';
-    if (hour < 18) return 'Good afternoon';
-    if (hour < 23) return 'Good evening';
-    return 'Good night';
+    if (hour < 12) return t('greeting.morning');
+    if (hour < 18) return t('greeting.afternoon');
+    if (hour < 23) return t('greeting.evening');
+    return t('greeting.night');
   };
 
-  const greeting = userName ? `${getGreeting()}, ${userName}` : 'Welcome 👋';
+  const greeting = userName ? `${getGreeting()}, ${userName}` : t('greeting.welcome');
+
+  // Slice names in the recurrence breakdown are canonical data ('One-off',
+  // 'Recurring', then rule strings like 'Every month') - comparisons and the
+  // drilldown filter depend on them - so only the rendering translates.
+  const recurrenceSliceLabel = (name: string) =>
+    name === 'One-off' ? t('rec.oneOff') : name === 'Recurring' ? t('rec.recurring') : translateRecurrence(name);
 
   // First run: an empty ledger used to render a page of zeros with no hint of
   // what to do next - the wall every brand-new user hit right after the tour.
@@ -1847,10 +1915,10 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
               <Plus className="w-7 h-7" style={{ color: '#3B82F6' }} strokeWidth={2.5} />
             </div>
             <h2 style={{ color: '#1C1C1E', fontSize: 20, fontWeight: 700, letterSpacing: '-0.02em', marginBottom: 8 }}>
-              Your first month starts here
+              {t('dash.empty.title')}
             </h2>
             <p style={{ color: '#8E8E93', fontSize: 15, lineHeight: 1.45, marginBottom: 20 }}>
-              Add an expense as it happens - this page fills in by itself.
+              {t('dash.empty.body')}
             </p>
             {onAddFirstExpense && (
               <button
@@ -1858,12 +1926,12 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                 className="w-full py-4 rounded-xl font-medium text-base transition-all active:scale-[0.98]"
                 style={{ backgroundColor: '#3B82F6', color: '#FFFFFF', boxShadow: '0 2px 8px rgba(0,122,255,0.25)' }}
               >
-                Add your first expense
+                {t('dash.empty.cta')}
               </button>
             )}
             {onLoadDemoData && (
               <button onClick={onLoadDemoData} className="w-full py-3 mt-1 text-[14px] font-medium" style={{ color: '#8E8E93' }}>
-                Or look around with sample data
+                {t('dash.empty.demo')}
               </button>
             )}
           </div>
@@ -1958,9 +2026,9 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                     willChange: 'background-color'
                   }}
                 >
-                  <option value="month">Monthly</option>
-                  <option value="quarter">Quarterly</option>
-                  <option value="year">Yearly</option>
+                  <option value="month">{t('dash.periodType.month')}</option>
+                  <option value="quarter">{t('dash.periodType.quarter')}</option>
+                  <option value="year">{t('dash.periodType.year')}</option>
                 </select>
               </div>
             </div>
@@ -2043,7 +2111,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                         <Minus className="w-4 h-4" style={{ color: '#FF6961' }} strokeWidth={3} />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <div className="text-[11px] leading-tight mb-1" style={{ color: 'rgba(235,235,245,0.6)' }}>Spending</div>
+                        <div className="text-[11px] leading-tight mb-1" style={{ color: 'rgba(235,235,245,0.6)' }}>{t('dash.spending')}</div>
                         <FitText
                           max={17}
                           min={14}
@@ -2062,7 +2130,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                         <Plus className="w-4 h-4" style={{ color: '#30D158' }} strokeWidth={3} />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <div className="text-[11px] leading-tight mb-1" style={{ color: 'rgba(235,235,245,0.6)' }}>Income</div>
+                        <div className="text-[11px] leading-tight mb-1" style={{ color: 'rgba(235,235,245,0.6)' }}>{t('dash.income')}</div>
                         <FitText
                           max={17}
                           min={14}
@@ -2087,7 +2155,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                         <Wallet className="w-4 h-4" style={{ color: '#64A0FF' }} strokeWidth={2.5} />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <div className="text-[11px] leading-tight mb-1" style={{ color: 'rgba(235,235,245,0.6)' }}>Savings</div>
+                        <div className="text-[11px] leading-tight mb-1" style={{ color: 'rgba(235,235,245,0.6)' }}>{t('dash.savings')}</div>
                         <FitText
                           max={17}
                           min={14}
@@ -2106,7 +2174,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                         <Gauge className="w-4 h-4" style={{ color: '#64A0FF' }} strokeWidth={2.5} />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <div className="text-[11px] leading-tight mb-1" style={{ color: 'rgba(235,235,245,0.6)' }}>Saving Rate</div>
+                        <div className="text-[11px] leading-tight mb-1" style={{ color: 'rgba(235,235,245,0.6)' }}>{t('dash.savingRate')}</div>
                         <FitText
                           max={17}
                           min={11}
@@ -2171,14 +2239,14 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                 className="relative flex-1 py-1.5 text-sm font-medium transition-colors"
                 style={{ color: transactionType === 'expense' ? '#C2352B' : '#8E8E93' }}
               >
-                Expenses
+                {t('seg.expenses')}
               </button>
               <button
                 onClick={() => setTransactionType('income')}
                 className="relative flex-1 py-1.5 text-sm font-medium transition-colors"
                 style={{ color: transactionType === 'income' ? '#1F7A43' : '#8E8E93' }}
               >
-                Income
+                {t('seg.income')}
               </button>
             </div>
           </div>
@@ -2214,7 +2282,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                       column and nothing else, so it sits right-aligned above
                       that column, like the column headers in Trend. */}
                   <div className="flex items-center gap-2.5 min-w-0">
-                    <h2 style={{ color: '#1C1C1E', fontWeight: '600' }}>Categories</h2>
+                    <h2 style={{ color: '#1C1C1E', fontWeight: '600' }}>{t('cat.title')}</h2>
                     <button
                       onClick={() => setCategorySortBy(categorySortBy === 'alphabetical' ? 'amount' : 'alphabetical')}
                       className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition-colors flex-shrink-0"
@@ -2277,7 +2345,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                               {p.label}
                             </option>
                           ))}
-                          <option value="average">Average</option>
+                          <option value="average">{t('cat.average')}</option>
                         </select>
                       </div>
                     );
@@ -2286,10 +2354,10 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                 {sortedCategories.length === 0 ? (
                   <div className="py-12 text-center">
                     <div className="text-neutral-400 text-sm mb-1">
-                      No {transactionType === 'expense' ? 'expenses' : 'income'} yet
+                      {transactionType === 'expense' ? t('cat.emptyExpenses') : t('cat.emptyIncome')}
                     </div>
                     <p className="text-neutral-500 text-xs">
-                      Start adding {transactionType === 'expense' ? 'expenses' : 'income'} to see your breakdown
+                      {transactionType === 'expense' ? t('cat.emptyHintExpenses') : t('cat.emptyHintIncome')}
                     </p>
                   </div>
                 ) : (
@@ -2364,7 +2432,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                                 {/* A word rather than another arrow: nothing went up or
                                     down, there simply is no earlier figure. */}
                                 {trend === 'new' && (
-                                  <span className="text-[9px] font-semibold" style={{ color: '#6B6B75' }}>New</span>
+                                  <span className="text-[9px] font-semibold" style={{ color: '#6B6B75' }}>{t('cat.new')}</span>
                                 )}
                               </div>
                             </div>
@@ -2412,7 +2480,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                                           <Minus className="w-3 h-3" style={{ color: '#8E8E93', strokeWidth: 2.5 }} />
                                         )}
                                         {subTrend === 'new' && (
-                                          <span className="text-[8px] font-semibold" style={{ color: '#6B6B75' }}>New</span>
+                                          <span className="text-[8px] font-semibold" style={{ color: '#6B6B75' }}>{t('cat.new')}</span>
                                         )}
                                       </div>
                                     </div>
@@ -2479,9 +2547,9 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
             // step. Spans the WHOLE period while the solid line stops at
             // today, so a running month shows where "usual" is heading.
             const periodWord =
-              timePeriodType === 'month' ? 'This month'
-              : timePeriodType === 'quarter' ? 'This quarter'
-              : 'This year';
+              timePeriodType === 'month' ? t('chart.thisMonth')
+              : timePeriodType === 'quarter' ? t('chart.thisQuarter')
+              : t('chart.thisYear');
             const usual = usualCurve(expenses, currency, {
               type: timePeriodType,
               year: selectedYear,
@@ -2511,7 +2579,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
               timePeriodType === 'month' ? `${M3[selectedMonth]} ${selectedYear - 1}`
               : timePeriodType === 'quarter' ? `Q${selectedQuarter + 1} ${selectedYear - 1}`
               : `${selectedYear - 1}`;
-            const benchmarkLabel = benchmarkMode === 'lastYear' ? lastYearLabel : 'Your usual';
+            const benchmarkLabel = benchmarkMode === 'lastYear' ? lastYearLabel : t('chart.yourUsual');
             const benchmarkChoices = !!usual && !!lastYear;
 
             // ONE projection, shared by the SVG, the pointer handlers and the
@@ -2628,7 +2696,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                 }}>
                   <div className="px-6 py-4">
                     <h3 className="text-sm mb-3" style={{ color: '#1C1C1E', fontWeight: '600' }}>
-                      Cumulative Spending
+                      {t('chart.cumulative')}
                     </h3>
                     <div
                       ref={chartBoxRef}
@@ -2969,7 +3037,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                                   transform: 'translateZ(0)',
                                 }}
                               >
-                                <option value="usual">Your usual</option>
+                                <option value="usual">{t('chart.yourUsual')}</option>
                                 <option value="lastYear">{lastYearLabel}</option>
                               </select>
                             </>
@@ -3036,7 +3104,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                 <div className="px-6 mb-4">
                   <div className="rounded-2xl px-6 py-4 bg-white" style={{ boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)' }}>
                     <h3 className="text-sm mb-1.5" style={{ color: '#1C1C1E', fontWeight: '600' }}>
-                      One-off vs Recurring
+                      {t('rec.title')}
                     </h3>
                     <div className="flex items-center gap-2">
                       <span
@@ -3045,8 +3113,8 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                         aria-hidden="true"
                       />
                       <span style={{ color: '#8E8E93', fontSize: 13 }}>
-                        All <AmountText amount={only.value} currency={currency} decimals={0} /> was{' '}
-                        {only.name.toLowerCase()}.
+                        {t('rec.allPre')} <AmountText amount={only.value} currency={currency} decimals={0} /> {t('rec.allMid')}{' '}
+                        {recurrenceSliceLabel(only.name).toLowerCase()}.
                       </span>
                     </div>
                   </div>
@@ -3064,7 +3132,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                     {/* Title and Back button */}
                     <div className="flex items-center justify-between mb-2">
                       <h3 className="text-sm" style={{ color: '#1C1C1E', fontWeight: '600' }}>
-                        One-off vs Recurring
+                        {t('rec.title')}
                       </h3>
                       {recurrenceLayer === 'detail' ? (
                         <button
@@ -3080,7 +3148,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                           }}
                         >
                           <ChevronLeft size={14} />
-                          <span>Back</span>
+                          <span>{t('rec.back')}</span>
                         </button>
                       ) : (
                         /* The donut used to carry the total in its hole. */
@@ -3108,7 +3176,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                         return (
                           <button
                             key={`bar-${item.name}-${index}`}
-                            aria-label={`${item.name}, ${item.percentage.toFixed(0)}%`}
+                            aria-label={`${recurrenceSliceLabel(item.name)}, ${item.percentage.toFixed(0)}%`}
                             onClick={() => {
                               if (item.name === 'Recurring' && recurrenceLayer === 'overview') {
                                 setRecurrenceLayer('detail');
@@ -3177,7 +3245,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                               fontSize: '13px',
                               fontWeight: '500'
                             }}>
-                              {item.name}
+                              {recurrenceSliceLabel(item.name)}
                               {((item.name === 'Recurring' && recurrenceLayer === 'overview') || recurrenceLayer === 'detail') && (
                                 <ChevronRight size={14} style={{ display: 'inline', marginLeft: '4px', verticalAlign: 'middle' }} />
                               )}
@@ -3244,7 +3312,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                   <div className="px-6 py-4">
                     <div className="flex items-center justify-between mb-2">
                       <h3 className="text-sm" style={{ color: '#1C1C1E', fontWeight: '600' }}>
-                        {transactionType === 'income' ? 'Income by Source' : 'Spending by Source'}
+                        {transactionType === 'income' ? t('src.incomeTitle') : t('src.spendingTitle')}
                       </h3>
                     </div>
 
@@ -3272,7 +3340,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                           ))}
                         </svg>
                         <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', textAlign: 'center', pointerEvents: 'none' }}>
-                          <p style={{ color: '#8E8E93', fontSize: '10px', margin: 0, marginBottom: '2px' }}>Total</p>
+                          <p style={{ color: '#8E8E93', fontSize: '10px', margin: 0, marginBottom: '2px' }}>{t('src.total')}</p>
                           <p style={{ color: '#1C1C1E', fontSize: '13px', fontWeight: '600', margin: 0 }}>
                             <AmountText amount={totalValue} currency={currency} decimals={0} />
                           </p>
@@ -3379,7 +3447,9 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
         // is under January: a running year (8 points) and its full previous
         // year (12) can only be compared on a shared axis. Without it, the
         // old index spread stays.
-        const MONTH_SLOTS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        // Same array the trend rows were labelled from - slotX is an indexOf
+        // against these labels, so the two must speak the same language.
+        const MONTH_SLOTS = monthsShort();
         const slotX = (m: string) => (MONTH_SLOTS.indexOf(m) / 11) * 320;
         const chartX = (item: { month: string }, index: number) =>
           showPrevYear ? slotX(item.month) : trendData.length > 1 ? (index / (trendData.length - 1)) * 320 : 160;
@@ -3510,9 +3580,9 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                     aria-hidden="true"
                   />
                   {([
-                    { key: 'expense', label: 'Expenses', color: '#C2352B' },
-                    { key: 'income', label: 'Income', color: '#1F7A43' },
-                    { key: 'savings', label: 'Savings', color: '#1C1C1E' },
+                    { key: 'expense', label: t('seg.expenses'), color: '#C2352B' },
+                    { key: 'income', label: t('seg.income'), color: '#1F7A43' },
+                    { key: 'savings', label: t('seg.savings'), color: '#1C1C1E' },
                   ] as const).map(({ key, label, color }) => (
                     <button
                       key={key}
@@ -3598,7 +3668,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                         const Icon = getCategoryIcon(selectedCategoryObj.icon);
                         return <Icon className="w-3.5 h-3.5 text-neutral-500" strokeWidth={2} />;
                       })()}
-                      <span className="text-neutral-600 text-xs">{selectedCategory === 'All' ? 'All Categories' : selectedCategory}</span>
+                      <span className="text-neutral-600 text-xs">{selectedCategory === 'All' ? t('trend.allCategories') : selectedCategory}</span>
                       <ChevronDown className="w-3 h-3 text-neutral-400" />
                     </button>
                     
@@ -3615,7 +3685,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                           : { backgroundColor: '#EFF6FF', borderColor: '#BFDBFE' }}
                       >
                         <span className="text-xs" style={{ color: selectedSubcategory === 'All' ? '#525252' : '#2563EB' }}>
-                          {selectedSubcategory === 'All' ? 'All Subcategories' : selectedSubcategory}
+                          {selectedSubcategory === 'All' ? t('trend.allSubcategories') : selectedSubcategory}
                         </span>
                         <ChevronDown className="w-3 h-3" style={{ color: selectedSubcategory === 'All' ? '#A3A3A3' : '#60A5FA' }} />
                       </button>
@@ -3670,16 +3740,18 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                 return (
                   <div className="grid grid-cols-2 gap-2">
                     <TrendStatCard
-                      label="Total Saved"
+                      label={t('trend.totalSaved')}
                       value={<AmountText amount={totalSpent} currency={currency} decimals={0} />}
                       compact={formatAbbreviatedAmount(totalSpent, currency)}
                       compactNode={<AmountText amount={totalSpent} currency={currency} decimals={0} abbreviate="fit" />}
                       valueColor={savingsColor(totalSpent)}
-                      corner={trendData.length === 1 ? "This month" : `${trendData.length} months`}
+                      corner={trendData.length === 1 ? t('trend.thisMonth') : t('trend.months', { n: trendData.length })}
                       footnote={
                         overallSavingRate !== null ? (
                           <StatChip
-                            label={<><span className="max-[359px]:hidden">Saving </span>Rate</>}
+                            label={getLanguage() === 'it'
+                              ? <>Tasso<span className="max-[359px]:hidden"> di Risparmio</span></>
+                              : <><span className="max-[359px]:hidden">Saving </span>Rate</>}
                             value={`${Math.round(overallSavingRate)}%`}
                             tone={Math.round(overallSavingRate)}
                           />
@@ -3687,7 +3759,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                       }
                     />
                     <TrendStatCard
-                      label="Monthly Average"
+                      label={t('trend.monthlyAverage')}
                       value={<AmountText amount={avgAmount} currency={currency} decimals={0} />}
                       compact={formatAbbreviatedAmount(avgAmount, currency)}
                       compactNode={<AmountText amount={avgAmount} currency={currency} decimals={0} abbreviate="fit" />}
@@ -3701,12 +3773,14 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                             // Below ~360px the full label would be truncated to
                             // "Saving ..."; dropping the first word is a better
                             // reading of the same thing.
-                            label={<><span className="max-[359px]:hidden">Saving </span>Rate</>}
+                            label={getLanguage() === 'it'
+                              ? <>Tasso<span className="max-[359px]:hidden"> di Risparmio</span></>
+                              : <><span className="max-[359px]:hidden">Saving </span>Rate</>}
                             value={`${Math.round(avgMonthlySavingRate)}%`}
                             tone={Math.round(avgMonthlySavingRate)}
                           />
                         ) : (
-                          'No income recorded'
+                          t('trend.noIncome')
                         )
                       }
                     />
@@ -3719,22 +3793,22 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                 // typical month. Income gets neither - a count of salary
                 // payments is not a thing anyone wonders about.
                 const isExpense = transactionType === "expense";
-                const months = trendData.length === 1 ? "This month" : `${trendData.length} months`;
+                const months = trendData.length === 1 ? t('trend.thisMonth') : t('trend.months', { n: trendData.length });
                 const txCount = trendData.reduce((sum, month) => sum + month.count, 0);
                 const avgTxCount = trendData.length > 0 ? Math.round(txCount / trendData.length) : 0;
-                const transactions = (n: number) => `${n} ${n === 1 ? "transaction" : "transactions"}`;
+                const transactions = (n: number) => t(n === 1 ? 'trend.tx.one' : 'trend.tx.other', { n });
 
                 return (
                   <div className="grid grid-cols-2 gap-2">
                     <TrendStatCard
-                      label={isExpense ? "Total Spent" : "Total Earned"}
+                      label={isExpense ? t('trend.totalSpent') : t('trend.totalEarned')}
                       value={<AmountText amount={totalSpent} currency={currency} decimals={0} />}
                       compact={formatAbbreviatedAmount(totalSpent, currency)}
                       compactNode={<AmountText amount={totalSpent} currency={currency} decimals={0} abbreviate="fit" />}
                       footnote={isExpense ? `${months} · ${transactions(txCount)}` : months}
                     />
                     <TrendStatCard
-                      label="Monthly Average"
+                      label={t('trend.monthlyAverage')}
                       value={<AmountText amount={avgAmount} currency={currency} decimals={0} />}
                       compact={formatAbbreviatedAmount(avgAmount, currency)}
                       compactNode={<AmountText amount={avgAmount} currency={currency} decimals={0} abbreviate="fit" />}
@@ -3748,12 +3822,12 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
             {/* Line Chart */}
             <div className="px-6 py-4 bg-white mb-2">
               <h3 className="text-neutral-900 font-semibold text-sm mb-3">
-                {transactionType === 'income' ? 'Monthly Income' : transactionType === 'savings' ? 'Monthly Savings' : 'Monthly Spending'}
+                {transactionType === 'income' ? t('trend.chart.income') : transactionType === 'savings' ? t('trend.chart.savings') : t('trend.chart.spending')}
               </h3>
               
               {trendData.length === 0 ? (
                 <div className="text-center py-8 text-neutral-400 text-sm">
-                  No data available
+                  {t('trend.noData')}
                 </div>
               ) : (
                 <>
@@ -3988,7 +4062,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
               <div className="flex items-baseline justify-between mb-2">
                 <span className="relative flex items-center gap-1">
                   <h3 className="text-neutral-900 font-semibold text-sm">
-                    {showDow ? 'Day of Week' : 'Monthly Breakdown'}
+                    {showDow ? t('trend.dowTitle') : t('trend.breakdownTitle')}
                   </h3>
                   {transactionType === 'expense' && (
                     <>
@@ -4006,8 +4080,8 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                           transform: 'translateZ(0)',
                         }}
                       >
-                        <option value="monthly">Monthly breakdown</option>
-                        <option value="dow">Day of week</option>
+                        <option value="monthly">{t('trend.optBreakdown')}</option>
+                        <option value="dow">{t('trend.optDow')}</option>
                       </select>
                     </>
                   )}
@@ -4018,7 +4092,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                 {!showDow && transactionType === 'expense' && selectedCategory === 'All' && !!monthlyBudget && monthlyBudget > 0 && (
                   <span className="flex items-baseline gap-1.5 text-[10px]" style={{ color: '#A0A0A8' }}>
                     <span className="self-center w-0.5 h-2.5 rounded-full" style={{ backgroundColor: 'rgba(28,28,30,0.35)' }} />
-                    Budget <AmountText amount={monthlyBudget} currency={currency} decimals={0} />
+                    {t('trend.budgetMark')} <AmountText amount={monthlyBudget} currency={currency} decimals={0} />
                   </span>
                 )}
               </div>
@@ -4046,13 +4120,13 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                         transform: 'translateZ(0)',
                       }}
                     >
-                      <option value="year">Full {trendYearFilter}</option>
+                      <option value="year">{t('dow.fullYear', { year: trendYearFilter })}</option>
                       {MFULL.slice(0, dowMaxMonth + 1).map((m, i) => (
                         <option key={m} value={String(i)}>{m} {trendYearFilter}</option>
                       ))}
                     </select>
                     <div className="flex rounded-md overflow-hidden border border-neutral-200">
-                      {[{ v: false, label: 'All' }, { v: true, label: 'One-offs' }].map(({ v, label }) => (
+                      {[{ v: false, label: t('dow.all') }, { v: true, label: t('dow.oneOffs') }].map(({ v, label }) => (
                         <button
                           key={label}
                           onClick={() => setTrendDowOneOffs(v)}
@@ -4083,8 +4157,8 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                       <div className="flex items-center gap-2.5 pb-1.5 mt-2 mb-1 border-b border-neutral-100">
                         <div className="w-[72px] flex-shrink-0"></div>
                         <div className="flex-1 min-w-0"></div>
-                        <div className="w-16 flex-shrink-0 text-right text-[9px] text-neutral-400 uppercase tracking-wide">Avg / day</div>
-                        <div className="w-8 flex-shrink-0 text-right text-[9px] text-neutral-400 uppercase tracking-wide">Days</div>
+                        <div className="w-16 flex-shrink-0 text-right text-[9px] text-neutral-400 uppercase tracking-wide">{t('dow.avgPerDay')}</div>
+                        <div className="w-8 flex-shrink-0 text-right text-[9px] text-neutral-400 uppercase tracking-wide">{t('dow.days')}</div>
                       </div>
                       <div className="space-y-0">
                         {dowBuckets.map((b) => (
@@ -4116,11 +4190,11 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                         <p className="mt-1 text-[11px]" style={{ color: '#B0B0B5' }}>
                           {dowExcludedCount > 0 ? (
                             <>
-                              Leaving out {dowExcludedCount} recurring transaction{dowExcludedCount === 1 ? '' : 's'}{' '}
+                              {t(dowExcludedCount === 1 ? 'dow.leavingOut.one' : 'dow.leavingOut.other', { n: dowExcludedCount })}{' '}
                               (<AmountText amount={dowExcludedTotal} currency={currency} decimals={0} />).
                             </>
                           ) : (
-                            'Nothing here is recurring, so this view matches All.'
+                            t('dow.matchesAll')
                           )}
                         </p>
                       )}
@@ -4128,11 +4202,11 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                   ) : (
                     <div className="py-6 text-center">
                       <p className="text-sm text-neutral-400">
-                        No spending in this period{trendDowOneOffs && dowExcludedCount > 0 ? ' outside recurring' : ''}.
+                        {t('dow.noSpending')}{trendDowOneOffs && dowExcludedCount > 0 ? t('dow.outsideRecurring') : ''}.
                       </p>
                       {trendDowOneOffs && dowExcludedCount > 0 && (
                         <p className="mt-1 text-[11px]" style={{ color: '#B0B0B5' }}>
-                          Leaving out {dowExcludedCount} recurring transaction{dowExcludedCount === 1 ? '' : 's'}{' '}
+                          {t(dowExcludedCount === 1 ? 'dow.leavingOut.one' : 'dow.leavingOut.other', { n: dowExcludedCount })}{' '}
                           (<AmountText amount={dowExcludedTotal} currency={currency} decimals={0} />).
                         </p>
                       )}
@@ -4158,13 +4232,13 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                   <div className={`${selectedCategory === 'All' ? 'flex-1' : 'w-32'} min-w-0`}></div>
                   {/* Amount header */}
                   <div className={`${selectedCategory === 'All' ? 'w-16' : 'w-14'} flex-shrink-0 text-right text-[9px] text-neutral-400 uppercase tracking-wide`}>
-                    {transactionType === 'savings' ? 'Saved' : 'Amount'}
+                    {transactionType === 'savings' ? t('trend.colSaved') : t('trend.colAmount')}
                   </div>
                   {selectedCategory !== 'All' && (
                     <>
                       {/* Weight header */}
                       <div className="w-10 flex-shrink-0 text-right text-[9px] text-neutral-400 uppercase tracking-wide">
-                        Weight
+                        {t('trend.colWeight')}
                       </div>
                       {/* Transaction count header */}
                       <div className="w-8 flex-shrink-0 text-center text-[9px] text-neutral-400 uppercase tracking-wide">
@@ -4175,7 +4249,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                   {/* Saving rate header */}
                   {transactionType === 'savings' && (
                     <div className="w-10 flex-shrink-0 text-right text-[9px] text-neutral-400 uppercase tracking-wide">
-                      Rate
+                      {t('trend.colRate')}
                     </div>
                   )}
                   {/* Badges spacer */}
@@ -4307,12 +4381,12 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                       <div className="flex-shrink-0 w-11 flex justify-end self-center">
                         {trendData.length > 1 && index === bestMonthIndex && item.amount > 0 && (
                           <span className="text-[9px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded font-medium leading-none">
-                            Best
+                            {t('trend.best')}
                           </span>
                         )}
                         {trendData.length > 1 && index === worstMonthIndex && item.amount !== 0 && index !== bestMonthIndex && (
                           <span className="text-[9px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded font-medium leading-none">
-                            Worst
+                            {t('trend.worst')}
                           </span>
                         )}
                         {/* The running month sits in the same column, marked
@@ -4321,7 +4395,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                             verdict. It is also why that row has no badge. */}
                         {trendData.length > 1 && isRunningMonth(item) && (
                           <span className="text-[9px] bg-neutral-100 text-neutral-500 px-1.5 py-0.5 rounded font-medium leading-none whitespace-nowrap">
-                            So far
+                            {t('trend.soFar')}
                           </span>
                         )}
                       </div>
@@ -4414,7 +4488,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
             });
             
             const subcategoryTotals = categoryTransactions.reduce((acc, expense) => {
-              const subcatName = expense.subcategory || 'Other';
+              const subcatName = expense.subcategory || t('trend.other');
               acc[subcatName] = (acc[subcatName] || 0) + expense.amount;
               return acc;
             }, {} as Record<string, number>);
@@ -4459,14 +4533,14 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                   <div className="flex flex-wrap items-center gap-2 mb-1.5">
                     <h3 className="text-xl font-bold text-neutral-900 leading-tight">
                       {drilldownContext.recurrence
-                        ? drilldownContext.recurrence
+                        ? recurrenceSliceLabel(drilldownContext.recurrence)
                         : drilldownContext.subcategoryName
-                        ? (drilldownContext.subcategoryName === UNCATEGORIZED ? 'Other' : drilldownContext.subcategoryName)
+                        ? (drilldownContext.subcategoryName === UNCATEGORIZED ? t('trend.other') : drilldownContext.subcategoryName)
                         : drilldownContext.categoryName}
                     </h3>
                     {(drilldownContext.recurrence || drilldownContext.subcategoryName) && (
                       <span className="text-[10px] text-neutral-400 font-bold px-2 py-0.5 bg-neutral-50 rounded-full border border-neutral-100 uppercase tracking-tight">
-                        {drilldownContext.recurrence ? 'Recurring' : drilldownContext.categoryName}
+                        {drilldownContext.recurrence ? t('rec.recurring') : drilldownContext.categoryName}
                       </span>
                     )}
                   </div>
@@ -4498,7 +4572,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                   >
                     <ArrowUpDown className="w-3.5 h-3.5" style={{ color: '#8E8E93' }} />
                     <span className="text-xs" style={{ color: '#8E8E93' }}>
-                      {drilldownSortBy === 'time' ? 'Time' : CURRENCIES[currency]?.symbol || '€'}
+                      {drilldownSortBy === 'time' ? t('trend.sortTime') : CURRENCIES[currency]?.symbol || '€'}
                     </span>
                   </button>
                 </div>
@@ -4512,7 +4586,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                   <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mb-4 shadow-sm">
                     <Receipt className="w-8 h-8 text-neutral-300" />
                   </div>
-                  <p className="text-neutral-500 text-sm font-medium">No transactions found for this selection.</p>
+                  <p className="text-neutral-500 text-sm font-medium">{t('cat.noTransactions')}</p>
                 </div>
               ) : drilldownList.mode === 'amount' ? (
                 // Ranked by amount: flat list, each row carries its own date

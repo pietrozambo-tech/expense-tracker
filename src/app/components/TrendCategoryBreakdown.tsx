@@ -3,6 +3,7 @@ import { getCategoryIcon } from './categoryIcons';
 import { useState } from 'react';
 import { CURRENCIES, homeAmount } from '../utils/currency';
 import { AmountText } from './AmountText';
+import { t } from '../i18n';
 
 interface TrendCategoryBreakdownProps {
   trendFilteredTransactions: any[];
@@ -86,7 +87,7 @@ export function TrendCategoryBreakdown({
     <div className="px-6 py-4 bg-white">
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-neutral-900 font-semibold text-sm">
-          Monthly Average by Category
+          {t('tcb.title')}
         </h3>
         <button
           onClick={() => setCategorySortBy(categorySortBy === 'alphabetical' ? 'amount' : 'alphabetical')}
@@ -103,8 +104,8 @@ export function TrendCategoryBreakdown({
       {/* Column headers. Two bare trend arrows used to sit here, which said
           nothing about what the columns hold; naming them costs the same room. */}
       <div className="flex items-center justify-end gap-0.5 mb-2 pr-1">
-        <div className="w-9 text-right text-[9px] uppercase tracking-wide text-neutral-400">Share</div>
-        <div className="w-16 text-right text-[9px] uppercase tracking-wide text-neutral-400">Avg</div>
+        <div className="w-9 text-right text-[9px] uppercase tracking-wide text-neutral-400">{t('tcb.share')}</div>
+        <div className="w-16 text-right text-[9px] uppercase tracking-wide text-neutral-400">{t('tcb.avg')}</div>
       </div>
       
       <div className="space-y-px">

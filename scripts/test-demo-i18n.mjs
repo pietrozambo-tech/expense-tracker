@@ -53,9 +53,11 @@ if (missing.length) {
   console.error('Demo category ids missing from the Italian catalogue: ' + missing.join(', '));
 }
 
-// And the localised rows must actually come out Italian-named.
+// And the localised rows must actually come out Italian-named when the user's
+// catalogue is the Italian-seeded one.
 setLanguage('it');
-const sample = localiseDemoRow(mockExpenses.find((t) => t.description === 'Monthly rent'));
+const itCatalogue = [...defaultCategoriesFor('it'), ...defaultIncomeCategoriesFor('it')];
+const sample = localiseDemoRow(mockExpenses.find((t) => t.description === 'Monthly rent'), itCatalogue);
 if (sample.description !== 'Affitto mensile' || sample.category.name !== 'Casa' || sample.subcategory !== 'Affitto') {
   failed = true;
   console.error('localiseDemoRow spot check failed: ' + JSON.stringify({ d: sample.description, c: sample.category.name, s: sample.subcategory }));

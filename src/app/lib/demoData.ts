@@ -1,8 +1,8 @@
 import { mockExpenses } from '../components/mockExpenses';
 import { convertAmount, BASE_CURRENCY } from '../utils/currency';
 import { getLanguage } from '../i18n/store';
-import { localiseDemoRow } from './demoItalian';
-import type { Transaction } from '../types';
+import { localiseDemoRow, bindDemoRow } from './demoItalian';
+import type { Category, Transaction } from '../types';
 
 // The sample dataset has fixed dates. Shift every transaction by whole months
 // so the newest sample month lands on the current month — this keeps the
@@ -44,7 +44,7 @@ function hashUnit(seed: string): number {
   return ((h >>> 0) % 10000) / 10000;
 }
 
-export function getDemoTransactions(currency: string): Transaction[] {
+export function getDemoTransactions(currency: string, userCategories: Category[] = []): Transaction[] {
   const now = new Date();
   const sampleMonths = mockExpenses.map((t) => monthIndex(t.date));
   const newestMonth = Math.max(...sampleMonths);
@@ -111,12 +111,14 @@ export function getDemoTransactions(currency: string): Transaction[] {
     }
   }
 
-  // In an Italian app the samples speak Italian: descriptions from the
-  // translation table, categories swapped by id for the Italian catalogue -
-  // the one onboarding seeded, so the demo files rows under the user's actual
-  // category names.
+  // Demo rows bind to the USER's categories by id, whatever the language -
+  // their catalogue may be renamed, or seeded in the other language, and a row
+  // filed under a name their catalogue doesn't carry falls off the Dashboard.
+  // In an Italian UI the descriptions translate too (see demoItalian.ts).
   const localise: (t: Transaction) => Transaction =
-    getLanguage() === 'it' ? localiseDemoRow : (t) => t;
+    getLanguage() === 'it'
+      ? (t) => localiseDemoRow(t, userCategories)
+      : (t) => bindDemoRow(t, userCategories);
 
   return [...recent, ...history].map(localise).map((transaction) => {
     // Most sample rows are priced in the user's own currency, so they are
