@@ -1,11 +1,13 @@
 import { ChevronDown, Search, X, Wallet } from 'lucide-react';
+import { t } from '../i18n';
+import { monthsShort } from '../i18n/store';
 import type { ReactNode } from 'react';
 import type { Source } from '../types';
 import { SourceLogo } from './SourceLogo';
 
 interface FilterBarProps {
   year: string; // e.g., "2025"
-  month: string; // e.g., "Jan"
+  month: string; // month index '0'-'11', or 'year'
   category: string;
   subcategory?: string;
   searchQuery?: string;
@@ -49,18 +51,22 @@ const IOS_SELECT_STYLE = {
 // than overlaying a chevron on the select) keeps it identical to the buttons.
 function SelectPill({
   value,
+  display,
   onChange,
   children,
   label,
 }: {
   value: string;
+  /** What the closed pill shows. Values are canonical keys now ('7', 'year',
+   *  'One-off'), so the pill must render the human label, not the value. */
+  display?: string;
   onChange: (v: string) => void;
   children: ReactNode;
   label: string;
 }) {
   return (
     <div className={`${PILL} ${PILL_NEUTRAL} relative`}>
-      <span>{value}</span>
+      <span>{display ?? value}</span>
       <ChevronDown className={`${CHEVRON} text-neutral-400`} />
       <select
         aria-label={label}
@@ -73,6 +79,19 @@ function SelectPill({
       </select>
     </div>
   );
+}
+
+// Display labels for the canonical type-filter values.
+function typeFilterDisplay(v: string): string {
+  return v === 'All'
+    ? t('act.type.all')
+    : v === 'One-off'
+      ? t('act.type.oneOff')
+      : v === 'Recurring'
+        ? t('act.type.recurring')
+        : v === 'Imported'
+          ? t('act.type.imported')
+          : v;
 }
 
 export function FilterBar({
@@ -106,27 +125,37 @@ export function FilterBar({
         style={{ WebkitTapHighlightColor: 'rgba(255, 255, 255, 0)' }}
       >
         {/* Year Filter */}
-        <SelectPill value={year} onChange={onYearChange} label="Filter by year">
+        <SelectPill value={year} onChange={onYearChange} label={t('act.ariaYear')}>
           {availableYears.map(y => (
             <option key={y} value={y}>{y}</option>
           ))}
         </SelectPill>
 
         {/* Month Filter */}
-        <SelectPill value={month} onChange={onMonthChange} label="Filter by month">
-          <option value="Full Year">Full Year</option>
+        <SelectPill
+          value={month}
+          display={month === 'year' ? t('act.fullYear') : monthsShort()[parseInt(month, 10)] ?? month}
+          onChange={onMonthChange}
+          label={t('act.ariaMonth')}
+        >
+          <option value="year">{t('act.fullYear')}</option>
           {availableMonths.map(m => (
-            <option key={m} value={m}>{m}</option>
+            <option key={m} value={m}>{monthsShort()[parseInt(m, 10)] ?? m}</option>
           ))}
         </SelectPill>
 
         {/* Type Filter */}
         {onTypeFilterChange && (
-          <SelectPill value={typeFilter ?? 'All'} onChange={(v) => onTypeFilterChange(v)} label="Filter by type">
-            <option value="All">All</option>
-            <option value="One-off">One-off</option>
-            <option value="Recurring">Recurring</option>
-            <option value="Imported">Imported</option>
+          <SelectPill
+            value={typeFilter ?? 'All'}
+            display={typeFilterDisplay(typeFilter ?? 'All')}
+            onChange={(v) => onTypeFilterChange(v)}
+            label={t('act.ariaType')}
+          >
+            <option value="All">{t('act.type.all')}</option>
+            <option value="One-off">{t('act.type.oneOff')}</option>
+            <option value="Recurring">{t('act.type.recurring')}</option>
+            <option value="Imported">{t('act.type.imported')}</option>
           </SelectPill>
         )}
 
@@ -148,7 +177,7 @@ export function FilterBar({
             ) : (
               <>
                 <Wallet className="w-3.5 h-3.5 text-neutral-400 flex-shrink-0" />
-                <span>Source</span>
+                <span>{t('act.source')}</span>
               </>
             )}
             <ChevronDown className={`${CHEVRON} ${selectedSource ? 'text-blue-400' : 'text-neutral-400'}`} />
@@ -157,7 +186,7 @@ export function FilterBar({
 
         {/* Category Filter */}
         <button onClick={onOpenCategorySelector} className={`${PILL} ${PILL_NEUTRAL}`}>
-          <span>{category}</span>
+          <span>{category === 'All' ? t('act.type.all') : category}</span>
           <ChevronDown className={`${CHEVRON} text-neutral-400`} />
         </button>
 
@@ -178,7 +207,7 @@ export function FilterBar({
             onClick={onOpenSubcategorySelector}
             className={`${PILL} bg-transparent border-dashed border-neutral-300 text-neutral-400 hover:bg-neutral-50`}
           >
-            <span>+ Subcategory</span>
+            <span>+ {t('act.subcategory')}</span>
           </button>
         )}
 

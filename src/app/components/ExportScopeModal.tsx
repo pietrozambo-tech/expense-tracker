@@ -1,5 +1,6 @@
 import { X, ListFilter, Database } from 'lucide-react';
 import { numberLocale } from '../i18n/store';
+import { t } from '../i18n';
 
 // "Download" on the Activity tab is ambiguous, and silently guessing is the
 // one thing it must not do: the tab opens filtered to the current month, so
@@ -22,7 +23,7 @@ interface ExportScopeModalProps {
   onClose: () => void;
 }
 
-const count = (n: number) => `${n.toLocaleString(numberLocale())} transaction${n === 1 ? '' : 's'}`;
+const count = (n: number) => t(n === 1 ? 'act.header.one' : 'act.header.other', { n: n.toLocaleString(numberLocale()) });
 
 export function ExportScopeModal({ filteredCount, totalCount, filters, onSelect, onClose }: ExportScopeModalProps) {
   const Option = ({ Icon, title, subtitle, rows, onClick }: {
@@ -56,8 +57,8 @@ export function ExportScopeModal({ filteredCount, totalCount, filters, onSelect,
         style={{ transform: 'translateZ(0)' }}
       >
         <div className="flex items-center justify-between px-6 py-4 border-b border-neutral-100">
-          <h3 className="text-neutral-900 font-semibold">Export CSV</h3>
-          <button onClick={onClose} className="p-2 hover:bg-neutral-100 rounded-xl transition-colors" aria-label="Close">
+          <h3 className="text-neutral-900 font-semibold">{t('exp.title')}</h3>
+          <button onClick={onClose} className="p-2 hover:bg-neutral-100 rounded-xl transition-colors" aria-label={t('common.close')}>
             <X className="w-5 h-5 text-neutral-500" />
           </button>
         </div>
@@ -65,15 +66,15 @@ export function ExportScopeModal({ filteredCount, totalCount, filters, onSelect,
         <div className="px-6 py-4 space-y-2.5" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 28px)' }}>
           <Option
             Icon={ListFilter}
-            title="This view"
+            title={t('exp.thisView')}
             subtitle={filters.length ? filters.join(' · ') : count(filteredCount)}
             rows={filteredCount}
             onClick={() => onSelect('view')}
           />
           <Option
             Icon={Database}
-            title="Everything"
-            subtitle="Every transaction, no filters"
+            title={t('exp.everything')}
+            subtitle={t('exp.noFilters')}
             rows={totalCount}
             onClick={() => onSelect('all')}
           />

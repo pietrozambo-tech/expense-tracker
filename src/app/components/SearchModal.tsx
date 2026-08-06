@@ -1,4 +1,5 @@
 import { X, Search } from 'lucide-react';
+import { t } from '../i18n';
 import { useState } from 'react';
 
 interface SearchModalProps {
@@ -29,7 +30,7 @@ export function SearchModal({ isOpen, onClose, onSearch }: SearchModalProps) {
       >
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-neutral-100 relative z-10">
-          <h3 className="text-neutral-900 font-semibold">Search Expenses</h3>
+          <h3 className="text-neutral-900 font-semibold">{t('search.title')}</h3>
           <button
             onClick={onClose}
             className="p-2 hover:bg-neutral-100 rounded-xl transition-colors"
@@ -47,7 +48,7 @@ export function SearchModal({ isOpen, onClose, onSearch }: SearchModalProps) {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-              placeholder="Search by description..."
+              placeholder={t('search.placeholder')}
               className="w-full pl-12 pr-4 py-3.5 rounded-xl bg-neutral-50 text-neutral-900 placeholder:text-neutral-400 outline-none focus:bg-neutral-100 transition-colors"
               autoFocus
             />
@@ -56,9 +57,7 @@ export function SearchModal({ isOpen, onClose, onSearch }: SearchModalProps) {
           <button
             onClick={handleSearch}
             className="w-full mt-4 py-3.5 bg-blue-500 hover:bg-blue-600 text-white font-medium rounded-xl transition-colors"
-          >
-            Search
-          </button>
+          >{t('search.cta')}</button>
         </div>
       </div>
     </div>

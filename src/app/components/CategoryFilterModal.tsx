@@ -1,4 +1,5 @@
 import { X } from 'lucide-react';
+import { t } from '../i18n';
 import { getCategoryIcon } from './categoryIcons';
 
 interface CategoryFilterModalProps {
@@ -41,7 +42,7 @@ export function CategoryFilterModal({
       >
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-neutral-100 relative z-10">
-          <h3 className="text-neutral-900 font-semibold">Filter by Category</h3>
+          <h3 className="text-neutral-900 font-semibold">{t('fcat.title')}</h3>
           <button
             onClick={onClose}
             className="p-2 hover:bg-neutral-100 rounded-xl transition-colors"
@@ -82,7 +83,7 @@ export function CategoryFilterModal({
                     }`}
                     style={{ transform: 'translateZ(0)' }}
                   >
-                    {category.name}
+                    {category.id === 'all' ? t('act.type.all') : category.name}
                   </span>
                 </button>
               );

@@ -8,6 +8,8 @@ import { SearchModal } from './SearchModal';
 import { ExportScopeModal } from './ExportScopeModal';
 import { CURRENCIES, homeAmount } from '../utils/currency';
 import { AmountText } from './AmountText';
+import { t } from '../i18n';
+import { monthsShort } from '../i18n/store';
 import { Download } from 'lucide-react';
 import { buildTransactionsCsv, downloadTransactionsCsv } from '../lib/csv';
 import { toast } from 'sonner';
@@ -70,10 +72,10 @@ export function Activity({
 }: ActivityProps) {
   const now = new Date();
   const currentYear = String(now.getFullYear());
-  // Deliberately en-US: selectedMonth is a view-state KEY ('Aug', 'Full
-  // Year'), compared and persisted as a string. The Activity translation pass
-  // converts the key to a month index before its labels can localise.
-  const currentMonth = now.toLocaleString('en-US', { month: 'short' });
+  // selectedMonth is a view-state KEY: the month INDEX as a string ('0'-'11'),
+  // or 'year' for the whole year - language-neutral, so the filter labels can
+  // localise freely around it.
+  const currentMonth = String(now.getMonth());
 
   // Restore what the user had set up, unless a preset ("Imported", from the
   // post-import nudge) was handed in - that must win and start clean.
@@ -83,7 +85,7 @@ export function Activity({
   // The preset pins the year the batch actually landed in, over the whole
   // year - the imported rows must be on screen when the tab opens.
   const [selectedYear, setSelectedYear] = useState(preset?.year ?? saved?.selectedYear ?? currentYear);
-  const [selectedMonth, setSelectedMonth] = useState(preset ? 'Full Year' : saved?.selectedMonth ?? currentMonth);
+  const [selectedMonth, setSelectedMonth] = useState(preset ? 'year' : saved?.selectedMonth ?? currentMonth);
   const [categoryFilter, setCategoryFilter] = useState(preset?.categoryFilter ?? saved?.categoryFilter ?? 'All');
   const [subcategoryFilter, setSubcategoryFilter] = useState(saved?.subcategoryFilter ?? 'All');
   const [searchQuery, setSearchQuery] = useState(saved?.searchQuery ?? '');
@@ -157,10 +159,9 @@ export function Activity({
         monthsSet.add(date.getMonth());
       }
     });
-    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     return Array.from(monthsSet)
       .sort((a, b) => a - b)
-      .map(monthIndex => monthNames[monthIndex]);
+      .map(String);
   };
 
   const availableYears = getAvailableYears();
@@ -168,8 +169,8 @@ export function Activity({
 
   // Auto-adjust selected month if it doesn't exist in the selected year
   useEffect(() => {
-    if (availableMonths.length > 0 && !availableMonths.includes(selectedMonth) && selectedMonth !== 'Full Year') {
-      setSelectedMonth('Full Year');
+    if (availableMonths.length > 0 && !availableMonths.includes(selectedMonth) && selectedMonth !== 'year') {
+      setSelectedMonth('year');
     }
   }, [selectedYear, availableMonths, selectedMonth]);
 
@@ -177,13 +178,13 @@ export function Activity({
   const getDateRange = () => {
     const year = parseInt(selectedYear);
 
-    if (selectedMonth === 'Full Year') {
+    if (selectedMonth === 'year') {
       return { start: new Date(year, 0, 1), end: new Date(year, 11, 31, 23, 59, 59) };
     }
 
-    const monthIndex = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].indexOf(selectedMonth);
+    const monthIndex = parseInt(selectedMonth, 10);
 
-    if (!isNaN(year) && monthIndex !== -1) {
+    if (!isNaN(year) && monthIndex >= 0 && monthIndex <= 11) {
       return {
         start: new Date(year, monthIndex, 1),
         end: new Date(year, monthIndex + 1, 0, 23, 59, 59)
@@ -276,14 +277,19 @@ export function Activity({
   const [exportScopeOpen, setExportScopeOpen] = useState(false);
 
   // The filters in force, worded the way they read on screen.
+  // Type-filter values stay canonical ('One-off', ...) - App presets and the
+  // row filter compare them - so display goes through this map.
+  const typeFilterLabel = (v: string) =>
+    v === 'One-off' ? t('act.type.oneOff') : v === 'Recurring' ? t('act.type.recurring') : v === 'Imported' ? t('act.type.imported') : v;
+
   const activeFilters = (() => {
     const bits: string[] = [];
-    if (activityType !== 'all') bits.push(activityType === 'expense' ? 'Expenses' : 'Income');
-    bits.push(selectedMonth === 'Full Year' ? selectedYear : `${selectedMonth} ${selectedYear}`);
+    if (activityType !== 'all') bits.push(activityType === 'expense' ? t('act.expenses') : t('act.income'));
+    bits.push(selectedMonth === 'year' ? selectedYear : `${monthsShort()[parseInt(selectedMonth, 10)] ?? ''} ${selectedYear}`);
     if (categoryFilter !== 'All') bits.push(categoryFilter);
     if (subcategoryFilter !== 'All') bits.push(subcategoryFilter);
-    if (typeFilter !== 'All') bits.push(typeFilter);
-    if (sourceFilter !== 'All') bits.push(sources.find((s) => s.id === sourceFilter)?.name ?? 'One source');
+    if (typeFilter !== 'All') bits.push(typeFilterLabel(typeFilter));
+    if (sourceFilter !== 'All') bits.push(sources.find((s) => s.id === sourceFilter)?.name ?? t('act.oneSource'));
     if (searchQuery) bits.push(`"${searchQuery}"`);
     return bits;
   })();
@@ -292,7 +298,7 @@ export function Activity({
     const rows = scope === 'all' ? transactions : filteredTransactions;
     setExportScopeOpen(false);
     if (rows.length === 0) {
-      toast.error('No transactions to export');
+      toast.error(t('act.noExport'));
       return;
     }
     downloadTransactionsCsv(
@@ -304,7 +310,7 @@ export function Activity({
 
   const downloadActivity = () => {
     if (filteredTransactions.length === 0) {
-      toast.error('No transactions to export');
+      toast.error(t('act.noExport'));
       return;
     }
     if (filteredTransactions.length === transactions.length) {
@@ -319,9 +325,9 @@ export function Activity({
     activityType === 'income' ? incomeCategories : activityType === 'expense' ? categories : [...categories, ...incomeCategories];
 
   const typeOptions: Array<{ value: ActivityTypeFilter; label: string; activeBg: string; activeColor: string }> = [
-    { value: 'all', label: 'All', activeBg: '#1C1C1E', activeColor: '#FFFFFF' },
-    { value: 'expense', label: 'Expenses', activeBg: '#FFE8E6', activeColor: '#D32F2F' },
-    { value: 'income', label: 'Income', activeBg: '#E8F5E9', activeColor: '#2E7D32' }
+    { value: 'all', label: t('act.all'), activeBg: '#1C1C1E', activeColor: '#FFFFFF' },
+    { value: 'expense', label: t('act.expenses'), activeBg: '#FFE8E6', activeColor: '#D32F2F' },
+    { value: 'income', label: t('act.income'), activeBg: '#E8F5E9', activeColor: '#2E7D32' }
   ];
 
   return (
@@ -330,9 +336,9 @@ export function Activity({
       <div className="flex-shrink-0 pt-0" style={{ backgroundColor: '#F6F5F2' }}>
         <div className="px-6 pb-4 flex items-center justify-between">
           <div className="flex-1">
-            <h1 style={{ color: '#1C1C1E', fontSize: '28px', fontWeight: '600', letterSpacing: '-0.5px' }}>Activity</h1>
+            <h1 style={{ color: '#1C1C1E', fontSize: '28px', fontWeight: '600', letterSpacing: '-0.5px' }}>{t('act.title')}</h1>
             <p style={{ color: '#8E8E93', fontSize: '14px', marginTop: '4px' }}>
-              {totalCount} transaction{totalCount !== 1 ? 's' : ''} · {headerTotal}
+              {t(totalCount === 1 ? 'act.header.one' : 'act.header.other', { n: totalCount })} · {headerTotal}
             </p>
           </div>
           {filteredTransactions.length > 0 && (
@@ -414,9 +420,9 @@ export function Activity({
       >
         {Object.entries(groupedTransactions).length === 0 ? (
           <div className="px-6 py-16 text-center">
-            <div className="text-neutral-400 text-sm mb-2">No transactions found</div>
+            <div className="text-neutral-400 text-sm mb-2">{t('act.noTx')}</div>
             <p className="text-neutral-500 text-xs">
-              {searchQuery ? 'Try a different search term' : 'Change your filters or add a new transaction'}
+              {searchQuery ? t('act.tryDifferent') : t('act.changeFilters')}
             </p>
           </div>
         ) : (

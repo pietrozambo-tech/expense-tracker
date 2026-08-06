@@ -1,4 +1,5 @@
 import { X, Wallet } from 'lucide-react';
+import { t } from '../i18n';
 import type { Source } from '../types';
 import { SourceLogo } from './SourceLogo';
 
@@ -16,7 +17,7 @@ export function SourceFilterModal({ isOpen, sources, selected, onClose, onSelect
   if (!isOpen) return null;
 
   const rows: Array<{ id: string; label: string; source?: Source }> = [
-    { id: 'All', label: 'All sources' },
+    { id: 'All', label: t('fsrc.all') },
     ...sources.map((s) => ({ id: s.id, label: s.name, source: s })),
   ];
 
@@ -28,7 +29,7 @@ export function SourceFilterModal({ isOpen, sources, selected, onClose, onSelect
         style={{ transform: 'translateZ(0)' }}
       >
         <div className="flex items-center justify-between px-6 py-4 border-b border-neutral-100">
-          <h3 className="text-neutral-900 font-semibold">Filter by Source</h3>
+          <h3 className="text-neutral-900 font-semibold">{t('fsrc.title')}</h3>
           <button onClick={onClose} className="p-2 hover:bg-neutral-100 rounded-xl transition-colors">
             <X className="w-5 h-5 text-neutral-500" />
           </button>

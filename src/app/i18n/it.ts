@@ -158,4 +158,44 @@ export const it: Record<keyof typeof en, string> = {
 
   // Period picker sheet
   'ppm.title': 'Vai al periodo',
+
+  // Activity
+  'act.title': 'Attività',
+  'act.header.one': '{n} transazione',
+  'act.header.other': '{n} transazioni',
+  'act.all': 'Tutte',
+  'act.expenses': 'Spese',
+  'act.income': 'Entrate',
+  'act.fullYear': "Tutto l'anno",
+  'act.type.all': 'Tutte',
+  'act.type.oneOff': 'Una tantum',
+  'act.type.recurring': 'Ricorrenti',
+  'act.type.imported': 'Importate',
+  'act.source': 'Fonte',
+  'act.noTx': 'Nessuna transazione trovata',
+  'act.tryDifferent': 'Prova con un altro termine di ricerca',
+  'act.changeFilters': 'Cambia i filtri o aggiungi una transazione',
+  'act.noExport': 'Nessuna transazione da esportare',
+  'act.oneSource': 'Una fonte',
+  'act.subcategory': 'Sottocategoria',
+  'act.ariaYear': 'Filtra per anno',
+  'act.ariaMonth': 'Filtra per mese',
+  'act.ariaType': 'Filtra per tipo',
+
+  // Export scope sheet
+  'exp.title': 'Esporta CSV',
+  'exp.thisView': 'Questa vista',
+  'exp.everything': 'Tutto',
+  'exp.noFilters': 'Tutte le transazioni, senza filtri',
+
+  // Search + filter modals
+  'search.title': 'Cerca Transazioni',
+  'search.placeholder': 'Cerca per descrizione...',
+  'search.cta': 'Cerca',
+  'fcat.title': 'Filtra per Categoria',
+  'fsub.title': 'Filtra per Sottocategoria',
+  'fsub.none': 'Nessuna sottocategoria disponibile',
+  'fsrc.title': 'Filtra per Fonte',
+  'fsrc.all': 'Tutte le fonti',
+  'common.close': 'Chiudi',
 };

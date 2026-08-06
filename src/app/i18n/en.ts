@@ -157,4 +157,44 @@ export const en = {
 
   // Period picker sheet
   'ppm.title': 'Jump to period',
+
+  // Activity
+  'act.title': 'Activity',
+  'act.header.one': '{n} transaction',
+  'act.header.other': '{n} transactions',
+  'act.all': 'All',
+  'act.expenses': 'Expenses',
+  'act.income': 'Income',
+  'act.fullYear': 'Full Year',
+  'act.type.all': 'All',
+  'act.type.oneOff': 'One-off',
+  'act.type.recurring': 'Recurring',
+  'act.type.imported': 'Imported',
+  'act.source': 'Source',
+  'act.noTx': 'No transactions found',
+  'act.tryDifferent': 'Try a different search term',
+  'act.changeFilters': 'Change your filters or add a new transaction',
+  'act.noExport': 'No transactions to export',
+  'act.oneSource': 'One source',
+  'act.subcategory': 'Subcategory',
+  'act.ariaYear': 'Filter by year',
+  'act.ariaMonth': 'Filter by month',
+  'act.ariaType': 'Filter by type',
+
+  // Export scope sheet
+  'exp.title': 'Export CSV',
+  'exp.thisView': 'This view',
+  'exp.everything': 'Everything',
+  'exp.noFilters': 'Every transaction, no filters',
+
+  // Search + filter modals
+  'search.title': 'Search Expenses',
+  'search.placeholder': 'Search by description...',
+  'search.cta': 'Search',
+  'fcat.title': 'Filter by Category',
+  'fsub.title': 'Filter by Subcategory',
+  'fsub.none': 'No subcategories available',
+  'fsrc.title': 'Filter by Source',
+  'fsrc.all': 'All sources',
+  'common.close': 'Close',
 } as const;
