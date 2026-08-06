@@ -58,9 +58,10 @@ jobs:
           s="$(gh api "repos/$GITHUB_REPOSITORY/pages/deployment/status/0000000000000000000000000000000000000000" --jq '.status' 2>/dev/null)" || s="(error)"
           echo "garbage-sha probe: $s"
 
-          # Ground truth: the repo Deployments API keeps one record per
-          # deployment with a real status history. List today's, newest
-          # first, with their latest status and when it was set.
+          # The repo Deployments API is job truth, not publish truth: its
+          # statuses are written when the Actions job ends (285a48f read
+          # "success at 14:31:07" - the second its watch job completed -
+          # while the site demonstrably still served the 12:17 build).
           gh api "repos/$GITHUB_REPOSITORY/deployments?environment=github-pages&per_page=12" \
             --jq '.[] | "\(.id) \(.sha[0:7]) created=\(.created_at) ref=\(.ref[0:24])"' \
           | while read -r id sha created ref; do
@@ -69,8 +70,25 @@ jobs:
               echo "$sha $created -> $latest"
             done
 
+          # The only real truth: what the site is serving right now. The
+          # entry chunk is content-hashed, and the build stamp inside it is
+          # exactly what the app shows in Settings > About.
+          url="$(gh api "repos/$GITHUB_REPOSITORY/pages" --jq '.html_url' 2>/dev/null)" || url=""
+          if [ -n "$url" ]; then
+            served="$(curl -sS --max-time 10 -H 'Cache-Control: no-cache' "${url}index.html?nocache=$(date +%s)" 2>/dev/null \
+              | grep -oE 'assets/index-[A-Za-z0-9_-]+\.js' | head -1)" || served=""
+            stamp="$(curl -sS --max-time 10 "${url}${served}" 2>/dev/null \
+              | grep -oE '[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2} UTC' | head -1)" || stamp=""
+            echo "serving now: ${served:-(unreadable)} build ${stamp:-(unreadable)}"
+          fi
+
   build:
     runs-on: ubuntu-latest
+    outputs:
+      # Content-hashed entry chunk, e.g. assets/index-Coj-5rhv.js. The
+      # deploy job compares this against what the live site references:
+      # equality is the one publish signal no API can fake.
+      asset: ${{ steps.fingerprint.outputs.asset }}
     steps:
       - uses: actions/checkout@v4
 
@@ -85,6 +103,9 @@ jobs:
 
       - run: pnpm build
 
+      - id: fingerprint
+        run: echo "asset=$(grep -oE 'assets/index-[A-Za-z0-9_-]+\.js' dist/index.html | head -1)" >> "$GITHUB_OUTPUT"
+
       - uses: actions/configure-pages@v5
         with:
           enablement: true
@@ -96,10 +117,50 @@ jobs:
   deploy:
     needs: build
     runs-on: ubuntu-latest
+    # Job-level override: everything the workflow grants, plus actions:write
+    # so the unclog step below can cancel the zombie runs from the stall.
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+      actions: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
+      # One-time unclogging for the 2026-08-06 stall. Pages publishes
+      # serially per site; the pipe has not served anything new since the
+      # 12:27 cancel-during-publish race. Cancelling a deployment poisons
+      # its SHA forever, which is precisely why these are safe to cancel:
+      # every one of them is a superseded build nobody will ever need to
+      # publish again. Only this run's own HEAD must stay untouched.
+      # Delete this step once the site serves a current build again.
+      - name: Cancel superseded deployments jamming the pipe (one-time)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -uo pipefail
+          for sha in \
+            562677c6231ad83e4e3b11dcdab6ef397b03b1d1 \
+            285a48fb10e69fefa4b92ce1e48c361d930a88df \
+            848758ff802e8ec5ef9c572e327fa6b24b1f7487 \
+            6fed8e418c8d0793356279d35ef00123cc0424a2 \
+            e6d452f26e31432e832e09194128aa42f049d3f3 \
+            09c9d6b2c94859b96d7be2a872882946e7bc09af \
+          ; do
+            [ "$sha" = "$GITHUB_SHA" ] && continue
+            out="$(gh api -X POST "repos/$GITHUB_REPOSITORY/pages/deployments/$sha/cancel" 2>&1)" \
+              && echo "cancelled ${sha:0:7}" \
+              || echo "cancel ${sha:0:7}: $(head -c 120 <<<"$out")"
+          done
+          # And the zombie runs still holding the old concurrency lock:
+          # the pending one would otherwise wake up later and deploy a
+          # superseded build on top of ours.
+          for run_id in 31111496571 31111648469; do
+            gh api -X POST "repos/$GITHUB_REPOSITORY/actions/runs/$run_id/cancel" >/dev/null 2>&1 \
+              && echo "cancelled run $run_id" \
+              || echo "run $run_id: already finished or cancel failed (fine)"
+          done
       # This is what actions/deploy-pages@v4 does on its first two API calls -
       # find the artifact, mint an OIDC token, create the deployment - and then
       # it stops. The action's remaining job is to POLL until Pages reports
@@ -157,40 +218,50 @@ jobs:
           echo "  site:   $page_url"
           echo "  status: $status_url"
 
-      # Polls, but on our terms: no 10-minute cap, and no cancel on timeout.
-      # A slow queue is a warning, not a failure - the deployment stays alive
-      # and publishes whenever Pages gets to it. Only a terminal error state
-      # from Pages turns this red.
-      - name: Wait for Pages to publish it
+      # Success here means one thing only: the live site references the
+      # exact content-hashed bundle this run built. Both status APIs proved
+      # unreliable today - pages/deployment/status/{sha} echoes the site's
+      # current state for any SHA including garbage, and the Deployments
+      # API's statuses mirror Actions job completion, not publication. The
+      # served HTML cannot lie. The echo status is still logged, but only
+      # as an annotation; it decides nothing.
+      - name: Wait until the site actually serves this build
         env:
           GH_TOKEN: ${{ github.token }}
+          SITE: ${{ steps.deployment.outputs.page_url }}
+          ASSET: ${{ needs.build.outputs.asset }}
         run: |
           set -uo pipefail
+
+          if [ -z "$ASSET" ]; then
+            echo "::error::Build job produced no asset fingerprint"
+            exit 1
+          fi
+          echo "waiting for the site to reference: $ASSET"
 
           deadline=$(( $(date +%s) + 3600 ))
           last=""
           beat=0
           while [ "$(date +%s)" -lt "$deadline" ]; do
-            status="$(gh api "repos/$GITHUB_REPOSITORY/pages/deployment/status/$GITHUB_SHA" \
-              --jq '.status' 2>/dev/null)" || status=""
-            [ -n "$status" ] || status="(not reported yet)"
-            beat=$((beat + 1))
-            # Log every transition, plus a heartbeat every ~5 min so a long
-            # stretch of silence in this log is never ambiguous.
-            if [ "$status" != "$last" ] || [ $((beat % 20)) -eq 0 ]; then
-              echo "$(date -u +%H:%M:%S)  $status"
-              last="$status"
+            served="$(curl -sS --max-time 10 -H 'Cache-Control: no-cache' \
+              "${SITE}index.html?nocache=$(date +%s)" 2>/dev/null \
+              | grep -oE 'assets/index-[A-Za-z0-9_-]+\.js' | head -1)" || served=""
+            if [ "$served" = "$ASSET" ]; then
+              stamp="$(curl -sS --max-time 10 "${SITE}${ASSET}" 2>/dev/null \
+                | grep -oE '[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2} UTC' | head -1)" || stamp="?"
+              echo "::notice::LIVE: site now serves $ASSET (build $stamp)"
+              exit 0
             fi
-            case "$status" in
-              succeed)
-                echo "::notice::Pages published $GITHUB_SHA"
-                exit 0
-                ;;
-              deployment_failed|deployment_content_failed|deployment_cancelled|deployment_attempt_error|deployment_lost)
-                echo "::error::Pages reported '$status' for $GITHUB_SHA"
-                exit 1
-                ;;
-            esac
+            echo_status="$(gh api "repos/$GITHUB_REPOSITORY/pages/deployment/status/$GITHUB_SHA" \
+              --jq '.status' 2>/dev/null)" || echo_status="?"
+            line="serving ${served:-(unreadable)} | echo-status $echo_status"
+            beat=$((beat + 1))
+            # Log every change, plus a heartbeat every ~5 min so a long
+            # stretch of silence in this log is never ambiguous.
+            if [ "$line" != "$last" ] || [ $((beat % 20)) -eq 0 ]; then
+              echo "$(date -u +%H:%M:%S)  $line"
+              last="$line"
+            fi
             sleep 15
           done
-          echo "::warning::Pages still reports '$last' after 60 min. The deployment is alive and will publish when the pipeline recovers - this job does not cancel it."
+          echo "::warning::After 60 min the site still does not serve $ASSET. The deployment is alive and may still publish - this job does not cancel it."
