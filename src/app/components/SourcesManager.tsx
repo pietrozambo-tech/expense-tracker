@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { t } from '../i18n';
+import { getLanguage } from '../i18n/store';
 import { ChevronLeft, Plus, Pencil, Trash2, ChevronRight } from 'lucide-react';
 import type { Source } from '../types';
 import { SourceLogo } from './SourceLogo';
@@ -58,7 +60,7 @@ export function SourcesManager({
             >
               <ChevronLeft size={24} style={{ color: '#3B82F6' }} />
             </button>
-            <h1 style={{ color: '#1C1C1E', fontSize: '20px', fontWeight: '600', letterSpacing: '-0.3px' }}>Sources</h1>
+            <h1 style={{ color: '#1C1C1E', fontSize: '20px', fontWeight: '600', letterSpacing: '-0.3px' }}>{t('set.sources')}</h1>
           </div>
         </div>
       </div>
@@ -71,7 +73,7 @@ export function SourcesManager({
         </div>
 
         {/* Defaults */}
-        <p className="px-7 mb-2" style={{ color: '#8E8E93', fontSize: '13px' }}>Defaults</p>
+        <p className="px-7 mb-2" style={{ color: '#8E8E93', fontSize: '13px' }}>{t('mgmt.defaults')}</p>
         <div className="px-6">
           <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
             <button
@@ -79,7 +81,7 @@ export function SourcesManager({
               className="w-full flex items-center gap-3 px-5 py-3.5 active:bg-neutral-50 transition-colors"
               style={{ borderBottom: '1px solid #F2F1ED' }}
             >
-              <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '15px' }}>Expenses paid with</span>
+              <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '15px' }}>{t('mgmt.expensesPaidWith')}</span>
               <SourceLogo source={byId(defaultSourceExpense)} size={22} />
               <span style={{ color: '#8E8E93', fontSize: '14px' }}>{byId(defaultSourceExpense)?.name || 'None'}</span>
               <ChevronRight className="w-4.5 h-4.5" style={{ color: '#C7C7CC' }} />
@@ -88,7 +90,7 @@ export function SourcesManager({
               onClick={() => setPickerFor('income')}
               className="w-full flex items-center gap-3 px-5 py-3.5 active:bg-neutral-50 transition-colors"
             >
-              <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '15px' }}>Income received into</span>
+              <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '15px' }}>{t('mgmt.incomeReceivedInto')}</span>
               <SourceLogo source={byId(defaultSourceIncome)} size={22} />
               <span style={{ color: '#8E8E93', fontSize: '14px' }}>{byId(defaultSourceIncome)?.name || 'None'}</span>
               <ChevronRight className="w-4.5 h-4.5" style={{ color: '#C7C7CC' }} />
@@ -97,7 +99,7 @@ export function SourcesManager({
         </div>
 
         {/* Source list */}
-        <p className="px-7 mt-6 mb-2" style={{ color: '#8E8E93', fontSize: '13px' }}>Your sources</p>
+        <p className="px-7 mt-6 mb-2" style={{ color: '#8E8E93', fontSize: '13px' }}>{t('mgmt.yourSources')}</p>
         <div className="px-6">
           <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
             {sources.map((source, index) => (
@@ -131,7 +133,7 @@ export function SourcesManager({
             style={{ backgroundColor: '#3B82F6', color: '#FFFFFF' }}
           >
             <Plus className="w-5 h-5" />
-            Add source
+            {t('mgmt.addSource')}
           </button>
         </div>
       </div>
@@ -163,9 +165,9 @@ export function SourcesManager({
 
       {deleteTarget && (
         <ConfirmDialog
-          title={`Delete ${deleteTarget.name}?`}
+          title={(getLanguage() === 'it' ? `Eliminare ${deleteTarget.name}?` : `Delete ${deleteTarget.name}?`)}
           message="Transactions already saved with this source will keep it, but it won't be selectable for new ones."
-          confirmLabel="Delete"
+          confirmLabel={t('common.delete')}
           onConfirm={() => {
             onDeleteSource(deleteTarget.id);
             setDeleteTarget(null);
@@ -246,7 +248,7 @@ function SourceFormModal({
               type="text"
               value={name}
               onChange={(e) => onNameChange(e.target.value)}
-              placeholder="e.g. N26, Monzo, Wallet"
+              placeholder={t('mgmt.sourcePlaceholder')}
               autoFocus
               className="flex-1 px-4 py-3 rounded-xl text-base outline-none"
               style={{ backgroundColor: '#F2F2F5', color: '#1C1C1E' }}
@@ -256,7 +258,7 @@ function SourceFormModal({
           {/* Bank quick-picks — only when adding (not editing / not cash) */}
           {!initial && !isCash && (
             <>
-              <p className="mb-2" style={{ color: '#8E8E93', fontSize: '13px' }}>Pick a bank</p>
+              <p className="mb-2" style={{ color: '#8E8E93', fontSize: '13px' }}>{t('mgmt.pickBank')}</p>
               <div className="grid grid-cols-7 gap-2 mb-6">
                 {BANK_LIBRARY.map((bank) => {
                   const selected = name.trim().toLowerCase() === bank.name.toLowerCase();
@@ -280,7 +282,7 @@ function SourceFormModal({
             </>
           )}
 
-          <p className="mb-2" style={{ color: '#8E8E93', fontSize: '13px' }}>Colour</p>
+          <p className="mb-2" style={{ color: '#8E8E93', fontSize: '13px' }}>{t('mgmt.colour')}</p>
           <div className="flex flex-wrap gap-2.5 mb-6">
             {SOURCE_COLORS.map((c) => (
               <button

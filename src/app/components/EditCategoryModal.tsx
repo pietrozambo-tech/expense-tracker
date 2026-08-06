@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { t } from '../i18n';
 import { X } from 'lucide-react';
 import { getCategoryIcon, iconsList, IconName } from './categoryIcons';
 import { colorOptions } from './categoryColors';
@@ -62,7 +63,7 @@ export function EditCategoryModal({ category, onSave, onClose }: EditCategoryMod
       <div className="bg-white rounded-t-3xl w-full max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}
         <div className="px-6 py-4 border-b border-neutral-100 flex items-center justify-between flex-shrink-0">
-          <h2 className="text-neutral-900 font-semibold text-lg">Edit Category</h2>
+          <h2 className="text-neutral-900 font-semibold text-lg">{t('mgmt.editCategoryTitle')}</h2>
           <button
             onClick={onClose}
             className="w-8 h-8 flex items-center justify-center rounded-full active:bg-neutral-100 transition-colors"
@@ -75,13 +76,13 @@ export function EditCategoryModal({ category, onSave, onClose }: EditCategoryMod
         <div className="flex-1 overflow-y-auto px-6 py-6">
           {/* Live Preview */}
           <div className="mb-6 p-6 bg-neutral-50 rounded-2xl">
-            <div className="text-neutral-500 text-xs mb-3">Preview</div>
+            <div className="text-neutral-500 text-xs mb-3">{t('mgmt.preview')}</div>
             <div className="flex items-center gap-3">
               <div className={`w-12 h-12 rounded-full ${selectedColor.bgColor} flex items-center justify-center`}>
                 <Icon className={`w-6 h-6 ${selectedColor.color}`} />
               </div>
               <div className="text-neutral-900 font-medium">
-                {name.trim() || 'Category Name'}
+                {name.trim() || t('mgmt.categoryName')}
               </div>
             </div>
           </div>
@@ -89,13 +90,13 @@ export function EditCategoryModal({ category, onSave, onClose }: EditCategoryMod
           {/* Name Input */}
           <div className="mb-6">
             <label className="block text-neutral-700 font-medium text-sm mb-2">
-              Category Name <span className="text-red-500">*</span>
+              {t('mgmt.categoryName')} <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="e.g., Entertainment"
+              placeholder={t('mgmt.catPlaceholder')}
               className="w-full px-4 py-3 bg-neutral-50 border border-neutral-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
@@ -103,7 +104,7 @@ export function EditCategoryModal({ category, onSave, onClose }: EditCategoryMod
           {/* Icon Picker */}
           <div className="mb-6">
             <label className="block text-neutral-700 font-medium text-sm mb-3">
-              Icon
+              {t('mgmt.icon')}
             </label>
             <div className="grid grid-cols-6 gap-2">
               {iconsList.map((iconName) => {
@@ -131,7 +132,7 @@ export function EditCategoryModal({ category, onSave, onClose }: EditCategoryMod
           {/* Color Picker */}
           <div className="mb-6">
             <label className="block text-neutral-700 font-medium text-sm mb-3">
-              Color
+              {t('mgmt.color')}
             </label>
             <div className="grid grid-cols-6 gap-2">
               {colorOptions.map((colorOption) => {
@@ -162,7 +163,7 @@ export function EditCategoryModal({ category, onSave, onClose }: EditCategoryMod
             onClick={onClose}
             className="flex-1 py-3 bg-neutral-100 text-neutral-900 rounded-xl font-medium active:bg-neutral-200 transition-colors"
           >
-            Cancel
+            {t('common.cancel')}
           </button>
           <button
             onClick={handleSave}
@@ -173,7 +174,7 @@ export function EditCategoryModal({ category, onSave, onClose }: EditCategoryMod
                 : 'bg-neutral-200 text-neutral-400 cursor-not-allowed'
             }`}
           >
-            Save
+            {t('common.save')}
           </button>
         </div>
       </div>

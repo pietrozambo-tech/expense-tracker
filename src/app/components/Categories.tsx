@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { t } from '../i18n';
 import { Plus, Pencil, Trash2, ChevronDown, ChevronRight } from 'lucide-react';
 import { getCategoryIcon } from './categoryIcons';
 import { AddCategoryModal } from './AddCategoryModal';
@@ -124,9 +125,9 @@ export function Categories({
           <div className="w-16 h-16 rounded-full flex items-center justify-center mb-4" style={{ backgroundColor: '#F2F1ED' }}>
             <Plus className="w-8 h-8" style={{ color: '#8E8E93' }} />
           </div>
-          <h2 style={{ color: '#1C1C1E', fontWeight: '600', fontSize: '18px', marginBottom: '8px' }}>No categories yet</h2>
+          <h2 style={{ color: '#1C1C1E', fontWeight: '600', fontSize: '18px', marginBottom: '8px' }}>{t('mgmt.noCategories')}</h2>
           <p style={{ color: '#8E8E93', fontSize: '14px', textAlign: 'center', marginBottom: '24px' }}>
-            Create your first category to start organizing your expenses
+            {t('mgmt.noCategoriesHint')}
           </p>
           <button
             onClick={() => {
@@ -136,7 +137,7 @@ export function Categories({
             className="px-6 py-3 rounded-xl font-medium transition-colors"
             style={{ backgroundColor: '#1C1C1E', color: '#FFFFFF' }}
           >
-            Add your first category
+            {t('mgmt.addFirstCategory')}
           </button>
         </div>
       ) : (
@@ -233,7 +234,7 @@ export function Categories({
                       className="w-full px-6 py-3 flex items-center gap-2 text-blue-600 text-sm font-medium active:bg-neutral-50 transition-colors"
                     >
                       <Plus className="w-4 h-4" />
-                      Add subcategory
+                      {t('mgmt.addSubcategory')}
                     </button>
                   )}
                 </div>
@@ -251,7 +252,7 @@ export function Categories({
               className="w-full py-3 bg-blue-500 text-white rounded-xl font-medium active:bg-blue-600 transition-colors flex items-center justify-center gap-2"
             >
               <Plus className="w-5 h-5" />
-              Add category
+              {t('mgmt.addCategory')}
             </button>
           </div>
         </>

@@ -25,7 +25,7 @@ import type { Source } from '../types';
 import type { ImportPayload } from '../lib/importData';
 import { t, type Language as AppLanguage } from '../i18n';
 import { CATCHALL_RE } from '../lib/categoryOps';
-import { dateLocale, daysFull } from '../i18n/store';
+import { dateLocale, daysFull, getLanguage } from '../i18n/store';
 import { isBackupFile } from '../lib/backup';
 
 interface SettingsProps {
@@ -353,7 +353,7 @@ export function Settings({
               >
                 <ChevronLeft size={24} style={{ color: '#3B82F6' }} />
               </button>
-              <h1 style={{ color: '#1C1C1E', fontSize: '20px', fontWeight: '600', letterSpacing: '-0.3px' }}>Currency</h1>
+              <h1 style={{ color: '#1C1C1E', fontSize: '20px', fontWeight: '600', letterSpacing: '-0.3px' }}>{t('set.currencyTitle')}</h1>
             </div>
           </div>
         </div>
@@ -362,7 +362,7 @@ export function Settings({
         <div className="flex-1 overflow-y-auto pb-24">
           <div className="px-6 pb-6">
             <p style={{ color: '#8E8E93', fontSize: '13px' }}>
-              New transactions will use the selected currency
+              {t('set.currencyHint')}
             </p>
           </div>
 
@@ -460,7 +460,7 @@ export function Settings({
               >
                 <ChevronLeft size={24} style={{ color: '#3B82F6' }} />
               </button>
-              <h1 style={{ color: '#1C1C1E', fontSize: '20px', fontWeight: '600', letterSpacing: '-0.3px' }}>Profile</h1>
+              <h1 style={{ color: '#1C1C1E', fontSize: '20px', fontWeight: '600', letterSpacing: '-0.3px' }}>{t('set.profileTitle')}</h1>
             </div>
           </div>
         </div>
@@ -474,7 +474,7 @@ export function Settings({
           </div>
 
           <div className="px-6">
-            <p style={{ color: '#8E8E93', fontSize: 13, fontWeight: 500, marginBottom: 8 }}>NAME</p>
+            <p style={{ color: '#8E8E93', fontSize: 13, fontWeight: 500, marginBottom: 8 }}>{t('set.name')}</p>
             {/* No autoFocus. It was right when this page was only a name box
                 and typing was the one thing to do here; now the keyboard
                 covers the budget and the week start, so the page opens on a
@@ -502,7 +502,7 @@ export function Settings({
             />
 
             <p style={{ color: '#8E8E93', fontSize: 13, fontWeight: 500, margin: '24px 0 8px' }}>
-              MONTHLY BUDGET
+              {t('set.monthlyBudget')}
             </p>
             <div
               className="flex items-center gap-2 px-4 rounded-xl"
@@ -517,17 +517,17 @@ export function Settings({
                   const v = e.target.value.replace(',', '.');
                   if (v === '' || /^\d*\.?\d{0,2}$/.test(v)) setEditedBudget(v);
                 }}
-                placeholder="No limit"
+                placeholder={t('set.noLimit')}
                 className="flex-1 py-4 bg-transparent outline-none tabular-nums"
                 style={{ fontSize: 16, color: '#1C1C1E' }}
               />
             </div>
             <p style={{ color: '#B0B0B5', fontSize: 12, marginTop: 6, lineHeight: 1.45 }}>
-              Shows a progress bar on your Dashboard for the current month. Leave empty for no limit.
+              {t('set.budgetHint')}
             </p>
 
             <p style={{ color: '#8E8E93', fontSize: 13, fontWeight: 500, margin: '24px 0 8px' }}>
-              WEEK STARTS ON
+              {t('set.weekStartsOn')}
             </p>
             {/* Applies immediately, unlike name and budget: it is a preference,
                 not a value being typed, and a wrong tap is one tap to undo. */}
@@ -553,7 +553,7 @@ export function Settings({
               ))}
             </div>
             <p style={{ color: '#B0B0B5', fontSize: 12, marginTop: 6, lineHeight: 1.45 }}>
-              Sets the day order in the Trend tab's day-of-week view.
+              {t('set.weekHint')}
             </p>
 
             <p style={{ color: '#8E8E93', fontSize: 13, fontWeight: 500, margin: '24px 0 8px' }}>
@@ -602,7 +602,7 @@ export function Settings({
                 cursor: !editedName.trim() ? 'not-allowed' : 'pointer'
               }}
             >
-              Save
+              {t('common.save')}
             </button>
           </div>
         </div>
@@ -704,7 +704,7 @@ export function Settings({
               >
                 <ChevronLeft size={24} style={{ color: '#3B82F6' }} />
               </button>
-              <h1 style={{ color: '#1C1C1E', fontSize: '20px', fontWeight: '600', letterSpacing: '-0.3px' }}>About</h1>
+              <h1 style={{ color: '#1C1C1E', fontSize: '20px', fontWeight: '600', letterSpacing: '-0.3px' }}>{t('set.about')}</h1>
             </div>
           </div>
         </div>
@@ -721,7 +721,7 @@ export function Settings({
                 in five seconds. */}
             <p style={{ color: '#C7C7CC', fontSize: '11px', marginTop: '2px' }}>Build {__BUILD_STAMP__}</p>
             <p style={{ color: '#6B6B75', fontSize: '15px', marginTop: '12px', maxWidth: 300, lineHeight: 1.5 }}>
-              Track every expense in seconds - with clear insights into where your money goes.
+              {t('set.aboutTagline')}
             </p>
           </div>
 
@@ -734,7 +734,7 @@ export function Settings({
                 style={{ borderBottom: '1px solid #F2F1ED' }}
               >
                 <ShieldCheck className="w-5 h-5" style={{ color: '#8E8E93' }} strokeWidth={2} />
-                <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '16px' }}>Privacy Policy</span>
+                <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '16px' }}>{t('set.privacy')}</span>
                 <ChevronRight className="w-5 h-5" style={{ color: '#C7C7CC' }} />
               </button>
               <button
@@ -742,7 +742,7 @@ export function Settings({
                 className="w-full flex items-center gap-3 px-5 py-4 active:bg-neutral-100 transition-colors"
               >
                 <ScrollText className="w-5 h-5" style={{ color: '#8E8E93' }} strokeWidth={2} />
-                <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '16px' }}>Terms of Service</span>
+                <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '16px' }}>{t('set.terms')}</span>
                 <ChevronRight className="w-5 h-5" style={{ color: '#C7C7CC' }} />
               </button>
             </div>
@@ -751,9 +751,7 @@ export function Settings({
           {/* Privacy note */}
           <div className="px-6 mt-4">
             <p style={{ color: '#8E8E93', fontSize: '12px', lineHeight: 1.5, textAlign: 'center', maxWidth: 320, margin: '0 auto' }}>
-              TracklyLab uses privacy-friendly analytics to understand how the app is
-              used and improve it. This never includes your transactions, amounts, or
-              category details.
+              {t('set.analyticsNote')}
             </p>
           </div>
 
@@ -790,9 +788,14 @@ export function Settings({
       `    { "date": "2026-01-15", "amount": 42.50, "type": "expense", "category": "${exampleCatName}"` +
       `${exampleSub ? `, "subcategory": "${exampleSub}"` : ''}, "description": "Example"` +
       `${defaultSrcId ? `, "source": "${defaultSrcId}"` : ''} }`;
-    const sourceRule = hasSources
-      ? `- "source": optional. Use one of my source ids listed below ONLY where the data actually says which account a transaction came from (a column, a card name, a statement header). If the file does not say, LEAVE THE FIELD OUT: a guessed account is worse than none, because it would be wrong on every single row.`
-      : `- "source": leave this field out - I have no sources set up.`;
+    const IT_PROMPT = getLanguage() === 'it';
+    const sourceRule = IT_PROMPT
+      ? (hasSources
+          ? `- "source": facoltativo. Usa uno dei miei id fonte elencati sotto SOLO dove i dati dicono davvero da quale conto viene la transazione (una colonna, il nome di una carta, l'intestazione dell'estratto). Se il file non lo dice, OMETTI IL CAMPO: un conto indovinato è peggio di nessuno, perché sarebbe sbagliato su ogni singola riga.`
+          : `- "source": ometti questo campo - non ho fonti configurate.`)
+      : hasSources
+        ? `- "source": optional. Use one of my source ids listed below ONLY where the data actually says which account a transaction came from (a column, a card name, a statement header). If the file does not say, LEAVE THE FIELD OUT: a guessed account is worse than none, because it would be wrong on every single row.`
+        : `- "source": leave this field out - I have no sources set up.`;
     // A second example showing a foreign-currency row, so mixed-currency
     // statements are handled. Pick any code that isn't the home one.
     const foreignEx = userCurrency === 'USD' ? 'EUR' : 'USD';
@@ -803,16 +806,85 @@ export function Settings({
     const catchAll: any = categories.find((c: any) =>
       CATCHALL_RE.test(String(c.name).trim()),
     );
-    const fallbackLine = catchAll
-      ? `- If nothing fits at all, use "${catchAll.name}" and put the ORIGINAL category name in "subcategory" (e.g. "Dining out") so I can re-sort later - never drop the row or leave the category blank.`
-      : `- If nothing fits at all, pick my closest general category and put the original category name in "subcategory" - never drop the row or leave it blank.`;
+    const fallbackLine = getLanguage() === 'it'
+      ? (catchAll
+          ? `- Se non c'è proprio corrispondenza, usa "${catchAll.name}" e metti il nome ORIGINALE della categoria in "subcategory" (es. "Dining out"), così posso risistemare dopo - non scartare mai la riga e non lasciare la categoria vuota.`
+          : `- Se non c'è proprio corrispondenza, scegli la mia categoria generale più vicina e metti il nome originale della categoria in "subcategory" - non scartare mai la riga e non lasciarla vuota.`)
+      : catchAll
+        ? `- If nothing fits at all, use "${catchAll.name}" and put the ORIGINAL category name in "subcategory" (e.g. "Dining out") so I can re-sort later - never drop the row or leave the category blank.`
+        : `- If nothing fits at all, pick my closest general category and put the original category name in "subcategory" - never drop the row or leave it blank.`;
     // The AI needs to know WHO the account owner is the moment a file has one
     // column per person (Splitwise trips): every rule below about "my column"
     // hangs on this line.
-    const ownerLine = userName.trim()
-      ? `My name is ${userName.trim()} - if a file has one column per person, mine is the one matching that name (it may include a surname).`
-      : `If a file has one column per person, ask me which column is mine before converting.`;
-    const importPrompt = `I want to import my expense & income history into an app called "TracklyLab". ${ownerLine}
+    const ownerLine = getLanguage() === 'it'
+      ? (userName.trim()
+          ? `Mi chiamo ${userName.trim()} - se un file ha una colonna per persona, la mia è quella che corrisponde a questo nome (può includere il cognome).`
+          : `Se un file ha una colonna per persona, chiedimi quale colonna è la mia prima di convertire.`)
+      : userName.trim()
+        ? `My name is ${userName.trim()} - if a file has one column per person, mine is the one matching that name (it may include a surname).`
+        : `If a file has one column per person, ask me which column is mine before converting.`;
+    const importPrompt = getLanguage() === 'it' ? `Voglio importare il mio storico di spese ed entrate in un'app che si chiama "TracklyLab". ${ownerLine}
+
+Ti darò i miei dati in qualunque forma li abbia - un foglio Excel/CSV, un estratto conto bancario o della carta (PDF, CSV o screenshot), foto o screenshot di una lista di transazioni, o una tabella incollata. Leggi TUTTO e trasforma OGNI transazione in UN file JSON ESATTAMENTE in questo formato:
+
+{
+  "version": 1,
+  "currency": "${userCurrency}",
+  "transactions": [
+${exampleRow},
+${exampleRow2}
+  ]
+}
+
+PRIMA DI CONVERTIRE - chiedimi, non tirare a indovinare
+- Se nei dati non c'è l'ANNO da nessuna parte (es. solo colonne "mese" e "giorno"), CHIEDIMI che anno coprono, e se ne coprono più di uno. Un anno sbagliato archivia in silenzio un intero blocco di transazioni nel posto sbagliato, e dopo niente nell'app sembrerà visibilmente rotto.
+- Se una riga è un TOTALE mensile o settimanale invece di una singola transazione (es. un foglio stipendi con una riga al mese e nessun giorno), chiedimi in che giorno del mese datarla.
+- Apri OGNI foglio, scheda e pagina di quello che ti do. Spesso le entrate stanno in una seconda scheda, e convertire solo la prima perde metà del quadro senza dirlo.
+
+FORMATO
+- "date": YYYY-MM-DD. Converti qualsiasi formato di data in questo. Se una data è ambigua (es. 03/04/25), deduci l'ordine dalle altre righe e resta coerente.
+- "amount": un numero positivo semplice - niente simbolo di valuta, niente separatori delle migliaia, punto decimale (es. 1234.56).
+- "type": "expense" per i soldi in uscita, "income" per i soldi in entrata.
+- Un importo NEGATIVO in una lista di spese può essere due cose diverse, quindi leggi la descrizione prima di decidere:
+  - soldi tornati indietro su un acquisto (rimborso, reso, cashback): tieni "type":"expense" e rendi "amount" NEGATIVO, così compensa quella categoria.
+  - soldi davvero vinti o ricevuti, solo registrati nel foglio spese (una vincita, un rimborso spese, qualcosa di venduto): rendilo "type":"income" con importo POSITIVO e la mia categoria di entrata più vicina.
+  Se una riga negativa è davvero ambigua, chiedimi invece di scegliere a caso.
+- "currency" del file: "${userCurrency}" (la mia valuta principale) - il default per ogni riga. La maggior parte degli estratti è tutta in ${userCurrency}, quindi la lasci così.
+- "currency" per riga: aggiungila a una riga SOLO quando è in una valuta DIVERSA (es. un acquisto all'estero). Metti l'importo esattamente come mostrato in quella valuta più il suo codice ISO - NON convertirlo; la conversione la fa TracklyLab.
+- "description": un'etichetta breve e leggibile. Ripulisci il testo criptico degli estratti (es. "SQ *BLUE BOTTLE 1234" → "Blue Bottle").
+${sourceRule}
+
+CATEGORIZZARE - la parte importante
+Ogni transazione DEVE usare esattamente UNA delle MIE categorie elencate sotto (abbinata per nome). Non inventare, rinominare, tradurre o lasciare la categoria vuota.
+- Se i miei dati hanno già categorie, mappa ognuna sulla mia categoria più VICINA.
+- Se usano categorie generiche o da banca (es. "Groceries", "Bills", "Shopping"), mappale comunque sulla mia più vicina.
+- Se NON hanno categoria, deducila da esercente / descrizione (es. "Uber" → trasporti, "Netflix" → abbonamenti, "Esselunga" → spesa).
+${fallbackLine}
+- "subcategory": facoltativa - usa una delle sottocategorie ESISTENTI di quella categoria (elencate sotto) ogni volta che una ci sta, anche vagamente. Proponi una sottocategoria nuova solo quando davvero nessuna delle mie va bene: l'app mi chiede di approvare ogni nuova sottocategoria, quindi inventarne tante mi crea lavoro.
+
+LEGGERE UN ESTRATTO CONTO
+- Includi solo transazioni reali. Salta saldi iniziali/finali, saldi progressivi, "saldo riportato" e le righe di solo riepilogo.
+- Commissioni bancarie, interessi addebitati e costi della carta SONO spese - includili.
+- Se dare e avere sono in colonne separate: dare = spesa, avere = entrata.
+- Rimuovi i duplicati evidenti.
+
+SPESE CONDIVISE (Splitwise ed export simili)
+Alcuni file hanno una colonna per persona. Quelle colonne contengono il SALDO di ciascuno per la riga - quanto ha pagato MENO la sua quota - non quanto gli è costata. Converti ogni riga nel MIO costo personale:
+- La mia colonna negativa: il mio costo è il suo valore assoluto (era la mia quota).
+- La mia colonna a zero: salta la riga - non facevo parte di quella spesa. Salta anche ogni riga dove il mio costo risulta 0 (mi hanno rimborsato del tutto): una transazione a zero è rumore, non spesa.
+- La mia colonna positiva: ho pagato anche per altri. Il mio costo = (Costo − la somma dei valori negativi degli altri presi in positivo) ÷ (il numero di persone con valori positivi). Il resto mi torna indietro, quindi NON è mia spesa.
+- Salta del tutto le righe di pareggio: categoria "Payment", descrizioni tipo "X paid Y" e ogni riga di riepilogo "Total balance". Sono soldi che girano tra persone, non spese.
+- Mappa le loro categorie sulle mie come sopra (es. "Dining out" → la mia categoria di cibo più vicina); usa il contesto del viaggio nelle descrizioni dove aiuta ("Ferry a/r" resta "Ferry a/r").
+
+Le MIE categorie di SPESA (con le loro sottocategorie):
+${expList}
+
+Le MIE categorie di ENTRATA (con le loro sottocategorie):
+${incList}
+
+Le mie fonti (id = nome): ${srcList}
+
+Restituisci SOLO il JSON - senza commenti, senza blocchi di codice - e salvalo come file .json.` : `I want to import my expense & income history into an app called "TracklyLab". ${ownerLine}
 
 I'll give you my data in whatever form I have it - an Excel/CSV spreadsheet, a bank or credit-card statement (PDF, CSV, or screenshots), photos or screenshots of a transaction list, or just a pasted table. Read ALL of it and turn EVERY transaction into ONE JSON file in EXACTLY this format:
 
@@ -878,7 +950,7 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
     const copyPrompt = async () => {
       try {
         await navigator.clipboard.writeText(importPrompt);
-        toast.success('Prompt copied', { duration: 1400 });
+        toast.success(t('set.promptCopied'), { duration: 1400 });
       } catch {
         toast.error('Copy failed - select the text and copy it manually');
       }
@@ -907,7 +979,7 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
               >
                 <ChevronLeft size={24} style={{ color: '#3B82F6' }} />
               </button>
-              <h1 style={{ color: '#1C1C1E', fontSize: '20px', fontWeight: '600', letterSpacing: '-0.3px' }}>Import data</h1>
+              <h1 style={{ color: '#1C1C1E', fontSize: '20px', fontWeight: '600', letterSpacing: '-0.3px' }}>{t('set.importData')}</h1>
             </div>
           </div>
         </div>
@@ -916,10 +988,10 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
           {/* Intro */}
           <div className="pt-2 pb-4">
             <h2 style={{ color: '#1C1C1E', fontSize: 22, fontWeight: 700, letterSpacing: '-0.02em' }}>
-              Bring in your existing data
+              {getLanguage() === 'it' ? 'Porta qui i tuoi dati esistenti' : 'Bring in your existing data'}
             </h2>
             <p style={{ color: '#6B6B75', fontSize: 15, lineHeight: 1.5, marginTop: 8 }}>
-              An AI assistant turns almost anything into TracklyLab transactions - no manual re-entry.
+              {getLanguage() === 'it' ? 'Un assistente AI trasforma quasi tutto in transazioni TracklyLab - senza reinserire nulla a mano.' : 'An AI assistant turns almost anything into TracklyLab transactions - no manual re-entry.'}
             </p>
           </div>
 
@@ -931,18 +1003,18 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
               <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-2.5" style={{ backgroundColor: '#E7F6EC' }}>
                 <FileSpreadsheet className="w-5 h-5" style={{ color: '#2E9E5B' }} strokeWidth={2} />
               </div>
-              <div style={{ color: '#1C1C1E', fontSize: 14, fontWeight: 700, lineHeight: 1.3 }}>Banks &amp; spreadsheets</div>
+              <div style={{ color: '#1C1C1E', fontSize: 14, fontWeight: 700, lineHeight: 1.3 }}>{getLanguage() === 'it' ? 'Banche e fogli di calcolo' : 'Banks & spreadsheets'}</div>
               <p style={{ color: '#6B6B75', fontSize: 12, lineHeight: 1.45, marginTop: 4 }}>
-                Statements (PDF or CSV), Excel files - even screenshots of a transaction list.
+                {getLanguage() === 'it' ? 'Estratti conto (PDF o CSV), file Excel - persino screenshot di una lista di transazioni.' : 'Statements (PDF or CSV), Excel files - even screenshots of a transaction list.'}
               </p>
             </div>
             <div className="bg-white rounded-2xl shadow-sm p-4">
               <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-2.5" style={{ backgroundColor: '#E1F0FF' }}>
                 <Palmtree className="w-5 h-5" style={{ color: '#0A84FF' }} strokeWidth={2} />
               </div>
-              <div style={{ color: '#1C1C1E', fontSize: 14, fontWeight: 700, lineHeight: 1.3 }}>Trips &amp; split expenses</div>
+              <div style={{ color: '#1C1C1E', fontSize: 14, fontWeight: 700, lineHeight: 1.3 }}>{getLanguage() === 'it' ? 'Viaggi e spese condivise' : 'Trips & split expenses'}</div>
               <p style={{ color: '#6B6B75', fontSize: 12, lineHeight: 1.45, marginTop: 4 }}>
-                A Splitwise trip export lands as your share only - settlements are skipped.
+                {getLanguage() === 'it' ? 'Un export di viaggio da Splitwise arriva come sola tua quota - i pareggi vengono saltati.' : 'A Splitwise trip export lands as your share only - settlements are skipped.'}
               </p>
             </div>
           </div>
@@ -950,29 +1022,35 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
           {/* Steps */}
           <div className="bg-white rounded-2xl shadow-sm p-5 flex flex-col gap-4">
             <Step n={1}>
-              Open any AI assistant (ChatGPT, Claude, Gemini…). Paste the prompt below and attach your file -
+              {getLanguage() === 'it'
+                ? <>Apri un assistente AI qualsiasi (ChatGPT, Claude, Gemini…). Incolla il prompt qui sotto e allega il tuo file - un foglio di calcolo, un estratto conto (PDF o CSV), un export di viaggio Splitwise, screenshot o una tabella incollata. Le spese condivise arrivano come sola tua quota - i pareggi tra persone vengono saltati.</>
+                : <>Open any AI assistant (ChatGPT, Claude, Gemini…). Paste the prompt below and attach your file -
               a spreadsheet, a bank/card statement (PDF or CSV), a Splitwise trip export, screenshots, or a
-              pasted table. Split expenses come in as your share only - settlements between people are skipped.
+              pasted table. Split expenses come in as your share only - settlements between people are skipped.</>}
             </Step>
             <Step n={2}>
-              It returns a <span style={{ fontWeight: 600 }}>.json</span> file already matched to your categories
-              and sources. Save it to your phone.
+              {getLanguage() === 'it'
+                ? <>Ti restituisce un file <span style={{ fontWeight: 600 }}>.json</span> già abbinato alle tue categorie e fonti. Salvalo sul telefono.</>
+                : <>It returns a <span style={{ fontWeight: 600 }}>.json</span> file already matched to your categories
+              and sources. Save it to your phone.</>}
             </Step>
             <Step n={3}>
-              Come back here, tap <span style={{ fontWeight: 600 }}>Choose file</span>, and pick it. That's it.
+              {getLanguage() === 'it'
+                ? <>Torna qui, tocca <span style={{ fontWeight: 600 }}>{t('set.chooseFile')}</span> e scegli il file. Tutto qui.</>
+                : <>Come back here, tap <span style={{ fontWeight: 600 }}>{t('set.chooseFile')}</span>, and pick it. That's it.</>}
             </Step>
           </div>
 
           {/* Prompt */}
           <div className="flex items-center justify-between mt-7 mb-2">
-            <p style={{ color: '#8E8E93', fontSize: 13, fontWeight: 500 }}>PROMPT FOR YOUR AI ASSISTANT</p>
+            <p style={{ color: '#8E8E93', fontSize: 13, fontWeight: 500 }}>{getLanguage() === 'it' ? 'PROMPT PER IL TUO ASSISTENTE AI' : 'PROMPT FOR YOUR AI ASSISTANT'}</p>
             <button
               onClick={copyPrompt}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-full active:scale-95 transition-transform"
               style={{ backgroundColor: '#3B82F6' }}
             >
               <Copy className="w-3.5 h-3.5" style={{ color: '#fff' }} strokeWidth={2.5} />
-              <span style={{ color: '#fff', fontSize: 12, fontWeight: 600 }}>Copy</span>
+              <span style={{ color: '#fff', fontSize: 12, fontWeight: 600 }}>{t('set.copy')}</span>
             </button>
           </div>
           <div style={{ backgroundColor: '#1C1C1E', borderRadius: 14, padding: 14, maxHeight: 240, overflowY: 'auto' }}>
@@ -991,8 +1069,10 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
             </pre>
           </div>
           <p style={{ color: '#A5A5AD', fontSize: 12, lineHeight: 1.5, marginTop: 10 }}>
-            The prompt already lists <span style={{ fontWeight: 600 }}>your</span> current categories, subcategories
-            and sources, so the file lands ready to import.
+            {getLanguage() === 'it'
+              ? <>Il prompt elenca già le <span style={{ fontWeight: 600 }}>tue</span> categorie, sottocategorie e fonti attuali, così il file arriva pronto da importare.</>
+              : <>The prompt already lists <span style={{ fontWeight: 600 }}>your</span> current categories, subcategories
+            and sources, so the file lands ready to import.</>}
           </p>
 
           {/* Upload */}
@@ -1009,7 +1089,7 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
             style={{ backgroundColor: '#1C1C1E', color: '#fff', boxShadow: '0 6px 18px rgba(28,28,30,0.20)' }}
           >
             <Upload className="w-5 h-5" strokeWidth={2} />
-            Choose file
+            {t('set.chooseFile')}
           </button>
           <p style={{ color: '#A5A5AD', fontSize: 12, lineHeight: 1.5, marginTop: 10, textAlign: 'center' }}>
             Imported transactions are added to your current data. Choosing a TracklyLab
@@ -1058,31 +1138,36 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
           // Success confirmation
           <div className="flex-1 flex flex-col items-center justify-center px-8 text-center" style={{ marginTop: -40 }}>
             <CheckCircle2 className="w-16 h-16 mb-4" style={{ color: '#30D158' }} strokeWidth={1.75} />
-            <h2 style={{ color: '#1C1C1E', fontSize: 22, fontWeight: 700 }}>Message sent</h2>
+            <h2 style={{ color: '#1C1C1E', fontSize: 22, fontWeight: 700 }}>{t('set.supportSent')}</h2>
             <p style={{ color: '#6B6B75', fontSize: 15, lineHeight: 1.5, marginTop: 8, maxWidth: 300 }}>
-              Thanks! We've got your message and will reply to{' '}
-              <span style={{ color: '#1C1C1E', fontWeight: 500 }}>{supportEmail}</span> by email.
+              {getLanguage() === 'it' ? (
+                <>Grazie! Abbiamo ricevuto il tuo messaggio e risponderemo a{' '}
+                <span style={{ color: '#1C1C1E', fontWeight: 500 }}>{supportEmail}</span> via email.</>
+              ) : (
+                <>Thanks! We've got your message and will reply to{' '}
+                <span style={{ color: '#1C1C1E', fontWeight: 500 }}>{supportEmail}</span> by email.</>
+              )}
             </p>
             <button
               onClick={closeSupport}
               className="mt-8 px-8 py-3 rounded-xl font-medium text-base active:scale-[0.98] transition-transform"
               style={{ backgroundColor: '#3B82F6', color: '#FFFFFF', boxShadow: '0 2px 8px rgba(0,122,255,0.25)' }}
             >
-              Done
+              {t('set.done')}
             </button>
           </div>
         ) : (
           <div className="flex-1 overflow-y-auto px-6 pb-28">
             <div className="pt-2 pb-5">
               <h2 style={{ color: '#1C1C1E', fontSize: 22, fontWeight: 700, letterSpacing: '-0.02em' }}>
-                What's on your mind?
+                {t('set.supportTitle')}
               </h2>
               <p style={{ color: '#6B6B75', fontSize: 15, lineHeight: 1.5, marginTop: 8 }}>
-                An idea, a question, something broken - write to us and we'll reply by email.
+                {t('set.supportBody')}
               </p>
             </div>
 
-            <p style={{ color: '#8E8E93', fontSize: 13, fontWeight: 500, marginBottom: 8 }}>YOUR EMAIL</p>
+            <p style={{ color: '#8E8E93', fontSize: 13, fontWeight: 500, marginBottom: 8 }}>{t('set.supportEmail')}</p>
             <input
               type="email"
               inputMode="email"
@@ -1094,13 +1179,13 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
               className="w-full px-4 py-3.5 rounded-2xl bg-white shadow-sm outline-none focus:ring-2 focus:ring-blue-500"
               style={{ fontSize: 16, color: '#1C1C1E' }}
             />
-            <p style={{ color: '#B0B0B5', fontSize: 12, marginTop: 6, marginBottom: 16 }}>So we can reply to you.</p>
+            <p style={{ color: '#B0B0B5', fontSize: 12, marginTop: 6, marginBottom: 16 }}>{t('set.supportEmailHint')}</p>
 
-            <p style={{ color: '#8E8E93', fontSize: 13, fontWeight: 500, marginBottom: 8 }}>YOUR MESSAGE</p>
+            <p style={{ color: '#8E8E93', fontSize: 13, fontWeight: 500, marginBottom: 8 }}>{t('set.supportMsg')}</p>
             <textarea
               value={supportMessage}
               onChange={(e) => setSupportMessage(e.target.value)}
-              placeholder="Tell us anything…"
+              placeholder={t('set.supportPlaceholder')}
               rows={6}
               // 16px keeps iOS from auto-zooming on focus
               className="w-full p-4 rounded-2xl bg-white shadow-sm outline-none resize-none focus:ring-2 focus:ring-blue-500"
@@ -1134,9 +1219,9 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
     <div style={{ backgroundColor: '#F6F5F2', marginBottom: -16 }}>
       {/* Header */}
       <div className="px-6 pb-4 pt-1">
-        <h1 style={{ color: '#1C1C1E', fontSize: '28px', fontWeight: '600', letterSpacing: '-0.5px' }}>Settings</h1>
+        <h1 style={{ color: '#1C1C1E', fontSize: '28px', fontWeight: '600', letterSpacing: '-0.5px' }}>{t('set.title')}</h1>
         <p style={{ color: '#8E8E93', fontSize: '13px', marginTop: '4px' }}>
-          Manage your app preferences
+          {t('set.subtitle')}
         </p>
       </div>
 
@@ -1150,8 +1235,8 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
             >
               <Cloud className="w-5 h-5" style={{ color: '#3B82F6' }} strokeWidth={2} />
               <div className="flex-1 text-left">
-                <div style={{ color: '#1C1C1E', fontSize: '16px' }}>Sign in to back up & sync</div>
-                <div style={{ color: '#8E8E93', fontSize: '13px' }}>Keep your data safe across devices</div>
+                <div style={{ color: '#1C1C1E', fontSize: '16px' }}>{t('set.signIn')}</div>
+                <div style={{ color: '#8E8E93', fontSize: '13px' }}>{t('set.signInSub')}</div>
               </div>
               <ChevronRight className="w-5 h-5" style={{ color: '#C7C7CC' }} />
             </button>
@@ -1171,7 +1256,7 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
                 className="w-full flex items-center gap-3 px-5 py-4 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
               >
                 <LogOut className="w-5 h-5" style={{ color: '#8E8E93' }} strokeWidth={2} />
-                <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '16px' }}>Sign out</span>
+                <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '16px' }}>{t('set.signOut')}</span>
               </button>
             </>
           )}
@@ -1211,7 +1296,7 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
             ) : (
               <UserCircle className="w-5 h-5" style={{ color: '#8E8E93' }} strokeWidth={2} />
             )}
-            <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '16px' }}>Profile</span>
+            <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '16px' }}>{t('set.profile')}</span>
             <span style={{ color: '#8E8E93', fontSize: '15px' }}>{userName}</span>
             <ChevronRight className="w-5 h-5" style={{ color: '#C7C7CC' }} />
           </button>
@@ -1222,7 +1307,7 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
             style={{ borderBottom: '1px solid #F2F1ED' }}
           >
             <Layers className="w-5 h-5" style={{ color: '#8E8E93' }} strokeWidth={2} />
-            <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '16px' }}>Categories</span>
+            <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '16px' }}>{t('set.categories')}</span>
             <span style={{ color: '#8E8E93', fontSize: '15px' }}>{categories.length + incomeCategories.length}</span>
             <ChevronRight className="w-5 h-5" style={{ color: '#C7C7CC' }} />
           </button>
@@ -1233,7 +1318,7 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
             style={{ borderBottom: '1px solid #F2F1ED' }}
           >
             <Landmark className="w-5 h-5" style={{ color: '#8E8E93' }} strokeWidth={2} />
-            <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '16px' }}>Sources</span>
+            <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '16px' }}>{t('set.sources')}</span>
             <span style={{ color: '#8E8E93', fontSize: '15px' }}>{sources.length}</span>
             <ChevronRight className="w-5 h-5" style={{ color: '#C7C7CC' }} />
           </button>
@@ -1244,7 +1329,7 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
             style={{ borderBottom: '1px solid #F2F1ED' }}
           >
             <Wallet className="w-5 h-5" style={{ color: '#8E8E93' }} strokeWidth={2} />
-            <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '16px' }}>Main Currency</span>
+            <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '16px' }}>{t('set.currency')}</span>
             <span style={{ color: '#8E8E93', fontSize: '15px' }}>
               {CURRENCIES[userCurrency]?.flag} {userCurrency}
             </span>
@@ -1257,7 +1342,7 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
             style={{ borderBottom: '1px solid #F2F1ED' }}
           >
             <LifeBuoy className="w-5 h-5" style={{ color: '#8E8E93' }} strokeWidth={2} />
-            <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '16px' }}>Contacts</span>
+            <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '16px' }}>{t('set.support')}</span>
             <ChevronRight className="w-5 h-5" style={{ color: '#C7C7CC' }} />
           </button>
 
@@ -1266,7 +1351,7 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
             className="w-full flex items-center gap-3 px-5 py-4 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
           >
             <HelpCircle className="w-5 h-5" style={{ color: '#8E8E93' }} strokeWidth={2} />
-            <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '16px' }}>About</span>
+            <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '16px' }}>{t('set.about')}</span>
             <ChevronRight className="w-5 h-5" style={{ color: '#C7C7CC' }} />
           </button>
         </div>
@@ -1283,7 +1368,7 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
               style={{ borderBottom: '1px solid #F2F1ED' }}
             >
               <Upload className="w-5 h-5" style={{ color: '#8E8E93' }} strokeWidth={2} />
-              <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '16px' }}>Import data</span>
+              <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '16px' }}>{t('set.importData')}</span>
               <ChevronRight className="w-5 h-5" style={{ color: '#C7C7CC' }} />
             </button>
           )}
@@ -1294,8 +1379,8 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
               style={{ borderBottom: '1px solid #F2F1ED' }}
             >
               <Download className="w-5 h-5" style={{ color: '#8E8E93' }} strokeWidth={2} />
-              <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '16px' }}>Export backup</span>
-              <span style={{ color: '#8E8E93', fontSize: '13px' }}>Full app data · JSON</span>
+              <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '16px' }}>{t('set.exportBackup')}</span>
+              <span style={{ color: '#8E8E93', fontSize: '13px' }}>{t('set.exportBackupSub')}</span>
             </button>
           )}
           {onExportCsv && (
@@ -1305,8 +1390,8 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
               style={{ borderBottom: '1px solid #F2F1ED' }}
             >
               <FileSpreadsheet className="w-5 h-5" style={{ color: '#8E8E93' }} strokeWidth={2} />
-              <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '16px' }}>Export CSV</span>
-              <span style={{ color: '#8E8E93', fontSize: '13px' }}>Transactions only</span>
+              <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '16px' }}>{t('set.exportCsv')}</span>
+              <span style={{ color: '#8E8E93', fontSize: '13px' }}>{t('set.exportCsvSub')}</span>
             </button>
           )}
           <button
@@ -1315,8 +1400,8 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
             style={hasDemoData && onEraseDemoData ? { borderBottom: '1px solid #F2F1ED' } : undefined}
           >
             <FlaskConical className="w-5 h-5" style={{ color: '#8E8E93' }} strokeWidth={2} />
-            <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '16px' }}>Load demo data</span>
-            <span style={{ color: '#8E8E93', fontSize: '13px' }}>For testing</span>
+            <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '16px' }}>{t('set.loadDemo')}</span>
+            <span style={{ color: '#8E8E93', fontSize: '13px' }}>{t('set.loadDemoSub')}</span>
           </button>
 
           {hasDemoData && onEraseDemoData && (
@@ -1325,8 +1410,8 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
               className="w-full flex items-center gap-3 px-5 py-4 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
             >
               <Trash2 className="w-5 h-5" style={{ color: '#8E8E93' }} strokeWidth={2} />
-              <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '16px' }}>Erase demo data</span>
-              <span style={{ color: '#8E8E93', fontSize: '13px' }}>Removes samples</span>
+              <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '16px' }}>{t('set.eraseDemo')}</span>
+              <span style={{ color: '#8E8E93', fontSize: '13px' }}>{t('set.eraseDemoSub')}</span>
             </button>
           )}
         </div>
@@ -1334,7 +1419,7 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
         {/* Destructive actions, grouped so the difference between wiping your
             data and removing your whole account is obvious at a glance. */}
         <p className="mt-8 mb-2 px-1" style={{ color: '#8E8E93', fontSize: '13px' }}>
-          Danger zone
+          {t('set.danger')}
         </p>
         <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
           <button
@@ -1344,7 +1429,7 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
           >
             <Trash2 className="w-5 h-5 flex-shrink-0 mt-0.5" style={{ color: '#EF4444' }} strokeWidth={2} />
             <div className="flex-1 text-left">
-              <div style={{ color: '#EF4444', fontSize: '16px' }}>Erase all data</div>
+              <div style={{ color: '#EF4444', fontSize: '16px' }}>{t('set.eraseAll')}</div>
               <div style={{ color: '#8E8E93', fontSize: '13px', marginTop: 2 }}>
                 {isGuest
                   ? 'Deletes your transactions and settings'
@@ -1361,9 +1446,9 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
             >
               <UserX className="w-5 h-5 flex-shrink-0 mt-0.5" style={{ color: '#EF4444' }} strokeWidth={2} />
               <div className="flex-1 text-left">
-                <div style={{ color: '#EF4444', fontSize: '16px' }}>Delete account</div>
+                <div style={{ color: '#EF4444', fontSize: '16px' }}>{t('set.deleteAccount')}</div>
                 <div style={{ color: '#8E8E93', fontSize: '13px', marginTop: 2 }}>
-                  Deletes your data and your account
+                  {t('set.deleteAccountSub')}
                 </div>
               </div>
             </button>
@@ -1382,9 +1467,9 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
 
       {confirmAction === 'demo' && (
         <ConfirmDialog
-          title="Load demo data?"
-          message="This adds sample transactions on top of your data so you can explore the app. Your own data stays - remove the samples anytime with 'Erase demo data'."
-          confirmLabel="Load"
+          title={t('conf.demoTitle')}
+          message={t('conf.demoMsg')}
+          confirmLabel={t('conf.demoCta')}
           variant="neutral"
           onConfirm={handleConfirm}
           onCancel={closeConfirm}
@@ -1392,9 +1477,9 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
       )}
       {confirmAction === 'erase-demo' && (
         <ConfirmDialog
-          title="Erase demo data?"
-          message="This removes the sample transactions that were loaded for testing. Your own transactions, categories and settings are kept."
-          confirmLabel="Erase demo"
+          title={t('conf.eraseDemoTitle')}
+          message={t('conf.eraseDemoMsg')}
+          confirmLabel={t('conf.eraseDemoCta')}
           variant="neutral"
           onConfirm={handleConfirm}
           onCancel={closeConfirm}
@@ -1402,31 +1487,27 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
       )}
       {confirmAction === 'erase' && (
         <ConfirmDialog
-          title="Erase all data?"
-          message={
-            isGuest
-              ? "This permanently deletes all your transactions, categories, sources and settings, and restarts the app from scratch."
-              : "This deletes all your transactions, categories, sources and settings and starts the app fresh. Your account stays - sign back in anytime. To remove your account entirely, use Delete account instead."
-          }
-          confirmLabel="Erase"
+          title={t('conf.eraseTitle')}
+          message={isGuest ? t('conf.eraseMsgGuest') : t('conf.eraseMsgUser')}
+          confirmLabel={t('conf.eraseCta')}
           onConfirm={handleConfirm}
           onCancel={closeConfirm}
         />
       )}
       {confirmAction === 'restore' && (
         <ConfirmDialog
-          title="Restore this backup?"
-          message="This replaces all your current transactions, categories, sources and settings with the contents of the backup file."
-          confirmLabel="Restore"
+          title={t('conf.restoreTitle')}
+          message={t('conf.restoreMsg')}
+          confirmLabel={t('conf.restoreCta')}
           onConfirm={handleConfirm}
           onCancel={() => { setPendingBackup(null); closeConfirm(); }}
         />
       )}
       {confirmAction === 'delete-account' && (
         <ConfirmDialog
-          title="Delete your account?"
-          message="This permanently deletes your TracklyLab account and all your data - transactions, categories, sources and settings - from our servers and this device. This can't be undone."
-          confirmLabel="Delete account"
+          title={t('conf.delAccTitle')}
+          message={t('conf.delAccMsg')}
+          confirmLabel={t('conf.delAccCta')}
           onConfirm={handleDeleteAccountConfirm}
           onCancel={closeConfirm}
         />

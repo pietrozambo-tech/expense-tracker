@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { t } from '../i18n';
 import { X } from 'lucide-react';
 import { getCategoryIcon } from './categoryIcons';
 
@@ -34,7 +35,7 @@ export function AddSubcategoryModal({ category, onSave, onClose }: AddSubcategor
       <div className="bg-white rounded-t-3xl w-full">
         {/* Header */}
         <div className="px-6 py-4 border-b border-neutral-100 flex items-center justify-between">
-          <h2 className="text-neutral-900 font-semibold text-lg">Add Subcategory</h2>
+          <h2 className="text-neutral-900 font-semibold text-lg">{t('mgmt.addSubTitle')}</h2>
           <button
             onClick={onClose}
             className="w-8 h-8 flex items-center justify-center rounded-full active:bg-neutral-100 transition-colors"
@@ -47,7 +48,7 @@ export function AddSubcategoryModal({ category, onSave, onClose }: AddSubcategor
         <div className="px-6 py-6">
           {/* Parent Category Display */}
           <div className="mb-6 p-4 bg-neutral-50 rounded-xl">
-            <div className="text-neutral-500 text-xs mb-2">Parent Category</div>
+            <div className="text-neutral-500 text-xs mb-2">{t('mgmt.parentCategory')}</div>
             <div className="flex items-center gap-3">
               <div className={`w-10 h-10 rounded-full ${category.bgColor} flex items-center justify-center`}>
                 <Icon className={`w-5 h-5 ${category.color}`} />
@@ -59,13 +60,13 @@ export function AddSubcategoryModal({ category, onSave, onClose }: AddSubcategor
           {/* Name Input */}
           <div className="mb-6">
             <label className="block text-neutral-700 font-medium text-sm mb-2">
-              Subcategory Name <span className="text-red-500">*</span>
+              {t('mgmt.subName')} <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="e.g., Netflix"
+              placeholder={t('mgmt.subPlaceholder')}
               className="w-full px-4 py-3 bg-neutral-50 border border-neutral-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               autoFocus
             />
@@ -78,7 +79,7 @@ export function AddSubcategoryModal({ category, onSave, onClose }: AddSubcategor
             onClick={onClose}
             className="flex-1 py-3 bg-neutral-100 text-neutral-900 rounded-xl font-medium active:bg-neutral-200 transition-colors"
           >
-            Cancel
+            {t('common.cancel')}
           </button>
           <button
             onClick={handleSave}
@@ -89,7 +90,7 @@ export function AddSubcategoryModal({ category, onSave, onClose }: AddSubcategor
                 : 'bg-neutral-200 text-neutral-400 cursor-not-allowed'
             }`}
           >
-            Save
+            {t('common.save')}
           </button>
         </div>
       </div>
