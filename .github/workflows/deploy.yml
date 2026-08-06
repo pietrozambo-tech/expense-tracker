@@ -50,18 +50,24 @@ jobs:
             --jq '"site: build_type=\(.build_type) url=\(.html_url)"' \
             || echo "(could not read site config)"
 
-          # Forensics for the 2026-08-06 pipeline stall: deployments created
-          # that day whose publication was never confirmed. Drop once all
-          # read "succeed".
-          for sha in \
-            562677c6231ad83e4e3b11dcdab6ef397b03b1d1 \
-            285a48fb10e69fefa4b92ce1e48c361d930a88df \
-            848758ff802e8ec5ef9c572e327fa6b24b1f7487 \
-            6fed8e418c8d0793356279d35ef00123cc0424a2 \
-          ; do
-            s="$(gh api "repos/$GITHUB_REPOSITORY/pages/deployment/status/$sha" --jq '.status' 2>/dev/null)" || s="(no record)"
-            echo "deployment ${sha:0:7}: $s"
-          done
+          # Calibration probe: on 2026-08-06 this endpoint reported
+          # deployment_in_progress for a SHA that never had a deployment
+          # created, so it appears to echo the site's current state rather
+          # than answer per-SHA. A garbage SHA settles it: same answer means
+          # the endpoint is an echo and per-SHA readings from it are noise.
+          s="$(gh api "repos/$GITHUB_REPOSITORY/pages/deployment/status/0000000000000000000000000000000000000000" --jq '.status' 2>/dev/null)" || s="(error)"
+          echo "garbage-sha probe: $s"
+
+          # Ground truth: the repo Deployments API keeps one record per
+          # deployment with a real status history. List today's, newest
+          # first, with their latest status and when it was set.
+          gh api "repos/$GITHUB_REPOSITORY/deployments?environment=github-pages&per_page=12" \
+            --jq '.[] | "\(.id) \(.sha[0:7]) created=\(.created_at) ref=\(.ref[0:24])"' \
+          | while read -r id sha created ref; do
+              latest="$(gh api "repos/$GITHUB_REPOSITORY/deployments/$id/statuses?per_page=1" \
+                --jq 'if length == 0 then "(no statuses)" else "\(.[0].state) at \(.[0].created_at)" end' 2>/dev/null)" || latest="(status read failed)"
+              echo "$sha $created -> $latest"
+            done
 
   build:
     runs-on: ubuntu-latest
