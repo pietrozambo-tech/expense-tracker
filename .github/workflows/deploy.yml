@@ -69,11 +69,14 @@ jobs:
       # instantly. On 2026-08-06 five consecutive deploys died this way while
       # sitting in `deployment_queued`, purely because the queue was slow.
       #
-      # Creating the deployment and exiting removes the timeout and the cancel
-      # together: Pages publishes whenever its queue gets there. The trade-off
-      # is real and deliberate - this job goes green once the deployment is
-      # ACCEPTED, not once the site is live, so a failure inside Pages itself
-      # will no longer turn the run red. The status URL is printed for that.
+      # So we create the deployment ourselves and then watch it in a separate
+      # step below. That keeps the action's useful half and drops the harmful
+      # half: no hard-capped timeout, and nothing ever cancels the deployment.
+      #
+      # Creating it without watching at all was the first attempt, and it hid a
+      # real failure - the run went green at 13:41 on 2026-08-06 while the site
+      # stayed on the previous build, because "accepted" is not "published".
+      # Hence the watcher: green now means the site is actually live.
       - id: deployment
         name: Queue the Pages deployment (without waiting for it)
         env:
@@ -107,3 +110,44 @@ jobs:
           echo "Queued Pages deployment for $GITHUB_SHA"
           echo "  site:   $page_url"
           echo "  status: $status_url"
+
+      # Polls, but on our terms: no 10-minute cap, and no cancel on timeout.
+      # A slow queue is a warning, not a failure - the deployment stays alive
+      # and publishes whenever Pages gets to it. Only a terminal error state
+      # from Pages turns this red.
+      - name: Wait for Pages to publish it
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -uo pipefail
+
+          # build_type must be "workflow" for API deployments to publish at
+          # all; if it ever reads "legacy" the site is wired to a branch and
+          # every deployment here is a no-op.
+          gh api "repos/$GITHUB_REPOSITORY/pages" \
+            --jq '"site: build_type=\(.build_type) status=\(.status) url=\(.html_url)"' \
+            || echo "(could not read site config)"
+
+          deadline=$(( $(date +%s) + 1800 ))
+          last=""
+          while [ "$(date +%s)" -lt "$deadline" ]; do
+            status="$(gh api "repos/$GITHUB_REPOSITORY/pages/deployment/status/$GITHUB_SHA" \
+              --jq '.status' 2>/dev/null)" || status=""
+            [ -n "$status" ] || status="(not reported yet)"
+            if [ "$status" != "$last" ]; then
+              echo "$(date -u +%H:%M:%S)  $status"
+              last="$status"
+            fi
+            case "$status" in
+              succeed)
+                echo "::notice::Pages published $GITHUB_SHA"
+                exit 0
+                ;;
+              deployment_failed|deployment_content_failed|deployment_cancelled|deployment_attempt_error|deployment_lost)
+                echo "::error::Pages reported '$status' for $GITHUB_SHA"
+                exit 1
+                ;;
+            esac
+            sleep 15
+          done
+          echo "::warning::Pages still reports '$last' after 30 min. The deployment is alive and will publish when the queue drains - this job does not cancel it."
