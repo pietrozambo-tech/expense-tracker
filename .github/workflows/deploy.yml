@@ -12,9 +12,15 @@ permissions:
   pages: write
   id-token: write
 
+# One deployment at a time, but never cancel one that is already running.
+# Pages publishes are production deployments: killing a run mid-publish leaves
+# the deployment cancelled on GitHub's side, and because deploy-pages keys a
+# deployment by commit SHA, that SHA can then never be deployed again - a
+# re-run recreates the same ID and is rejected instantly with "Deployment
+# cancelled". Queue behind the running one instead.
 concurrency:
   group: pages
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   build:
@@ -50,3 +56,13 @@ jobs:
     steps:
       - id: deployment
         uses: actions/deploy-pages@v4
+        with:
+          # The action's default is 600000 (10 minutes), and this repo's
+          # deployments routinely sit in "deployment_queued" for 3-6 minutes
+          # before Pages picks them up - so the default leaves almost no
+          # margin. Two of six deploys on 2026-08-06 crossed ten minutes and
+          # were aborted, which does not just fail the run: the action cancels
+          # the deployment on its way out, permanently burning that commit SHA.
+          # Half an hour costs nothing on a normal deploy and turns a slow
+          # queue into a slow success instead of an unrecoverable failure.
+          timeout: 1800000
