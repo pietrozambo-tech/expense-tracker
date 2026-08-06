@@ -12,15 +12,13 @@ permissions:
   pages: write
   id-token: write
 
-# One deployment at a time, but never cancel one that is already running.
-# Pages publishes are production deployments: killing a run mid-publish leaves
-# the deployment cancelled on GitHub's side, and because deploy-pages keys a
-# deployment by commit SHA, that SHA can then never be deployed again - a
-# re-run recreates the same ID and is rejected instantly with "Deployment
-# cancelled". Queue behind the running one instead.
-concurrency:
-  group: pages
-  cancel-in-progress: false
+# No concurrency group, deliberately. It existed to keep two deploy-pages
+# actions from cancelling each other; nothing in this workflow cancels
+# anything anymore, deployment creation is keyed by SHA so parallel runs
+# cannot collide, and Pages serializes publishes server-side regardless.
+# What the group actually did in practice (2026-08-06): the hour-long watch
+# held the lock, so every later run - including the seconds-fast diagnose
+# job that exists to be readable during a stall - sat pending behind it.
 
 jobs:
   # Completes in seconds, on purpose: job logs are only downloadable once a
@@ -59,6 +57,7 @@ jobs:
             562677c6231ad83e4e3b11dcdab6ef397b03b1d1 \
             285a48fb10e69fefa4b92ce1e48c361d930a88df \
             848758ff802e8ec5ef9c572e327fa6b24b1f7487 \
+            6fed8e418c8d0793356279d35ef00123cc0424a2 \
           ; do
             s="$(gh api "repos/$GITHUB_REPOSITORY/pages/deployment/status/$sha" --jq '.status' 2>/dev/null)" || s="(no record)"
             echo "deployment ${sha:0:7}: $s"
