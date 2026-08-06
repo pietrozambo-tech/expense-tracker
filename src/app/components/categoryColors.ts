@@ -74,8 +74,22 @@ export const categoryHex = (colorClass?: string): string => TEXT_HEX[colorClass 
 // label crisp, and the glow underneath says which side you are on without
 // putting a coloured block on the card. Savings is a result, not a direction,
 // so it glows neutral.
-export function switchGlow(type: 'expense' | 'income' | 'savings'): string {
-  if (type === 'income') return '0 2px 8px rgba(31, 122, 67, 0.30)';
-  if (type === 'savings') return '0 2px 8px rgba(28, 28, 30, 0.26)';
-  return '0 2px 8px rgba(194, 53, 43, 0.30)';
+//
+// Three layers, because one soft shadow at 30% was invisible on a real phone:
+// a hairline ring that draws the thumb's edge in the meaning-colour, a tight
+// contact shadow that lifts it off the track, and a wide glow that carries the
+// tint far enough to read at arm's length. The ring is what actually makes it
+// perceptible - a blur alone spreads too thin against a near-white card.
+export function switchGlow(type: 'expense' | 'income' | 'savings' | 'all'): string {
+  const neutral = type === 'savings' || type === 'all';
+  const [r, g, b] = type === 'income' ? [31, 122, 67] : neutral ? [28, 28, 30] : [194, 53, 43];
+  const rgba = (a: number) => `rgba(${r}, ${g}, ${b}, ${a})`;
+  // Savings and All are results rather than directions, so their neutral tint
+  // is held back a touch - the same shape, quieter.
+  const k = neutral ? 0.8 : 1;
+  return [
+    `0 0 0 1px ${rgba(0.30 * k)}`,
+    `0 1px 3px ${rgba(0.24 * k)}`,
+    `0 4px 12px ${rgba(0.36 * k)}`,
+  ].join(', ');
 }

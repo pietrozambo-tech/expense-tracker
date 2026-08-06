@@ -223,10 +223,10 @@ export default function App() {
   // The i18n store is initialised from settings in main.tsx, before this
   // renders; this state mirrors it so React owns persistence and sync.
   const [language, setAppLanguage] = useState<Language>(() => getLanguage());
-  // The store must flip BEFORE the state does: key={language} remounts the
-  // tree on the state change, and every t() in that render reads the store
-  // synchronously - an effect would run one paint too late, leaving the whole
-  // app in the old language until something else re-rendered it.
+  // The store must flip BEFORE the state does: setAppLanguage schedules the
+  // re-render, and every t() in that render reads the store synchronously - an
+  // effect would run one paint too late, leaving the whole app in the old
+  // language until something else re-rendered it.
   const adoptLanguage = useCallback((lang: Language) => {
     setLanguage(lang);
     setAppLanguage(lang);
@@ -241,10 +241,6 @@ export default function App() {
   const [showSourceSelector, setShowSourceSelector] = useState(false);
   const [openSourcesOnSettings, setOpenSourcesOnSettings] = useState(false); // deep-link Settings → Sources
   const [openCategoriesOnSettings, setOpenCategoriesOnSettings] = useState(false); // deep-link Settings → Categories
-  // Set when the language is changed from Settings, so the remount lands back
-  // on the Language page instead of the Settings root. App state, deliberately:
-  // it has to outlive the key={language} remount that does the retranslating.
-  const [openLanguageOnSettings, setOpenLanguageOnSettings] = useState(false);
 
   // Auth + cloud sync
   const { session, loading: authLoading, guest, signOut, deleteAccount, leaveGuest } = useAuth();
@@ -1709,11 +1705,13 @@ export default function App() {
   // than as space we forgot to fill. Every rule for that is md: only, so the
   // phone rendering is untouched.
   return (
-    // key={language}: a language switch remounts the whole content tree, which
-    // is what flushes every memoised label and sentence built under the old
-    // language. Lifted view state (period, filters) lives above this node and
-    // survives; only transient state resets, exactly as on a reload.
-    <div key={language} className="min-h-screen bg-[#F6F5F2] md:bg-[#ECEAE6]">
+    // Deliberately NOT keyed on language. Keying here remounted the entire
+    // content tree on every switch - state reset, effects re-run, charts
+    // redrawn, scroll lost - which read as a full page reload. Nothing in the
+    // app is wrapped in React.memo, so a plain re-render already reaches every
+    // descendant; the only language-dependent useMemo (the Dashboard's insight
+    // sentences) now lists language in its deps instead.
+    <div className="min-h-screen bg-[#F6F5F2] md:bg-[#ECEAE6]">
       <Toaster position="top-center" />
       {importSummary && (
         <ImportSummaryDialog
@@ -1841,10 +1839,7 @@ export default function App() {
                 weekStartsOn={weekStartsOn}
                 onSetWeekStartsOn={setWeekStartsOn}
                 language={language}
-                onSetLanguage={(lang) => {
-                  setOpenLanguageOnSettings(true);
-                  adoptLanguage(lang);
-                }}
+                onSetLanguage={adoptLanguage}
                 onAddCategory={handleAddCategory}
                 onEditCategory={handleEditCategory}
                 onDeleteCategory={handleDeleteCategory}
@@ -1879,8 +1874,6 @@ export default function App() {
                 onSourcesOpened={() => setOpenSourcesOnSettings(false)}
                 openCategoriesOnMount={openCategoriesOnSettings}
                 onCategoriesOpened={() => setOpenCategoriesOnSettings(false)}
-                openLanguageOnMount={openLanguageOnSettings}
-                onLanguageOpened={() => setOpenLanguageOnSettings(false)}
                 userEmail={userEmail}
                 userAvatar={userAvatar}
                 syncStatus={syncStatus}

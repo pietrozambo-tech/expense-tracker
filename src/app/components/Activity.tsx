@@ -8,6 +8,7 @@ import { SearchModal } from './SearchModal';
 import { ExportScopeModal } from './ExportScopeModal';
 import { CURRENCIES, homeAmount } from '../utils/currency';
 import { AmountText } from './AmountText';
+import { switchGlow } from './categoryColors';
 import { t } from '../i18n';
 import { monthsShort } from '../i18n/store';
 import { Download } from 'lucide-react';
@@ -324,10 +325,13 @@ export function Activity({
   const modalCategories =
     activityType === 'income' ? incomeCategories : activityType === 'expense' ? categories : [...categories, ...incomeCategories];
 
-  const typeOptions: Array<{ value: ActivityTypeFilter; label: string; activeBg: string; activeColor: string }> = [
-    { value: 'all', label: t('act.all'), activeBg: '#1C1C1E', activeColor: '#FFFFFF' },
-    { value: 'expense', label: t('act.expenses'), activeBg: '#FFE8E6', activeColor: '#D32F2F' },
-    { value: 'income', label: t('act.income'), activeBg: '#E8F5E9', activeColor: '#2E7D32' }
+  // Same three-way control as Trend's, in Activity's own order: the label
+  // carries the meaning-colour and the thumb's glow repeats it underneath.
+  // All is a scope rather than a direction, so it glows neutral.
+  const typeOptions: Array<{ value: ActivityTypeFilter; label: string; activeColor: string }> = [
+    { value: 'all', label: t('act.all'), activeColor: '#1C1C1E' },
+    { value: 'expense', label: t('act.expenses'), activeColor: '#C2352B' },
+    { value: 'income', label: t('act.income'), activeColor: '#1F7A43' }
   ];
 
   return (
@@ -352,22 +356,29 @@ export function Activity({
           )}
         </div>
 
-        {/* Expense / Income type filter */}
+        {/* All / Expenses / Income type filter */}
         <div className="px-6 pb-3">
-          <div
-            className="flex gap-0 rounded-lg overflow-hidden"
-            style={{ backgroundColor: '#FFFFFF', border: '1px solid #E5E5EA' }}
-          >
-            {typeOptions.map((option, index) => (
+          <div className="relative flex p-1 rounded-full" style={{ backgroundColor: '#ECEAE4' }}>
+            <div
+              className="absolute rounded-full"
+              style={{
+                top: 4, bottom: 4, left: 4, width: 'calc((100% - 8px) / 3)',
+                backgroundColor: '#FFFFFF',
+                boxShadow: switchGlow(activityType === 'all' ? 'all' : activityType),
+                transform:
+                  activityType === 'expense' ? 'translateX(100%)'
+                  : activityType === 'income' ? 'translateX(200%)'
+                  : 'translateX(0)',
+                transition: 'transform 220ms cubic-bezier(0.32, 0.72, 0, 1)',
+              }}
+              aria-hidden="true"
+            />
+            {typeOptions.map((option) => (
               <button
                 key={option.value}
                 onClick={() => handleActivityTypeChange(option.value)}
-                className="flex-1 px-4 py-1.5 transition-all text-sm font-medium"
-                style={{
-                  backgroundColor: activityType === option.value ? option.activeBg : 'transparent',
-                  color: activityType === option.value ? option.activeColor : '#8E8E93',
-                  borderRight: index < typeOptions.length - 1 ? '1px solid #E5E5EA' : 'none'
-                }}
+                className="relative flex-1 min-w-0 py-1.5 text-sm font-medium transition-colors"
+                style={{ color: activityType === option.value ? option.activeColor : '#8E8E93' }}
               >
                 {option.label}
               </button>

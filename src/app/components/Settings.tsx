@@ -80,12 +80,6 @@ interface SettingsProps {
   onSourcesOpened?: () => void;
   openCategoriesOnMount?: boolean;
   onCategoriesOpened?: () => void;
-  // Changing the language remounts the whole content tree - that is what
-  // retranslates it - which wipes this component's local state and would drop
-  // the user out of the Language page they are standing on. App remembers the
-  // page across the remount and hands it back here.
-  openLanguageOnMount?: boolean;
-  onLanguageOpened?: () => void;
   userEmail?: string | null;
   userAvatar?: string | null;
   syncStatus?: 'synced' | 'pending' | 'offline' | 'error';
@@ -137,8 +131,6 @@ export function Settings({
   onSourcesOpened,
   openCategoriesOnMount,
   onCategoriesOpened,
-  openLanguageOnMount,
-  onLanguageOpened,
   userEmail,
   userAvatar,
   syncStatus = 'synced',
@@ -225,15 +217,6 @@ export function Settings({
       onSourcesOpened?.();
     }
   }, [openSourcesOnMount, onSourcesOpened]);
-
-  // Deep-link from the welcome carousel opens Categories directly
-  useEffect(() => {
-    if (openLanguageOnMount) {
-      setShowLanguage(true);
-      onLanguageOpened?.();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [openLanguageOnMount, onLanguageOpened]);
 
   useEffect(() => {
     if (openCategoriesOnMount) {

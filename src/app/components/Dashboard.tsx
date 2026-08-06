@@ -4,7 +4,7 @@ import { TrendCategoryBreakdown } from './TrendCategoryBreakdown';
 import React from 'react';
 import { formatAmountListView, formatAbbreviatedAmount, CURRENCIES, homeAmount } from '../utils/currency';
 import { monthsShort, monthsFull, daysFull, daysShort, numberLocale, getLanguage, GROUPED } from '../i18n/store';
-import { t } from '../i18n';
+import { t, useLanguage } from '../i18n';
 import { translateRecurrence } from '../i18n/store';
 import { getCategoryIcon } from './categoryIcons';
 import { categoryHex, switchGlow } from './categoryColors';
@@ -272,6 +272,13 @@ let lastChartWidth = 0;
 export function Dashboard({ expenses, categories, incomeCategories, sources = [], userName, currency, onEditExpense, onDeleteExpense, view = 'overview', onShowOverview, initialPeriod, viewStateRef, trendStateRef, monthlyBudget, budgetNudgeDismissed, onSetMonthlyBudget, onDismissBudgetNudge, onAddFirstExpense, onLoadDemoData, weekStartsOn = 1 }: DashboardProps) {
   // Restore the previous view (period + drilldown) unless a Trend->Overview
   // link supplied an explicit period - that must win and start clean.
+  // Subscribing here does two jobs: it re-renders the Dashboard the instant the
+  // language store flips (every getLanguage() read below is a plain render-time
+  // read, so it needs a render to take effect), and it gives the memoised
+  // insight sentences a dependency to invalidate on. Without it a language
+  // change left the summary lines written in the old language until some
+  // unrelated state change happened to rebuild them.
+  const language = useLanguage();
   const savedView = view === 'overview' && !initialPeriod ? viewStateRef?.current ?? null : null;
   const savedTrend = view === 'trend' ? trendStateRef?.current ?? null : null;
   const viewType: ViewType = view === 'trend' ? 'trend' : 'current-month';
@@ -1214,7 +1221,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
       line2: shape ?? undefined,
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [expenses, currency, timePeriodType, selectedMonth, selectedQuarter, selectedYear]);
+  }, [expenses, currency, timePeriodType, selectedMonth, selectedQuarter, selectedYear, language]);
 
   const heroNote = (() => {
     if (timePeriodType !== 'month' || !isAtCurrentPeriod()) return null;
