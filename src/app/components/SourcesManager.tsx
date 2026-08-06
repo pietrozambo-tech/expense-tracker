@@ -68,7 +68,9 @@ export function SourcesManager({
       <div className="flex-1 overflow-y-auto pb-24">
         <div className="px-6 pb-5">
           <p style={{ color: '#8E8E93', fontSize: '13px' }}>
-            Where money flows in and out - cash or your banks. New transactions start on your default.
+            {getLanguage() === 'it'
+              ? 'Da dove entrano ed escono i soldi: contanti o le tue banche. Le nuove transazioni partono dal predefinito.'
+              : 'Where money flows in and out - cash or your banks. New transactions start on your default.'}
           </p>
         </div>
 

@@ -222,6 +222,15 @@ export default function App() {
   // The i18n store is initialised from settings in main.tsx, before this
   // renders; this state mirrors it so React owns persistence and sync.
   const [language, setAppLanguage] = useState<Language>(() => getLanguage());
+  // The store must flip BEFORE the state does: key={language} remounts the
+  // tree on the state change, and every t() in that render reads the store
+  // synchronously - an effect would run one paint too late, leaving the whole
+  // app in the old language until something else re-rendered it.
+  const adoptLanguage = useCallback((lang: Language) => {
+    setLanguage(lang);
+    setAppLanguage(lang);
+  }, []);
+  // Belt and braces for any path that only touched the state.
   useEffect(() => {
     setLanguage(language);
   }, [language]);
@@ -424,8 +433,8 @@ export default function App() {
     // Absent means English, deliberately - never the device guess: an account
     // that predates the language choice must not flip because the phone is
     // Italian.
-    setAppLanguage(s.language === 'it' ? 'it' : 'en');
-  }, []);
+    adoptLanguage(s.language === 'it' ? 'it' : 'en');
+  }, [adoptLanguage]);
 
   // Keep the ref holding current local state fresh, for the listeners below
   // that are registered once and never see a later render's closure.
@@ -1233,7 +1242,7 @@ export default function App() {
   const handleOnboardingComplete = (name: string, currency: string, lang: Language) => {
     setUserName(name);
     setUserCurrency(currency);
-    setAppLanguage(lang);
+    adoptLanguage(lang);
     // Seed the starter catalogue in the chosen language. Onboarding only ever
     // runs on a fresh account (a returning cloud user skips it), so what's
     // being replaced is the untouched default set, never the user's own work.
@@ -1827,7 +1836,7 @@ export default function App() {
                 weekStartsOn={weekStartsOn}
                 onSetWeekStartsOn={setWeekStartsOn}
                 language={language}
-                onSetLanguage={setAppLanguage}
+                onSetLanguage={adoptLanguage}
                 onAddCategory={handleAddCategory}
                 onEditCategory={handleEditCategory}
                 onDeleteCategory={handleDeleteCategory}
@@ -2011,33 +2020,32 @@ export default function App() {
 
             {/* Scrollable Form Content */}
             <div className="flex-1 overflow-y-auto overflow-x-hidden pb-28">
-              {/* Transaction Type Switch */}
+              {/* Transaction Type Switch — the same sliding-thumb segmented
+                  control the Dashboard settled on, sized to its content. */}
               <div className="px-6 pb-5">
-                <div 
-                  className="inline-flex gap-0 rounded-lg overflow-hidden"
-                  style={{ 
-                    backgroundColor: '#FFFFFF',
-                    border: '1px solid #E5E5EA'
-                  }}
-                >
+                <div className="relative inline-flex p-1 rounded-full" style={{ backgroundColor: '#ECEAE4' }}>
+                  <div
+                    className="absolute rounded-full"
+                    style={{
+                      top: 4, bottom: 4, left: 4, width: 'calc(50% - 4px)',
+                      backgroundColor: '#FFFFFF',
+                      boxShadow: '0 1px 3px rgba(0,0,0,0.12)',
+                      transform: transactionType === 'income' ? 'translateX(100%)' : 'translateX(0)',
+                      transition: 'transform 220ms cubic-bezier(0.32, 0.72, 0, 1)',
+                    }}
+                    aria-hidden="true"
+                  />
                   <button
                     onClick={() => handleTransactionTypeChange('expense')}
-                    className="px-4 py-1.5 transition-all text-sm font-medium"
-                    style={{
-                      backgroundColor: transactionType === 'expense' ? '#FFE8E6' : 'transparent',
-                      color: transactionType === 'expense' ? '#D32F2F' : '#8E8E93',
-                      borderRight: '1px solid #E5E5EA'
-                    }}
+                    className="relative px-5 py-1.5 text-sm font-medium transition-colors"
+                    style={{ color: transactionType === 'expense' ? '#C2352B' : '#8E8E93', minWidth: 96 }}
                   >
                     {t('add.expense')}
                   </button>
                   <button
                     onClick={() => handleTransactionTypeChange('income')}
-                    className="px-4 py-1.5 transition-all text-sm font-medium"
-                    style={{
-                      backgroundColor: transactionType === 'income' ? '#E8F5E9' : 'transparent',
-                      color: transactionType === 'income' ? '#2E7D32' : '#8E8E93'
-                    }}
+                    className="relative px-5 py-1.5 text-sm font-medium transition-colors"
+                    style={{ color: transactionType === 'income' ? '#1F7A43' : '#8E8E93', minWidth: 96 }}
                   >
                     {t('add.income')}
                   </button>

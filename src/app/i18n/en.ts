@@ -376,6 +376,8 @@ export const en = {
   'set.supportSent': 'Message sent',
   'set.supportReply': 'by email.',
   'set.done': 'Done',
+  'set.sending': 'Sending…',
+  'set.sendMessage': 'Send message',
   'set.promptCopied': 'Prompt copied',
   'set.copy': 'Copy',
 

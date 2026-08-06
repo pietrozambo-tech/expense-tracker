@@ -1,4 +1,4 @@
-import { ChevronRight, ChevronLeft, UserCircle, Wallet, HelpCircle, ShieldCheck, ScrollText, Layers, FlaskConical, Trash2, Landmark, Cloud, LogOut, Upload, Copy, Download, FileSpreadsheet, Palmtree, UserX, Mail, LifeBuoy, CheckCircle2 } from 'lucide-react';
+import { ChevronRight, ChevronLeft, UserCircle, Wallet, HelpCircle, ShieldCheck, ScrollText, Layers, FlaskConical, Trash2, Landmark, Cloud, LogOut, Upload, Copy, Download, FileSpreadsheet, Palmtree, UserX, Mail, LifeBuoy, CheckCircle2, Globe } from 'lucide-react';
 import { sendSupportMessage, supportLimitReached } from '../lib/support';
 
 // Where messages from Settings > Contacts go. Easy to swap when the domain changes.
@@ -230,13 +230,6 @@ export function Settings({
     setShowAllCurrencies(false);
   };
 
-  // Language is picked in the sheet but applied on Save, unlike the weekday
-  // preference: applying it live remounts the app (that is how every cached
-  // English label gets flushed), and yanking the sheet out from under the user
-  // mid-edit is worse than asking for one more tap. On Save the sheet closes
-  // anyway, so the remount lands where the user was already going.
-  const [editedLanguage, setEditedLanguage] = useState<AppLanguage>(language);
-
   const handleNameSave = () => {
     if (!editedName.trim()) return;
     onUserNameChange(editedName.trim());
@@ -245,7 +238,6 @@ export function Settings({
     const parsed = raw === '' ? undefined : Math.max(0, parseFloat(raw));
     onMonthlyBudgetChange?.(parsed && isFinite(parsed) && parsed > 0 ? parsed : undefined);
     setShowNameEditor(false);
-    if (editedLanguage !== language) onSetLanguage?.(editedLanguage);
   };
 
   const openConfirm = (action: 'demo' | 'erase' | 'erase-demo' | 'restore' | 'delete-account') => {
@@ -471,7 +463,7 @@ export function Settings({
         <div className="flex-1 overflow-y-auto pb-24">
           <div className="px-6 pb-6">
             <p style={{ color: '#8E8E93', fontSize: '13px' }}>
-              Your name, your monthly spending limit and how your week starts
+              {t('set.profileSub')}
             </p>
           </div>
 
@@ -558,41 +550,6 @@ export function Settings({
               {t('set.weekHint')}
             </p>
 
-            <p style={{ color: '#8E8E93', fontSize: 13, fontWeight: 500, margin: '24px 0 8px' }}>
-              {t('settings.language').toUpperCase()}
-            </p>
-            <div
-              className="flex p-1 rounded-xl"
-              style={{ backgroundColor: '#FFFFFF', border: '1px solid #E5E5EA', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}
-            >
-              {([
-                { code: 'en', flag: '🇬🇧', label: 'English' },
-                { code: 'it', flag: '🇮🇹', label: 'Italiano' },
-              ] as { code: AppLanguage; flag: string; label: string }[]).map(({ code, flag, label }) => (
-                <button
-                  key={code}
-                  onClick={() => setEditedLanguage(code)}
-                  className="flex-1 py-2 rounded-lg text-sm"
-                  style={{
-                    backgroundColor: editedLanguage === code ? '#1C1C1E' : 'transparent',
-                    color: editedLanguage === code ? '#FFFFFF' : '#8E8E93',
-                    fontWeight: editedLanguage === code ? 600 : 500,
-                    transition: 'background-color 0.15s ease',
-                    WebkitTapHighlightColor: 'rgba(255, 255, 255, 0)',
-                  }}
-                >
-                  {flag} {label}
-                </button>
-              ))}
-            </div>
-            {/* Names the user already owns stay put on purpose: categories,
-                subcategories and sources are their data, not UI copy. */}
-            <p style={{ color: '#B0B0B5', fontSize: 12, marginTop: 6, lineHeight: 1.45 }}>
-              {editedLanguage === 'it'
-                ? "Cambia la lingua dell'app. I nomi delle tue categorie e delle tue fonti restano come sono."
-                : 'Changes the app language. Your category and source names stay as they are.'}
-            </p>
-
             <button
               onClick={handleNameSave}
               disabled={!editedName.trim()}
@@ -630,7 +587,7 @@ export function Settings({
               >
                 <ChevronLeft size={24} style={{ color: '#3B82F6' }} />
               </button>
-              <h1 style={{ color: '#1C1C1E', fontSize: '20px', fontWeight: '600', letterSpacing: '-0.3px' }}>Categories</h1>
+              <h1 style={{ color: '#1C1C1E', fontSize: '20px', fontWeight: '600', letterSpacing: '-0.3px' }}>{t('set.categories')}</h1>
             </div>
           </div>
 
@@ -793,8 +750,8 @@ export function Settings({
     const IT_PROMPT = getLanguage() === 'it';
     const sourceRule = IT_PROMPT
       ? (hasSources
-          ? `- "source": facoltativo. Usa uno dei miei id fonte elencati sotto SOLO dove i dati dicono davvero da quale conto viene la transazione (una colonna, il nome di una carta, l'intestazione dell'estratto). Se il file non lo dice, OMETTI IL CAMPO: un conto indovinato è peggio di nessuno, perché sarebbe sbagliato su ogni singola riga.`
-          : `- "source": ometti questo campo - non ho fonti configurate.`)
+          ? `- "source": facoltativo. Usa uno dei miei id conto elencati sotto SOLO dove i dati dicono davvero da quale conto viene la transazione (una colonna, il nome di una carta, l'intestazione dell'estratto). Se il file non lo dice, OMETTI IL CAMPO: un conto indovinato è peggio di nessuno, perché sarebbe sbagliato su ogni singola riga.`
+          : `- "source": ometti questo campo - non ho conti configurati.`)
       : hasSources
         ? `- "source": optional. Use one of my source ids listed below ONLY where the data actually says which account a transaction came from (a column, a card name, a statement header). If the file does not say, LEAVE THE FIELD OUT: a guessed account is worse than none, because it would be wrong on every single row.`
         : `- "source": leave this field out - I have no sources set up.`;
@@ -884,7 +841,7 @@ ${expList}
 Le MIE categorie di ENTRATA (con le loro sottocategorie):
 ${incList}
 
-Le mie fonti (id = nome): ${srcList}
+I miei conti (id = nome): ${srcList}
 
 Restituisci SOLO il JSON - senza commenti, senza blocchi di codice - e salvalo come file .json.` : `I want to import my expense & income history into an app called "TracklyLab". ${ownerLine}
 
@@ -1032,7 +989,7 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
             </Step>
             <Step n={2}>
               {getLanguage() === 'it'
-                ? <>Ti restituisce un file <span style={{ fontWeight: 600 }}>.json</span> già abbinato alle tue categorie e fonti. Salvalo sul telefono.</>
+                ? <>Ti restituisce un file <span style={{ fontWeight: 600 }}>.json</span> già abbinato alle tue categorie e ai tuoi conti. Salvalo sul telefono.</>
                 : <>It returns a <span style={{ fontWeight: 600 }}>.json</span> file already matched to your categories
               and sources. Save it to your phone.</>}
             </Step>
@@ -1072,7 +1029,7 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
           </div>
           <p style={{ color: '#A5A5AD', fontSize: 12, lineHeight: 1.5, marginTop: 10 }}>
             {getLanguage() === 'it'
-              ? <>Il prompt elenca già le <span style={{ fontWeight: 600 }}>tue</span> categorie, sottocategorie e fonti attuali, così il file arriva pronto da importare.</>
+              ? <>Il prompt elenca già le <span style={{ fontWeight: 600 }}>tue</span> categorie, sottocategorie e conti attuali, così il file arriva pronto da importare.</>
               : <>The prompt already lists <span style={{ fontWeight: 600 }}>your</span> current categories, subcategories
             and sources, so the file lands ready to import.</>}
           </p>
@@ -1201,7 +1158,7 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
               className="w-full mt-4 py-4 rounded-xl font-medium text-base flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-40"
               style={{ backgroundColor: '#3B82F6', color: '#FFFFFF', boxShadow: '0 2px 8px rgba(0,122,255,0.25)' }}
             >
-              <Mail className="w-4 h-4" /> {sendingSupport ? 'Sending…' : 'Send message'}
+              <Mail className="w-4 h-4" /> {sendingSupport ? t('set.sending') : t('set.sendMessage')}
             </button>
 
             <p className="text-center mt-4" style={{ color: '#8E8E93', fontSize: 13, lineHeight: 1.5 }}>
@@ -1273,7 +1230,6 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
             onClick={() => {
               setEditedName(userName);
               setEditedBudget(monthlyBudget ? String(monthlyBudget) : '');
-              setEditedLanguage(language);
               setShowNameEditor(true);
             }}
             className="w-full flex items-center gap-3 px-5 py-4 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
@@ -1303,7 +1259,47 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
             <span style={{ color: '#8E8E93', fontSize: '15px' }}>{userName}</span>
             <ChevronRight className="w-5 h-5" style={{ color: '#C7C7CC' }} />
           </button>
+        </div>
 
+        {/* Language — its own section, right below Profile. Applies on tap:
+            the switch remounts the app in place, and this control is exactly
+            where the user lands afterwards, showing its new state. */}
+        <div className="bg-white rounded-2xl shadow-sm px-5 py-4 mt-4">
+          <div className="flex items-center gap-3 mb-3">
+            <Globe className="w-5 h-5" style={{ color: '#8E8E93' }} strokeWidth={2} />
+            <span style={{ color: '#1C1C1E', fontSize: '16px' }}>{t('settings.language')}</span>
+          </div>
+          <div className="flex p-1 rounded-xl" style={{ backgroundColor: '#F2F1ED' }}>
+            {([
+              { code: 'en', flag: '🇬🇧', label: 'English' },
+              { code: 'it', flag: '🇮🇹', label: 'Italiano' },
+            ] as { code: AppLanguage; flag: string; label: string }[]).map(({ code, flag, label }) => (
+              <button
+                key={code}
+                onClick={() => { if (code !== language) onSetLanguage?.(code); }}
+                className="flex-1 py-2 rounded-lg text-sm"
+                style={{
+                  backgroundColor: language === code ? '#1C1C1E' : 'transparent',
+                  color: language === code ? '#FFFFFF' : '#8E8E93',
+                  fontWeight: language === code ? 600 : 500,
+                  transition: 'background-color 0.15s ease',
+                  WebkitTapHighlightColor: 'rgba(255, 255, 255, 0)',
+                }}
+              >
+                {flag} {label}
+              </button>
+            ))}
+          </div>
+          {/* Names the user already owns stay put on purpose: categories,
+              subcategories and sources are their data, not UI copy. */}
+          <p style={{ color: '#B0B0B5', fontSize: 12, marginTop: 8, lineHeight: 1.45 }}>
+            {language === 'it'
+              ? "Cambia la lingua dell'app. I nomi delle tue categorie e dei tuoi conti restano come sono."
+              : 'Changes the app language. Your category and source names stay as they are.'}
+          </p>
+        </div>
+
+        <div className="bg-white rounded-2xl shadow-sm overflow-hidden mt-4">
           <button 
             onClick={() => setShowCategories(true)}
             className="w-full flex items-center gap-3 px-5 py-4 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"

@@ -456,7 +456,7 @@ export function WelcomeCarousel({ userName, onDone, onSetupCategories, onLoadDem
       illustration: <SettingsIllustration />,
       title: getLanguage() === 'it' ? 'Fallo tuo' : 'Make it yours',
       desc: getLanguage() === 'it'
-        ? 'Parti dalle categorie - adattale a come spendi. Aggiungi le tue banche come fonti ed esporta un backup completo quando vuoi.'
+        ? 'Parti dalle categorie - adattale a come spendi. Aggiungi le tue banche come conti ed esporta un backup completo quando vuoi.'
         : 'Start with your categories - tailor them to how you spend. Add your banks as sources, and export a full backup of everything whenever you like.',
     },
   ];
