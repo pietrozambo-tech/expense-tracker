@@ -177,7 +177,7 @@ export function DateInput({ value, onChange, showDatePicker, setShowDatePicker, 
                   <span
                     className="font-medium"
                     style={{
-                      color: recurrenceState === option ? '#3B82F6' : '#1C1C1E',
+                      color: recurrenceState === option ? '#4F74F3' : '#1C1C1E',
                       fontSize: '16px'
                     }}
                   >
@@ -186,7 +186,7 @@ export function DateInput({ value, onChange, showDatePicker, setShowDatePicker, 
                   {recurrenceState === option && (
                     <div
                       className="w-6 h-6 rounded-full flex items-center justify-center"
-                      style={{ backgroundColor: '#3B82F6' }}
+                      style={{ backgroundColor: '#4F74F3' }}
                     >
                       <svg width="12" height="10" viewBox="0 0 12 10" fill="none">
                         <path

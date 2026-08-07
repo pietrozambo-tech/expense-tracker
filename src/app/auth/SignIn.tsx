@@ -163,7 +163,7 @@ export function SignIn() {
                     placeholder="you@email.com"
                     className="w-full pl-11 pr-4 py-4 rounded-2xl text-base outline-none transition-all"
                     style={{ backgroundColor: '#FFFFFF', color: '#1C1C1E', border: '1px solid #E5E5EA', boxShadow: '0 2px 10px rgba(17,24,39,0.04)' }}
-                    onFocus={(e) => { e.target.style.border = '1.5px solid #3B82F6'; e.target.style.boxShadow = '0 0 0 3px rgba(59,130,246,0.10)'; }}
+                    onFocus={(e) => { e.target.style.border = '1.5px solid #4F74F3'; e.target.style.boxShadow = '0 0 0 3px rgba(59,130,246,0.10)'; }}
                     onBlur={(e) => { e.target.style.border = '1px solid #E5E5EA'; e.target.style.boxShadow = '0 2px 10px rgba(17,24,39,0.04)'; }}
                   />
                 </div>
@@ -172,7 +172,7 @@ export function SignIn() {
           </>
         ) : (
           <div style={{ paddingTop: 'clamp(28px, 7vh, 64px)' }}>
-            <button onClick={() => { setStep('start'); setError(null); }} className="flex items-center gap-1 -ml-1 mb-5 self-start" style={{ color: '#3B82F6', fontSize: 15 }}>
+            <button onClick={() => { setStep('start'); setError(null); }} className="flex items-center gap-1 -ml-1 mb-5 self-start" style={{ color: '#4F74F3', fontSize: 15 }}>
               <ArrowLeft className="w-4 h-4" />{getLanguage() === 'it' ? 'Indietro' : 'Back'}</button>
             <TracklyLogo size={48} className="mb-5" />
             <h1 style={{ color: '#1C1C1E', fontSize: 28, fontWeight: 700, letterSpacing: '-0.02em', marginBottom: 8 }}>{getLanguage() === 'it' ? 'Inserisci il codice' : 'Enter your code'}</h1>
@@ -191,11 +191,11 @@ export function SignIn() {
               autoFocus
               className="w-full mt-6 py-4 rounded-2xl text-center outline-none transition-all"
               style={{ backgroundColor: '#FFFFFF', color: '#1C1C1E', border: '1px solid #E5E5EA', boxShadow: '0 2px 10px rgba(17,24,39,0.04)', fontSize: 30, fontWeight: 700, letterSpacing: '10px' }}
-              onFocus={(e) => { e.target.style.border = '1.5px solid #3B82F6'; e.target.style.boxShadow = '0 0 0 3px rgba(59,130,246,0.10)'; }}
+              onFocus={(e) => { e.target.style.border = '1.5px solid #4F74F3'; e.target.style.boxShadow = '0 0 0 3px rgba(59,130,246,0.10)'; }}
               onBlur={(e) => { e.target.style.border = '1px solid #E5E5EA'; e.target.style.boxShadow = '0 2px 10px rgba(17,24,39,0.04)'; }}
             />
             {error && <p className="mt-3" style={{ color: '#FF3B30', fontSize: 13 }}>{error}</p>}
-            <button onClick={send} disabled={busy} className="mt-4 text-[15px] font-medium self-start" style={{ color: '#3B82F6' }}>
+            <button onClick={send} disabled={busy} className="mt-4 text-[15px] font-medium self-start" style={{ color: '#4F74F3' }}>
               {getLanguage() === 'it' ? 'Invia di nuovo il codice' : 'Resend code'}
             </button>
           </div>

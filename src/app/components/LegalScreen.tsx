@@ -19,7 +19,7 @@ export function LegalScreen({ doc, onBack }: LegalScreenProps) {
               className="absolute left-0 -ml-2 px-2 py-1 rounded-lg active:bg-neutral-200 transition-colors"
               aria-label="Back"
             >
-              <ChevronLeft size={24} style={{ color: '#3B82F6' }} />
+              <ChevronLeft size={24} style={{ color: '#4F74F3' }} />
             </button>
             <h1 style={{ color: '#1C1C1E', fontSize: '20px', fontWeight: '600', letterSpacing: '-0.3px' }}>
               {doc.title}

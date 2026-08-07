@@ -1648,7 +1648,7 @@ export default function App() {
               setHydrateTick((t) => t + 1);
             }}
             className="w-full py-4 rounded-2xl font-medium text-base transition-all active:scale-[0.98]"
-            style={{ backgroundColor: '#3B82F6', color: '#FFFFFF', boxShadow: '0 2px 8px rgba(0,122,255,0.25)' }}
+            style={{ backgroundColor: '#4F74F3', color: '#FFFFFF', boxShadow: '0 2px 8px rgba(0,122,255,0.25)' }}
           >
             {t('guard.fresh')}
           </button>
@@ -1891,39 +1891,44 @@ export default function App() {
         {/* Bottom Navigation Bar - Only show when NOT in Add mode AND no modals
             are open.
 
-            Phone: the bar itself carries the dark surface, edge to edge. Wide
-            screens: the bar goes transparent and the layer inside it draws that
-            surface across the column only - stretched the full width it reads as
-            a desktop taskbar sitting under an unrelated app.
+            A floating dock rather than a full-bleed slab: inset from all three
+            edges, fully rounded, dark glass over whatever is scrolling beneath.
+            The slab version ran edge to edge with a hard top border, which cut
+            list rows mid-line and made the heaviest element on every screen a
+            rectangle in an app that is otherwise all soft corners.
 
-            The phone styles are classes rather than inline so the md: variants
-            can switch them off. Keeping them on this element, rather than moving
-            them to the layer for both breakpoints, matters: backdrop-filter on
-            an ancestor changes how the labels inside it are antialiased, and
-            moving it shifted every label by a shade. */}
+            The outer element is a positioning frame only - no background, and
+            crucially POINTER-EVENTS-NONE, so the cream gutter either side of
+            the dock scrolls the content underneath instead of swallowing taps.
+            Each control turns pointer events back on.
+
+            Wide screens keep the same shape, just centred on the column. */}
         {currentTab !== 'add' && !isModalOpen && (
           <div
-            className="fixed bottom-0 left-0 right-0 z-40 bg-[rgba(28,28,30,0.92)] backdrop-blur-[20px] shadow-[0_-2px_10px_rgba(0,0,0,0.1)] md:bg-transparent md:backdrop-blur-none md:shadow-none"
+            className="fixed left-0 right-0 z-40 pointer-events-none px-3.5"
             style={{
-              // Lift labels clear of the home indicator AND the rounded screen
-              // corners (which otherwise clip the outer Dashboard/Settings labels)
-              paddingBottom: 'max(32px, env(safe-area-inset-bottom))',
-              paddingTop: '11px',
+              // Sit the dock clear of the home indicator; the inset is part of
+              // the look, so there is always a gap even without a safe area.
+              bottom: 'max(14px, env(safe-area-inset-bottom))',
             }}
             onClick={(e) => e.stopPropagation()}
           >
             <div
-              className="hidden md:block absolute inset-0 mx-auto max-w-[430px] rounded-t-2xl bg-[rgba(28,28,30,0.92)] backdrop-blur-[20px] shadow-[0_-2px_10px_rgba(0,0,0,0.1)]"
-              aria-hidden="true"
-            />
-            <div className="relative w-full max-w-[430px] mx-auto grid grid-cols-5 items-center px-6">
+              className="relative w-full max-w-[430px] mx-auto grid grid-cols-5 items-center px-2.5 py-2 pointer-events-auto rounded-[26px] backdrop-blur-[22px] backdrop-saturate-150"
+              style={{
+                backgroundColor: 'rgba(28, 28, 30, 0.86)',
+                // Drop shadow lifts it off the page; the inset hairline is the
+                // top-edge highlight that makes glass read as glass.
+                boxShadow: '0 10px 30px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.10)',
+              }}
+            >
               <button
                 onClick={() => {
                   setDashboardInitialPeriod(null); // direct visits start on the current month
                   dashboardViewRef.current = null; // ...and from the top-level view
                   setCurrentTab('dashboard');
                 }}
-                className="flex flex-col items-center gap-1 transition-all pointer-events-auto justify-self-center"
+                className="flex flex-col items-center gap-0.5 transition-all pointer-events-auto justify-self-center"
               >
                 <BarChart3
                   size={24}
@@ -1931,7 +1936,7 @@ export default function App() {
                   strokeWidth={currentTab === 'dashboard' ? 2.5 : 2}
                 />
                 <span
-                  className="text-[10px] font-medium whitespace-nowrap"
+                  className="text-[9.5px] font-semibold whitespace-nowrap"
                   style={{ color: currentTab === 'dashboard' ? '#FFFFFF' : '#8E8E93' }}
                 >
                   {t('tab.dashboard')}
@@ -1939,7 +1944,7 @@ export default function App() {
               </button>
               <button
                 onClick={() => setCurrentTab('activity')}
-                className="flex flex-col items-center gap-1 transition-all pointer-events-auto justify-self-center"
+                className="flex flex-col items-center gap-0.5 transition-all pointer-events-auto justify-self-center"
               >
                 <List
                   size={24}
@@ -1947,7 +1952,7 @@ export default function App() {
                   strokeWidth={currentTab === 'activity' ? 2.5 : 2}
                 />
                 <span
-                  className="text-[10px] font-medium whitespace-nowrap"
+                  className="text-[9.5px] font-semibold whitespace-nowrap"
                   style={{ color: currentTab === 'activity' ? '#FFFFFF' : '#8E8E93' }}
                 >
                   {t('tab.activity')}
@@ -1959,12 +1964,18 @@ export default function App() {
                 className="flex flex-col items-center pointer-events-auto justify-self-center"
               >
                 <div
-                  className="w-12 h-12 rounded-full flex items-center justify-center transition-transform active:scale-95"
+                  className="w-[46px] h-[46px] rounded-[16px] flex items-center justify-center transition-transform active:scale-95"
                   style={{
-                    // The logo's own gradient on the most-tapped control in
-                    // the app: the one place the brand is allowed to shout.
+                    // The logo's own gradient, stop for stop, on the most-tapped
+                    // control in the app: the one place the brand is allowed to
+                    // shout. Deliberately NOT the flat accent - this mirrors the
+                    // mark, and #4F74F3 is that gradient's midpoint, so every
+                    // flat accent in the app reads as the same family.
                     background: 'linear-gradient(135deg, #3B82F6 0%, #6366F1 100%)',
-                    boxShadow: '0 4px 18px rgba(79, 116, 243, 0.55)'
+                    // Tightened from an 18px/0.55 halo. Inside the dock that
+                    // glow spilled past the rounded edge and washed over the
+                    // list scrolling behind it, which read as a render bug.
+                    boxShadow: '0 4px 12px rgba(79, 116, 243, 0.42)',
                   }}
                 >
                   <Plus size={24} style={{ color: '#FFFFFF' }} strokeWidth={2.5} />
@@ -1972,7 +1983,7 @@ export default function App() {
               </button>
               <button
                 onClick={() => setCurrentTab('trend')}
-                className="flex flex-col items-center gap-1 transition-all pointer-events-auto justify-self-center"
+                className="flex flex-col items-center gap-0.5 transition-all pointer-events-auto justify-self-center"
               >
                 <TrendingUp
                   size={24}
@@ -1980,7 +1991,7 @@ export default function App() {
                   strokeWidth={currentTab === 'trend' ? 2.5 : 2}
                 />
                 <span
-                  className="text-[10px] font-medium whitespace-nowrap"
+                  className="text-[9.5px] font-semibold whitespace-nowrap"
                   style={{ color: currentTab === 'trend' ? '#FFFFFF' : '#8E8E93' }}
                 >
                   {t('tab.trend')}
@@ -1988,7 +1999,7 @@ export default function App() {
               </button>
               <button 
                 onClick={() => setCurrentTab('settings')} 
-                className="flex flex-col items-center gap-1 transition-all pointer-events-auto justify-self-center"
+                className="flex flex-col items-center gap-0.5 transition-all pointer-events-auto justify-self-center"
               >
                 <SettingsIcon 
                   size={24} 
@@ -1996,7 +2007,7 @@ export default function App() {
                   strokeWidth={currentTab === 'settings' ? 2.5 : 2} 
                 />
                 <span 
-                  className="text-[10px] font-medium whitespace-nowrap" 
+                  className="text-[9.5px] font-semibold whitespace-nowrap" 
                   style={{ color: currentTab === 'settings' ? '#FFFFFF' : '#8E8E93' }}
                 >
                   {t('tab.settings')}

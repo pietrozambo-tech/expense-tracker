@@ -187,15 +187,24 @@ export function Categories({
                           onClick={() => handleEditCategory(category)}
                           className="w-7 h-7 rounded-full flex items-center justify-center transition-colors"
                           style={{ backgroundColor: 'transparent' }}
+                          aria-label={t('mgmt.editCategory', { name: category.name })}
                         >
                           <Pencil className="w-3.5 h-3.5" style={{ color: '#8E8E93' }} />
                         </button>
+                        {/* Grey, not red. One red trash is a warning; nine of
+                            them stacked down the screen is just noise, and the
+                            row is not the destructive moment anyway - nothing
+                            is deleted until the confirm sheet, which already
+                            carries a red icon and a red button. Keeping the
+                            alarm at the decision point rather than on every
+                            row lets the list read as a list. */}
                         <button
                           onClick={() => handleDeleteCategory(category)}
                           className="w-7 h-7 rounded-full flex items-center justify-center transition-colors"
                           style={{ backgroundColor: 'transparent' }}
+                          aria-label={t('mgmt.deleteCategory', { name: category.name })}
                         >
-                          <Trash2 className="w-3.5 h-3.5" style={{ color: '#FF3B30' }} />
+                          <Trash2 className="w-3.5 h-3.5" style={{ color: '#8E8E93' }} />
                         </button>
                       </div>
                     </div>
@@ -224,7 +233,7 @@ export function Categories({
                               onClick={() => handleDeleteSubcategory(category, subcategory)}
                               className="w-8 h-8 rounded-full flex items-center justify-center active:bg-neutral-200 transition-colors"
                             >
-                              <Trash2 className="w-3.5 h-3.5 text-red-500" />
+                              <Trash2 className="w-3.5 h-3.5 text-neutral-500" />
                             </button>
                           </div>
                         </div>

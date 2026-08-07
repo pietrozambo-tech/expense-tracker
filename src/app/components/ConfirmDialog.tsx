@@ -37,7 +37,7 @@ export function ConfirmDialog({
             {isDanger ? (
               <AlertTriangle className="w-8 h-8 text-red-500" />
             ) : (
-              <NeutralIcon className="w-8 h-8" style={{ color: '#3B82F6' }} />
+              <NeutralIcon className="w-8 h-8" style={{ color: '#4F74F3' }} />
             )}
           </div>
         </div>
@@ -60,7 +60,7 @@ export function ConfirmDialog({
           <button
             onClick={onConfirm}
             className="flex-1 py-3 rounded-xl font-medium text-base text-white transition-colors active:scale-[0.98]"
-            style={{ backgroundColor: isDanger ? '#EF4444' : '#3B82F6' }}
+            style={{ backgroundColor: isDanger ? '#EF4444' : '#4F74F3' }}
           >
             {confirmLabel}
           </button>

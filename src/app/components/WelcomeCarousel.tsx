@@ -109,7 +109,7 @@ function AddIllustration() {
       <div className="grid grid-cols-2 gap-2">
         {cats.slice(0, 2).map(({ name, Icon, bg, fg, on }) => (
           <div key={name} className="flex items-center gap-2 rounded-xl px-2.5 py-2"
-            style={{ background: on ? '#FFFFFF' : '#FAFAFB', boxShadow: on ? '0 0 0 2px #3B82F6' : 'inset 0 0 0 1px #ECECEF' }}>
+            style={{ background: on ? '#FFFFFF' : '#FAFAFB', boxShadow: on ? '0 0 0 2px #4F74F3' : 'inset 0 0 0 1px #ECECEF' }}>
             <span className="flex items-center justify-center flex-shrink-0" style={{ width: 26, height: 26, borderRadius: 8, background: bg }}>
               <Icon className="w-4 h-4" style={{ color: fg }} />
             </span>
@@ -121,14 +121,14 @@ function AddIllustration() {
         <div className="col-span-2 rounded-xl px-3 py-2.5" style={{ background: '#FFFFFF', border: '1px solid #ECECEF', boxShadow: '0 1px 4px rgba(0,0,0,0.05)' }}>
           <div className="text-[10px] font-semibold mb-1.5" style={{ color: '#8E8E93', letterSpacing: '0.06em' }}>{t('add.subcategory')}</div>
           <div className="flex gap-2">
-            <span className="rounded-lg px-2.5 py-1 text-xs border" style={{ background: '#EFF6FF', color: '#2563EB', borderColor: '#BFDBFE' }}>{getLanguage() === 'it' ? 'Supermercato' : 'Supermarket'}</span>
+            <span className="rounded-lg px-2.5 py-1 text-xs border" style={{ background: '#EFF6FF', color: '#3D5BE0', borderColor: '#BFDBFE' }}>{getLanguage() === 'it' ? 'Supermercato' : 'Supermarket'}</span>
             <span className="rounded-lg px-2.5 py-1 text-xs border" style={{ background: '#FFFFFF', color: '#4B5563', borderColor: '#E5E7EB' }}>{getLanguage() === 'it' ? 'Mercato' : 'Market'}</span>
           </div>
         </div>
 
         {cats.slice(2).map(({ name, Icon, bg, fg, on }) => (
           <div key={name} className="flex items-center gap-2 rounded-xl px-2.5 py-2"
-            style={{ background: on ? '#FFFFFF' : '#FAFAFB', boxShadow: on ? '0 0 0 2px #3B82F6' : 'inset 0 0 0 1px #ECECEF' }}>
+            style={{ background: on ? '#FFFFFF' : '#FAFAFB', boxShadow: on ? '0 0 0 2px #4F74F3' : 'inset 0 0 0 1px #ECECEF' }}>
             <span className="flex items-center justify-center flex-shrink-0" style={{ width: 26, height: 26, borderRadius: 8, background: bg }}>
               <Icon className="w-4 h-4" style={{ color: fg }} />
             </span>
@@ -365,7 +365,7 @@ function DemoIllustration() {
             </div>
           </div>
         </div>
-        <Spark values={spark} labels={labels} color="#3B82F6" />
+        <Spark values={spark} labels={labels} color="#4F74F3" />
       </div>
 
       {/* Reassurance: it's throwaway data */}
@@ -482,7 +482,7 @@ export function WelcomeCarousel({ userName, onDone, onSetupCategories, onLoadDem
         <div className="flex flex-col items-center justify-center" style={{ minHeight: 220 }}>
           <TracklyLogo size={92} />
           <h2 style={{ color: '#1C1C1E', fontSize: 30, fontWeight: 700, letterSpacing: '-0.03em', marginTop: 18 }}>TracklyLab</h2>
-          <p style={{ color: '#3B82F6', fontSize: 15, fontWeight: 600, marginTop: 4, letterSpacing: '0.02em' }}>Your Expense Lens</p>
+          <p style={{ color: '#4F74F3', fontSize: 15, fontWeight: 600, marginTop: 4, letterSpacing: '0.02em' }}>Your Expense Lens</p>
         </div>
       ),
       title: userName
@@ -589,7 +589,7 @@ export function WelcomeCarousel({ userName, onDone, onSetupCategories, onLoadDem
                 width: i === index ? 20 : 7,
                 height: 7,
                 borderRadius: 999,
-                background: i === index ? '#3B82F6' : '#D1D1D6',
+                background: i === index ? '#4F74F3' : '#D1D1D6',
                 transition: 'width 0.25s ease, background 0.25s ease',
               }}
             />
@@ -600,7 +600,7 @@ export function WelcomeCarousel({ userName, onDone, onSetupCategories, onLoadDem
             <button
               onClick={onSetupCategories}
               className="w-full py-4 rounded-xl font-medium text-base transition-all active:scale-[0.98]"
-              style={{ backgroundColor: '#3B82F6', color: '#FFFFFF', boxShadow: '0 2px 8px rgba(0,122,255,0.25)' }}
+              style={{ backgroundColor: '#4F74F3', color: '#FFFFFF', boxShadow: '0 2px 8px rgba(0,122,255,0.25)' }}
             >
               {getLanguage() === 'it' ? 'Configura le mie categorie' : 'Set up my categories'}
             </button>
@@ -613,7 +613,7 @@ export function WelcomeCarousel({ userName, onDone, onSetupCategories, onLoadDem
             <button
               onClick={() => { onLoadDemo(); next(); }}
               className="w-full py-4 rounded-xl font-medium text-base transition-all active:scale-[0.98] flex items-center justify-center gap-2"
-              style={{ backgroundColor: '#3B82F6', color: '#FFFFFF', boxShadow: '0 2px 8px rgba(0,122,255,0.25)' }}
+              style={{ backgroundColor: '#4F74F3', color: '#FFFFFF', boxShadow: '0 2px 8px rgba(0,122,255,0.25)' }}
             >
               <FlaskConical className="w-4 h-4" /> {getLanguage() === 'it' ? 'Carica dati di esempio' : 'Load sample data'}
             </button>
@@ -625,7 +625,7 @@ export function WelcomeCarousel({ userName, onDone, onSetupCategories, onLoadDem
           <button
             onClick={next}
             className="w-full py-4 rounded-xl font-medium text-base transition-all active:scale-[0.98]"
-            style={{ backgroundColor: '#3B82F6', color: '#FFFFFF', boxShadow: '0 2px 8px rgba(0,122,255,0.25)' }}
+            style={{ backgroundColor: '#4F74F3', color: '#FFFFFF', boxShadow: '0 2px 8px rgba(0,122,255,0.25)' }}
           >{getLanguage() === 'it' ? 'Avanti' : 'Next'}</button>
         )}
       </div>

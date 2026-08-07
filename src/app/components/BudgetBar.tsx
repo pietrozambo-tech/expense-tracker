@@ -264,7 +264,7 @@ export function BudgetNudge({ currency, onSave, onDismiss }: BudgetNudgeProps) {
                 disabled={!valid}
                 className="px-4 py-2 rounded-xl font-medium transition-all active:scale-[0.97] flex-shrink-0"
                 style={{
-                  backgroundColor: valid ? '#3B82F6' : '#E5E5EA',
+                  backgroundColor: valid ? '#4F74F3' : '#E5E5EA',
                   color: '#FFFFFF',
                   fontSize: 14,
                 }}
@@ -280,7 +280,7 @@ export function BudgetNudge({ currency, onSave, onDismiss }: BudgetNudgeProps) {
           <>
             <div className="h-2 rounded-full" style={{ backgroundColor: '#F2F1ED' }} />
             <div className="mt-2">
-              <span style={{ color: '#3B82F6', fontSize: 12, fontWeight: 600 }}>
+              <span style={{ color: '#4F74F3', fontSize: 12, fontWeight: 600 }}>
                 {t('budget.nudge.body')}
               </span>
             </div>

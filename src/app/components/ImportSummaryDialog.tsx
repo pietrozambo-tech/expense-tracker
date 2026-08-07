@@ -34,7 +34,7 @@ export function ImportSummaryDialog({
             {failed ? (
               <AlertTriangle className="w-8 h-8" style={{ color: '#DC2626' }} strokeWidth={2} />
             ) : (
-              <CheckCircle2 className="w-8 h-8" style={{ color: '#2563EB' }} strokeWidth={2} />
+              <CheckCircle2 className="w-8 h-8" style={{ color: '#3D5BE0' }} strokeWidth={2} />
             )}
           </div>
         </div>
@@ -71,7 +71,7 @@ export function ImportSummaryDialog({
               <button
                 onClick={onReview}
                 className="w-full py-3 rounded-xl font-semibold text-white active:scale-[0.98] transition-transform"
-                style={{ backgroundColor: '#3B82F6' }}
+                style={{ backgroundColor: '#4F74F3' }}
               >
                 {t('imp.reviewCta')}
               </button>
@@ -86,7 +86,7 @@ export function ImportSummaryDialog({
             <button
               onClick={onClose}
               className="w-full py-3 rounded-xl font-semibold text-white active:scale-[0.98] transition-transform"
-              style={{ backgroundColor: '#3B82F6' }}
+              style={{ backgroundColor: '#4F74F3' }}
             >
               OK
             </button>

@@ -52,7 +52,7 @@ export class AppErrorBoundary extends Component<Props, State> {
             padding: '14px 32px',
             borderRadius: 12,
             border: 'none',
-            backgroundColor: '#3B82F6',
+            backgroundColor: '#4F74F3',
             color: '#FFFFFF',
             fontSize: 16,
             fontWeight: 500,

@@ -166,13 +166,24 @@ interface DashboardProps {
 // subcategory name. (A null subcategory already means "all transactions".)
 const UNCATEGORIZED = '__uncategorized__';
 
-// Same treatment as the Overview hero card, so the headline numbers on both
-// tabs look like they belong to the same app.
-const TREND_STAT_CARD: React.CSSProperties = {
+// The app's one dark surface: the Overview hero and the Trend stat cards.
+//
+// Both used to spell this out as their own copy of the same long literal -
+// identical today, but nothing kept them that way, and two 300-character
+// gradient strings will not stay in step by luck. Defined once, spread by
+// both, so they cannot drift.
+//
+// The two do LOOK slightly different, and that is geometry rather than
+// colour: the highlight is anchored at 90%/-20% of the element, so on a small
+// stat card it sits closer in and reads brighter than on the wide hero. That
+// is the effect working as intended - same material, different pane size.
+export const DARK_SURFACE: React.CSSProperties = {
   background: 'radial-gradient(120% 120% at 90% -20%, rgba(99,102,241,0.30) 0%, rgba(59,130,246,0.12) 42%, rgba(28,28,30,0) 68%), radial-gradient(100% 100% at 6% 118%, rgba(59,130,246,0.10) 0%, rgba(99,102,241,0.04) 45%, rgba(28,28,30,0) 72%), linear-gradient(150deg, #2E2E32 0%, #1C1C1E 100%)',
   boxShadow: '0 12px 30px rgba(28, 28, 30, 0.22)',
   border: '1px solid rgba(255, 255, 255, 0.06)',
 };
+
+const TREND_STAT_CARD: React.CSSProperties = DARK_SURFACE;
 
 // Headline number on the Trend tab. All three toggles use a pair of these, so
 // switching between Expenses, Income and Savings moves nothing but the values.
@@ -1919,7 +1930,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
         <div className="flex-1 flex flex-col justify-center px-6 pt-4 pb-4">
           <div className="rounded-2xl px-6 py-8 text-center" style={{ background: '#FFFFFF', boxShadow: '0 8px 24px rgba(0,0,0,0.06)', border: '1px solid #EEEEF1' }}>
             <div className="mx-auto mb-4 flex items-center justify-center" style={{ width: 56, height: 56, borderRadius: 999, background: '#EFF6FF' }}>
-              <Plus className="w-7 h-7" style={{ color: '#3B82F6' }} strokeWidth={2.5} />
+              <Plus className="w-7 h-7" style={{ color: '#4F74F3' }} strokeWidth={2.5} />
             </div>
             <h2 style={{ color: '#1C1C1E', fontSize: 20, fontWeight: 700, letterSpacing: '-0.02em', marginBottom: 8 }}>
               {t('dash.empty.title')}
@@ -1931,7 +1942,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
               <button
                 onClick={onAddFirstExpense}
                 className="w-full py-4 rounded-xl font-medium text-base transition-all active:scale-[0.98]"
-                style={{ backgroundColor: '#3B82F6', color: '#FFFFFF', boxShadow: '0 2px 8px rgba(0,122,255,0.25)' }}
+                style={{ backgroundColor: '#4F74F3', color: '#FFFFFF', boxShadow: '0 2px 8px rgba(0,122,255,0.25)' }}
               >
                 {t('dash.empty.cta')}
               </button>
@@ -2063,9 +2074,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                 // surface keeps the apparent curvature even and puts the hero
                 // where it belongs in the hierarchy.
                 borderRadius: 24,
-                background: 'radial-gradient(120% 120% at 90% -20%, rgba(99,102,241,0.30) 0%, rgba(59,130,246,0.12) 42%, rgba(28,28,30,0) 68%), radial-gradient(100% 100% at 6% 118%, rgba(59,130,246,0.10) 0%, rgba(99,102,241,0.04) 45%, rgba(28,28,30,0) 72%), linear-gradient(150deg, #2E2E32 0%, #1C1C1E 100%)',
-                boxShadow: '0 12px 30px rgba(28, 28, 30, 0.22)',
-                border: '1px solid rgba(255, 255, 255, 0.06)'
+                ...DARK_SURFACE
               }}
             >
               <div className="px-6 py-3.5">
@@ -2530,10 +2539,10 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                                 onClick={() => setDrilldownContext({ categoryName: item.name, subcategoryName: null })}
                                 className="flex items-center gap-1 py-1.5 w-full text-left active:bg-neutral-100 rounded-md px-1 transition-colors"
                               >
-                                <span className="text-[11px] font-medium" style={{ color: '#3B82F6' }}>
+                                <span className="text-[11px] font-medium" style={{ color: '#4F74F3' }}>
                                   View all {extras.totalCount} transactions
                                 </span>
-                                <ChevronRight className="w-3.5 h-3.5" style={{ color: '#3B82F6' }} />
+                                <ChevronRight className="w-3.5 h-3.5" style={{ color: '#4F74F3' }} />
                               </button>
                             </div>
                           )}
@@ -2800,13 +2809,13 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                           >
                             <defs>
                               <linearGradient id="customCumulativeGrad" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="0%" stopColor="#3B82F6" stopOpacity={0.20} />
-                                <stop offset="70%" stopColor="#3B82F6" stopOpacity={0.05} />
-                                <stop offset="100%" stopColor="#3B82F6" stopOpacity={0} />
+                                <stop offset="0%" stopColor="#4F74F3" stopOpacity={0.20} />
+                                <stop offset="70%" stopColor="#4F74F3" stopOpacity={0.05} />
+                                <stop offset="100%" stopColor="#4F74F3" stopOpacity={0} />
                               </linearGradient>
                               <linearGradient id="customCumulativeLine" x1="0" y1="0" x2="1" y2="0">
                                 <stop offset="0%" stopColor="#60A5FA" />
-                                <stop offset="100%" stopColor="#2563EB" />
+                                <stop offset="100%" stopColor="#3D5BE0" />
                               </linearGradient>
                             </defs>
 
@@ -2849,8 +2858,8 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                               const last = linePts[linePts.length - 1];
                               return (
                                 <>
-                                  <circle cx={last.x} cy={last.y} r={7} fill="#2563EB" opacity={0.12} />
-                                  <circle cx={last.x} cy={last.y} r={3.5} fill="#2563EB" stroke="#FFFFFF" strokeWidth={2} />
+                                  <circle cx={last.x} cy={last.y} r={7} fill="#3D5BE0" opacity={0.12} />
+                                  <circle cx={last.x} cy={last.y} r={3.5} fill="#3D5BE0" stroke="#FFFFFF" strokeWidth={2} />
                                 </>
                               );
                             })()}
@@ -2973,7 +2982,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                                   height: '8px',
                                   borderRadius: '50%',
                                   backgroundColor: '#FFFFFF',
-                                  border: '2px solid #3B82F6',
+                                  border: '2px solid #4F74F3',
                                   pointerEvents: 'none',
                                   zIndex: 10,
                                 }}
@@ -3001,7 +3010,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                                 {tooltipData.label}
                               </p>
                               {tooltipData.value !== null && (
-                                <Row color="#3B82F6" label={periodWord} amount={tooltipData.value} />
+                                <Row color="#4F74F3" label={periodWord} amount={tooltipData.value} />
                               )}
                               {tooltipData.usual !== null && (
                                 <Row color="#C7C7CC" label={benchmarkLabel} amount={tooltipData.usual} />
@@ -3019,7 +3028,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                     {benchCurve && (
                       <div className="flex items-center justify-center gap-4 mt-1.5">
                         <span className="flex items-center gap-1.5">
-                          <span style={{ width: 7, height: 7, borderRadius: 999, backgroundColor: '#3B82F6' }} />
+                          <span style={{ width: 7, height: 7, borderRadius: 999, backgroundColor: '#4F74F3' }} />
                           <span style={{ color: '#8E8E93', fontSize: 11 }}>{periodWord}</span>
                         </span>
                         <span className="relative flex items-center gap-1.5">
@@ -3691,7 +3700,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                           ? { backgroundColor: '#FFFFFF', borderColor: '#E5E5EA' }
                           : { backgroundColor: '#EFF6FF', borderColor: '#BFDBFE' }}
                       >
-                        <span className="text-xs" style={{ color: selectedSubcategory === 'All' ? '#525252' : '#2563EB' }}>
+                        <span className="text-xs" style={{ color: selectedSubcategory === 'All' ? '#525252' : '#3D5BE0' }}>
                           {selectedSubcategory === 'All' ? t('trend.allSubcategories') : selectedSubcategory}
                         </span>
                         <ChevronDown className="w-3 h-3" style={{ color: selectedSubcategory === 'All' ? '#A3A3A3' : '#60A5FA' }} />
@@ -3857,8 +3866,8 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                       >
                         <defs>
                           <linearGradient id="trendGradient" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor="#3B82F6" stopOpacity="0.1" />
-                            <stop offset="100%" stopColor="#3B82F6" stopOpacity="0.01" />
+                            <stop offset="0%" stopColor="#4F74F3" stopOpacity="0.1" />
+                            <stop offset="100%" stopColor="#4F74F3" stopOpacity="0.01" />
                           </linearGradient>
                         </defs>
                         <g transform="translate(0, 4)">
@@ -3936,19 +3945,29 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                                   y: yRange > 0 ? 88 - ((item.amount - yMin) / yRange) * 88 : 44
                                 }));
                                 
+                                // Control points sit at the neighbouring y, which
+                                // makes the tangent horizontal at every month and
+                                // keeps the curve inside the data range - it can
+                                // never overshoot. The cost is shape: at 1/3 the
+                                // segment width those flat tangents rounded a
+                                // one-month spike into a smooth dome, so June
+                                // read as a hill rather than the outlier it is.
+                                // A shorter handle keeps the corners soft while
+                                // letting a spike look like a spike.
+                                const TENSION = 0.18;
                                 return points.reduce((acc, point, i, a) => {
                                   if (i === 0) return `M ${point.x},${point.y}`;
-                                  
-                                  // Add slight curve smoothing
+
                                   const prev = a[i - 1];
-                                  const cp1x = prev.x + (point.x - prev.x) / 3;
-                                  const cp2x = prev.x + (point.x - prev.x) * 2 / 3;
+                                  const dx = point.x - prev.x;
+                                  const cp1x = prev.x + dx * TENSION;
+                                  const cp2x = point.x - dx * TENSION;
                                   return `${acc} C ${cp1x},${prev.y} ${cp2x},${point.y} ${point.x},${point.y}`;
                                 }, '');
                               })()}
                               fill="none"
-                              stroke="#3B82F6"
-                              strokeWidth="3"
+                              stroke="#4F74F3"
+                              strokeWidth="2.5"
                               strokeLinecap="round"
                               strokeLinejoin="round"
                             />
@@ -3970,7 +3989,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                                   r="4"
                                   className="opacity-0 group-hover:opacity-100 transition-opacity duration-200"
                                   fill="#FFFFFF"
-                                  stroke="#3B82F6"
+                                  stroke="#4F74F3"
                                   strokeWidth="2.5"
                                 />
                                 {/* Tiny resting dot */}
@@ -3979,7 +3998,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                                   cy={y}
                                   r="1.5"
                                   className="opacity-40 group-hover:opacity-0 transition-opacity duration-200"
-                                  fill="#3B82F6"
+                                  fill="#4F74F3"
                                 />
                               </g>
                             );
@@ -4012,7 +4031,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                   {showPrevYear && (
                     <div className="flex items-center justify-center gap-4 mt-3">
                       <span className="flex items-center gap-1.5">
-                        <span style={{ width: 7, height: 7, borderRadius: 999, backgroundColor: '#3B82F6' }} />
+                        <span style={{ width: 7, height: 7, borderRadius: 999, backgroundColor: '#4F74F3' }} />
                         <span style={{ color: '#8E8E93', fontSize: 11 }}>{trendYearFilter}</span>
                       </span>
                       <span className="flex items-center gap-1.5">
@@ -4314,8 +4333,16 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                   // is a negative savings month - a fact about the month
                   // (money lost), not a comparison - and Best/Worst live in
                   // the badge column alone.
+                  //
+                  // The neutral bar is the app's accent rather than grey. That
+                  // does not re-introduce the problem above: the rule is that
+                  // colour must not vary WITH the data, and this varies with
+                  // nothing - every ordinary month is the same ink. It only
+                  // stops this from being the one chart in the app drawn in
+                  // grey, sitting directly under a blue one.
                   const isLossMonth = transactionType === 'savings' && item.amount < 0;
-                  const barClass = isLossMonth ? 'bg-red-400' : 'bg-neutral-400';
+                  const barClass = isLossMonth ? 'bg-red-400' : '';
+                  const barFill = isLossMonth ? undefined : 'rgba(79, 116, 243, 0.55)';
                   
                   return (
                     <button
@@ -4339,7 +4366,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                       <div className={`relative ${selectedCategory === 'All' ? 'flex-1' : 'w-32'} min-w-0 h-1.5 bg-neutral-100 rounded-full overflow-hidden self-center`}>
                         <div
                           className={`h-full rounded-full transition-all ${barClass}`}
-                          style={{ width: `${barWidth}%` }}
+                          style={{ width: `${barWidth}%`, backgroundColor: barFill }}
                         />
                         {/* Budget tick. Same x on every row (the rows share one
                             scale), so the ticks line up into a rule through the

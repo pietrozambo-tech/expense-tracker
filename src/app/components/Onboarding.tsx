@@ -70,7 +70,7 @@ export function Onboarding({ onComplete, initialName = '' }: OnboardingProps) {
                   className="flex items-center gap-3 p-4 rounded-xl text-left outline-none transition-all"
                   style={{
                     backgroundColor: isSelected ? '#F2F1ED' : '#FFFFFF',
-                    border: isSelected ? '2px solid #3B82F6' : '1px solid #E5E5EA',
+                    border: isSelected ? '2px solid #4F74F3' : '1px solid #E5E5EA',
                     boxShadow: isSelected
                       ? '0 0 0 3px rgba(0, 122, 255, 0.08)'
                       : '0 1px 3px rgba(0, 0, 0, 0.04)'
@@ -79,7 +79,7 @@ export function Onboarding({ onComplete, initialName = '' }: OnboardingProps) {
                   <span style={{ fontSize: '22px' }}>{option.flag}</span>
                   <span
                     style={{
-                      color: isSelected ? '#3B82F6' : '#1C1C1E',
+                      color: isSelected ? '#4F74F3' : '#1C1C1E',
                       fontSize: '15px',
                       fontWeight: '600'
                     }}
@@ -114,7 +114,7 @@ export function Onboarding({ onComplete, initialName = '' }: OnboardingProps) {
               boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)'
             }}
             onFocus={(e) => {
-              e.target.style.border = '1.5px solid #3B82F6';
+              e.target.style.border = '1.5px solid #4F74F3';
               e.target.style.boxShadow = '0 0 0 3px rgba(0, 122, 255, 0.08)';
             }}
             onBlur={(e) => {
@@ -142,7 +142,7 @@ export function Onboarding({ onComplete, initialName = '' }: OnboardingProps) {
                   className="flex items-center gap-3 p-4 rounded-xl text-left outline-none transition-all"
                   style={{
                     backgroundColor: isSelected ? '#F2F1ED' : '#FFFFFF',
-                    border: isSelected ? '2px solid #3B82F6' : '1px solid #E5E5EA',
+                    border: isSelected ? '2px solid #4F74F3' : '1px solid #E5E5EA',
                     boxShadow: isSelected
                       ? '0 0 0 3px rgba(0, 122, 255, 0.08)'
                       : '0 1px 3px rgba(0, 0, 0, 0.04)'
@@ -152,7 +152,7 @@ export function Onboarding({ onComplete, initialName = '' }: OnboardingProps) {
                   <div className="flex flex-col">
                     <span
                       style={{
-                        color: isSelected ? '#3B82F6' : '#1C1C1E',
+                        color: isSelected ? '#4F74F3' : '#1C1C1E',
                         fontSize: '15px',
                         fontWeight: '600'
                       }}
@@ -172,7 +172,7 @@ export function Onboarding({ onComplete, initialName = '' }: OnboardingProps) {
             className="w-full flex items-center gap-3 p-4 mt-3 rounded-xl text-left outline-none transition-all"
             style={{
               backgroundColor: nonMainPick ? '#F2F1ED' : '#FFFFFF',
-              border: nonMainPick ? '2px solid #3B82F6' : '1px solid #E5E5EA',
+              border: nonMainPick ? '2px solid #4F74F3' : '1px solid #E5E5EA',
               boxShadow: nonMainPick
                 ? '0 0 0 3px rgba(0, 122, 255, 0.08)'
                 : '0 1px 3px rgba(0, 0, 0, 0.04)'
@@ -182,7 +182,7 @@ export function Onboarding({ onComplete, initialName = '' }: OnboardingProps) {
               <>
                 <span style={{ fontSize: '22px' }}>{nonMainPick.flag}</span>
                 <div className="flex flex-col flex-1">
-                  <span style={{ color: '#3B82F6', fontSize: '15px', fontWeight: '600' }}>{nonMainPick.code}</span>
+                  <span style={{ color: '#4F74F3', fontSize: '15px', fontWeight: '600' }}>{nonMainPick.code}</span>
                   <span style={{ color: '#8E8E93', fontSize: '12px' }}>{nonMainPick.name}</span>
                 </div>
               </>
@@ -230,7 +230,7 @@ export function Onboarding({ onComplete, initialName = '' }: OnboardingProps) {
           disabled={!name.trim()}
           className="w-full py-4 rounded-xl font-medium text-base transition-all active:scale-[0.98]"
           style={{
-            backgroundColor: !name.trim() ? '#E5E5EA' : '#3B82F6',
+            backgroundColor: !name.trim() ? '#E5E5EA' : '#4F74F3',
             color: '#FFFFFF',
             boxShadow: !name.trim() ? 'none' : '0 2px 8px rgba(0, 122, 255, 0.25)',
             cursor: !name.trim() ? 'not-allowed' : 'pointer'

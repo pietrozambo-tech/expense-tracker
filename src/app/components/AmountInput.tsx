@@ -105,14 +105,14 @@ export function AmountInput({ value, onChange, currency, onCurrencyChange, right
             {currencyData.flag}
           </div>
           <div className="flex flex-col items-start">
-            <span className="font-medium" style={{ color: currency === code ? '#3B82F6' : '#1C1C1E', fontSize: '16px' }}>
+            <span className="font-medium" style={{ color: currency === code ? '#4F74F3' : '#1C1C1E', fontSize: '16px' }}>
               {code}
             </span>
             <span className="text-neutral-500 text-sm">{currencyData.name}</span>
           </div>
         </div>
         {currency === code && (
-          <div className="w-6 h-6 rounded-full flex items-center justify-center" style={{ backgroundColor: '#3B82F6' }}>
+          <div className="w-6 h-6 rounded-full flex items-center justify-center" style={{ backgroundColor: '#4F74F3' }}>
             <svg width="12" height="10" viewBox="0 0 12 10" fill="none">
               <path d="M1 5L4.5 8.5L11 1.5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
             </svg>

@@ -58,7 +58,7 @@ export function SourcesManager({
               onClick={onBack}
               className="absolute left-0 -ml-2 px-2 py-1 rounded-lg active:bg-neutral-200 transition-colors"
             >
-              <ChevronLeft size={24} style={{ color: '#3B82F6' }} />
+              <ChevronLeft size={24} style={{ color: '#4F74F3' }} />
             </button>
             <h1 style={{ color: '#1C1C1E', fontSize: '20px', fontWeight: '600', letterSpacing: '-0.3px' }}>{t('set.sources')}</h1>
           </div>
@@ -123,7 +123,7 @@ export function SourcesManager({
                   disabled={sources.length <= 1}
                   className="w-8 h-8 rounded-full flex items-center justify-center active:bg-neutral-100 disabled:opacity-30"
                 >
-                  <Trash2 className="w-4 h-4" style={{ color: '#FF3B30' }} />
+                  <Trash2 className="w-4 h-4" style={{ color: '#8E8E93' }} />
                 </button>
               </div>
             ))}
@@ -132,7 +132,7 @@ export function SourcesManager({
           <button
             onClick={openAdd}
             className="w-full mt-4 py-3 rounded-xl font-medium flex items-center justify-center gap-2 active:scale-[0.99] transition-transform"
-            style={{ backgroundColor: '#3B82F6', color: '#FFFFFF' }}
+            style={{ backgroundColor: '#4F74F3', color: '#FFFFFF' }}
           >
             <Plus className="w-5 h-5" />
             {t('mgmt.addSource')}
@@ -308,7 +308,7 @@ function SourceFormModal({
             disabled={!trimmed}
             className="w-full py-3.5 rounded-xl font-medium transition-all active:scale-[0.99]"
             style={{
-              backgroundColor: !trimmed ? '#E5E5EA' : '#3B82F6',
+              backgroundColor: !trimmed ? '#E5E5EA' : '#4F74F3',
               color: '#FFFFFF',
               cursor: !trimmed ? 'not-allowed' : 'pointer',
             }}

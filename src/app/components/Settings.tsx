@@ -352,7 +352,7 @@ export function Settings({
                 onClick={() => setShowLanguage(false)}
                 className="absolute left-0 -ml-2 px-2 py-1 rounded-lg active:bg-neutral-200 transition-colors"
               >
-                <ChevronLeft size={24} style={{ color: '#3B82F6' }} />
+                <ChevronLeft size={24} style={{ color: '#4F74F3' }} />
               </button>
               <h1 style={{ color: '#1C1C1E', fontSize: '20px', fontWeight: '600', letterSpacing: '-0.3px' }}>{t('settings.language')}</h1>
             </div>
@@ -383,7 +383,7 @@ export function Settings({
                       {flag}
                     </div>
                     <div className="flex flex-col items-start">
-                      <span className="font-medium" style={{ color: language === code ? '#3B82F6' : '#1C1C1E', fontSize: '16px' }}>
+                      <span className="font-medium" style={{ color: language === code ? '#4F74F3' : '#1C1C1E', fontSize: '16px' }}>
                         {native}
                       </span>
                       {inThisLanguage !== native && (
@@ -392,7 +392,7 @@ export function Settings({
                     </div>
                   </div>
                   {language === code && (
-                    <div className="w-6 h-6 rounded-full flex items-center justify-center" style={{ backgroundColor: '#3B82F6' }}>
+                    <div className="w-6 h-6 rounded-full flex items-center justify-center" style={{ backgroundColor: '#4F74F3' }}>
                       <svg width="12" height="10" viewBox="0 0 12 10" fill="none">
                         <path d="M1 5L4.5 8.5L11 1.5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                       </svg>
@@ -430,7 +430,7 @@ export function Settings({
                 }}
                 className="absolute left-0 -ml-2 px-2 py-1 rounded-lg active:bg-neutral-200 transition-colors"
               >
-                <ChevronLeft size={24} style={{ color: '#3B82F6' }} />
+                <ChevronLeft size={24} style={{ color: '#4F74F3' }} />
               </button>
               <h1 style={{ color: '#1C1C1E', fontSize: '20px', fontWeight: '600', letterSpacing: '-0.3px' }}>{t('set.currencyTitle')}</h1>
             </div>
@@ -475,7 +475,7 @@ export function Settings({
                         <span
                           className="font-medium"
                           style={{
-                            color: userCurrency === currency.code ? '#3B82F6' : '#1C1C1E',
+                            color: userCurrency === currency.code ? '#4F74F3' : '#1C1C1E',
                             fontSize: '16px'
                           }}
                         >
@@ -488,7 +488,7 @@ export function Settings({
                   {userCurrency === currency.code && (
                     <div
                       className="w-6 h-6 rounded-full flex items-center justify-center"
-                      style={{ backgroundColor: '#3B82F6' }}
+                      style={{ backgroundColor: '#4F74F3' }}
                     >
                       <svg width="12" height="10" viewBox="0 0 12 10" fill="none">
                         <path
@@ -537,7 +537,7 @@ export function Settings({
                 }}
                 className="absolute left-0 -ml-2 px-2 py-1 rounded-lg active:bg-neutral-200 transition-colors"
               >
-                <ChevronLeft size={24} style={{ color: '#3B82F6' }} />
+                <ChevronLeft size={24} style={{ color: '#4F74F3' }} />
               </button>
               <h1 style={{ color: '#1C1C1E', fontSize: '20px', fontWeight: '600', letterSpacing: '-0.3px' }}>{t('set.profileTitle')}</h1>
             </div>
@@ -571,7 +571,7 @@ export function Settings({
                 boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)'
               }}
               onFocus={(e) => {
-                e.target.style.border = '1.5px solid #3B82F6';
+                e.target.style.border = '1.5px solid #4F74F3';
                 e.target.style.boxShadow = '0 0 0 3px rgba(0, 122, 255, 0.08)';
               }}
               onBlur={(e) => {
@@ -640,7 +640,7 @@ export function Settings({
               disabled={!editedName.trim()}
               className="w-full mt-6 py-4 rounded-xl font-medium text-base transition-all active:scale-[0.98]"
               style={{
-                backgroundColor: !editedName.trim() ? '#E5E5EA' : '#3B82F6',
+                backgroundColor: !editedName.trim() ? '#E5E5EA' : '#4F74F3',
                 color: '#FFFFFF',
                 boxShadow: !editedName.trim() ? 'none' : '0 2px 8px rgba(0, 122, 255, 0.25)',
                 cursor: !editedName.trim() ? 'not-allowed' : 'pointer'
@@ -670,7 +670,7 @@ export function Settings({
                 }}
                 className="absolute left-0 -ml-2 px-2 py-1 rounded-lg active:bg-neutral-200 transition-colors"
               >
-                <ChevronLeft size={24} style={{ color: '#3B82F6' }} />
+                <ChevronLeft size={24} style={{ color: '#4F74F3' }} />
               </button>
               <h1 style={{ color: '#1C1C1E', fontSize: '20px', fontWeight: '600', letterSpacing: '-0.3px' }}>{t('set.categories')}</h1>
             </div>
@@ -747,7 +747,7 @@ export function Settings({
                 onClick={() => setShowAbout(false)}
                 className="absolute left-0 -ml-2 px-2 py-1 rounded-lg active:bg-neutral-200 transition-colors"
               >
-                <ChevronLeft size={24} style={{ color: '#3B82F6' }} />
+                <ChevronLeft size={24} style={{ color: '#4F74F3' }} />
               </button>
               <h1 style={{ color: '#1C1C1E', fontSize: '20px', fontWeight: '600', letterSpacing: '-0.3px' }}>{t('set.about')}</h1>
             </div>
@@ -759,7 +759,7 @@ export function Settings({
           <div className="flex flex-col items-center text-center px-6 pt-6 pb-8">
             <TracklyLogo size={80} className="mb-4" />
             <h2 style={{ color: '#1C1C1E', fontSize: '28px', fontWeight: 700, letterSpacing: '-0.03em' }}>TracklyLab</h2>
-            <p style={{ color: '#3B82F6', fontSize: '14px', fontWeight: 600, marginTop: '4px', letterSpacing: '0.02em' }}>Your Expense Lens</p>
+            <p style={{ color: '#4F74F3', fontSize: '14px', fontWeight: 600, marginTop: '4px', letterSpacing: '0.02em' }}>Your Expense Lens</p>
             <p style={{ color: '#8E8E93', fontSize: '13px', marginTop: '6px' }}>{t('set.version')}</p>
             {/* Which BUILD this device is actually running. When two devices
                 disagree, comparing this line answers "is one of them stale?"
@@ -1005,7 +1005,7 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
       <div className="flex gap-3 items-start">
         <div
           className="flex-shrink-0 flex items-center justify-center rounded-full"
-          style={{ width: 22, height: 22, backgroundColor: '#3B82F6', color: '#fff', fontSize: 12, fontWeight: 700 }}
+          style={{ width: 22, height: 22, backgroundColor: '#4F74F3', color: '#fff', fontSize: 12, fontWeight: 700 }}
         >
           {n}
         </div>
@@ -1022,7 +1022,7 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
                 onClick={() => setShowImport(false)}
                 className="absolute left-0 -ml-2 px-2 py-1 rounded-lg active:bg-neutral-200 transition-colors"
               >
-                <ChevronLeft size={24} style={{ color: '#3B82F6' }} />
+                <ChevronLeft size={24} style={{ color: '#4F74F3' }} />
               </button>
               <h1 style={{ color: '#1C1C1E', fontSize: '20px', fontWeight: '600', letterSpacing: '-0.3px' }}>{t('set.importData')}</h1>
             </div>
@@ -1092,7 +1092,7 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
             <button
               onClick={copyPrompt}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-full active:scale-95 transition-transform"
-              style={{ backgroundColor: '#3B82F6' }}
+              style={{ backgroundColor: '#4F74F3' }}
             >
               <Copy className="w-3.5 h-3.5" style={{ color: '#fff' }} strokeWidth={2.5} />
               <span style={{ color: '#fff', fontSize: 12, fontWeight: 600 }}>{t('set.copy')}</span>
@@ -1173,7 +1173,7 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
                 onClick={closeSupport}
                 className="absolute left-0 -ml-2 px-2 py-1 rounded-lg active:bg-neutral-200 transition-colors"
               >
-                <ChevronLeft size={24} style={{ color: '#3B82F6' }} />
+                <ChevronLeft size={24} style={{ color: '#4F74F3' }} />
               </button>
               <h1 style={{ color: '#1C1C1E', fontSize: '20px', fontWeight: '600', letterSpacing: '-0.3px' }}>{t('set.support')}</h1>
             </div>
@@ -1197,7 +1197,7 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
             <button
               onClick={closeSupport}
               className="mt-8 px-8 py-3 rounded-xl font-medium text-base active:scale-[0.98] transition-transform"
-              style={{ backgroundColor: '#3B82F6', color: '#FFFFFF', boxShadow: '0 2px 8px rgba(0,122,255,0.25)' }}
+              style={{ backgroundColor: '#4F74F3', color: '#FFFFFF', boxShadow: '0 2px 8px rgba(0,122,255,0.25)' }}
             >
               {t('set.done')}
             </button>
@@ -1242,14 +1242,14 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
               onClick={submitSupport}
               disabled={!canSendSupport || sendingSupport}
               className="w-full mt-4 py-4 rounded-xl font-medium text-base flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-40"
-              style={{ backgroundColor: '#3B82F6', color: '#FFFFFF', boxShadow: '0 2px 8px rgba(0,122,255,0.25)' }}
+              style={{ backgroundColor: '#4F74F3', color: '#FFFFFF', boxShadow: '0 2px 8px rgba(0,122,255,0.25)' }}
             >
               <Mail className="w-4 h-4" /> {sendingSupport ? t('set.sending') : t('set.sendMessage')}
             </button>
 
             <p className="text-center mt-4" style={{ color: '#8E8E93', fontSize: 13, lineHeight: 1.5 }}>
               {getLanguage() === 'it' ? 'Oppure scrivici direttamente a' : 'Or email us directly at'}{' '}
-              <a href={`mailto:${SUPPORT_EMAIL}`} style={{ color: '#3B82F6', fontWeight: 500 }}>{SUPPORT_EMAIL}</a>
+              <a href={`mailto:${SUPPORT_EMAIL}`} style={{ color: '#4F74F3', fontWeight: 500 }}>{SUPPORT_EMAIL}</a>
             </p>
           </div>
         )}
@@ -1279,7 +1279,7 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
               onClick={onSignInToSync}
               className="w-full flex items-center gap-3 px-5 py-4 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
             >
-              <Cloud className="w-5 h-5" style={{ color: '#3B82F6' }} strokeWidth={2} />
+              <Cloud className="w-5 h-5" style={{ color: '#4F74F3' }} strokeWidth={2} />
               <div className="flex-1 text-left">
                 <div style={{ color: '#1C1C1E', fontSize: '16px' }}>{t('set.signIn')}</div>
                 <div style={{ color: '#8E8E93', fontSize: '13px' }}>{t('set.signInSub')}</div>

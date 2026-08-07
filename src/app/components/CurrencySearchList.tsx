@@ -61,7 +61,7 @@ export function CurrencySearchList({ selected, onSelect, autoFocus = true }: Cur
                   {c.flag}
                 </span>
                 <span className="flex flex-col items-start min-w-0">
-                  <span className="font-medium" style={{ color: isSelected ? '#3B82F6' : '#1C1C1E', fontSize: '15px' }}>
+                  <span className="font-medium" style={{ color: isSelected ? '#4F74F3' : '#1C1C1E', fontSize: '15px' }}>
                     {code}
                   </span>
                   <span className="text-neutral-500 text-[13px] truncate">{c.name}</span>
@@ -69,7 +69,7 @@ export function CurrencySearchList({ selected, onSelect, autoFocus = true }: Cur
                 {isSelected && (
                   <span
                     className="ml-auto w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0"
-                    style={{ backgroundColor: '#3B82F6' }}
+                    style={{ backgroundColor: '#4F74F3' }}
                   >
                     <svg width="10" height="8" viewBox="0 0 12 10" fill="none">
                       <path d="M1 5L4.5 8.5L11 1.5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />

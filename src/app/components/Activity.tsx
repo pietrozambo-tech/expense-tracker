@@ -418,6 +418,12 @@ export function Activity({
           }}
           onClearSearch={() => setSearchQuery('')}
           onTypeFilterChange={(type) => setTypeFilter(type)}
+          onSheetOpenChange={(open) => onModalOpenChange?.(open)}
+          onSourceClear={() => setSourceFilter('All')}
+          // Clearing a category clears its subcategory too - a subcategory
+          // filter with no category behind it matches nothing.
+          onCategoryClear={() => { setCategoryFilter('All'); setSubcategoryFilter('All'); }}
+          onSubcategoryClear={() => setSubcategoryFilter('All')}
         />
       </div>
 

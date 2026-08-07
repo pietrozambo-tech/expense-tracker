@@ -40,7 +40,7 @@ export function SeriesClaimDialog({
       <div className="bg-white rounded-2xl w-full max-w-sm flex flex-col" style={{ maxHeight: '80vh' }}>
         <div className="pt-6 px-6 flex justify-center">
           <div className="w-16 h-16 rounded-full flex items-center justify-center" style={{ backgroundColor: '#EFF6FF' }}>
-            <Repeat className="w-8 h-8" style={{ color: '#2563EB' }} strokeWidth={2} />
+            <Repeat className="w-8 h-8" style={{ color: '#3D5BE0' }} strokeWidth={2} />
           </div>
         </div>
 
@@ -68,8 +68,8 @@ export function SeriesClaimDialog({
                     width: 22,
                     height: 22,
                     borderRadius: 7,
-                    backgroundColor: on ? '#3B82F6' : '#FFFFFF',
-                    border: on ? '1px solid #3B82F6' : '1.5px solid #D1D1D6',
+                    backgroundColor: on ? '#4F74F3' : '#FFFFFF',
+                    border: on ? '1px solid #4F74F3' : '1.5px solid #D1D1D6',
                   }}
                 >
                   {on && <Check className="w-3.5 h-3.5" style={{ color: '#FFFFFF' }} strokeWidth={3} />}
@@ -101,7 +101,7 @@ export function SeriesClaimDialog({
             disabled={total === 0}
             className="w-full py-3.5 rounded-xl font-medium text-[15px] transition-all active:scale-[0.98]"
             style={{
-              backgroundColor: total === 0 ? '#E5E5EA' : '#3B82F6',
+              backgroundColor: total === 0 ? '#E5E5EA' : '#4F74F3',
               color: total === 0 ? '#9CA3AF' : '#FFFFFF',
             }}
           >

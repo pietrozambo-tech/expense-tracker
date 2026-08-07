@@ -56,14 +56,14 @@ function Cell({ label, sub, selected, disabled, hasData, onClick }: {
       style={{
         height: sub ? '58px' : '52px',
         backgroundColor: selected ? '#EFF6FF' : '#F7F7F8',
-        boxShadow: selected ? 'inset 0 0 0 2px #3B82F6' : 'none',
+        boxShadow: selected ? 'inset 0 0 0 2px #4F74F3' : 'none',
         transition: 'background-color 0.15s ease',
         WebkitTapHighlightColor: 'rgba(255, 255, 255, 0)',
       }}
     >
       <span
         className="text-sm tabular-nums leading-none"
-        style={{ color: selected ? '#2563EB' : '#1C1C1E', fontWeight: selected ? 600 : 500 }}
+        style={{ color: selected ? '#3D5BE0' : '#1C1C1E', fontWeight: selected ? 600 : 500 }}
       >
         {label}
       </span>
@@ -78,7 +78,7 @@ function Cell({ label, sub, selected, disabled, hasData, onClick }: {
         className="rounded-full mt-1.5"
         style={{
           width: '4px', height: '4px',
-          backgroundColor: hasData ? (selected ? '#3B82F6' : '#C7C7CC') : 'transparent',
+          backgroundColor: hasData ? (selected ? '#4F74F3' : '#C7C7CC') : 'transparent',
         }}
       />
     </button>
