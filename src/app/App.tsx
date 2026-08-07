@@ -177,12 +177,14 @@ function DockTab({
   return (
     <button
       onClick={onClick}
-      // px-1.5 keeps the pill snug to its label the way the reference does.
-      // The longest label in either language is "Impostazioni" at 58.1px,
-      // making that pill ~70px against a 67.6px column - it bleeds ~1px into
-      // each neighbour, which is invisible because only one tab is ever
-      // selected, and stays ~11px clear of the dock's rounded edge.
-      className="flex flex-col items-center justify-center gap-1 h-[46px] px-1.5 rounded-2xl transition-colors duration-200 pointer-events-auto justify-self-center"
+      // One width for all four, not snug to each label. Snug was honest to
+      // the text and bad to look at: "Trend" got a 38.7px lozenge next to
+      // "Impostazioni" at 70.9px, and since the pill moves between tabs the
+      // eye reads it as one object changing size, which is exactly the
+      // wobble it noticed. Filling the grid cell makes it one object that
+      // MOVES. The cell is 69.2px, and the longest label in either language
+      // ("Impostazioni", 58.1px) leaves 5.5px of breathing room inside it.
+      className="flex flex-col items-center justify-center gap-1 h-[46px] w-full rounded-2xl transition-colors duration-200 pointer-events-auto"
       style={{ backgroundColor: active ? 'rgba(255, 255, 255, 0.13)' : 'transparent' }}
     >
       <Icon size={22} style={{ color: active ? '#FFFFFF' : '#8E8E93' }} strokeWidth={active ? 2.4 : 2} />
@@ -211,6 +213,8 @@ export default function App() {
   // The shared scroll container for the non-activity tabs. Switching tabs must
   // start the new tab from the top (see the effect below).
   const mainScrollRef = useRef<HTMLDivElement>(null);
+  // The dock element, so the tap guard below knows where it sits.
+  const dockRef = useRef<HTMLDivElement>(null);
   const [transactionType, setTransactionType] = useState<'expense' | 'income'>('expense');
   const [amount, setAmount] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -691,6 +695,37 @@ export default function App() {
       pullingRef.current = false;
     }
   }, [applyPayload]);
+
+  // Nothing below the dock is clickable.
+  //
+  // The dock floats, so the frosted strip beneath it and the gutters either
+  // side show real content - and a thumb aiming for a tab that lands a few
+  // pixels low used to fire whatever was under it. Reported from Settings:
+  // tapping the blur below the bar opened Export. A tap there is a miss, not
+  // a choice, and the odds it was meant for the row it hit are close to zero.
+  //
+  // Swallowing the CLICK rather than covering the area with an overlay: an
+  // overlay would also eat scroll gestures that begin near the bottom edge,
+  // which is a real way to scroll a long list. This kills the action and
+  // leaves the scrolling alone. Registered once and re-reading dockRef each
+  // time, so it is inert whenever the dock is not rendered (Add, modals).
+  //
+  // Capture phase on `document`: React attaches its own listeners to the root
+  // container (and to portal containers), all of which are below document, so
+  // this runs before any handler it would otherwise reach.
+  useEffect(() => {
+    const swallowMisses = (e: MouseEvent) => {
+      const dock = dockRef.current;
+      if (!dock) return;
+      if (e.target instanceof Node && dock.contains(e.target)) return; // a real tab tap
+      if (e.clientY >= dock.getBoundingClientRect().top) {
+        e.stopPropagation();
+        e.preventDefault();
+      }
+    };
+    document.addEventListener('click', swallowMisses, true);
+    return () => document.removeEventListener('click', swallowMisses, true);
+  }, []);
 
   // Leaving pushes what is pending, rather than letting the debounce die with
   // the page. Registered once: it reads whatever the save effect last stored.
@@ -2009,8 +2044,8 @@ export default function App() {
                 // for pixel unblurred here, while iOS Safari renders it fine.
                 // Hence the split above: whatever an engine does with this
                 // layer, the gradient below still shapes the transition.
-                backdropFilter: 'blur(18px)',
-                WebkitBackdropFilter: 'blur(18px)',
+                backdropFilter: 'blur(13px)',
+                WebkitBackdropFilter: 'blur(13px)',
                 // Mask ramp, not a background ramp: it scales the blur's own
                 // contribution, so the frost builds continuously instead of
                 // switching on. Full only in the last few pixels behind the
@@ -2024,12 +2059,15 @@ export default function App() {
               className="fixed bottom-0 left-0 right-0 z-30 pointer-events-none"
               style={{
                 height: FROST_H,
-                // Peaks at 0.30. The flat 0.42 veil this replaces read as a
-                // solid band on a real iPhone ("it seems nothing below"), and
-                // a gradient reads lighter than a flat fill of the same value
-                // anyway, because the eye judges it against its own top edge.
+                // Peaks at 0.18. Two rounds of device feedback set this: a
+                // flat 0.42 was "it seems nothing below", and 0.32 with an
+                // 18px blur still closed the strip up on Safari, whose blur
+                // is far richer than the emulator's - the veil and the blur
+                // stack, and both were doing the same job. The blur alone now
+                // carries the unreadability; the tint only keeps the shapes
+                // from reading as content.
                 background:
-                  'linear-gradient(to top, rgba(246,245,242,0.32) 0%, rgba(246,245,242,0.24) 18%, rgba(246,245,242,0.11) 48%, rgba(246,245,242,0) 100%)',
+                  'linear-gradient(to top, rgba(246,245,242,0.18) 0%, rgba(246,245,242,0.13) 18%, rgba(246,245,242,0.06) 48%, rgba(246,245,242,0) 100%)',
               }}
             />
             <div
@@ -2045,7 +2083,8 @@ export default function App() {
               onClick={(e) => e.stopPropagation()}
             >
             <div
-              className="relative w-full max-w-[430px] mx-auto grid grid-cols-5 items-center px-3 py-2 pointer-events-auto rounded-[26px] backdrop-blur-[26px] backdrop-saturate-150"
+              ref={dockRef}
+              className="relative w-full max-w-[430px] mx-auto grid grid-cols-5 items-center px-2 py-2 pointer-events-auto rounded-[26px] backdrop-blur-[26px] backdrop-saturate-150"
               style={{
                 // 0.84: dark enough that the dock reads correctly even where
                 // its backdrop blur is dropped (Chromium skips the lower of
