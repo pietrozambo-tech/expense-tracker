@@ -22,6 +22,7 @@ import {
   nextDueDate,
   upcomingSchedules,
   anchorForStart,
+  strandedRules,
 } from './lib/recurrence';
 import type { RecurringRule, Transaction } from './types';
 
@@ -551,17 +552,28 @@ function scenarioUpcoming() {
     upcomingSchedules([rule({ id: 'past', endedAt: '2026-07-01' })], TODAY).length + '', '0');
 
   // Adding from Settings: the user picks a start date and expects money on it.
-  for (const [cadence, start] of [
-    ['Every month', '2026-09-01'],
-    ['Every week', '2026-08-19'],
-    ['Every second week', '2026-08-19'],
-    ['Every year', '2027-03-09'],
-    ['Every day', '2026-08-06'],
-    ['First day of the month', '2026-09-01'],
+  // Each cadence is tried twice - once starting soon, once starting far enough
+  // out that anchorForStart leaves the ANCHOR ITSELF in the future. That second
+  // case is the one that catches a projection accepting the anchor as an
+  // occurrence: the engine generates strictly after the anchor, so a row on the
+  // anchor date would be a charge announced here that never actually happens.
+  for (const [cadence, soon, far] of [
+    ['Every month', '2026-09-01', '2027-01-01'],
+    ['Every week', '2026-08-19', '2026-12-16'],
+    ['Every second week', '2026-08-19', '2026-12-16'],
+    ['Every year', '2027-03-09', '2029-03-09'],
+    ['Every day', '2026-08-06', '2026-11-20'],
+    ['First day of the month', '2026-09-01', '2027-01-01'],
   ] as const) {
-    const r: RecurringRule = { id: 'x', rule: cadence, anchorDate: anchorForStart(start, cadence),
-      template: rule().template };
-    expect(`"${cadence}" starting ${start} first fires exactly then`, nextDueDate(r, TODAY) ?? 'null', start);
+    for (const start of [soon, far]) {
+      const r: RecurringRule = { id: 'x', rule: cadence, anchorDate: anchorForStart(start, cadence),
+        template: rule().template };
+      expect(`"${cadence}" starting ${start} first fires exactly then`, nextDueDate(r, TODAY) ?? 'null', start);
+      // The engine agreeing is the point; the screen is only a preview of it.
+      const onTheDay = processRecurrence([], [r], new Date(`${start}T12:00:00`));
+      expect(`"${cadence}" starting ${start} is recorded on that day and not before`,
+        onTheDay.transactions.map((t) => t.date).join(','), start);
+    }
   }
   // Monday start on a work-day cadence anchors to the Friday before.
   const wd: RecurringRule = { id: 'w', rule: 'Every work day',
@@ -573,4 +585,56 @@ function scenarioUpcoming() {
   const res = processRecurrence(before, [rule({ anchorDate: '2026-08-01' })], TODAY);
   expect('projecting never creates a future row', String(res.createdCount), '0');
   expect('and writes nothing at all', String(res.transactions.length), '0');
+
+  // --- Nothing already scheduled may be missing from the screen. ------------
+  //
+  // The screen is only worth opening if it lists EVERY live rule the user has,
+  // including the ones set up long before it existed. Every cadence the app can
+  // store, anchored well in the past the way a real long-running rule is:
+  const CADENCES = ['Every day', 'Every work day', 'Every week', 'Every second week',
+    'First day of the month', 'Every month', 'Every year'] as const;
+  const longRunning = CADENCES.map((c, i) =>
+    rule({ id: `old-${i}`, rule: c, anchorDate: '2024-02-29' }));
+  expect('every cadence the app can create is listed',
+    String(upcomingSchedules(longRunning, TODAY).length), String(CADENCES.length));
+  // ...and each is listed for a day the engine really acts on. Cross-checked
+  // from a recent anchor: dueDatesSince caps at 750 dates per pass, so a daily
+  // rule anchored years back cannot be replayed in one go - a limit of the
+  // materializer, not of what the screen shows.
+  for (const c of CADENCES) {
+    const r = rule({ id: 'x', rule: c, anchorDate: '2026-07-06' });
+    const due = nextDueDate(r, TODAY)!;
+    const played = processRecurrence([], [r], new Date(`${due}T12:00:00`));
+    const last = played.transactions.map((t) => t.date).sort().pop();
+    expect(`"${c}" is listed for the very next day the engine records`, last ?? 'none', due);
+  }
+
+  // A chain from before rules existed: a transaction carrying only a recurrence
+  // label. processRecurrence migrates it, and the migrated rule has to surface
+  // here too - otherwise the schedules a user has had running for months are
+  // exactly the ones the screen would fail to show.
+  const legacySeed: Transaction = {
+    id: 'legacy-1', description: 'Gym', amount: 40, currency: 'EUR', baseAmount: 40,
+    category: cat, date: '2025-11-11', type: 'expense', recurrence: 'Every month',
+  };
+  const migrated = processRecurrence([legacySeed], [], TODAY);
+  expect('a pre-rules recurring transaction becomes a rule', String(migrated.rules.length), '1');
+  expect('and that rule is listed as upcoming',
+    upcomingSchedules(migrated.rules, TODAY).map((s) => s.next).join(','), '2026-08-11');
+
+  // A rule from outside the app carrying a cadence nothing understands. It
+  // creates no money, so it is not "upcoming" - but it is still sitting in the
+  // user's data, and a screen that claims to show everything has to admit it.
+  const alien = rule({ id: 'alien', rule: 'Every fortnight on a Tuesday' });
+  const mixed = [alien, rule({ id: 'live' }), rule({ id: 'done', endedAt: '2026-07-01' })];
+  expect('an unrecognised cadence is not sold as upcoming',
+    upcomingSchedules(mixed, TODAY).map((s) => s.rule.id).join(','), 'live');
+  expect('but it is still surfaced so it can be removed',
+    strandedRules(mixed, TODAY).map((r) => r.id).join(','), 'alien');
+  expect('a live rule is never stranded',
+    strandedRules([rule({ id: 'live' })], TODAY).length + '', '0');
+  expect('nor is one the user ended - that one is simply finished',
+    strandedRules([rule({ id: 'done', endedAt: '2026-07-01' })], TODAY).length + '', '0');
+  expect('stopping a stranded rule clears it from the screen',
+    strandedRules([{ ...alien, endedAt: '2026-08-02' }], TODAY).length + '', '0');
 }

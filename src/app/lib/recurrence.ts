@@ -564,6 +564,11 @@ export function nextDueDates(rule: RecurringRule, today: Date, count = 3): strin
   const accept = (d: Date) => {
     const s = toDateStr(d);
     if (d <= from) return false;
+    // Strictly after the anchor, exactly as dueDatesSince generates. Only bites
+    // when the anchor itself is still ahead of us - a schedule starting more
+    // than one period out - where the monthly and yearly walks would otherwise
+    // hand back the anchor and announce a charge the engine never makes.
+    if (d <= seed) return false;
     if (rule.endedAt && s >= rule.endedAt) return false;
     if (skips.has(s)) return false;
     out.push(s);
@@ -667,6 +672,26 @@ export function upcomingSchedules(
     })
     .filter((x): x is { rule: RecurringRule; next: string; last: boolean } => x !== null)
     .sort((a, b) => (a.next < b.next ? -1 : a.next > b.next ? 1 : 0));
+}
+
+/**
+ * Rules that are still live yet will never fire again - so they can be seen.
+ *
+ * A rule the app itself created always has a future, and a rule the user ended
+ * is finished and belongs to the past. What is left is a rule carrying a
+ * cadence neither the engine nor the projection recognises, which can only
+ * arrive from outside: a hand-edited backup, or a record written by a version
+ * that knew a cadence this one does not. It creates nothing, and without this
+ * it would also be invisible - impossible to see, impossible to delete, and
+ * synced forever.
+ */
+export function strandedRules(
+  rules: RecurringRule[],
+  today: Date = new Date(),
+): RecurringRule[] {
+  return rules.filter(
+    (r) => !r.endedAt && r.rule !== 'Never repeat' && nextDueDate(r, today) === null,
+  );
 }
 
 /**

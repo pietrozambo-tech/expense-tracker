@@ -9,7 +9,7 @@ import { AmountText } from './AmountText';
 import { SourceLogo } from './SourceLogo';
 import { ConfirmDialog } from './ConfirmDialog';
 import { ScheduleEditor } from './ScheduleEditor';
-import { upcomingSchedules } from '../lib/recurrence';
+import { upcomingSchedules, strandedRules } from '../lib/recurrence';
 import { needsAbbreviation } from '../utils/currency';
 import type { Category, RecurringRule, Source, TransactionType } from '../types';
 
@@ -80,6 +80,7 @@ export function ScheduledManager({
   const close = (fn: () => void) => { fn(); onModalOpenChange(false); };
 
   const upcoming = upcomingSchedules(rules);
+  const stranded = strandedRules(rules);
   // Decided once for the whole list, like the Dashboard's breakdown rows: a
   // column that mixed "1.2MM" with "3,400" would read as two different scales.
   // Tighter than the Dashboard's default budget, because here the amount is
@@ -90,7 +91,7 @@ export function ScheduledManager({
 
   return (
     <div style={{ backgroundColor: '#F6F5F2' }}>
-      {upcoming.length === 0 ? (
+      {upcoming.length === 0 && stranded.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 px-6">
           <div className="w-16 h-16 rounded-full flex items-center justify-center mb-4" style={{ backgroundColor: '#F2F1ED' }}>
             <CalendarClock className="w-8 h-8" style={{ color: '#8E8E93' }} />
@@ -164,6 +165,40 @@ export function ScheduledManager({
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Rules that exist but will never fire - see the note on strandedRules.
+          No date to show and nothing to edit toward, so the row states the
+          problem and offers only removal. */}
+      {stranded.length > 0 && (
+        <div className="px-6 pt-5 space-y-2">
+          <div style={{ color: '#8E8E93', fontSize: 12, fontWeight: 600, letterSpacing: 0.2 }}>
+            {t('sched.strandedTitle')}
+          </div>
+          {stranded.map((rule) => (
+            <div
+              key={rule.id}
+              className="rounded-xl px-4 py-3 flex items-center gap-2.5"
+              style={{ backgroundColor: '#FFFFFF', boxShadow: '0 1px 4px rgba(0, 0, 0, 0.04)' }}
+            >
+              <div className="flex-1 min-w-0">
+                <div className="truncate" style={{ color: '#1C1C1E', fontWeight: 500, fontSize: 15 }}>
+                  {rule.template.description}
+                </div>
+                <div style={{ color: '#8E8E93', fontSize: 11, marginTop: 2 }}>
+                  {t('sched.strandedNote', { rule: rule.rule })}
+                </div>
+              </div>
+              <button
+                onClick={() => open(() => setStopping(rule))}
+                aria-label={t('sched.stopAria', { name: rule.template.description })}
+                className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 active:bg-neutral-100 transition-colors"
+              >
+                <Trash2 className="w-3.5 h-3.5" style={{ color: '#8E8E93' }} />
+              </button>
+            </div>
+          ))}
         </div>
       )}
 

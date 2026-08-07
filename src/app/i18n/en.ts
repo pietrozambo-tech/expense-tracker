@@ -192,6 +192,8 @@ export const en = {
   'sched.title': 'Scheduled',
   'sched.next': 'Next {date}',
   'sched.lastOne': 'Last one {date}',
+  'sched.strandedTitle': 'NOT RUNNING',
+  'sched.strandedNote': 'The repeat setting "{rule}" is not recognised, so nothing is being created.',
   'sched.add': 'Add a schedule',
   'sched.addTitle': 'New schedule',
   'sched.editTitle': 'Edit schedule',

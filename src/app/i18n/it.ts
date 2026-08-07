@@ -193,6 +193,8 @@ export const it: Record<keyof typeof en, string> = {
   'sched.title': 'Programmate',
   'sched.next': 'Prossima {date}',
   'sched.lastOne': 'Ultima {date}',
+  'sched.strandedTitle': 'NON ATTIVE',
+  'sched.strandedNote': 'La ricorrenza "{rule}" non è riconosciuta, quindi non viene creato nulla.',
   'sched.add': 'Aggiungi una programmazione',
   'sched.addTitle': 'Nuova programmazione',
   'sched.editTitle': 'Modifica programmazione',
