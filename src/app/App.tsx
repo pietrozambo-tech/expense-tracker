@@ -1985,9 +1985,13 @@ export default function App() {
               className="fixed bottom-0 left-0 right-0 z-50 pointer-events-none"
               style={{
                 height: 'max(20px, env(safe-area-inset-bottom))',
-                backdropFilter: 'blur(16px)',
-                WebkitBackdropFilter: 'blur(16px)',
-                backgroundColor: 'rgba(246, 245, 242, 0.42)',
+                // The blur carries the unreadability; the tint only sets how
+                // present the smeared content is. 0.42 on a real iPhone read
+                // as a solid band - "it seems nothing below" - so the veil
+                // stays thin and the frosted shapes do the talking.
+                backdropFilter: 'blur(14px)',
+                WebkitBackdropFilter: 'blur(14px)',
+                backgroundColor: 'rgba(246, 245, 242, 0.20)',
               }}
             />
             <div
