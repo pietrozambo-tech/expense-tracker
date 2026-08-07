@@ -1950,16 +1950,11 @@ export default function App() {
             Wide screens keep the same shape, just centred on the column. */}
         {currentTab !== 'add' && !isModalOpen && (
           <>
-            {/* Content used to scroll to the physical bottom edge, colliding
-                with the iOS home indicator in the gap beneath the dock. A
-                short cream fade lets it dissolve instead, and gives the
-                indicator a calm strip to sit on. Behind the dock (z-30 vs
-                z-40), so the glass only picks up a hint of it. */}
-            <div
-              aria-hidden="true"
-              className="fixed bottom-0 left-0 right-0 z-30 pointer-events-none"
-              style={{ height: 48, background: 'linear-gradient(to top, #F6F5F2 35%, rgba(246, 245, 242, 0) 100%)' }}
-            />
+            {/* No scrim under the dock, deliberately. A cream fade was tried
+                here and it half-dissolved whatever scrolled through the gap -
+                ghost text that was neither content nor background. Content now
+                stays honestly visible until it slides under the glass, the
+                same way Instagram's bar treats the feed. */}
             <div
               className="fixed left-0 right-0 z-40 pointer-events-none px-3.5"
               style={{
@@ -1973,9 +1968,16 @@ export default function App() {
               onClick={(e) => e.stopPropagation()}
             >
             <div
-              className="relative w-full max-w-[430px] mx-auto grid grid-cols-5 items-center px-3 py-2 pointer-events-auto rounded-[26px] backdrop-blur-[22px] backdrop-saturate-150"
+              className="relative w-full max-w-[430px] mx-auto grid grid-cols-5 items-center px-3 py-2 pointer-events-auto rounded-[26px] backdrop-blur-[26px] backdrop-saturate-150"
               style={{
-                backgroundColor: 'rgba(28, 28, 30, 0.86)',
+                // 0.78, down from 0.86: enough translucency that content
+                // passing beneath reads as soft light through the glass.
+                // 0.66 was tried and washes the slab grey - the inactive
+                // labels lose their footing. A dark bar over a light app can
+                // only ever ghost luminance, not shapes; the full see-through
+                // effect of Instagram's bar comes from it being LIGHT glass
+                // over light content, which would be a different dock.
+                backgroundColor: 'rgba(28, 28, 30, 0.78)',
                 // Drop shadow lifts it off the page; the inset hairline is the
                 // top-edge highlight that makes glass read as glass.
                 boxShadow: '0 10px 30px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.10)',
