@@ -1,6 +1,7 @@
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type ComponentType } from 'react';
 import { toast } from 'sonner';
 import { Toaster } from './components/ui/sonner';
+import { createPortal } from 'react-dom';
 import { BarChart3, Plus, List, X, Settings as SettingsIcon, TrendingUp, ChevronDown, Repeat } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { CURRENCIES, convertAmount, BASE_CURRENCY } from './utils/currency';
@@ -1948,13 +1949,47 @@ export default function App() {
             Each control turns pointer events back on.
 
             Wide screens keep the same shape, just centred on the column. */}
-        {currentTab !== 'add' && !isModalOpen && (
+        {/* Portalled to <body>, and not for stacking this time: rendered in
+            place, the glass didn't blur. Chromium composites a fixed
+            backdrop-filter element deep inside the app tree without sampling
+            the inner scroller's content - no ancestor creates a backdrop
+            root, the spec says it should work, and an identical element
+            appended directly to <body> blurs perfectly. Rather than bet on
+            which engines share the quirk, hoist to where it provably works
+            everywhere. */}
+        {currentTab !== 'add' && !isModalOpen && createPortal(
           <>
-            {/* No scrim under the dock, deliberately. A cream fade was tried
-                here and it half-dissolved whatever scrolled through the gap -
-                ghost text that was neither content nor background. Content now
-                stays honestly visible until it slides under the glass, the
-                same way Instagram's bar treats the feed. */}
+            {/* The strip below the dock reads as "content continues", never
+                as content - the Revolut treatment. Blur, not opacity: a plain
+                cream wash was tried first and it left ghost text, half
+                readable and looking like a rendering mistake; blurred glyphs
+                read as texture, which tells the user not to aim reading down
+                here.
+
+                The stacking is load-bearing: Chromium honours only the
+                TOPMOST backdrop-filter element in a stacking context and
+                silently drops the filter on any below it - rendered under
+                the dock (z-40) this strip tinted but never blurred. It sits
+                at z-50 instead: since strip and dock do not overlap
+                geometrically, the order is visually irrelevant, but it hands
+                the one working filter slot to the element that needs it. The
+                dock's own backdrop blur stays declared for engines that
+                compose more than one, and its tint is dark enough to carry
+                the look alone where they don't. The strip also must not
+                overlap the dock (that re-triggers the same drop), so it
+                fills exactly the gap under it. No feathering mask either:
+                mask-image over backdrop-filter attenuates the blur in
+                Chromium. */}
+            <div
+              aria-hidden="true"
+              className="fixed bottom-0 left-0 right-0 z-50 pointer-events-none"
+              style={{
+                height: 'max(20px, env(safe-area-inset-bottom))',
+                backdropFilter: 'blur(16px)',
+                WebkitBackdropFilter: 'blur(16px)',
+                backgroundColor: 'rgba(246, 245, 242, 0.42)',
+              }}
+            />
             <div
               className="fixed left-0 right-0 z-40 pointer-events-none px-3.5"
               style={{
@@ -1970,14 +2005,17 @@ export default function App() {
             <div
               className="relative w-full max-w-[430px] mx-auto grid grid-cols-5 items-center px-3 py-2 pointer-events-auto rounded-[26px] backdrop-blur-[26px] backdrop-saturate-150"
               style={{
-                // 0.78, down from 0.86: enough translucency that content
-                // passing beneath reads as soft light through the glass.
-                // 0.66 was tried and washes the slab grey - the inactive
-                // labels lose their footing. A dark bar over a light app can
-                // only ever ghost luminance, not shapes; the full see-through
-                // effect of Instagram's bar comes from it being LIGHT glass
-                // over light content, which would be a different dock.
-                backgroundColor: 'rgba(28, 28, 30, 0.78)',
+                // 0.84: dark enough that the dock reads correctly even where
+                // its backdrop blur is dropped (Chromium skips the lower of
+                // two overlapping backdrop filters, and engines vary), light
+                // enough that on engines that do compose it, content beneath
+                // still ghosts as soft luminance. 0.66 was tried and washes
+                // the slab grey; 0.78 relied on a blur that not every
+                // compositor delivers, leaving readable text through the
+                // glass. A dark bar over a light app only ever ghosts
+                // luminance, not shapes - Instagram's full see-through comes
+                // from light glass over light content.
+                backgroundColor: 'rgba(28, 28, 30, 0.84)',
                 // Drop shadow lifts it off the page; the inset hairline is the
                 // top-edge highlight that makes glass read as glass.
                 boxShadow: '0 10px 30px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.10)',
@@ -2036,7 +2074,8 @@ export default function App() {
               />
             </div>
             </div>
-          </>
+          </>,
+          document.body,
         )}
 
         {/* Full Screen Add Expense Modal */}
