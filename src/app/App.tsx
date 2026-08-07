@@ -132,6 +132,14 @@ import { switchGlow } from './components/categoryColors';
 import { t, getLanguage, setLanguage, type Language } from './i18n';
 import { defaultSourcesFor } from './components/sources';
 
+// Geometry of the frost that surrounds the dock. Shared by its two layers so
+// they always describe the same ramp; 132px puts the fade-out ~50px above the
+// dock's top edge, which is far enough that the gutters beside the bar have
+// no perceptible start.
+const FROST_H = 132;
+const FROST_MASK =
+  'linear-gradient(to top, rgba(0,0,0,1) 0%, rgba(0,0,0,0.92) 15%, rgba(0,0,0,0.5) 45%, rgba(0,0,0,0.16) 72%, rgba(0,0,0,0) 100%)';
+
 // One tab of the bottom dock. Module-level on purpose: defined inside App it
 // would be a new component type on every render, and React would remount all
 // four tabs each time state changes.
@@ -1959,39 +1967,57 @@ export default function App() {
             everywhere. */}
         {currentTab !== 'add' && !isModalOpen && createPortal(
           <>
-            {/* The strip below the dock reads as "content continues", never
-                as content - the Revolut treatment. Blur, not opacity: a plain
-                cream wash was tried first and it left ghost text, half
-                readable and looking like a rendering mistake; blurred glyphs
-                read as texture, which tells the user not to aim reading down
-                here.
+            {/* The frost around the dock.
 
-                The stacking is load-bearing: Chromium honours only the
-                TOPMOST backdrop-filter element in a stacking context and
-                silently drops the filter on any below it - rendered under
-                the dock (z-40) this strip tinted but never blurred. It sits
-                at z-50 instead: since strip and dock do not overlap
-                geometrically, the order is visually irrelevant, but it hands
-                the one working filter slot to the element that needs it. The
-                dock's own backdrop blur stays declared for engines that
-                compose more than one, and its tint is dark enough to carry
-                the look alone where they don't. The strip also must not
-                overlap the dock (that re-triggers the same drop), so it
-                fills exactly the gap under it. No feathering mask either:
-                mask-image over backdrop-filter attenuates the blur in
-                Chromium. */}
+                Not a strip under the bar - a RAMP. The strip version had a
+                hard top edge exactly at the dock's bottom, and because the
+                dock is inset 14px, that edge ran straight across the two side
+                gutters where nothing hides it: crisp content beside the bar,
+                then an abrupt line where the frost began. The fix is to stop
+                treating "under the dock" as the region. This spans the whole
+                bottom of the screen, strongest at the very edge and easing to
+                nothing well above the dock's top, so the dock floats INSIDE a
+                gradient rather than capping one. Every boundary it has is a
+                gradient stop, so there is no line to see - in the gutters, at
+                the bar's edge, anywhere.
+
+                Two layers, deliberately. The blur is what makes content
+                unreadable, but backdrop-filter under a mask is the shakiest
+                thing here across engines; the tint is a plain gradient that
+                every browser draws identically. Split, the worst case is a
+                soft fade without frost - never a hard edge. */}
             <div
               aria-hidden="true"
-              className="fixed bottom-0 left-0 right-0 z-50 pointer-events-none"
+              className="fixed bottom-0 left-0 right-0 z-30 pointer-events-none"
               style={{
-                height: 'max(20px, env(safe-area-inset-bottom))',
-                // The blur carries the unreadability; the tint only sets how
-                // present the smeared content is. 0.42 on a real iPhone read
-                // as a solid band - "it seems nothing below" - so the veil
-                // stays thin and the frosted shapes do the talking.
-                backdropFilter: 'blur(14px)',
-                WebkitBackdropFilter: 'blur(14px)',
-                backgroundColor: 'rgba(246, 245, 242, 0.20)',
+                height: FROST_H,
+                // Unverifiable locally: headless Chromium does not composite
+                // backdrop-filter over a nested scroller, and this app scrolls
+                // inside one - blur(30px) with no mask left body text pixel
+                // for pixel unblurred here, while iOS Safari renders it fine.
+                // Hence the split above: whatever an engine does with this
+                // layer, the gradient below still shapes the transition.
+                backdropFilter: 'blur(18px)',
+                WebkitBackdropFilter: 'blur(18px)',
+                // Mask ramp, not a background ramp: it scales the blur's own
+                // contribution, so the frost builds continuously instead of
+                // switching on. Full only in the last few pixels behind the
+                // dock, ~half by its top edge, gone above it.
+                maskImage: FROST_MASK,
+                WebkitMaskImage: FROST_MASK,
+              }}
+            />
+            <div
+              aria-hidden="true"
+              className="fixed bottom-0 left-0 right-0 z-30 pointer-events-none"
+              style={{
+                height: FROST_H,
+                // Peaks at 0.30. The flat 0.42 veil this replaces read as a
+                // solid band on a real iPhone ("it seems nothing below"), and
+                // a gradient reads lighter than a flat fill of the same value
+                // anyway, because the eye judges it against its own top edge.
+                background:
+                  'linear-gradient(to top, rgba(246,245,242,0.32) 0%, rgba(246,245,242,0.24) 18%, rgba(246,245,242,0.11) 48%, rgba(246,245,242,0) 100%)',
               }}
             />
             <div
