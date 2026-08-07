@@ -2,6 +2,7 @@ import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type
 import { toast } from 'sonner';
 import { Toaster } from './components/ui/sonner';
 import { BarChart3, Plus, List, X, Settings as SettingsIcon, TrendingUp, ChevronDown, Repeat } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { CURRENCIES, convertAmount, BASE_CURRENCY } from './utils/currency';
 import type { Transaction, Source, RecurringRule, Category } from './types';
 import {
@@ -129,6 +130,50 @@ import { reassignToOthers, CATCHALL_RE } from './lib/categoryOps';
 import { switchGlow } from './components/categoryColors';
 import { t, getLanguage, setLanguage, type Language } from './i18n';
 import { defaultSourcesFor } from './components/sources';
+
+// One tab of the bottom dock. Module-level on purpose: defined inside App it
+// would be a new component type on every render, and React would remount all
+// four tabs each time state changes.
+//
+// The geometry is deliberate, measured against the shipped dock on a real
+// iPhone screenshot, where the stack read bottom-heavy (21px of air above the
+// icons, 28px below the labels):
+// - leading-none on the label: at an inherited ~1.5 line-height a 9.5px label
+//   sits in a ~14px box whose slack all lands under the glyphs - that alone
+//   was most of the asymmetry.
+// - The active pill behind the icon (not around the whole stack) is the
+//   Material 3 "active indicator", and the same treatment Instagram's bar
+//   uses; a colour change alone was too quiet a selected state.
+// Stack: 28px pill + 4px + 10px label = 42px, against the 46px add button, so
+// the grid centres both within a 62px dock with 2px of slack either side.
+function DockTab({
+  icon: Icon,
+  label,
+  active,
+  onClick,
+}: {
+  icon: LucideIcon;
+  label: string;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button onClick={onClick} className="flex flex-col items-center pointer-events-auto justify-self-center">
+      <span
+        className="w-12 h-7 rounded-full flex items-center justify-center transition-colors duration-200"
+        style={{ backgroundColor: active ? 'rgba(255, 255, 255, 0.13)' : 'transparent' }}
+      >
+        <Icon size={22} style={{ color: active ? '#FFFFFF' : '#8E8E93' }} strokeWidth={active ? 2.4 : 2} />
+      </span>
+      <span
+        className="mt-1 text-[9.5px] font-semibold leading-none whitespace-nowrap"
+        style={{ color: active ? '#FFFFFF' : '#8E8E93' }}
+      >
+        {label}
+      </span>
+    </button>
+  );
+}
 
 export default function App() {
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(() => loadSettings().onboarded);
@@ -1904,17 +1949,31 @@ export default function App() {
 
             Wide screens keep the same shape, just centred on the column. */}
         {currentTab !== 'add' && !isModalOpen && (
-          <div
-            className="fixed left-0 right-0 z-40 pointer-events-none px-3.5"
-            style={{
-              // Sit the dock clear of the home indicator; the inset is part of
-              // the look, so there is always a gap even without a safe area.
-              bottom: 'max(14px, env(safe-area-inset-bottom))',
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
+          <>
+            {/* Content used to scroll to the physical bottom edge, colliding
+                with the iOS home indicator in the gap beneath the dock. A
+                short cream fade lets it dissolve instead, and gives the
+                indicator a calm strip to sit on. Behind the dock (z-30 vs
+                z-40), so the glass only picks up a hint of it. */}
             <div
-              className="relative w-full max-w-[430px] mx-auto grid grid-cols-5 items-center px-2.5 py-2 pointer-events-auto rounded-[26px] backdrop-blur-[22px] backdrop-saturate-150"
+              aria-hidden="true"
+              className="fixed bottom-0 left-0 right-0 z-30 pointer-events-none"
+              style={{ height: 48, background: 'linear-gradient(to top, #F6F5F2 35%, rgba(246, 245, 242, 0) 100%)' }}
+            />
+            <div
+              className="fixed left-0 right-0 z-40 pointer-events-none px-3.5"
+              style={{
+                // Clear of the iOS home indicator, which occupies ~5pt about
+                // 13pt above the physical edge. This app runs WITHOUT
+                // viewport-fit=cover, so env() is 0 on iPhones and the max()
+                // floor is what actually positions the dock there: 14px left
+                // the indicator a single pixel of air, 20px gives it seven.
+                bottom: 'max(20px, env(safe-area-inset-bottom))',
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+            <div
+              className="relative w-full max-w-[430px] mx-auto grid grid-cols-5 items-center px-3 py-2 pointer-events-auto rounded-[26px] backdrop-blur-[22px] backdrop-saturate-150"
               style={{
                 backgroundColor: 'rgba(28, 28, 30, 0.86)',
                 // Drop shadow lifts it off the page; the inset hairline is the
@@ -1922,42 +1981,22 @@ export default function App() {
                 boxShadow: '0 10px 30px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.10)',
               }}
             >
-              <button
+              <DockTab
+                icon={BarChart3}
+                label={t('tab.dashboard')}
+                active={currentTab === 'dashboard'}
                 onClick={() => {
                   setDashboardInitialPeriod(null); // direct visits start on the current month
                   dashboardViewRef.current = null; // ...and from the top-level view
                   setCurrentTab('dashboard');
                 }}
-                className="flex flex-col items-center gap-0.5 transition-all pointer-events-auto justify-self-center"
-              >
-                <BarChart3
-                  size={24}
-                  style={{ color: currentTab === 'dashboard' ? '#FFFFFF' : '#8E8E93' }}
-                  strokeWidth={currentTab === 'dashboard' ? 2.5 : 2}
-                />
-                <span
-                  className="text-[9.5px] font-semibold whitespace-nowrap"
-                  style={{ color: currentTab === 'dashboard' ? '#FFFFFF' : '#8E8E93' }}
-                >
-                  {t('tab.dashboard')}
-                </span>
-              </button>
-              <button
+              />
+              <DockTab
+                icon={List}
+                label={t('tab.activity')}
+                active={currentTab === 'activity'}
                 onClick={() => setCurrentTab('activity')}
-                className="flex flex-col items-center gap-0.5 transition-all pointer-events-auto justify-self-center"
-              >
-                <List
-                  size={24}
-                  style={{ color: currentTab === 'activity' ? '#FFFFFF' : '#8E8E93' }}
-                  strokeWidth={currentTab === 'activity' ? 2.5 : 2}
-                />
-                <span
-                  className="text-[9.5px] font-semibold whitespace-nowrap"
-                  style={{ color: currentTab === 'activity' ? '#FFFFFF' : '#8E8E93' }}
-                >
-                  {t('tab.activity')}
-                </span>
-              </button>
+              />
               <button
                 onClick={() => setCurrentTab('add')}
                 aria-label={t('add.aria')}
@@ -1981,40 +2020,21 @@ export default function App() {
                   <Plus size={24} style={{ color: '#FFFFFF' }} strokeWidth={2.5} />
                 </div>
               </button>
-              <button
+              <DockTab
+                icon={TrendingUp}
+                label={t('tab.trend')}
+                active={currentTab === 'trend'}
                 onClick={() => setCurrentTab('trend')}
-                className="flex flex-col items-center gap-0.5 transition-all pointer-events-auto justify-self-center"
-              >
-                <TrendingUp
-                  size={24}
-                  style={{ color: currentTab === 'trend' ? '#FFFFFF' : '#8E8E93' }}
-                  strokeWidth={currentTab === 'trend' ? 2.5 : 2}
-                />
-                <span
-                  className="text-[9.5px] font-semibold whitespace-nowrap"
-                  style={{ color: currentTab === 'trend' ? '#FFFFFF' : '#8E8E93' }}
-                >
-                  {t('tab.trend')}
-                </span>
-              </button>
-              <button 
-                onClick={() => setCurrentTab('settings')} 
-                className="flex flex-col items-center gap-0.5 transition-all pointer-events-auto justify-self-center"
-              >
-                <SettingsIcon 
-                  size={24} 
-                  style={{ color: currentTab === 'settings' ? '#FFFFFF' : '#8E8E93' }} 
-                  strokeWidth={currentTab === 'settings' ? 2.5 : 2} 
-                />
-                <span 
-                  className="text-[9.5px] font-semibold whitespace-nowrap" 
-                  style={{ color: currentTab === 'settings' ? '#FFFFFF' : '#8E8E93' }}
-                >
-                  {t('tab.settings')}
-                </span>
-              </button>
+              />
+              <DockTab
+                icon={SettingsIcon}
+                label={t('tab.settings')}
+                active={currentTab === 'settings'}
+                onClick={() => setCurrentTab('settings')}
+              />
             </div>
-          </div>
+            </div>
+          </>
         )}
 
         {/* Full Screen Add Expense Modal */}
