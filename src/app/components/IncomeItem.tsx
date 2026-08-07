@@ -8,6 +8,15 @@ import { getCategoryIcon } from './categoryIcons';
 import { useSwipeToDelete } from '../lib/useSwipeToDelete';
 import { parseLocalDate } from '../lib/dates';
 
+// The app's income green, the same one the Expenses/Income switches use. Money
+// arriving and money leaving used to be typeset identically here, so a salary
+// and a rent bill differed by one "+" glyph at 14px - the sign was carrying the
+// whole distinction on the busiest list in the app. Expenses stay near-black
+// rather than turning red: most rows are expenses, and a page of red reads as
+// an error state instead of an ordinary month.
+const INCOME_AMOUNT: React.CSSProperties = { color: '#1F7A43' };
+const INCOME_SECONDARY: React.CSSProperties = { color: '#1F7A43', opacity: 0.65 };
+
 interface IncomeItemProps {
   income: {
     id: string;
@@ -107,15 +116,15 @@ export function IncomeItem({ income, onTap, onDelete, currency, showDate = false
             <div>
               {showConversion && convertedAmount !== null ? (
                 <>
-                  <p className="text-neutral-900 font-bold tabular-nums text-sm">
+                  <p className="font-bold tabular-nums text-sm" style={INCOME_AMOUNT}>
                     <AmountText sign="+" amount={convertedAmount} currency={currency} decimals={2} />
                   </p>
-                  <p className="text-neutral-500 text-[10px] tabular-nums mt-0.5 font-medium">
+                  <p className="text-[10px] tabular-nums mt-0.5 font-medium" style={INCOME_SECONDARY}>
                     <AmountText sign="+" amount={income.amount} currency={transactionCurrency} decimals={2} />
                   </p>
                 </>
               ) : (
-                <p className="text-neutral-900 font-bold tabular-nums text-sm">
+                <p className="font-bold tabular-nums text-sm" style={INCOME_AMOUNT}>
                   <AmountText sign="+" amount={income.amount} currency={transactionCurrency} decimals={2} />
                 </p>
               )}

@@ -22,6 +22,15 @@ export function ActivityDayGroup({
   onDeleteTransaction,
   currency
 }: ActivityDayGroupProps) {
+  const isToday = (() => {
+    const parsed = parseLocalDate(date);
+    if (isNaN(parsed.getTime())) return false;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    parsed.setHours(0, 0, 0, 0);
+    return parsed.getTime() === today.getTime();
+  })();
+
   const formatDate = (dateString: string) => {
     const parsed = parseLocalDate(dateString);
     if (isNaN(parsed.getTime())) return dateString;
@@ -45,25 +54,39 @@ export function ActivityDayGroup({
   };
 
   // Net daily total in the user's currency: income adds, expenses subtract.
-  // Shown with an explicit +/- sign and a neutral color — the sign carries the meaning.
+  //
+  // A day that ended up ahead is worth spotting from a scroll, so it takes the
+  // income green; an ordinary spending day stays grey rather than turning red,
+  // because almost every day is one and a page of red reads as an error state.
   const netTotal = transactions.reduce((sum, t) => {
     const converted = homeAmount(t, currency);
     return t.type === 'income' ? sum + converted : sum - converted;
   }, 0);
   const totalSign = netTotal >= 0 ? '+' : '-';
+  const ahead = netTotal > 0;
 
   return (
     <div className="mb-3">
-      {/* Day Header */}
-      <div className="flex items-center justify-between px-6 py-1 bg-neutral-50/50">
-        <h3 className="text-neutral-500 font-bold text-[10px] uppercase tracking-wider">{formatDate(date)}</h3>
+      {/* Day Header. Today gets a brand-tinted band and an indigo label - one
+          anchor in a list that is otherwise an undifferentiated run of days,
+          and the only place on this screen the brand colour appears. */}
+      <div
+        className="flex items-center justify-between px-6 py-1"
+        style={{ backgroundColor: isToday ? 'rgba(79, 116, 243, 0.07)' : 'rgba(250, 250, 250, 0.5)' }}
+      >
+        <h3
+          className="font-bold text-[10px] uppercase tracking-wider"
+          style={{ color: isToday ? '#4F74F3' : '#737378' }}
+        >
+          {formatDate(date)}
+        </h3>
         <AmountText
           sign={totalSign}
           amount={Math.abs(netTotal)}
           currency={currency}
           decimals={2}
           className="text-[10px] font-medium tabular-nums pr-4"
-          style={{ minWidth: '80px', textAlign: 'right', color: '#A3A3A3' }}
+          style={{ minWidth: '80px', textAlign: 'right', color: ahead ? '#1F7A43' : '#A3A3A3' }}
         />
       </div>
 

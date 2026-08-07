@@ -257,13 +257,37 @@ export function Activity({
     const converted = homeAmount(t, currency);
     return t.type === 'income' ? sum + converted : sum - converted;
   }, 0);
+  // On All, one signed net hid the two figures people actually came for, and
+  // did it in the same grey as the word "transactions". Split, each side takes
+  // its own colour. Whole units only: this is a summary line sharing a row with
+  // the export button, and it has to survive "1,234.56€ in · 987.65€ out"
+  // without wrapping - the cents live on every row below.
+  const inTotal = filteredTransactions.reduce(
+    (sum, t) => (t.type === 'income' ? sum + homeAmount(t, currency) : sum), 0);
+  const outTotal = filteredTransactions.reduce(
+    (sum, t) => (t.type === 'income' ? sum : sum + homeAmount(t, currency)), 0);
   const headerTotal =
     activityType === 'expense' ? (
-      <AmountText amount={-netTotal} currency={currency} />
+      <span style={{ color: '#1C1C1E', fontWeight: 600 }}>
+        <AmountText amount={-netTotal} currency={currency} decimals={0} abbreviate="fit" />
+      </span>
     ) : activityType === 'income' ? (
-      <AmountText sign="+" amount={netTotal} currency={currency} />
+      // Green here too: every row below it is income, and the segment thumb
+      // has already glowed green to say so.
+      <span style={{ color: '#1F7A43', fontWeight: 600 }}>
+        <AmountText sign="+" amount={netTotal} currency={currency} decimals={0} abbreviate="fit" />
+      </span>
     ) : (
-      <AmountText sign={netTotal >= 0 ? '+' : '-'} amount={Math.abs(netTotal)} currency={currency} />
+      <>
+        <span style={{ color: '#1F7A43', fontWeight: 600 }}>
+          <AmountText amount={inTotal} currency={currency} decimals={0} abbreviate="fit" />
+        </span>
+        <span> {t('act.in')} · </span>
+        <span style={{ color: '#1C1C1E', fontWeight: 600 }}>
+          <AmountText amount={outTotal} currency={currency} decimals={0} abbreviate="fit" />
+        </span>
+        <span> {t('act.out')}</span>
+      </>
     );
 
   // CSV Export
