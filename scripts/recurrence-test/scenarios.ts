@@ -18,6 +18,10 @@ import {
   findUnclaimedSeriesRows,
   findGeneratedDuplicates,
   tagPastSeries,
+  nextDueDates,
+  nextDueDate,
+  upcomingSchedules,
+  anchorForStart,
 } from './lib/recurrence';
 import type { RecurringRule, Transaction } from './types';
 
@@ -194,6 +198,7 @@ function scenarioStamps() {
   expect('every changed row is stamped', String(stamped), 'true');
 }
 
+scenarioUpcoming();
 console.log('\n================================================================');
 console.log(` Recurring transactions   [${OLD ? 'BEFORE the fix' : 'AFTER the fix'}]`);
 console.log(' (running the real src/app/lib/recurrence.ts)');
@@ -467,3 +472,105 @@ console.log('\n================================================================'
 console.log(failures === 0 ? ' All checks passed.' : ` ${failures} check(s) FAILED.`);
 console.log('================================================================\n');
 process.exit(failures === 0 ? 0 : 1);
+
+// ── Looking forward: the Scheduled screen ───────────────────────────────────
+//
+// Everything here is a PROJECTION. If any of it ever started writing rows, the
+// Dashboard would count money in a month that has not happened, which is the
+// one way this feature can break the rest of the app.
+function scenarioUpcoming() {
+  heading('12. Upcoming occurrences are projected, never materialized');
+  const rule = (over: Partial<RecurringRule> = {}): RecurringRule => ({
+    id: 'rule-up', rule: 'Every month', anchorDate: '2026-01-15',
+    template: { description: 'Gym', amount: 40, currency: 'EUR', category: cat, type: 'expense' },
+    ...over,
+  });
+
+  expect('the next three monthly dates follow today',
+    nextDueDates(rule(), TODAY, 3).join(','), '2026-08-15,2026-09-15,2026-10-15');
+
+  // Today itself is already materialized (or deliberately skipped), so the
+  // projection has to start strictly after it.
+  expect('a date landing on today is not "upcoming"',
+    nextDueDate(rule({ anchorDate: '2026-07-02' }), TODAY), '2026-09-02');
+
+  expect('skipped dates stay skipped',
+    nextDueDates(rule({ skipDates: ['2026-08-15'] }), TODAY, 2).join(','), '2026-09-15,2026-10-15');
+
+  expect('an ended rule has no future',
+    String(nextDueDate(rule({ endedAt: '2026-08-10' }), TODAY)), 'null');
+
+  expect('a one-off is never upcoming',
+    String(nextDueDate(rule({ rule: 'Never repeat' }), TODAY)), 'null');
+
+  // Month-end clamping has to behave the same looking forward as back.
+  expect('the 31st clamps per month and returns',
+    nextDueDates(rule({ anchorDate: '2026-01-31' }), TODAY, 3).join(','),
+    '2026-08-31,2026-09-30,2026-10-31');
+
+  expect('work days skip the weekend',
+    nextDueDates(rule({ rule: 'Every work day', anchorDate: '2026-01-01' }), TODAY, 3).join(','),
+    '2026-08-03,2026-08-04,2026-08-05');
+
+  // A daily rule anchored years back must not walk every past day first.
+  const t0 = Date.now();
+  const daily = nextDueDates(rule({ rule: 'Every day', anchorDate: '2019-01-01' }), TODAY, 3);
+  expect('a years-old daily rule still answers', daily.join(','), '2026-08-03,2026-08-04,2026-08-05');
+  expect('and answers quickly', String(Date.now() - t0 < 250), 'true');
+
+  // Ordering is the whole point of the screen.
+  const sched = upcomingSchedules([
+    rule({ id: 'a', anchorDate: '2026-01-20' }),                 // 20 Aug
+    rule({ id: 'b', anchorDate: '2026-01-05' }),                 // 5 Sep (5 Aug passed? no: 5 Aug > 2 Aug)
+    rule({ id: 'c', endedAt: '2026-08-01' }),                    // dropped
+    rule({ id: 'd', rule: 'Never repeat' }),                     // dropped
+  ], TODAY);
+  expect('only live schedules appear', sched.map((s) => s.rule.id).join(','), 'b,a');
+  expect('sorted by what fires next', sched.map((s) => s.next).join(','), '2026-08-05,2026-08-20');
+
+  // The screen must announce every charge the engine will actually make.
+  // Editing a schedule to start next month ends the current chain on that date
+  // (exclusive), so the current chain still owes one occurrence at the OLD
+  // amount. isActiveRule says that chain is finished; the engine disagrees, and
+  // the engine is the one that moves the money.
+  const tail = rule({ id: 'tail', anchorDate: '2026-07-15', endedAt: '2026-09-01' }); // 15 Aug, then done
+  const replacement = rule({ id: 'new', anchorDate: anchorForStart('2026-09-01', 'Every month'),
+    template: { ...rule().template, amount: 55 } });
+  const both = upcomingSchedules([tail, replacement], TODAY);
+  expect('a chain ending in the future still shows its last charge',
+    both.map((s) => `${s.rule.id}@${s.next}`).join(','), 'tail@2026-08-15,new@2026-09-01');
+  // Two rows, same name, different amounts: the row has to say which is ending.
+  expect('and it is marked as the final one',
+    both.map((s) => `${s.rule.id}:${s.last}`).join(','), 'tail:true,new:false');
+  // ...and what it shows is exactly what gets recorded when those days arrive.
+  const played = processRecurrence([], [tail, replacement], new Date('2026-09-02T12:00:00'));
+  expect('and the engine records precisely those',
+    played.transactions.map((t) => `${t.date}=${t.amount}`).sort().join(','),
+    '2026-08-15=40,2026-09-01=55');
+  expect('a chain that ended in the past shows nothing',
+    upcomingSchedules([rule({ id: 'past', endedAt: '2026-07-01' })], TODAY).length + '', '0');
+
+  // Adding from Settings: the user picks a start date and expects money on it.
+  for (const [cadence, start] of [
+    ['Every month', '2026-09-01'],
+    ['Every week', '2026-08-19'],
+    ['Every second week', '2026-08-19'],
+    ['Every year', '2027-03-09'],
+    ['Every day', '2026-08-06'],
+    ['First day of the month', '2026-09-01'],
+  ] as const) {
+    const r: RecurringRule = { id: 'x', rule: cadence, anchorDate: anchorForStart(start, cadence),
+      template: rule().template };
+    expect(`"${cadence}" starting ${start} first fires exactly then`, nextDueDate(r, TODAY) ?? 'null', start);
+  }
+  // Monday start on a work-day cadence anchors to the Friday before.
+  const wd: RecurringRule = { id: 'w', rule: 'Every work day',
+    anchorDate: anchorForStart('2026-08-10', 'Every work day'), template: rule().template };
+  expect('"Every work day" starting a Monday fires that Monday', nextDueDate(wd, TODAY) ?? 'null', '2026-08-10');
+
+  // The invariant that keeps the tabs agreeing.
+  const before: Transaction[] = [];
+  const res = processRecurrence(before, [rule({ anchorDate: '2026-08-01' })], TODAY);
+  expect('projecting never creates a future row', String(res.createdCount), '0');
+  expect('and writes nothing at all', String(res.transactions.length), '0');
+}

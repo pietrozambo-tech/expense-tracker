@@ -45,8 +45,9 @@ import { SaveButton } from './components/SaveButton';
 import { DescriptionInput } from './components/DescriptionInput';
 import { Onboarding } from './components/Onboarding';
 import { useAuth } from './auth/AuthProvider';
-import { processRecurrence, buildRuleTemplate, newRuleId, occurrenceDueDate, isActiveRule, applyFutureEdit, findPastSeriesMatches, findUnclaimedSeriesRows, findGeneratedDuplicates, tagPastSeries, type SeriesClaim } from './lib/recurrence';
+import { processRecurrence, buildRuleTemplate, newRuleId, occurrenceDueDate, isActiveRule, applyFutureEdit, findPastSeriesMatches, findUnclaimedSeriesRows, findGeneratedDuplicates, tagPastSeries, anchorForStart, toDateStr, type SeriesClaim } from './lib/recurrence';
 import { SeriesClaimDialog } from './components/SeriesClaimDialog';
+import type { ScheduleDraft } from './components/ScheduledManager';
 import { RecurringScopeDialog } from './components/RecurringScopeDialog';
 import { ConfirmDialog } from './components/ConfirmDialog';
 
@@ -1341,6 +1342,93 @@ export default function App() {
     toast.success(scope === 'one' ? 'Transaction deleted' : 'Deleted - schedule stopped', { duration: 1600 });
   };
 
+  // ── Schedules (Settings > Scheduled) ──────────────────────────────────────
+  //
+  // These three are the only writers the Scheduled screen has, and each one
+  // holds the same line: a schedule describes money that has NOT moved yet, so
+  // it may shape the future and may never rewrite the past. That is what keeps
+  // the screen agreeing with Activity, the Dashboard and Trend, all of which
+  // read recorded transactions.
+
+  const handleCreateSchedule = (draft: ScheduleDraft) => {
+    // Backdated by one period so the engine's first output lands exactly on
+    // the day the user picked - occurrences are generated strictly AFTER the
+    // anchor, because normally the anchor is a seed transaction that is itself
+    // the first instance. Here there is no seed, and deliberately so: nothing
+    // is recorded until the day arrives.
+    setRecurringRules((prev) => [
+      ...prev,
+      {
+        id: newRuleId(),
+        rule: draft.rule,
+        anchorDate: anchorForStart(draft.start, draft.rule),
+        template: {
+          description: draft.description,
+          amount: draft.amount,
+          currency: draft.currency,
+          category: draft.category,
+          subcategory: draft.subcategory,
+          sourceId: draft.sourceId,
+          type: draft.type,
+        },
+      },
+    ]);
+    setRefreshKey((prev) => prev + 1);
+    toast.success(t('sched.toastCreated'), { duration: 1600 });
+  };
+
+  const handleUpdateSchedule = (ruleId: string, draft: ScheduleDraft) => {
+    // Exactly what "this and all future ones" does on the Add screen: end the
+    // old chain and start a new one from the chosen date. Occurrences already
+    // recorded keep the amount they were recorded at, and any occurrence the
+    // user had individually deleted beyond the cutoff stays deleted.
+    setRecurringRules((prev) => {
+      const old = prev.find((r) => r.id === ruleId);
+      if (!old) return prev;
+      const carriedSkips = (old.skipDates ?? []).filter((d) => d >= draft.start);
+      // Never move an end date LATER. A chain that already ends (because an
+      // earlier edit cut it) is showing only its remaining tail, and editing
+      // that tail must not revive the occurrences beyond it - they belong to
+      // the chain that replaced it.
+      const cutoff = old.endedAt && old.endedAt < draft.start ? old.endedAt : draft.start;
+      return [
+        ...prev.map((r) => (r.id === ruleId ? { ...r, endedAt: cutoff } : r)),
+        {
+          id: newRuleId(),
+          rule: draft.rule,
+          anchorDate: anchorForStart(draft.start, draft.rule),
+          ...(carriedSkips.length ? { skipDates: carriedSkips } : {}),
+          template: {
+            description: draft.description,
+            amount: draft.amount,
+            currency: draft.currency,
+            category: draft.category,
+            subcategory: draft.subcategory,
+            sourceId: draft.sourceId,
+            type: draft.type,
+          },
+        },
+      ];
+    });
+    setRefreshKey((prev) => prev + 1);
+    toast.success(t('sched.toastUpdated'), { duration: 1600 });
+  };
+
+  const handleStopSchedule = (ruleId: string) => {
+    // endedAt is exclusive and set to today, so nothing further is generated
+    // while every occurrence already recorded stays exactly where it is. The
+    // transaction list is deliberately untouched. Clamped like the edit above:
+    // stopping a chain that already ends sooner must not push its end out.
+    const today = toDateStr(new Date());
+    setRecurringRules((prev) =>
+      prev.map((r) =>
+        r.id === ruleId ? { ...r, endedAt: r.endedAt && r.endedAt < today ? r.endedAt : today } : r,
+      ),
+    );
+    setRefreshKey((prev) => prev + 1);
+    toast.success(t('sched.toastStopped'), { duration: 1600 });
+  };
+
   const handleOnboardingComplete = (name: string, currency: string, lang: Language) => {
     setUserName(name);
     setUserCurrency(currency);
@@ -1941,6 +2029,10 @@ export default function App() {
                 onSetWeekStartsOn={setWeekStartsOn}
                 language={language}
                 onSetLanguage={adoptLanguage}
+                recurringRules={recurringRules}
+                onCreateSchedule={handleCreateSchedule}
+                onUpdateSchedule={handleUpdateSchedule}
+                onStopSchedule={handleStopSchedule}
                 onAddCategory={handleAddCategory}
                 onEditCategory={handleEditCategory}
                 onDeleteCategory={handleDeleteCategory}

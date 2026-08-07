@@ -537,3 +537,176 @@ export function tagPastSeries(
     ids.has(t.id) ? { ...t, recurrence: rule.rule, recurrenceOf: rule.id, updatedAt: stamp } : t,
   );
 }
+
+// ── Looking forward ─────────────────────────────────────────────────────────
+
+/**
+ * The next `count` due dates for a rule, strictly after `today`.
+ *
+ * The mirror of dueDatesSince, which stops at today because the engine never
+ * materializes ahead of time. Nothing here is written anywhere: an upcoming
+ * occurrence is a projection of the rule, not a row, which is what keeps the
+ * Scheduled screen from disagreeing with Activity and the Dashboard. A future
+ * transaction would be counted by every total in the app for a month that has
+ * not happened.
+ *
+ * Walks the cadence forward from the anchor rather than reusing dueDatesSince
+ * with a far-future `today`: a daily rule anchored years back would generate
+ * thousands of past dates before reaching the ones we want.
+ */
+export function nextDueDates(rule: RecurringRule, today: Date, count = 3): string[] {
+  const from = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const seed = parseLocalDate(rule.anchorDate);
+  const skips = new Set(rule.skipDates ?? []);
+  const out: string[] = [];
+
+  // `endedAt` is exclusive, and a rule stopped in the past has no future at all.
+  const accept = (d: Date) => {
+    const s = toDateStr(d);
+    if (d <= from) return false;
+    if (rule.endedAt && s >= rule.endedAt) return false;
+    if (skips.has(s)) return false;
+    out.push(s);
+    return true;
+  };
+  const done = () => out.length >= count;
+  // Enough headroom for a daily rule to walk from `from` to the dates wanted,
+  // while staying bounded for a rule whose cadence never advances.
+  const CAP = 4000;
+
+  switch (rule.rule) {
+    case 'Every day':
+    case 'Every work day': {
+      const d = new Date(Math.max(seed.getTime(), from.getTime()));
+      for (let i = 0; i < CAP && !done(); i++) {
+        d.setDate(d.getDate() + 1);
+        if (rule.rule === 'Every work day' && (d.getDay() === 0 || d.getDay() === 6)) continue;
+        accept(new Date(d));
+      }
+      break;
+    }
+    case 'Every week':
+    case 'Every second week': {
+      const step = rule.rule === 'Every week' ? 7 : 14;
+      const d = new Date(seed);
+      // Jump the whole-period gap in one step instead of walking it.
+      if (d < from) {
+        const periods = Math.floor((from.getTime() - d.getTime()) / (step * 86400000));
+        d.setDate(d.getDate() + periods * step);
+      }
+      for (let i = 0; i < CAP && !done(); i++) {
+        d.setDate(d.getDate() + step);
+        accept(new Date(d));
+      }
+      break;
+    }
+    case 'First day of the month': {
+      const d = new Date(Math.max(seed.getTime(), from.getTime()));
+      d.setDate(1);
+      for (let i = 0; i < CAP && !done(); i++) {
+        d.setMonth(d.getMonth() + 1);
+        accept(new Date(d));
+      }
+      break;
+    }
+    case 'Every month': {
+      const anchorDay = seed.getDate();
+      const start = seed > from ? seed : from;
+      for (let k = 0; k < CAP && !done(); k++) {
+        const y = start.getFullYear() + Math.floor((start.getMonth() + k) / 12);
+        const m = (start.getMonth() + k) % 12;
+        accept(new Date(y, m, Math.min(anchorDay, daysInMonth(y, m))));
+      }
+      break;
+    }
+    case 'Every year': {
+      const anchorDay = seed.getDate();
+      const startYear = Math.max(seed.getFullYear(), from.getFullYear());
+      for (let k = 0; k < CAP && !done(); k++) {
+        const y = startYear + k;
+        accept(new Date(y, seed.getMonth(), Math.min(anchorDay, daysInMonth(y, seed.getMonth()))));
+      }
+      break;
+    }
+    default:
+      break; // 'Never repeat' or unknown: nothing is coming
+  }
+  return out.slice(0, count);
+}
+
+/** The single next occurrence, or null for a rule with no future left. */
+export function nextDueDate(rule: RecurringRule, today: Date = new Date()): string | null {
+  return nextDueDates(rule, today, 1)[0] ?? null;
+}
+
+/**
+ * Schedules with a future left, ordered by what fires next.
+ *
+ * One place decides "what is scheduled", so the Settings screen and anything
+ * that later wants the same answer cannot drift apart.
+ *
+ * Deliberately NOT filtered by isActiveRule. That flag answers "is this the
+ * live chain to edit", and a rule whose `endedAt` is still ahead of us fails it
+ * while the engine goes on creating occurrences right up to that date - which
+ * is exactly what an edit dated a week out leaves behind: the current chain's
+ * last charge, still pending. Hiding it would drop a transaction into Activity
+ * that this screen never announced. A rule with nothing left projects to null
+ * and falls out here on its own.
+ */
+export function upcomingSchedules(
+  rules: RecurringRule[],
+  today: Date = new Date(),
+): Array<{ rule: RecurringRule; next: string; last: boolean }> {
+  return rules
+    .map((rule) => {
+      // Two, so the row can say whether anything follows. A cut chain and its
+      // replacement carry the same description, and "the last one at the old
+      // amount" is the only thing that tells the pair apart on screen.
+      const [next, after] = nextDueDates(rule, today, 2);
+      return next ? { rule, next, last: !after } : null;
+    })
+    .filter((x): x is { rule: RecurringRule; next: string; last: boolean } => x !== null)
+    .sort((a, b) => (a.next < b.next ? -1 : a.next > b.next ? 1 : 0));
+}
+
+/**
+ * The anchor to store so that `start` is the FIRST date the rule produces.
+ *
+ * Occurrences are generated strictly after the anchor, because normally the
+ * anchor is the seed transaction's own date and that transaction IS the first
+ * instance. A schedule created from Settings has no seed - the user picks a
+ * start date and expects money to appear on it - so the anchor is backdated by
+ * exactly one period, and the engine's first output lands on `start`.
+ */
+export function anchorForStart(start: string, rule: string): string {
+  const d = parseLocalDate(start);
+  switch (rule) {
+    case 'Every day':
+      d.setDate(d.getDate() - 1);
+      break;
+    case 'Every work day':
+      // Back over the weekend, so Monday's anchor is the previous Friday.
+      do { d.setDate(d.getDate() - 1); } while (d.getDay() === 0 || d.getDay() === 6);
+      break;
+    case 'Every week':
+      d.setDate(d.getDate() - 7);
+      break;
+    case 'Every second week':
+      d.setDate(d.getDate() - 14);
+      break;
+    case 'First day of the month':
+    case 'Every month': {
+      const day = d.getDate();
+      d.setDate(1);
+      d.setMonth(d.getMonth() - 1);
+      d.setDate(Math.min(day, daysInMonth(d.getFullYear(), d.getMonth())));
+      break;
+    }
+    case 'Every year':
+      d.setFullYear(d.getFullYear() - 1);
+      break;
+    default:
+      break;
+  }
+  return toDateStr(d);
+}

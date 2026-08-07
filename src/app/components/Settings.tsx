@@ -1,4 +1,4 @@
-import { ChevronRight, ChevronLeft, UserCircle, Wallet, HelpCircle, ShieldCheck, ScrollText, Layers, FlaskConical, Trash2, Landmark, Cloud, LogOut, Upload, Copy, Download, FileSpreadsheet, Palmtree, UserX, Mail, LifeBuoy, CheckCircle2, Globe } from 'lucide-react';
+import { ChevronRight, ChevronLeft, UserCircle, Wallet, HelpCircle, ShieldCheck, ScrollText, Layers, FlaskConical, Trash2, Landmark, Cloud, LogOut, Upload, Copy, Download, FileSpreadsheet, Palmtree, UserX, Mail, LifeBuoy, CheckCircle2, Globe, CalendarClock } from 'lucide-react';
 import { sendSupportMessage, supportLimitReached } from '../lib/support';
 import { switchGlow } from './categoryColors';
 
@@ -15,6 +15,9 @@ const SUBPAGE_HEIGHT = 'calc(100dvh - 136px)';
 import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { Categories } from './Categories';
+import { ScheduledManager, type ScheduleDraft } from './ScheduledManager';
+import { upcomingSchedules } from '../lib/recurrence';
+import type { RecurringRule } from '../types';
 import { SourcesManager } from './SourcesManager';
 import { TracklyLogo } from './TracklyLogo';
 import { ConfirmDialog } from './ConfirmDialog';
@@ -47,6 +50,12 @@ interface SettingsProps {
   onSetWeekStartsOn?: (day: number) => void;
   language?: AppLanguage;
   onSetLanguage?: (lang: AppLanguage) => void;
+  // Upcoming recurring transactions. The rules are the source of truth; this
+  // screen only ever projects them forward.
+  recurringRules: RecurringRule[];
+  onCreateSchedule: (draft: ScheduleDraft) => void;
+  onUpdateSchedule: (ruleId: string, draft: ScheduleDraft) => void;
+  onStopSchedule: (ruleId: string) => void;
   onAddCategory: (category: any) => void;
   onEditCategory: (id: string, updatedCategory: any) => void;
   onDeleteCategory: (id: string) => void;
@@ -98,6 +107,10 @@ export function Settings({
   onSetWeekStartsOn,
   language = 'en',
   onSetLanguage,
+  recurringRules,
+  onCreateSchedule,
+  onUpdateSchedule,
+  onStopSchedule,
   onAddCategory,
   onEditCategory,
   onDeleteCategory,
@@ -146,6 +159,7 @@ export function Settings({
   const [deletingAccount, setDeletingAccount] = useState(false);
   const [showCategories, setShowCategories] = useState(false);
   const [showSources, setShowSources] = useState(false);
+  const [showScheduled, setShowScheduled] = useState(false);
   const [showAbout, setShowAbout] = useState(false);
   const [legalDoc, setLegalDoc] = useState<LegalDoc | null>(null);
   const [showImport, setShowImport] = useState(false);
@@ -169,7 +183,7 @@ export function Settings({
   // scroll position of the main Settings list.
   useEffect(() => {
     window.scrollTo(0, 0);
-  }, [showCategories, showSources, showAbout, showImport, showCurrencySelector, showLanguage, showNameEditor, showSupport, legalDoc]);
+  }, [showCategories, showSources, showScheduled, showAbout, showImport, showCurrencySelector, showLanguage, showNameEditor, showSupport, legalDoc]);
 
   const openSupport = () => {
     setSupportSent(false);
@@ -1162,6 +1176,43 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
     );
   }
 
+  if (showScheduled) {
+    return (
+      <div className="flex flex-col overflow-hidden" style={{ height: SUBPAGE_HEIGHT, backgroundColor: '#F6F5F2' }}>
+        <div className="flex-shrink-0" style={{ backgroundColor: '#F6F5F2' }}>
+          <div className="px-6 pb-4 pt-0">
+            <div className="flex items-center justify-center relative">
+              <button
+                onClick={() => setShowScheduled(false)}
+                className="absolute left-0 -ml-2 px-2 py-1 rounded-lg active:bg-neutral-200 transition-colors"
+              >
+                <ChevronLeft size={24} style={{ color: '#4F74F3' }} />
+              </button>
+              <h1 style={{ color: '#1C1C1E', fontSize: '20px', fontWeight: '600', letterSpacing: '-0.3px' }}>
+                {t('sched.title')}
+              </h1>
+            </div>
+          </div>
+        </div>
+        <div className="flex-1 overflow-y-auto" style={{ paddingBottom: '96px' }}>
+          <ScheduledManager
+            rules={recurringRules}
+            categories={categories}
+            incomeCategories={incomeCategories}
+            sources={sources}
+            currency={userCurrency}
+            defaultSourceExpense={defaultSourceExpense}
+            defaultSourceIncome={defaultSourceIncome}
+            onCreate={onCreateSchedule}
+            onUpdate={onUpdateSchedule}
+            onStop={onStopSchedule}
+            onModalOpenChange={onModalOpenChange}
+          />
+        </div>
+      </div>
+    );
+  }
+
   // Show Contacts subpage — a form that sends a message straight from the app.
   if (showSupport) {
     return (
@@ -1380,6 +1431,17 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
             <Landmark className="w-5 h-5" style={{ color: '#8E8E93' }} strokeWidth={2} />
             <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '16px' }}>{t('set.sources')}</span>
             <span style={{ color: '#8E8E93', fontSize: '15px' }}>{sources.length}</span>
+            <ChevronRight className="w-5 h-5" style={{ color: '#C7C7CC' }} />
+          </button>
+
+          <button
+            onClick={() => setShowScheduled(true)}
+            className="w-full flex items-center gap-3 px-5 py-4 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
+            style={{ borderBottom: '1px solid #F2F1ED' }}
+          >
+            <CalendarClock className="w-5 h-5" style={{ color: '#8E8E93' }} strokeWidth={2} />
+            <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '16px' }}>{t('set.scheduled')}</span>
+            <span style={{ color: '#8E8E93', fontSize: '15px' }}>{upcomingSchedules(recurringRules).length}</span>
             <ChevronRight className="w-5 h-5" style={{ color: '#C7C7CC' }} />
           </button>
 
