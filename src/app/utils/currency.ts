@@ -69,20 +69,61 @@ export function homeAmount(
 //               the ".0" on millions ("9.0MM").
 export function abbreviateNumber(abs: number, mode: 'fit' | 'summary'): string {
   const loc = numberLocale();
-  if (abs >= 1000000) {
-    const n = abs / 1000000;
-    return mode === 'summary'
-      ? `${n.toLocaleString(loc, { minimumFractionDigits: 1, maximumFractionDigits: 1, useGrouping: false })}MM`
-      : `${n.toLocaleString(loc, { maximumFractionDigits: 1, useGrouping: false })}MM`;
-  }
+
+  // Past a quadrillion the ladder gives up. "MM" only helped because the
+  // mantissa stayed short; at 4e16 the millions form is "40244010701.4MM",
+  // which is longer than the number it was meant to shorten and blew apart
+  // every card it landed in. Exponential is six characters at any magnitude,
+  // and reads as "off the scale" rather than as something to be parsed.
+  if (abs >= 1e15) return abs.toExponential(1).replace('e+', 'e');
+
+  // 'summary' keeps a decimal at every magnitude ("9.0MM"); 'fit' drops a
+  // trailing ".0".
+  const digits = mode === 'summary'
+    ? { minimumFractionDigits: 1, maximumFractionDigits: 1, useGrouping: false }
+    : { maximumFractionDigits: 1, useGrouping: false };
+  const unit = (div: number, suffix: string) => `${(abs / div).toLocaleString(loc, digits)}${suffix}`;
+
+  // B and T continue the Trend tab's "MM" notation upward.
+  if (abs >= 1e12) return unit(1e12, 'T');
+  if (abs >= 1e9) return unit(1e9, 'B');
+  if (abs >= 1e6) return unit(1e6, 'MM');
   if (mode === 'summary') {
     if (abs >= 100000) return `${Math.round(abs / 1000).toLocaleString(loc)}K`;
     return Math.round(abs).toLocaleString(loc, GROUPED);
   }
-  if (abs >= 10000) {
-    return `${(abs / 1000).toLocaleString(loc, { maximumFractionDigits: 1, useGrouping: false })}K`;
-  }
+  if (abs >= 10000) return unit(1000, 'K');
   return Math.round(abs).toLocaleString(loc, GROUPED);
+}
+
+// A percentage as text, with a ceiling.
+//
+// Share-of-total percentages are naturally bounded, but a saving RATE is
+// savings/income: a month with token income against a large expense has no
+// upper bound at all, and one produced "-1190651204..." across the hero card,
+// truncated mid-number by its own container. Past ±999% the digits say nothing
+// a reader can use - the fact is simply "far beyond" - so the number stops and
+// a bound takes over.
+export function formatPercent(value: number, cap = 999): string {
+  if (!Number.isFinite(value)) return '-';
+  const r = Math.round(value);
+  if (r > cap) return `>${cap}%`;
+  if (r < -cap) return `<-${cap}%`;
+  return `${r}%`;
+}
+
+// Should a column of amounts be abbreviated to stay in its lane?
+//
+// The rule the Dashboard category list has always used, lifted out so every
+// column can share one answer. Measure the longest PLAIN rendering: if it
+// exceeds what the space allows, abbreviate every row, because a column mixing
+// "266,969 Rp" with "30MM Rp" reads worse than one that abbreviates alike.
+//
+// Character count rather than pixels: the choice is binary, one answer serves
+// a whole card, and characters stay stable across the layout changes a
+// measured version would have to chase.
+export function needsAbbreviation(amounts: number[], currencyCode: string, maxChars = 11): boolean {
+  return amounts.some((a) => formatAmountListView(a, currencyCode, 0).length > maxChars);
 }
 
 // The shortest honest rendering of an amount: "86.4K CHF", "1.2MM CHF".

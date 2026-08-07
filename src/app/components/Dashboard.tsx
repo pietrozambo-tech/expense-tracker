@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { ChevronRight, ArrowUpDown, TrendingUp, TrendingDown, Minus, Plus, Receipt, ChevronLeft, ChevronDown, X, Wallet, Gauge } from 'lucide-react';
 import { TrendCategoryBreakdown } from './TrendCategoryBreakdown';
 import React from 'react';
-import { formatAmountListView, formatAbbreviatedAmount, CURRENCIES, homeAmount } from '../utils/currency';
+import { formatAmountListView, formatAbbreviatedAmount, abbreviateNumber, needsAbbreviation, formatPercent, CURRENCIES, homeAmount } from '../utils/currency';
 import { monthsShort, monthsFull, daysFull, daysShort, numberLocale, getLanguage, GROUPED } from '../i18n/store';
 import { t, useLanguage } from '../i18n';
 import { translateRecurrence } from '../i18n/store';
@@ -70,7 +70,12 @@ function InsightLine({ text }: { text: string }) {
 function formatAxisTick(value: number, axisMax: number): string {
   if (value === 0) return '0'; // "0k" is nonsense in any notation
   if (axisMax >= 10000) {
-    return `${(value / 1000).toLocaleString(numberLocale(), { maximumFractionDigits: 1, useGrouping: false })}k`;
+    // Was always thousands, which only works while thousands are enough: a
+    // 4e16 axis printed "40000000000000k" per tick and the labels were clipped
+    // to "|0000k" by their own gutter. The shared ladder keeps every tick to a
+    // few characters at any scale. Lowercased to stay in the chart's quieter
+    // voice - axis ticks are furniture, not figures to read off.
+    return abbreviateNumber(value, 'fit').toLowerCase();
   }
   return Math.round(value).toLocaleString(numberLocale(), GROUPED);
 }
@@ -1306,11 +1311,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
   // Length rather than pixels: the choice is coarse (two options), every row
   // shares one answer, and character count is stable across the layout changes
   // a measured version would have to chase.
-  const abbreviateRowAmounts =
-    sortedCategories.reduce(
-      (longest, item) => Math.max(longest, formatAmountListView(item.amount, currency, 0).length),
-      0,
-    ) > 11;
+  const abbreviateRowAmounts = needsAbbreviation(sortedCategories.map((i) => i.amount), currency);
   const formatRowAmount = (amount: number) => (
     <AmountText
       amount={amount}
@@ -2197,7 +2198,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                           className="font-bold leading-none tabular-nums"
                           style={{ color: savings < 0 ? '#FF6961' : savings > 0 ? '#30D158' : '#FFFFFF' }}
                         >
-                          {totalIncome > 0 ? `${Math.round((savings / totalIncome) * 100)}%` : '-'}
+                          {totalIncome > 0 ? formatPercent((savings / totalIncome) * 100) : '-'}
                         </FitText>
                       </div>
                     </div>
@@ -3110,6 +3111,14 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
               };
             });
             
+            // One answer for the whole card - the header total and every legend
+            // row - so a column never mixes a full number with an abbreviated
+            // one. Same rule as the category list above.
+            const abbrevRec = needsAbbreviation(
+              [totalValue, ...dataWithColors.map((d) => d.value)],
+              currency,
+            ) ? 'fit' as const : undefined;
+
             // With a single slice the donut is a plain ring and the legend
             // repeats it at 100% - half a screen to say one thing. State it in a
             // line instead; the card keeps its place so the page does not jump
@@ -3129,7 +3138,14 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                         aria-hidden="true"
                       />
                       <span style={{ color: '#8E8E93', fontSize: 13 }}>
-                        {t('rec.allPre')} <AmountText amount={only.value} currency={currency} decimals={0} /> {t('rec.allMid')}{' '}
+                        {t('rec.allPre')}{' '}
+                        <AmountText
+                          amount={only.value}
+                          currency={currency}
+                          decimals={0}
+                          abbreviate={needsAbbreviation([only.value], currency) ? 'fit' : undefined}
+                        />{' '}
+                        {t('rec.allMid')}{' '}
                         {recurrenceSliceLabel(only.name).toLowerCase()}.
                       </span>
                     </div>
@@ -3172,6 +3188,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                           amount={totalValue}
                           currency={currency}
                           decimals={0}
+                          abbreviate={abbrevRec}
                           className="tabular-nums"
                           style={{ color: '#8E8E93', fontSize: '12px' }}
                         />
@@ -3278,6 +3295,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                               amount={item.value}
                               currency={currency}
                               decimals={0}
+                              abbreviate={abbrevRec}
                               style={{
                                 color: '#1C1C1E',
                                 fontSize: '13px',
@@ -3301,6 +3319,15 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
             const sourceData = getSourceBreakdown();
             const totalValue = sourceData.reduce((sum, item) => sum + item.value, 0);
             if (totalValue === 0 || sourceData.length === 0) return null;
+
+            // The centre of the donut is the tightest space in the app - a
+            // ~90px hole - so it is measured at 9 characters rather than the
+            // 11 a legend row can take, and the whole card follows that answer.
+            const abbrevSrc = needsAbbreviation(
+              [totalValue, ...sourceData.map((d) => d.value)],
+              currency,
+              9,
+            ) ? 'fit' as const : undefined;
 
             const withPct = sourceData.map((item) => ({
               ...item,
@@ -3358,7 +3385,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                         <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', textAlign: 'center', pointerEvents: 'none' }}>
                           <p style={{ color: '#8E8E93', fontSize: '10px', margin: 0, marginBottom: '2px' }}>{t('src.total')}</p>
                           <p style={{ color: '#1C1C1E', fontSize: '13px', fontWeight: '600', margin: 0 }}>
-                            <AmountText amount={totalValue} currency={currency} decimals={0} />
+                            <AmountText amount={totalValue} currency={currency} decimals={0} abbreviate={abbrevSrc} />
                           </p>
                         </div>
                       </div>
@@ -3393,6 +3420,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                               amount={item.value}
                               currency={currency}
                               decimals={0}
+                              abbreviate={abbrevSrc}
                               style={{ color: '#1C1C1E', fontSize: '13px', fontWeight: '600', minWidth: '70px', textAlign: 'right' }}
                             />
                           </div>
@@ -3768,7 +3796,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                             label={getLanguage() === 'it'
                               ? <>Tasso<span className="max-[359px]:hidden"> di Risparmio</span></>
                               : <><span className="max-[359px]:hidden">Saving </span>Rate</>}
-                            value={`${Math.round(overallSavingRate)}%`}
+                            value={formatPercent(overallSavingRate)}
                             tone={Math.round(overallSavingRate)}
                           />
                         ) : undefined
@@ -3792,7 +3820,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                             label={getLanguage() === 'it'
                               ? <>Tasso<span className="max-[359px]:hidden"> di Risparmio</span></>
                               : <><span className="max-[359px]:hidden">Saving </span>Rate</>}
-                            value={`${Math.round(avgMonthlySavingRate)}%`}
+                            value={formatPercent(avgMonthlySavingRate)}
                             tone={Math.round(avgMonthlySavingRate)}
                           />
                         ) : (
@@ -3849,10 +3877,14 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                 <>
                   <div className="relative">
                     {/* Y-axis labels */}
+                    {/* A fixed 48px gutter at 10px: room for about seven
+                        characters and not one more, so these always abbreviate
+                        rather than deciding per dataset. Below 10K nothing
+                        changes - "9,999" already fits. */}
                     <div className="absolute left-0 top-0 h-24 flex flex-col justify-between text-[10px] text-neutral-400 tabular-nums pr-2 w-12 font-medium">
-                      <AmountText amount={yMax} currency={currency} decimals={0} />
-                      <AmountText amount={yMin + yRange / 2} currency={currency} decimals={0} />
-                      <AmountText amount={yMin} currency={currency} decimals={0} />
+                      <AmountText amount={yMax} currency={currency} decimals={0} abbreviate="fit" />
+                      <AmountText amount={yMin + yRange / 2} currency={currency} decimals={0} abbreviate="fit" />
+                      <AmountText amount={yMin} currency={currency} decimals={0} abbreviate="fit" />
                     </div>
                     
                     {/* Chart container */}
@@ -4197,7 +4229,12 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                               />
                             </div>
                             <div className="w-16 flex-shrink-0 text-xs font-semibold tabular-nums text-right text-neutral-900">
-                              <AmountText amount={b.avg} currency={currency} decimals={0} />
+                              <AmountText
+                                amount={b.avg}
+                                currency={currency}
+                                decimals={0}
+                                abbreviate={needsAbbreviation(dowBuckets.map((x) => x.avg), currency, 8) ? 'fit' : undefined}
+                              />
                             </div>
                             <div className="w-8 flex-shrink-0 text-right text-[11px] text-neutral-400 tabular-nums">
                               {b.occurrences > 0 ? `x${b.occurrences}` : '-'}
@@ -4319,6 +4356,10 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                     transactionType === 'expense' && selectedCategory === 'All' && !!monthlyBudget && monthlyBudget > 0;
                   let barWidth = 0;
                   const barMax = Math.max(...allAmounts.map(a => Math.abs(a)), showBudgetTick ? monthlyBudget! : 0);
+                  // The amount column is a fixed w-16 (w-14 once a weight
+                  // column joins it) at text-xs - about eight characters. One
+                  // answer for every month, so the column never mixes forms.
+                  const abbrevBreakdown = needsAbbreviation(allAmounts, currency, 8) ? 'fit' as const : undefined;
                   const barValue = Math.abs(item.amount);
                   if (barMax > 0 && barValue > 0) {
                     barWidth = Math.max(2, (barValue / barMax) * 100);
@@ -4382,7 +4423,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                       
                       {/* Amount */}
                       <div className={`${selectedCategory === 'All' ? 'w-16' : 'w-14'} flex-shrink-0 text-xs font-semibold tabular-nums text-right self-center text-neutral-900`}>
-                        <AmountText amount={item.amount} currency={currency} decimals={0} />
+                        <AmountText amount={item.amount} currency={currency} decimals={0} abbreviate={abbrevBreakdown} />
                       </div>
 
                       {/* Weight % - only for category/subcategory */}
@@ -4407,7 +4448,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                             color: monthlySavingRate < 0 ? '#EF4444' : monthlySavingRate > 0 ? '#10B981' : '#8E8E93'
                           }}
                         >
-                          {monthlySavingRate !== 0 ? `${Math.round(monthlySavingRate)}%` : '-'}
+                          {monthlySavingRate !== 0 ? formatPercent(monthlySavingRate) : '-'}
                         </div>
                       )}
                       
@@ -4585,6 +4626,12 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                       amount={drilldownTransactions.reduce((sum, txn) => sum + homeAmount(txn, currency), 0)}
                       currency={currency}
                       decimals={0}
+                      abbreviate={
+                        needsAbbreviation(
+                          [drilldownTransactions.reduce((sum, txn) => sum + homeAmount(txn, currency), 0)],
+                          currency,
+                        ) ? 'fit' : undefined
+                      }
                       style={{ color: transactionType === 'expense' ? '#D32F2F' : '#2E7D32' }}
                     />
                   </div>

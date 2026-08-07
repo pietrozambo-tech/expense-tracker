@@ -50,10 +50,18 @@ export function AmountText({
   // magnitude-suffixed figure, and there are no cents left to quiet.
   // abbreviateNumber is the same helper the string formatter uses, so the
   // component and the FitText fallback can never disagree.
-  const threshold = abbreviate === 'summary' ? 0 : abbreviate === 'fit' ? 10000 : Infinity;
-  if (abs >= threshold && abbreviate) {
+  //
+  // The `undefined` case is a floor, not "never": a caller that has not opted
+  // in still gets protected past a trillion. Callers opt in because a column
+  // is TIGHT; this is about an amount that has stopped being a number on a
+  // screen and become a layout bug - one such value once stretched a donut's
+  // centre label clean through the card. No realistic amount reaches it (a
+  // trillion rupiah is ~$65M), so nothing legitimate is shortened by surprise,
+  // and no screen anywhere can be broken by a number again.
+  const threshold = abbreviate === 'summary' ? 0 : abbreviate === 'fit' ? 10000 : 1e12;
+  if (abs >= threshold) {
     fracText = null;
-    intText = abbreviateNumber(abs, abbreviate);
+    intText = abbreviateNumber(abs, abbreviate ?? 'fit');
   }
 
   // Multi-letter symbols (CHF) read better with a space, same as the formatter.
