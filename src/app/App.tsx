@@ -144,17 +144,25 @@ const FROST_MASK =
 // would be a new component type on every render, and React would remount all
 // four tabs each time state changes.
 //
-// The geometry is deliberate, measured against the shipped dock on a real
-// iPhone screenshot, where the stack read bottom-heavy (21px of air above the
-// icons, 28px below the labels):
-// - leading-none on the label: at an inherited ~1.5 line-height a 9.5px label
-//   sits in a ~14px box whose slack all lands under the glyphs - that alone
-//   was most of the asymmetry.
-// - The active pill behind the icon (not around the whole stack) is the
-//   Material 3 "active indicator", and the same treatment Instagram's bar
-//   uses; a colour change alone was too quiet a selected state.
-// Stack: 28px pill + 4px + 10px label = 42px, against the 46px add button, so
-// the grid centres both within a 62px dock with 2px of slack either side.
+// The pill wraps the icon AND the label, which is what makes the tab look
+// centred when it is NOT selected.
+//
+// The version before this put the pill behind the icon alone. Its box was 28px
+// around a 22px icon, so 3px of invisible padding sat above the glyph. The
+// measurements were symmetric - 10.3px of dock above the box, 10.2px below the
+// label - but the eye does not measure boxes, it measures INK: 13.3px of black
+// above the icon against 10.2px below the label. Top-heavy, and only on
+// unselected tabs, because selecting one drew the box and made it legible.
+// Reported exactly that way: aligned when selected, off when not.
+//
+// With one box around both, its padding is symmetric around the whole group,
+// so ink and box agree in either state: 5.25px inside the pill, 8px of dock
+// outside it, above the icon and below the label alike. Same construction as
+// Revolut's bar, which is where the reference came from.
+//
+// Height is pinned to the add button's 46px rather than left to content, so
+// the two controls are the same object at different widths, and the dock's
+// own padding is the only thing setting its height.
 function DockTab({
   icon: Icon,
   label,
@@ -167,15 +175,19 @@ function DockTab({
   onClick: () => void;
 }) {
   return (
-    <button onClick={onClick} className="flex flex-col items-center pointer-events-auto justify-self-center">
+    <button
+      onClick={onClick}
+      // px-1.5 keeps the pill snug to its label the way the reference does.
+      // The longest label in either language is "Impostazioni" at 58.1px,
+      // making that pill ~70px against a 67.6px column - it bleeds ~1px into
+      // each neighbour, which is invisible because only one tab is ever
+      // selected, and stays ~11px clear of the dock's rounded edge.
+      className="flex flex-col items-center justify-center gap-1 h-[46px] px-1.5 rounded-2xl transition-colors duration-200 pointer-events-auto justify-self-center"
+      style={{ backgroundColor: active ? 'rgba(255, 255, 255, 0.13)' : 'transparent' }}
+    >
+      <Icon size={22} style={{ color: active ? '#FFFFFF' : '#8E8E93' }} strokeWidth={active ? 2.4 : 2} />
       <span
-        className="w-12 h-7 rounded-full flex items-center justify-center transition-colors duration-200"
-        style={{ backgroundColor: active ? 'rgba(255, 255, 255, 0.13)' : 'transparent' }}
-      >
-        <Icon size={22} style={{ color: active ? '#FFFFFF' : '#8E8E93' }} strokeWidth={active ? 2.4 : 2} />
-      </span>
-      <span
-        className="mt-1 text-[9.5px] font-semibold leading-none whitespace-nowrap"
+        className="text-[9.5px] font-semibold leading-none whitespace-nowrap"
         style={{ color: active ? '#FFFFFF' : '#8E8E93' }}
       >
         {label}
