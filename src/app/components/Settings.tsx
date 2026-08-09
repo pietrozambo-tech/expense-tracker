@@ -1438,6 +1438,12 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
             <ChevronRight className="w-4 h-4" style={{ color: '#C7C7CC' }} />
           </button>
 
+          {/* Order is three groups, not eight peers: who you are and how the
+              app speaks to you (Profile, Language, Main Currency), then what
+              your transactions are built from (Categories, Sources, Recurring),
+              then help. Currency used to sit below Recurring - three data
+              screens away from Language, though the two answer the same kind of
+              question. */}
           {/* Language — a row that opens its own page, like Currency. */}
           <button
             onClick={() => setShowLanguage(true)}
@@ -1449,6 +1455,19 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
             <span style={{ color: '#8E8E93', fontSize: '14px' }}>
               {LANGUAGE_OPTIONS.find((l) => l.code === language)?.flag}{' '}
               {LANGUAGE_OPTIONS.find((l) => l.code === language)?.native}
+            </span>
+            <ChevronRight className="w-4 h-4" style={{ color: '#C7C7CC' }} />
+          </button>
+
+          <button 
+            onClick={() => setShowCurrencySelector(true)}
+            className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
+            style={{ borderBottom: '1px solid #F2F1ED' }}
+          >
+            <RowIcon icon={Wallet} tone={TILE.currency} />
+            <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '15px' }}>{t('set.currency')}</span>
+            <span style={{ color: '#8E8E93', fontSize: '14px' }}>
+              {CURRENCIES[userCurrency]?.flag} {userCurrency}
             </span>
             <ChevronRight className="w-4 h-4" style={{ color: '#C7C7CC' }} />
           </button>
@@ -1483,19 +1502,6 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
             <RowIcon icon={CalendarClock} tone={TILE.recurring} />
             <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '15px' }}>{t('set.scheduled')}</span>
             <span style={{ color: '#8E8E93', fontSize: '14px' }}>{upcomingSchedules(recurringRules).length}</span>
-            <ChevronRight className="w-4 h-4" style={{ color: '#C7C7CC' }} />
-          </button>
-
-          <button 
-            onClick={() => setShowCurrencySelector(true)}
-            className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
-            style={{ borderBottom: '1px solid #F2F1ED' }}
-          >
-            <RowIcon icon={Wallet} tone={TILE.currency} />
-            <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '15px' }}>{t('set.currency')}</span>
-            <span style={{ color: '#8E8E93', fontSize: '14px' }}>
-              {CURRENCIES[userCurrency]?.flag} {userCurrency}
-            </span>
             <ChevronRight className="w-4 h-4" style={{ color: '#C7C7CC' }} />
           </button>
 
