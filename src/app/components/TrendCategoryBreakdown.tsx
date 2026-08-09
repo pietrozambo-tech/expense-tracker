@@ -95,7 +95,7 @@ export function TrendCategoryBreakdown({
   // 100 would leave every bar a stub and encode nothing.
   const maxShare = Math.max(...categoryBreakdown.map((c) => c.weightPercentage), 1);
 
-  const COLLAPSED = 8;
+  const COLLAPSED = 6;
   // Only worth collapsing when it actually hides something - folding one row
   // behind a button that costs a row saves nothing.
   const collapsible = sortedCategoryBreakdown.length > COLLAPSED + 1;
@@ -107,7 +107,7 @@ export function TrendCategoryBreakdown({
   if (categoryBreakdown.length === 0) return null;
   
   return (
-    <div className="px-6 py-4 bg-white">
+    <div className="mx-4 px-5 py-4 bg-white mb-3 rounded-2xl" style={{ boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)' }}>
       <div className="flex items-start justify-between gap-3 mb-3">
         <div className="min-w-0">
           <h3 className="text-neutral-900 font-semibold text-sm">
@@ -179,16 +179,20 @@ export function TrendCategoryBreakdown({
                 </div>
               </button>
 
-              {/* The share as something you see rather than parse. Indented to
-                  the name so the bars share a left edge and can be compared by
-                  length alone, and scaled to the biggest share on screen. */}
-              <div className="pl-[51px] pb-1.5" aria-hidden="true">
-                <div className="h-1 rounded-full" style={{ backgroundColor: '#F1F0EC' }}>
+              {/* The share as something you see rather than parse. Same spec
+                  as the Monthly Breakdown bars one card up - 6px track,
+                  neutral-100, half-strength indigo - so the two lists read as
+                  one family instead of two competing bar systems. Indented to
+                  the name's left edge and stopped before the numeric columns:
+                  full-width bars under every row read as fourteen dividers.
+                  Scaled to the biggest share on screen, not to 100%. */}
+              <div className="pl-[64px] pr-[106px] pb-1.5" aria-hidden="true">
+                <div className="h-1.5 rounded-full bg-neutral-100 overflow-hidden">
                   <div
                     className="h-full rounded-full transition-all"
                     style={{
-                      width: `${Math.max((item.weightPercentage / maxShare) * 100, 1.5)}%`,
-                      backgroundColor: '#4F74F3',
+                      width: `${Math.max((item.weightPercentage / maxShare) * 100, 2)}%`,
+                      backgroundColor: 'rgba(79, 116, 243, 0.55)',
                     }}
                   />
                 </div>
