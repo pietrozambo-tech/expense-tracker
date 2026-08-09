@@ -166,6 +166,31 @@
 
   html {
     font-size: var(--font-size);
+    /* `manipulation` would be the wrong value here: it still permits pinch, it
+       only kills double-tap. Naming the two pans we DO want leaves pinch-zoom
+       and double-tap-zoom out of the list, so both are disabled while every
+       scroll and every swipe-to-delete keeps working. Safari needs
+       lib/noZoom.ts on top of this; Chrome honours it on its own. */
+    touch-action: pan-x pan-y;
+    /* Stop iOS inflating body text of its own accord after a rotation. */
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    touch-action: pan-x pan-y;
+  }
+
+  /**
+  * 16px is not a taste decision: iOS zooms the page in whenever a text field
+  * smaller than that takes focus, and never zooms back out. It reads as the app
+  * lurching sideways when you tap a box. The floor lives on the element so any
+  * utility class still wins - which is also why a field must never DECLARE a
+  * size below 16px. scripts/check-input-size.mjs fails the build if one does.
+  */
+  input,
+  select,
+  textarea {
+    font-size: max(16px, var(--text-base));
   }
 
   h1 {

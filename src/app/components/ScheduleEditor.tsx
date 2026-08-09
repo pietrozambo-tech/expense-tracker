@@ -23,7 +23,9 @@ const CADENCES = [
 ];
 
 const LABEL: React.CSSProperties = { color: '#8E8E93', fontSize: 12, fontWeight: 600, letterSpacing: 0.2 };
-const FIELD = 'w-full px-4 py-3 rounded-xl text-[15px]';
+// 16px, not the 15 the rest of this sheet uses: anything smaller makes iOS zoom
+// the page in when the field takes focus. See the floor in theme.css.
+const FIELD = 'w-full px-4 py-3 rounded-xl text-[16px]';
 const FIELD_STYLE: React.CSSProperties = { backgroundColor: '#F4F4F5', color: '#1C1C1E', border: 'none', outline: 'none' };
 
 /**

@@ -256,7 +256,9 @@ export function BudgetNudge({ currency, onSave, onDismiss }: BudgetNudgeProps) {
                   }}
                   placeholder={t('budget.nudge.placeholder')}
                   className="flex-1 min-w-0 py-2 bg-transparent outline-none tabular-nums"
-                  style={{ fontSize: 15, color: '#1C1C1E' }}
+                  // 16, not 15: below that iOS zooms the page in on focus. See
+                  // the form-control floor in theme.css.
+                  style={{ fontSize: 16, color: '#1C1C1E' }}
                 />
               </div>
               <button
