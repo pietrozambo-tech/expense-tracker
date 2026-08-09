@@ -138,6 +138,13 @@ export const it: Record<keyof typeof en, string> = {
   'trend.colRate': 'Tasso',
   'trend.sortTime': 'Data',
   'trend.other': 'Altro',
+  'trend.yoyBelow': '{pct}% in meno',
+  'trend.yoyAbove': '{pct}% in più',
+  'trend.yoySame': 'In linea',
+  'trend.yoyVs': 'sugli stessi mesi del {year}',
+  'trend.monthsTracked.one': '{n} mese registrato',
+  'trend.monthsTracked.other': '{n} mesi registrati',
+  'trend.yearAria': 'Filtra per anno',
 
   // Day of week card
   'dow.fullYear': 'Tutto il {year}',

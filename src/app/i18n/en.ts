@@ -137,6 +137,13 @@ export const en = {
   'trend.colRate': 'Rate',
   'trend.sortTime': 'Time',
   'trend.other': 'Other',
+  'trend.yoyBelow': '{pct}% below',
+  'trend.yoyAbove': '{pct}% above',
+  'trend.yoySame': 'In line',
+  'trend.yoyVs': 'the same months in {year}',
+  'trend.monthsTracked.one': '{n} month tracked',
+  'trend.monthsTracked.other': '{n} months tracked',
+  'trend.yearAria': 'Filter by year',
 
   // Day of week card
   'dow.fullYear': 'Full {year}',

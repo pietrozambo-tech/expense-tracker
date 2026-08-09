@@ -1658,6 +1658,45 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
     return trend;
   };
 
+  // What a tab called Trend never actually said.
+  //
+  // Compared over the MONTHS THE TWO YEARS SHARE, never year against year:
+  // getTrendData stops at the current month, so 2026 hands back eight entries
+  // while 2025 hands back twelve. Summing both would measure eight months of
+  // spending against twelve and report a third less every time - a flattering
+  // number that is simply wrong. Intersecting the month labels first is what
+  // makes the percentage mean anything.
+  const trendYoY = useMemo(() => {
+    const identifier = selectedCategory === 'All'
+      ? 'overall'
+      : selectedSubcategory !== 'All'
+        ? `${selectedCategory}:${selectedSubcategory}`
+        : selectedCategory;
+    const raw = getTrendData(identifier, transactionType);
+    const cur = new Map(raw.filter((i) => i.year === trendYearFilter).map((i) => [i.month, i.amount]));
+    const prev = new Map(raw.filter((i) => i.year === trendYearFilter - 1).map((i) => [i.month, i.amount]));
+    const shared = [...cur.keys()].filter((m) => prev.has(m));
+
+    // One shared month is an anecdote, not a trend. And a zero or negative
+    // base (a savings year that broke even) has no percentage to give.
+    const monthsTracked = cur.size;
+    if (shared.length < 2) return { kind: 'months' as const, months: monthsTracked };
+    const prevTotal = shared.reduce((sum, m) => sum + (prev.get(m) ?? 0), 0);
+    if (prevTotal <= 0) return { kind: 'months' as const, months: monthsTracked };
+
+    const curTotal = shared.reduce((sum, m) => sum + (cur.get(m) ?? 0), 0);
+    const pct = Math.round(((curTotal - prevTotal) / prevTotal) * 100);
+    // Direction is not sentiment: spending less is good, earning or saving
+    // less is not. The colour follows the meaning, never the arrow.
+    const betterWhenLower = transactionType === 'expense';
+    return {
+      kind: 'delta' as const,
+      pct,
+      year: trendYearFilter - 1,
+      good: pct === 0 ? null : (pct < 0) === betterWhenLower,
+    };
+  }, [expenses, currency, selectedCategory, selectedSubcategory, transactionType, trendYearFilter]);
+
   // Get cumulative spending data for the current period
   const getCumulativeData = () => {
     if (transactionType !== 'expense') return [];
@@ -2057,10 +2096,58 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
           </div>
         </div>
       ) : (
-        <div className="px-6 pt-1 pb-3">
-          <h1 style={{ color: '#1C1C1E', fontSize: '28px', fontWeight: '600', letterSpacing: '-0.5px' }}>
-            {t('tab.trend')}
-          </h1>
+        <div className="px-6 pt-1 pb-3 flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h1 style={{ color: '#1C1C1E', fontSize: '28px', fontWeight: '600', letterSpacing: '-0.5px' }}>
+              {t('tab.trend')}
+            </h1>
+            <div className="mt-0.5" style={{ fontSize: 13, color: '#8E8E93' }}>
+              {trendYoY.kind === 'delta' ? (
+                <>
+                  <span style={{
+                    color: trendYoY.good === null ? '#8E8E93' : trendYoY.good ? '#1F7A43' : '#B44A40',
+                    fontWeight: 600,
+                  }}>
+                    {t(trendYoY.pct === 0 ? 'trend.yoySame' : trendYoY.pct < 0 ? 'trend.yoyBelow' : 'trend.yoyAbove',
+                       { pct: Math.abs(trendYoY.pct) })}
+                  </span>
+                  {' '}
+                  {t('trend.yoyVs', { year: trendYoY.year })}
+                </>
+              ) : (
+                t(trendYoY.months === 1 ? 'trend.monthsTracked.one' : 'trend.monthsTracked.other',
+                  { n: trendYoY.months })
+              )}
+            </div>
+          </div>
+
+          {/* Moved up from the segment row below, where it was the only control
+              that was not a direction switch. Trend's header now has the same
+              shape as Dashboard's: title left, scope right. */}
+          <div
+            className="flex-shrink-0"
+            style={{ WebkitTapHighlightColor: 'rgba(255, 255, 255, 0)', isolation: 'isolate', transform: 'translateZ(0)' }}
+          >
+            <select
+              aria-label={t('trend.yearAria')}
+              value={trendYearFilter}
+              onChange={(e) => setTrendYearFilter(Number(e.target.value))}
+              className="pl-3 pr-7 py-1.5 rounded-full text-[13px] text-neutral-700 border border-neutral-200"
+              style={{
+                WebkitTapHighlightColor: 'rgba(255, 255, 255, 0)',
+                WebkitAppearance: 'none', appearance: 'none',
+                userSelect: 'none', WebkitUserSelect: 'none',
+                touchAction: 'manipulation', backgroundColor: '#FFFFFF',
+                backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%238E8E93' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E\")",
+                backgroundRepeat: 'no-repeat', backgroundPosition: 'right 8px center',
+                transform: 'translateZ(0)',
+              }}
+            >
+              {getAvailableYears().map((year) => (
+                <option key={year} value={year}>{year}</option>
+              ))}
+            </select>
+          </div>
         </div>
       )}
 
@@ -3646,33 +3733,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                   ))}
                 </div>
                 
-                {/* Year Filter */}
-                <div style={{ 
-                  WebkitTapHighlightColor: 'rgba(255, 255, 255, 0)', 
-                  isolation: 'isolate',
-                  transform: 'translateZ(0)'
-                }}>
-                  <select
-                    value={trendYearFilter}
-                    onChange={(e) => setTrendYearFilter(Number(e.target.value))}
-                    className="px-2.5 py-1 rounded-md text-xs text-neutral-600 border border-neutral-200"
-                    style={{ 
-                      WebkitTapHighlightColor: 'rgba(255, 255, 255, 0)',
-                      WebkitAppearance: 'none',
-                      appearance: 'none',
-                      userSelect: 'none',
-                      WebkitUserSelect: 'none',
-                      touchAction: 'manipulation',
-                      backgroundColor: '#FAFAFA',
-                      transform: 'translateZ(0)',
-                      willChange: 'background-color'
-                    }}
-                  >
-                    {getAvailableYears().map(year => (
-                      <option key={year} value={year}>{year}</option>
-                    ))}
-                  </select>
-                </div>
+                {/* Year filter lives in the header now. */}
               </div>
             </div>
 
