@@ -827,20 +827,20 @@ export function Settings({
             <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
               <button
                 onClick={() => setLegalDoc(PRIVACY_POLICY)}
-                className="w-full flex items-center gap-3 px-5 py-4 active:bg-neutral-100 transition-colors"
+                className="w-full flex items-center gap-3 px-4 py-2.5 active:bg-neutral-100 transition-colors"
                 style={{ borderBottom: '1px solid #F2F1ED' }}
               >
                 <RowIcon icon={ShieldCheck} tone={TILE.backup} />
-                <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '16px' }}>{t('set.privacy')}</span>
-                <ChevronRight className="w-5 h-5" style={{ color: '#C7C7CC' }} />
+                <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '15px' }}>{t('set.privacy')}</span>
+                <ChevronRight className="w-4 h-4" style={{ color: '#C7C7CC' }} />
               </button>
               <button
                 onClick={() => setLegalDoc(TERMS_OF_SERVICE)}
-                className="w-full flex items-center gap-3 px-5 py-4 active:bg-neutral-100 transition-colors"
+                className="w-full flex items-center gap-3 px-4 py-2.5 active:bg-neutral-100 transition-colors"
               >
                 <RowIcon icon={ScrollText} tone={TILE.neutral} />
-                <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '16px' }}>{t('set.terms')}</span>
-                <ChevronRight className="w-5 h-5" style={{ color: '#C7C7CC' }} />
+                <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '15px' }}>{t('set.terms')}</span>
+                <ChevronRight className="w-4 h-4" style={{ color: '#C7C7CC' }} />
               </button>
             </div>
           </div>
@@ -1366,21 +1366,21 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
           {isGuest ? (
             <button
               onClick={onSignInToSync}
-              className="w-full flex items-center gap-3 px-5 py-4 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
+              className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
             >
               <Cloud className="w-5 h-5" style={{ color: '#4F74F3' }} strokeWidth={2} />
               <div className="flex-1 text-left">
-                <div style={{ color: '#1C1C1E', fontSize: '16px' }}>{t('set.signIn')}</div>
+                <div style={{ color: '#1C1C1E', fontSize: '15px' }}>{t('set.signIn')}</div>
                 <div style={{ color: '#8E8E93', fontSize: '13px' }}>{t('set.signInSub')}</div>
               </div>
-              <ChevronRight className="w-5 h-5" style={{ color: '#C7C7CC' }} />
+              <ChevronRight className="w-4 h-4" style={{ color: '#C7C7CC' }} />
             </button>
           ) : (
             <>
-              <div className="w-full flex items-center gap-3 px-5 py-4" style={{ borderBottom: '1px solid #F2F1ED' }}>
+              <div className="w-full flex items-center gap-3 px-4 py-2.5" style={{ borderBottom: '1px solid #F2F1ED' }}>
                 <Cloud className="w-5 h-5" style={{ color: syncMeta.color }} strokeWidth={2} />
                 <div className="flex-1 min-w-0">
-                  <div style={{ color: '#1C1C1E', fontSize: '16px' }}>{syncMeta.label}</div>
+                  <div style={{ color: '#1C1C1E', fontSize: '15px' }}>{syncMeta.label}</div>
                   {userEmail && <div className="truncate" style={{ color: '#8E8E93', fontSize: '13px' }}>{userEmail}</div>}
                 </div>
               </div>
@@ -1388,10 +1388,10 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
                   so the two destructive options can be compared side by side. */}
               <button
                 onClick={onSignOut}
-                className="w-full flex items-center gap-3 px-5 py-4 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
+                className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
               >
                 <RowIcon icon={LogOut} tone={TILE.neutral} />
-                <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '16px' }}>{t('set.signOut')}</span>
+                <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '15px' }}>{t('set.signOut')}</span>
               </button>
             </>
           )}
@@ -1407,7 +1407,7 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
               setEditedBudget(monthlyBudget ? String(monthlyBudget) : '');
               setShowNameEditor(true);
             }}
-            className="w-full flex items-center gap-3 px-5 py-4 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
+            className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
             style={{ borderBottom: '1px solid #F2F1ED' }}
           >
             {userAvatar && !avatarBroken ? (
@@ -1433,89 +1433,89 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
             ) : (
               <RowIcon icon={UserCircle} tone={TILE.profile} />
             )}
-            <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '16px' }}>{t('set.profile')}</span>
-            <span style={{ color: '#8E8E93', fontSize: '15px' }}>{userName}</span>
-            <ChevronRight className="w-5 h-5" style={{ color: '#C7C7CC' }} />
+            <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '15px' }}>{t('set.profile')}</span>
+            <span style={{ color: '#8E8E93', fontSize: '14px' }}>{userName}</span>
+            <ChevronRight className="w-4 h-4" style={{ color: '#C7C7CC' }} />
           </button>
 
           {/* Language — a row that opens its own page, like Currency. */}
           <button
             onClick={() => setShowLanguage(true)}
-            className="w-full flex items-center gap-3 px-5 py-4 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
+            className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
             style={{ borderBottom: '1px solid #F2F1ED' }}
           >
             <RowIcon icon={Globe} tone={TILE.language} />
-            <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '16px' }}>{t('settings.language')}</span>
-            <span style={{ color: '#8E8E93', fontSize: '15px' }}>
+            <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '15px' }}>{t('settings.language')}</span>
+            <span style={{ color: '#8E8E93', fontSize: '14px' }}>
               {LANGUAGE_OPTIONS.find((l) => l.code === language)?.flag}{' '}
               {LANGUAGE_OPTIONS.find((l) => l.code === language)?.native}
             </span>
-            <ChevronRight className="w-5 h-5" style={{ color: '#C7C7CC' }} />
+            <ChevronRight className="w-4 h-4" style={{ color: '#C7C7CC' }} />
           </button>
 
           <button 
             onClick={() => setShowCategories(true)}
-            className="w-full flex items-center gap-3 px-5 py-4 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
+            className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
             style={{ borderBottom: '1px solid #F2F1ED' }}
           >
             <RowIcon icon={Layers} tone={TILE.category} />
-            <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '16px' }}>{t('set.categories')}</span>
-            <span style={{ color: '#8E8E93', fontSize: '15px' }}>{categories.length + incomeCategories.length}</span>
-            <ChevronRight className="w-5 h-5" style={{ color: '#C7C7CC' }} />
+            <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '15px' }}>{t('set.categories')}</span>
+            <span style={{ color: '#8E8E93', fontSize: '14px' }}>{categories.length + incomeCategories.length}</span>
+            <ChevronRight className="w-4 h-4" style={{ color: '#C7C7CC' }} />
           </button>
 
           <button
             onClick={() => setShowSources(true)}
-            className="w-full flex items-center gap-3 px-5 py-4 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
+            className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
             style={{ borderBottom: '1px solid #F2F1ED' }}
           >
             <RowIcon icon={Landmark} tone={TILE.source} />
-            <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '16px' }}>{t('set.sources')}</span>
-            <span style={{ color: '#8E8E93', fontSize: '15px' }}>{sources.length}</span>
-            <ChevronRight className="w-5 h-5" style={{ color: '#C7C7CC' }} />
+            <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '15px' }}>{t('set.sources')}</span>
+            <span style={{ color: '#8E8E93', fontSize: '14px' }}>{sources.length}</span>
+            <ChevronRight className="w-4 h-4" style={{ color: '#C7C7CC' }} />
           </button>
 
           <button
             onClick={() => setShowScheduled(true)}
-            className="w-full flex items-center gap-3 px-5 py-4 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
+            className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
             style={{ borderBottom: '1px solid #F2F1ED' }}
           >
             <RowIcon icon={CalendarClock} tone={TILE.recurring} />
-            <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '16px' }}>{t('set.scheduled')}</span>
-            <span style={{ color: '#8E8E93', fontSize: '15px' }}>{upcomingSchedules(recurringRules).length}</span>
-            <ChevronRight className="w-5 h-5" style={{ color: '#C7C7CC' }} />
+            <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '15px' }}>{t('set.scheduled')}</span>
+            <span style={{ color: '#8E8E93', fontSize: '14px' }}>{upcomingSchedules(recurringRules).length}</span>
+            <ChevronRight className="w-4 h-4" style={{ color: '#C7C7CC' }} />
           </button>
 
           <button 
             onClick={() => setShowCurrencySelector(true)}
-            className="w-full flex items-center gap-3 px-5 py-4 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
+            className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
             style={{ borderBottom: '1px solid #F2F1ED' }}
           >
             <RowIcon icon={Wallet} tone={TILE.currency} />
-            <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '16px' }}>{t('set.currency')}</span>
-            <span style={{ color: '#8E8E93', fontSize: '15px' }}>
+            <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '15px' }}>{t('set.currency')}</span>
+            <span style={{ color: '#8E8E93', fontSize: '14px' }}>
               {CURRENCIES[userCurrency]?.flag} {userCurrency}
             </span>
-            <ChevronRight className="w-5 h-5" style={{ color: '#C7C7CC' }} />
+            <ChevronRight className="w-4 h-4" style={{ color: '#C7C7CC' }} />
           </button>
 
           <button
             onClick={openSupport}
-            className="w-full flex items-center gap-3 px-5 py-4 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
+            className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
             style={{ borderBottom: '1px solid #F2F1ED' }}
           >
             <RowIcon icon={LifeBuoy} tone={TILE.contact} />
-            <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '16px' }}>{t('set.support')}</span>
-            <ChevronRight className="w-5 h-5" style={{ color: '#C7C7CC' }} />
+            <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '15px' }}>{t('set.support')}</span>
+            <ChevronRight className="w-4 h-4" style={{ color: '#C7C7CC' }} />
           </button>
 
           <button
             onClick={() => setShowAbout(true)}
-            className="w-full flex items-center gap-3 px-5 py-4 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
+            className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
           >
             <RowIcon icon={HelpCircle} tone={TILE.about} />
-            <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '16px' }}>{t('set.about')}</span>
-            <ChevronRight className="w-5 h-5" style={{ color: '#C7C7CC' }} />
+            <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '15px' }}>{t('set.about')}</span>
+            <ChevronRight className="w-4 h-4" style={{ color: '#C7C7CC' }} />
           </button>
         </div>
 
@@ -1527,53 +1527,53 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
           {onImportData && (
             <button
               onClick={() => setShowImport(true)}
-              className="w-full flex items-center gap-3 px-5 py-4 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
+              className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
               style={{ borderBottom: '1px solid #F2F1ED' }}
             >
               <RowIcon icon={Upload} tone={TILE.import} />
-              <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '16px' }}>{t('set.importData')}</span>
-              <ChevronRight className="w-5 h-5" style={{ color: '#C7C7CC' }} />
+              <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '15px' }}>{t('set.importData')}</span>
+              <ChevronRight className="w-4 h-4" style={{ color: '#C7C7CC' }} />
             </button>
           )}
           {onExportData && (
             <button
               onClick={onExportData}
-              className="w-full flex items-center gap-3 px-5 py-4 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
+              className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
               style={{ borderBottom: '1px solid #F2F1ED' }}
             >
               <RowIcon icon={Download} tone={TILE.backup} />
-              <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '16px' }}>{t('set.exportBackup')}</span>
+              <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '15px' }}>{t('set.exportBackup')}</span>
               <span style={{ color: '#8E8E93', fontSize: '13px' }}>{t('set.exportBackupSub')}</span>
             </button>
           )}
           {onExportCsv && (
             <button
               onClick={onExportCsv}
-              className="w-full flex items-center gap-3 px-5 py-4 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
+              className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
               style={{ borderBottom: '1px solid #F2F1ED' }}
             >
               <RowIcon icon={FileSpreadsheet} tone={TILE.csv} />
-              <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '16px' }}>{t('set.exportCsv')}</span>
+              <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '15px' }}>{t('set.exportCsv')}</span>
               <span style={{ color: '#8E8E93', fontSize: '13px' }}>{t('set.exportCsvSub')}</span>
             </button>
           )}
           <button
             onClick={() => openConfirm('demo')}
-            className="w-full flex items-center gap-3 px-5 py-4 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
+            className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
             style={hasDemoData && onEraseDemoData ? { borderBottom: '1px solid #F2F1ED' } : undefined}
           >
             <RowIcon icon={FlaskConical} tone={TILE.demo} />
-            <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '16px' }}>{t('set.loadDemo')}</span>
+            <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '15px' }}>{t('set.loadDemo')}</span>
             <span style={{ color: '#8E8E93', fontSize: '13px' }}>{t('set.loadDemoSub')}</span>
           </button>
 
           {hasDemoData && onEraseDemoData && (
             <button
               onClick={() => openConfirm('erase-demo')}
-              className="w-full flex items-center gap-3 px-5 py-4 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
+              className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
             >
               <RowIcon icon={Trash2} tone={TILE.danger} />
-              <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '16px' }}>{t('set.eraseDemo')}</span>
+              <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '15px' }}>{t('set.eraseDemo')}</span>
               <span style={{ color: '#8E8E93', fontSize: '13px' }}>{t('set.eraseDemoSub')}</span>
             </button>
           )}
@@ -1587,12 +1587,12 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
         <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
           <button
             onClick={() => openConfirm('erase')}
-            className="w-full flex items-start gap-3 px-5 py-4 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
+            className="w-full flex items-start gap-3 px-4 py-2.5 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
             style={onDeleteAccount && !isGuest ? { borderBottom: '1px solid #F2F1ED' } : undefined}
           >
             <Trash2 className="w-5 h-5 flex-shrink-0 mt-0.5" style={{ color: '#EF4444' }} strokeWidth={2} />
             <div className="flex-1 text-left">
-              <div style={{ color: '#EF4444', fontSize: '16px' }}>{t('set.eraseAll')}</div>
+              <div style={{ color: '#EF4444', fontSize: '15px' }}>{t('set.eraseAll')}</div>
               <div style={{ color: '#8E8E93', fontSize: '13px', marginTop: 2 }}>
                 {getLanguage() === 'it'
                   ? (isGuest ? 'Elimina transazioni e impostazioni' : 'Riparte da zero. Il tuo account resta')
@@ -1607,11 +1607,11 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
             <button
               onClick={() => openConfirm('delete-account')}
               disabled={deletingAccount}
-              className="w-full flex items-start gap-3 px-5 py-4 hover:bg-neutral-50 active:bg-neutral-100 transition-colors disabled:opacity-50"
+              className="w-full flex items-start gap-3 px-4 py-2.5 hover:bg-neutral-50 active:bg-neutral-100 transition-colors disabled:opacity-50"
             >
               <UserX className="w-5 h-5 flex-shrink-0 mt-0.5" style={{ color: '#EF4444' }} strokeWidth={2} />
               <div className="flex-1 text-left">
-                <div style={{ color: '#EF4444', fontSize: '16px' }}>{t('set.deleteAccount')}</div>
+                <div style={{ color: '#EF4444', fontSize: '15px' }}>{t('set.deleteAccount')}</div>
                 <div style={{ color: '#8E8E93', fontSize: '13px', marginTop: 2 }}>
                   {t('set.deleteAccountSub')}
                 </div>
