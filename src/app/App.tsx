@@ -45,7 +45,7 @@ import { SaveButton } from './components/SaveButton';
 import { DescriptionInput } from './components/DescriptionInput';
 import { Onboarding } from './components/Onboarding';
 import { useAuth } from './auth/AuthProvider';
-import { processRecurrence, buildRuleTemplate, newRuleId, occurrenceDueDate, isActiveRule, applyFutureEdit, findPastSeriesMatches, findUnclaimedSeriesRows, findGeneratedDuplicates, tagPastSeries, anchorForStart, toDateStr, type SeriesClaim } from './lib/recurrence';
+import { processRecurrence, buildRuleTemplate, newRuleId, occurrenceDueDate, isActiveRule, generatesOn, applyFutureEdit, findPastSeriesMatches, findUnclaimedSeriesRows, findGeneratedDuplicates, tagPastSeries, anchorForStart, toDateStr, type SeriesClaim } from './lib/recurrence';
 import { SeriesClaimDialog } from './components/SeriesClaimDialog';
 import type { ScheduleDraft } from './components/ScheduledManager';
 import { RecurringScopeDialog } from './components/RecurringScopeDialog';
@@ -1225,9 +1225,17 @@ export default function App() {
 
   const handleDeleteExpense = (id: string) => {
     const txn = expenses.find((e) => e.id === id);
-    const chainRule = txn?.recurrenceOf
-      ? recurringRules.find((r) => r.id === txn.recurrenceOf && isActiveRule(r))
+    // generatesOn, NOT isActiveRule. isActiveRule means "no endedAt at all", so
+    // an occurrence belonging to a chain that ends in the FUTURE failed this
+    // test and fell through to the plain delete below - which records no skip,
+    // while the engine happily regenerates the row on the next open because
+    // endedAt is exclusive. Delete, reopen, it is back; delete again, reopen,
+    // back again. Reported on a real ledger: an Amex fee whose chain had been
+    // ended two days out by a schedule edit.
+    const rule = txn?.recurrenceOf
+      ? recurringRules.find((r) => r.id === txn.recurrenceOf)
       : undefined;
+    const chainRule = txn && rule && generatesOn(rule, occurrenceDueDate(txn, rule)) ? rule : undefined;
     if (txn && chainRule) {
       // Recurring: ask whether to delete just this occurrence or stop the chain.
       setPendingRecurringDelete(txn);
@@ -1386,10 +1394,15 @@ export default function App() {
       const old = prev.find((r) => r.id === ruleId);
       if (!old) return prev;
       const carriedSkips = (old.skipDates ?? []).filter((d) => d >= draft.start);
-      // Never move an end date LATER. A chain that already ends (because an
-      // earlier edit cut it) is showing only its remaining tail, and editing
-      // that tail must not revive the occurrences beyond it - they belong to
-      // the chain that replaced it.
+      // The old chain ends exactly where the new one begins - endedAt is
+      // exclusive, so the handover has no gap and no overlap. That only holds
+      // because the editor now defaults `start` to the chain's next occurrence;
+      // when it defaulted to tomorrow, this same line handed the month a second
+      // charge. See the note in ScheduleEditor.
+      //
+      // Never moves an end date LATER: a chain that already ends is showing
+      // only its remaining tail, and editing that tail must not revive the
+      // occurrences beyond it - they belong to the chain that replaced it.
       const cutoff = old.endedAt && old.endedAt < draft.start ? old.endedAt : draft.start;
       return [
         ...prev.map((r) => (r.id === ruleId ? { ...r, endedAt: cutoff } : r)),

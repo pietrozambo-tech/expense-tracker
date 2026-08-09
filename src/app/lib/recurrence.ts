@@ -98,6 +98,18 @@ export function dueDatesSince(anchorDateStr: string, rule: string, today: Date, 
 
 export const isActiveRule = (r: RecurringRule) => !r.endedAt;
 
+/**
+ * Would the engine still create this rule's occurrence on this date?
+ *
+ * NOT isActiveRule. That one answers "is this the live chain to edit", and a
+ * chain whose `endedAt` is still ahead of us fails it while the engine goes on
+ * creating occurrences right up to that date - `endedAt` is exclusive. Asking
+ * the wrong one of these two questions is how deleting an occurrence stopped
+ * recording a skip, and the row came back on the next open, forever.
+ */
+export const generatesOn = (rule: RecurringRule, dateStr: string) =>
+  !rule.endedAt || dateStr < rule.endedAt;
+
 const norm = (s: string) => s.trim().toLowerCase().replace(/\s+/g, ' ');
 
 /**
@@ -238,7 +250,7 @@ export function processRecurrence(
   for (const rule of nextRules) {
     const skip = new Set(rule.skipDates ?? []);
     for (const dateStr of dueDatesSince(rule.anchorDate, rule.rule, today)) {
-      if (rule.endedAt && dateStr >= rule.endedAt) continue;
+      if (!generatesOn(rule, dateStr)) continue;
       if (skip.has(dateStr)) continue;
       const id = `rec-${rule.id}-${dateStr}`;
       if (existingIds.has(id)) continue;

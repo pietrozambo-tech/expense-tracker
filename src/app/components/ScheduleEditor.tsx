@@ -5,7 +5,7 @@ import { translateRecurrence } from '../i18n/store';
 import { getCategoryIcon } from './categoryIcons';
 import { SourceLogo } from './SourceLogo';
 import { switchGlow } from './categoryColors';
-import { toDateStr } from '../lib/recurrence';
+import { toDateStr, nextDueDate } from '../lib/recurrence';
 import type { Category, RecurringRule, Source, TransactionType } from '../types';
 import type { ScheduleDraft } from './ScheduledManager';
 
@@ -64,9 +64,15 @@ export function ScheduleEditor({
   const [description, setDescription] = useState(rule?.template.description ?? '');
   const [amount, setAmount] = useState(rule ? String(rule.template.amount) : '');
   const [cadence, setCadence] = useState(rule?.rule ?? 'Every month');
-  // Editing starts from the next occurrence, not the original anchor: the
-  // anchor may be years back, and no field on this form can change the past.
-  const [start, setStart] = useState(tomorrow);
+  // Editing starts from the chain's NEXT occurrence, not tomorrow.
+  //
+  // The comment here said "next occurrence" while the code said tomorrow, and
+  // the gap between the two was a duplicate charge. Open the editor to change
+  // an amount, save without touching the date, and the replacement chain fires
+  // tomorrow - in a month the old chain had already charged. A real ledger came
+  // back with an Amex fee on the 9th and another on the 10th. Defaulting to the
+  // next occurrence makes "edit the amount" leave the cadence exactly alone.
+  const [start, setStart] = useState(() => (rule ? nextDueDate(rule) ?? tomorrow : tomorrow));
   const [categoryId, setCategoryId] = useState(rule?.template.category?.id ?? '');
   const [sourceId, setSourceId] = useState(
     rule?.template.sourceId ?? (type === 'income' ? defaultSourceIncome : defaultSourceExpense) ?? '',

@@ -23,6 +23,9 @@ import {
   upcomingSchedules,
   anchorForStart,
   strandedRules,
+  generatesOn,
+  isActiveRule,
+  toDateStr,
 } from './lib/recurrence';
 import type { RecurringRule, Transaction } from './types';
 
@@ -200,6 +203,7 @@ function scenarioStamps() {
 }
 
 scenarioUpcoming();
+scenarioDeleteOnFutureEndedChain();
 console.log('\n================================================================');
 console.log(` Recurring transactions   [${OLD ? 'BEFORE the fix' : 'AFTER the fix'}]`);
 console.log(' (running the real src/app/lib/recurrence.ts)');
@@ -479,6 +483,84 @@ process.exit(failures === 0 ? 0 : 1);
 // Everything here is a PROJECTION. If any of it ever started writing rows, the
 // Dashboard would count money in a month that has not happened, which is the
 // one way this feature can break the rest of the app.
+function scenarioDeleteOnFutureEndedChain() {
+  heading('13. Deleting an occurrence of a chain that ends in the FUTURE');
+  // The shape a real ledger arrived in: a monthly Amex fee whose chain had been
+  // cut two days out by a schedule edit, so the chain still owed one occurrence.
+  const rule: RecurringRule = {
+    id: 'rule-amex', rule: 'Every month', anchorDate: '2026-07-09', endedAt: '2026-08-10',
+    template: { description: 'Amex fee', amount: 67, currency: 'EUR', category: cat, type: 'expense' },
+  };
+  const NOW = new Date(2026, 7, 10); // 10 August
+  const built = processRecurrence([], [rule], NOW);
+  const aug = built.transactions.find((t) => t.date === '2026-08-09')!;
+  expect('the ended-in-future chain still owes 9 August', aug ? aug.date : 'none', '2026-08-09');
+
+  // The two questions that are not the same question.
+  expect('isActiveRule says the chain is finished', String(isActiveRule(rule)), 'false');
+  expect('generatesOn says 9 August is still live', String(generatesOn(rule, '2026-08-09')), 'true');
+  expect('and that 10 August is not - endedAt is exclusive',
+    String(generatesOn(rule, '2026-08-10')), 'false');
+
+  // Deleting the row without recording a skip: the engine puts it straight back.
+  const withoutSkip = processRecurrence(
+    built.transactions.filter((t) => t.id !== aug.id), [rule], NOW);
+  expect('deleted with no skip, it returns on the next open',
+    String(!!withoutSkip.transactions.find((t) => t.id === aug.id)), 'true');
+
+  // Which is why the delete path has to find this rule at all. Selecting it
+  // with isActiveRule finds nothing, so no skip is ever written.
+  const foundByActive = [rule].find((r) => r.id === aug.recurrenceOf && isActiveRule(r));
+  const foundByGenerates = [rule].find(
+    (r) => r.id === aug.recurrenceOf && generatesOn(r, occurrenceDueDate(aug, r)));
+  expect('isActiveRule cannot find the rule to skip on', String(!!foundByActive), 'false');
+  expect('generatesOn finds it', String(!!foundByGenerates), 'true');
+
+  const skipped: RecurringRule = { ...rule, skipDates: ['2026-08-09'] };
+  const withSkip = processRecurrence(
+    built.transactions.filter((t) => t.id !== aug.id), [skipped], NOW);
+  expect('with the skip recorded it stays deleted',
+    String(!!withSkip.transactions.find((t) => t.id === aug.id)), 'false');
+  expect('and nothing else is invented', String(withSkip.createdCount), '0');
+
+  // The other half of the report: the SECOND Amex fee, a day after the first.
+  //
+  // Editing a live schedule defaults its start to the chain's next occurrence.
+  // Defaulting to tomorrow is what produced the duplicate - the replacement
+  // fired in a month the old chain had already charged.
+  const live: RecurringRule = {
+    id: 'rule-amex', rule: 'Every month', anchorDate: '2026-07-09',
+    template: { description: 'Amex fee', amount: 67, currency: 'EUR', category: cat, type: 'expense' },
+  };
+  const start = nextDueDate(live, NOW)!;
+  expect('the editor opens on the next occurrence, not tomorrow', start, '2026-09-09');
+  expect('which is NOT tomorrow', String(start === '2026-08-11'), 'false');
+
+  const replacement: RecurringRule = {
+    id: 'rule-amex-2', rule: 'Every month', anchorDate: anchorForStart(start, 'Every month'),
+    template: { ...live.template, amount: 70 },
+  };
+  const handover = processRecurrence([], [{ ...live, endedAt: start }, replacement],
+    new Date(2026, 8, 20)); // 20 September
+  const byMonth = handover.transactions.reduce((acc, t) => {
+    acc[t.date.slice(0, 7)] = (acc[t.date.slice(0, 7)] ?? 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+  expect('August charged once', String(byMonth['2026-08'] ?? 0), '1');
+  expect('September charged once, at the handover', String(byMonth['2026-09'] ?? 0), '1');
+  expect('and it is the replacement amount from September on',
+    handover.transactions.filter((t) => t.date.startsWith('2026-09')).map((t) => String(t.amount)).join(','), '70');
+
+  // The old default, kept as a guard: tomorrow puts two in one month.
+  const bad = processRecurrence([], [
+    { ...live, endedAt: '2026-08-11' },
+    { id: 'r-bad', rule: 'Every month', anchorDate: anchorForStart('2026-08-11', 'Every month'),
+      template: live.template },
+  ], new Date(2026, 7, 20));
+  expect('defaulting to tomorrow would have charged August twice',
+    String(bad.transactions.filter((t) => t.date.startsWith('2026-08')).length), '2');
+}
+
 function scenarioUpcoming() {
   heading('12. Upcoming occurrences are projected, never materialized');
   const rule = (over: Partial<RecurringRule> = {}): RecurringRule => ({
