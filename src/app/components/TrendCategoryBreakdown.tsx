@@ -110,11 +110,23 @@ export function TrendCategoryBreakdown({
     ? sortedCategoryBreakdown.slice(0, COLLAPSED)
     : sortedCategoryBreakdown;
   const hiddenCount = sortedCategoryBreakdown.length - visibleCategories.length;
-  // The bar always shows the same top slice, expanded or not. Tying it to the
-  // visible rows meant "Show more" shattered its right end into eight 1-3%
-  // slivers - the confetti this bar exists to replace. It is a summary: reading
-  // the tail in the list should not fragment the summary of it.
-  const barCategories = sortedCategoryBreakdown.slice(0, COLLAPSED);
+  // The bar is always the biggest six BY SHARE, whatever the list is sorted by.
+  //
+  // Slicing the sorted list looked equivalent and is not: under A-Z it took the
+  // first six alphabetically, so the bar led with App at 1% and folded Travel's
+  // 26% into the grey tail. A composition bar splits a whole into "the parts
+  // that matter" and "the rest", and only magnitude can decide that - the
+  // alphabet has no opinion about which categories carry a month.
+  //
+  // Ordered largest-first too, so the bar reads big to small however the rows
+  // beneath it happen to be arranged.
+  //
+  // Fixed at six either way, expanded or not: tying it to the visible rows meant
+  // "Show more" shattered its right end into eight 1-3% slivers - the confetti
+  // this bar exists to replace.
+  const barCategories = [...categoryBreakdown]
+    .sort((a, b) => b.weightPercentage - a.weightPercentage)
+    .slice(0, COLLAPSED);
   // Which rows own a segment of their own. Everything else is inside the grey
   // tail, and its dot says so - a dot is a "find me in the bar" instruction, so
   // colouring one that has no segment to find is a promise the bar cannot keep.
