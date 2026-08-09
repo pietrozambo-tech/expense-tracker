@@ -5,6 +5,10 @@ import { CURRENCIES, homeAmount } from '../utils/currency';
 import { AmountText } from './AmountText';
 import { t } from '../i18n';
 
+// The colour of "everything else": the composition bar's tail segment, and the
+// dot on every row folded into it.
+const TAIL_GREY = '#DEDCD6';
+
 interface TrendCategoryBreakdownProps {
   trendFilteredTransactions: any[];
   trendSortedCategories: any[];
@@ -111,6 +115,10 @@ export function TrendCategoryBreakdown({
   // slivers - the confetti this bar exists to replace. It is a summary: reading
   // the tail in the list should not fragment the summary of it.
   const barCategories = sortedCategoryBreakdown.slice(0, COLLAPSED);
+  // Which rows own a segment of their own. Everything else is inside the grey
+  // tail, and its dot says so - a dot is a "find me in the bar" instruction, so
+  // colouring one that has no segment to find is a promise the bar cannot keep.
+  const barNames = new Set(barCategories.map((c) => c.name));
   // Guarded at half a point, not zero: when a short list is fully covered the
   // shares sum to 100 and float error leaves a hair of remainder, which still
   // rendered a grey segment.
@@ -167,7 +175,7 @@ export function TrendCategoryBreakdown({
           />
         ))}
         {tailShare > 0 && (
-          <div className="h-full" style={{ width: `${tailShare}%`, minWidth: 3, backgroundColor: '#DEDCD6' }} />
+          <div className="h-full" style={{ width: `${tailShare}%`, minWidth: 3, backgroundColor: TAIL_GREY }} />
         )}
       </div>
 
@@ -208,9 +216,14 @@ export function TrendCategoryBreakdown({
                   </div>
                   {/* Ties the row to its segment. The tile beside it carries
                       the same hue but as a pale tint, which is not matchable
-                      against a saturated slice at a glance. */}
+                      against a saturated slice at a glance. Rows folded into
+                      the grey tail take the tail's grey: they are in the bar,
+                      just not separately. */}
                   <span
-                    className={`w-2 h-2 rounded-sm flex-shrink-0 ${solidOf(item.category)}`}
+                    className={`w-2 h-2 rounded-sm flex-shrink-0 ${
+                      barNames.has(item.name) ? solidOf(item.category) : ''
+                    }`}
+                    style={barNames.has(item.name) ? undefined : { backgroundColor: TAIL_GREY }}
                     aria-hidden="true"
                   />
                   <div className="flex-1 min-w-0 text-left">
