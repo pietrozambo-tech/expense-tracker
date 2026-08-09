@@ -80,7 +80,7 @@ export function SourcesManager({
           <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
             <button
               onClick={() => setPickerFor('expense')}
-              className="w-full flex items-center gap-3 px-5 py-3.5 active:bg-neutral-50 transition-colors"
+              className="w-full flex items-center gap-3 px-4 py-3 active:bg-neutral-50 transition-colors"
               style={{ borderBottom: '1px solid #F2F1ED' }}
             >
               <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '15px' }}>{t('mgmt.expensesPaidWith')}</span>
@@ -90,7 +90,7 @@ export function SourcesManager({
             </button>
             <button
               onClick={() => setPickerFor('income')}
-              className="w-full flex items-center gap-3 px-5 py-3.5 active:bg-neutral-50 transition-colors"
+              className="w-full flex items-center gap-3 px-4 py-3 active:bg-neutral-50 transition-colors"
             >
               <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '15px' }}>{t('mgmt.incomeReceivedInto')}</span>
               <SourceLogo source={byId(defaultSourceIncome)} size={22} />
@@ -107,7 +107,7 @@ export function SourcesManager({
             {sources.map((source, index) => (
               <div
                 key={source.id}
-                className="flex items-center gap-3 px-5 py-3"
+                className="flex items-center gap-3 px-4 py-3"
                 style={{ borderBottom: index < sources.length - 1 ? '1px solid #F2F1ED' : 'none' }}
               >
                 <SourceLogo source={source} size={30} />

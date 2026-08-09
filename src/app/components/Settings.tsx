@@ -424,28 +424,28 @@ export function Settings({
                 <button
                   key={code}
                   onClick={() => { if (code !== language) onSetLanguage?.(code); }}
-                  className="w-full flex items-center justify-between px-5 py-4 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
+                  className="w-full flex items-center justify-between px-4 py-3 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
                   style={{ borderBottom: index < LANGUAGE_OPTIONS.length - 1 ? '1px solid #F2F1ED' : 'none' }}
                 >
                   <div className="flex items-center gap-3">
                     <div
-                      className="w-10 h-10 rounded-full flex items-center justify-center"
-                      style={{ backgroundColor: language === code ? '#E3F2FF' : '#F2F1ED', fontSize: '22px' }}
+                      className="w-9 h-9 rounded-full flex items-center justify-center"
+                      style={{ backgroundColor: language === code ? '#E3F2FF' : '#F2F1ED', fontSize: '19px' }}
                     >
                       {flag}
                     </div>
                     <div className="flex flex-col items-start">
-                      <span className="font-medium" style={{ color: language === code ? '#4F74F3' : '#1C1C1E', fontSize: '16px' }}>
+                      <span className="font-medium" style={{ color: language === code ? '#4F74F3' : '#1C1C1E', fontSize: '15px' }}>
                         {native}
                       </span>
                       {inThisLanguage !== native && (
-                        <span className="text-neutral-500 text-sm">{inThisLanguage}</span>
+                        <span className="text-neutral-500 text-[13px]">{inThisLanguage}</span>
                       )}
                     </div>
                   </div>
                   {language === code && (
-                    <div className="w-6 h-6 rounded-full flex items-center justify-center" style={{ backgroundColor: '#4F74F3' }}>
-                      <svg width="12" height="10" viewBox="0 0 12 10" fill="none">
+                    <div className="w-5 h-5 rounded-full flex items-center justify-center" style={{ backgroundColor: '#4F74F3' }}>
+                      <svg width="10" height="8" viewBox="0 0 12 10" fill="none">
                         <path d="M1 5L4.5 8.5L11 1.5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                       </svg>
                     </div>
@@ -507,17 +507,17 @@ export function Settings({
                 <button
                   key={currency.code}
                   onClick={() => handleCurrencyChange(currency.code)}
-                  className="w-full flex items-center justify-between px-5 py-4 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
+                  className="w-full flex items-center justify-between px-4 py-3 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
                   style={{
                     borderBottom: index < currencies.length - 1 ? '1px solid #F2F1ED' : 'none'
                   }}
                 >
                   <div className="flex items-center gap-3">
                     <div
-                      className="w-10 h-10 rounded-full flex items-center justify-center"
+                      className="w-9 h-9 rounded-full flex items-center justify-center"
                       style={{
                         backgroundColor: userCurrency === currency.code ? '#E3F2FF' : '#F2F1ED',
-                        fontSize: '22px'
+                        fontSize: '19px'
                       }}
                     >
                       {currency.flag}
@@ -528,21 +528,21 @@ export function Settings({
                           className="font-medium"
                           style={{
                             color: userCurrency === currency.code ? '#4F74F3' : '#1C1C1E',
-                            fontSize: '16px'
+                            fontSize: '15px'
                           }}
                         >
                           {currency.code}
                         </span>
                       </div>
-                      <span className="text-neutral-500 text-sm">{currency.name}</span>
+                      <span className="text-neutral-500 text-[13px]">{currency.name}</span>
                     </div>
                   </div>
                   {userCurrency === currency.code && (
                     <div
-                      className="w-6 h-6 rounded-full flex items-center justify-center"
+                      className="w-5 h-5 rounded-full flex items-center justify-center"
                       style={{ backgroundColor: '#4F74F3' }}
                     >
-                      <svg width="12" height="10" viewBox="0 0 12 10" fill="none">
+                      <svg width="10" height="8" viewBox="0 0 12 10" fill="none">
                         <path
                           d="M1 5L4.5 8.5L11 1.5"
                           stroke="white"
@@ -562,7 +562,7 @@ export function Settings({
               onClick={() => setShowAllCurrencies(true)}
               className="w-full flex items-center justify-between px-5 py-4 mt-3 rounded-2xl bg-white shadow-sm active:bg-neutral-100 transition-colors"
             >
-              <span className="font-medium text-neutral-700" style={{ fontSize: '16px' }}>Others</span>
+              <span className="font-medium text-neutral-700" style={{ fontSize: '15px' }}>Others</span>
               <ChevronRight className="w-5 h-5 text-neutral-400" />
             </button>
             </>
