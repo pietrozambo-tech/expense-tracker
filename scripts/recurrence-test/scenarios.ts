@@ -204,6 +204,7 @@ function scenarioStamps() {
 
 scenarioUpcoming();
 scenarioDeleteOnFutureEndedChain();
+scenarioNothingHidden();
 console.log('\n================================================================');
 console.log(` Recurring transactions   [${OLD ? 'BEFORE the fix' : 'AFTER the fix'}]`);
 console.log(' (running the real src/app/lib/recurrence.ts)');
@@ -483,6 +484,64 @@ process.exit(failures === 0 ? 0 : 1);
 // Everything here is a PROJECTION. If any of it ever started writing rows, the
 // Dashboard would count money in a month that has not happened, which is the
 // one way this feature can break the rest of the app.
+function scenarioNothingHidden() {
+  heading('14. Nothing can add a future transaction while hidden from Recurring');
+  // The rule the user asked for, as a property rather than a promise: if a
+  // schedule can still put a row in the ledger dated today or later, it has to
+  // be on the Recurring screen, where it can be read, edited and stopped.
+  //
+  // The screen shows upcomingSchedules (anything with a future occurrence) plus
+  // strandedRules (live but producing nothing, so it can still be removed).
+  const NOW = new Date(2026, 7, 11); // 11 August 2026
+  const tpl = { description: 'Bill', amount: 10, currency: 'EUR', category: cat, type: 'expense' as const };
+
+  const shapes: RecurringRule[] = [
+    { id: 'live', rule: 'Every month', anchorDate: '2026-01-05', template: tpl },
+    { id: 'live-weekly', rule: 'Every week', anchorDate: '2026-08-01', template: tpl },
+    { id: 'ends-tomorrow', rule: 'Every month', anchorDate: '2026-01-12', endedAt: '2026-08-13', template: tpl },
+    { id: 'ended-past', rule: 'Every month', anchorDate: '2026-01-05', endedAt: '2026-06-01', template: tpl },
+    { id: 'ended-today', rule: 'Every month', anchorDate: '2026-01-05', endedAt: '2026-08-11', template: tpl },
+    { id: 'alien', rule: 'Every fortnight on a Tuesday', anchorDate: '2026-01-05', template: tpl },
+    { id: 'never', rule: 'Never repeat', anchorDate: '2026-01-05', template: tpl },
+    { id: 'far-future-start', rule: 'Every month',
+      anchorDate: anchorForStart('2027-03-01', 'Every month'), template: tpl },
+    { id: 'skips-everything', rule: 'Every month', anchorDate: '2026-01-05',
+      skipDates: ['2026-09-05', '2026-10-05'], template: tpl },
+  ];
+
+  const visible = new Set([
+    ...upcomingSchedules(shapes, NOW).map((u) => u.rule.id),
+    ...strandedRules(shapes, NOW).map((r) => r.id),
+  ]);
+
+  // Ask the engine, rule by rule, whether it creates anything dated from today
+  // on - looking a year and a half ahead, not just at today.
+  const HORIZON = new Date(2028, 0, 1);
+  const todayStr = toDateStr(NOW);
+  const creators = shapes.filter((r) => {
+    const res = processRecurrence([], [r], HORIZON);
+    return res.transactions.some((t) => t.date >= todayStr);
+  }).map((r) => r.id);
+
+  say(`can create a row dated today or later: ${creators.join(', ') || 'none'}`);
+  say(`shown on the Recurring screen:         ${[...visible].join(', ') || 'none'}`);
+
+  const hidden = creators.filter((id) => !visible.has(id));
+  expect('nothing that can create a future row is hidden', hidden.join(',') || 'none', 'none');
+
+  // And the converse worth stating: a chain ended in the past is genuinely
+  // inert, which is why hiding it is safe.
+  const inert = processRecurrence([], [shapes.find((r) => r.id === 'ended-past')!], HORIZON);
+  expect('a chain ended in the past creates nothing from today on',
+    String(inert.transactions.filter((t) => t.date >= todayStr).length), '0');
+  expect('the live ones are all listed', String(visible.has('live') && visible.has('live-weekly')), 'true');
+  expect('a chain ending tomorrow is listed - it still owes one',
+    String(visible.has('ends-tomorrow')), 'true');
+  expect('a schedule starting next year is listed', String(visible.has('far-future-start')), 'true');
+  expect('an unrecognised cadence is listed so it can be removed',
+    String(visible.has('alien')), 'true');
+}
+
 function scenarioDeleteOnFutureEndedChain() {
   heading('13. Deleting an occurrence of a chain that ends in the FUTURE');
   // The shape a real ledger arrived in: a monthly Amex fee whose chain had been
