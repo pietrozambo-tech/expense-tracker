@@ -1673,13 +1673,30 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
         ? `${selectedCategory}:${selectedSubcategory}`
         : selectedCategory;
     const raw = getTrendData(identifier, transactionType);
-    const cur = new Map(raw.filter((i) => i.year === trendYearFilter).map((i) => [i.month, i.amount]));
+
+    // The month still in progress is not a month.
+    //
+    // getTrendData runs up to today, so on the 9th August holds nine days
+    // against last August's thirty-one. Comparing them reports a fall that is
+    // only the calendar: income read a red "30% below" every month, resetting
+    // on the 1st and healing by the 31st, and expenses were flattered by
+    // exactly the same amount without ever looking wrong. Same rule the Best
+    // and Worst badges already follow - a part-finished figure competes once
+    // it is over.
+    const rightNow = new Date();
+    const runningMonth = trendYearFilter === rightNow.getFullYear() ? rightNow.getMonth() : -1;
+    const thisYear = raw.filter((i) => i.year === trendYearFilter);
+    const cur = new Map(
+      thisYear.filter((i) => getMonthNumber(i.month) !== runningMonth).map((i) => [i.month, i.amount]),
+    );
     const prev = new Map(raw.filter((i) => i.year === trendYearFilter - 1).map((i) => [i.month, i.amount]));
     const shared = [...cur.keys()].filter((m) => prev.has(m));
 
     // One shared month is an anecdote, not a trend. And a zero or negative
     // base (a savings year that broke even) has no percentage to give.
-    const monthsTracked = cur.size;
+    // Counted before the exclusion: the running month IS tracked, it just
+    // cannot be compared yet.
+    const monthsTracked = thisYear.length;
     if (shared.length < 2) return { kind: 'months' as const, months: monthsTracked };
     const prevTotal = shared.reduce((sum, m) => sum + (prev.get(m) ?? 0), 0);
     if (prevTotal <= 0) return { kind: 'months' as const, months: monthsTracked };
@@ -3644,11 +3661,24 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
         
         const yRange = yMax - yMin;
         
+        const rightNow = new Date();
+        const isRunningMonth = (t: { month: string; year: number }) =>
+          t.year === rightNow.getFullYear() && getMonthNumber(t.month) === rightNow.getMonth();
+
+        // Averages exclude the month in progress, for the same reason the
+        // comparison in the header does: on the 9th it contributes nine days
+        // of spending but a whole 1 to the denominator. Every average read
+        // low at the start of a month and climbed through it without anything
+        // changing. Unless it is all the history there is - a first-week user
+        // is better served by a partial figure than by none.
+        const completeMonths = trendData.filter(t => !isRunningMonth(t));
+        const averageBase = completeMonths.length > 0 ? completeMonths : trendData;
+
         // Calculate average - for savings include negative values
-        const monthsWithData = transactionType === 'savings' 
-          ? trendData 
-          : trendData.filter(t => t.amount > 0);
-        const avgAmount = monthsWithData.length > 0 
+        const monthsWithData = transactionType === 'savings'
+          ? averageBase
+          : averageBase.filter(t => t.amount > 0);
+        const avgAmount = monthsWithData.length > 0
           ? monthsWithData.reduce((sum, t) => sum + t.amount, 0) / monthsWithData.length
           : 0;
         
@@ -3662,9 +3692,6 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
         // the end it often flipped to "Worst" without anything unusual
         // happening. It competes once it is over.
         const currentMonthIndex = trendData.length - 1;
-        const rightNow = new Date();
-        const isRunningMonth = (t: { month: string; year: number }) =>
-          t.year === rightNow.getFullYear() && getMonthNumber(t.month) === rightNow.getMonth();
         const badgeable = trendData
           .map((t, i) => ({ amount: t.amount, i }))
           .filter(({ amount, i }) => amount !== 0 && !isRunningMonth(trendData[i]));
@@ -4567,11 +4594,12 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                 setTrendExpandedCategory={setTrendExpandedCategory}
                 currency={currency}
                 // The same denominator as the Monthly Average card above:
-                // months where this type had any activity at all. Without it
-                // each category divided by its own active months, and a
-                // one-off (a tax refund, an annual bill) showed its whole
-                // amount as a "monthly average".
-                monthCount={trendData.filter(t => t.amount > 0).length}
+                // complete months where this type had any activity at all.
+                // Without it each category divided by its own active months,
+                // and a one-off (a tax refund, an annual bill) showed its
+                // whole amount as a "monthly average" - and the month in
+                // progress counted as a full one, pulling every row down.
+                monthCount={monthsWithData.length}
               />
             )}
           </div>
