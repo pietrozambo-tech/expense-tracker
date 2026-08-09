@@ -1897,7 +1897,9 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
   // Get personalized greeting based on time of day
   const getGreeting = () => {
     const hour = new Date().getHours();
-    if (hour < 5) return 'Good night';
+    // Same string as the 23:00 branch below - both are "it is night" - and it
+    // has to translate like every other hour of the day.
+    if (hour < 5) return t('greeting.night');
     if (hour < 12) return t('greeting.morning');
     if (hour < 18) return t('greeting.afternoon');
     if (hour < 23) return t('greeting.evening');
@@ -1926,7 +1928,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
         <div className="px-6 pt-1">
           <p style={{ color: '#8E8E93', fontSize: '14px', marginBottom: '2px' }}>{greeting}</p>
           <h1 style={{ color: '#1C1C1E', fontSize: '28px', fontWeight: '600', letterSpacing: '-0.5px' }}>
-            Dashboard
+            {t('tab.dashboard')}
           </h1>
         </div>
         <div className="flex-1 flex flex-col justify-center px-6 pt-4 pb-4">
@@ -1980,7 +1982,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
           {/* Title row: tab title on the left, period selector on the right */}
           <div className="flex items-center justify-between gap-3">
             <h1 style={{ color: '#1C1C1E', fontSize: '28px', fontWeight: '600', letterSpacing: '-0.5px' }}>
-              Dashboard
+              {t('tab.dashboard')}
             </h1>
 
             {/* Period selector — a native <select> styled like the Activity tab
@@ -2057,7 +2059,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
       ) : (
         <div className="px-6 pt-1 pb-3">
           <h1 style={{ color: '#1C1C1E', fontSize: '28px', fontWeight: '600', letterSpacing: '-0.5px' }}>
-            Trend
+            {t('tab.trend')}
           </h1>
         </div>
       )}
