@@ -483,6 +483,6 @@ export const it: Record<keyof typeof en, string> = {
   'del.txExpenseTitle': 'Eliminare la spesa?',
   'del.txIncomeTitle': 'Eliminare l’entrata?',
   'del.txBody': 'Vuoi davvero eliminare "{name}"? Questa azione non si può annullare.',
-  'set.version': 'Versione 1.0',
+  'set.version': 'Versione {v}',
   'set.signature': 'Realizzato da Zambop',
 };

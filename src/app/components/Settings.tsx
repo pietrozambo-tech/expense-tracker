@@ -812,7 +812,9 @@ export function Settings({
             <TracklyLogo size={80} className="mb-4" />
             <h2 style={{ color: '#1C1C1E', fontSize: '28px', fontWeight: 700, letterSpacing: '-0.03em' }}>TracklyLab</h2>
             <p style={{ color: '#4F74F3', fontSize: '14px', fontWeight: 600, marginTop: '4px', letterSpacing: '0.02em' }}>Your Expense Lens</p>
-            <p style={{ color: '#8E8E93', fontSize: '13px', marginTop: '6px' }}>{t('set.version')}</p>
+            <p style={{ color: '#8E8E93', fontSize: '13px', marginTop: '6px' }}>
+              {t('set.version', { v: __APP_VERSION__ })}
+            </p>
             {/* Which BUILD this device is actually running. When two devices
                 disagree, comparing this line answers "is one of them stale?"
                 in five seconds. */}
@@ -1628,7 +1630,7 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
 
         {/* Signature */}
         <div className="mt-8 mb-1 text-center">
-          <p style={{ color: '#B0B0B5', fontSize: '12px', fontWeight: 500 }}>TracklyLab · v0.1</p>
+          <p style={{ color: '#B0B0B5', fontSize: '12px', fontWeight: 500 }}>TracklyLab · v{__APP_VERSION__}</p>
           <p style={{ color: '#B0B0B5', fontSize: '12px', fontStyle: 'italic', marginTop: '2px' }}>
             {t('set.signature')}
           </p>

@@ -13,7 +13,8 @@
 //
 // TracklyLab is run by one person, not a company. Naming him matters: data
 // protection law requires whoever decides how personal data is used to be
-// identifiable, and "Zambop" is a nickname, not a legal identity.
+// identifiable, so this clause carries the legal name and nothing else - a
+// nickname would not identify a controller.
 
 export interface LegalSection {
   heading: string;
@@ -44,7 +45,7 @@ export const PRIVACY_POLICY: LegalDoc = {
     {
       heading: 'Who is responsible',
       body: [
-        `TracklyLab is made and run by ${OWNER_NAME}, an individual developer, who also goes by Zambop. It is not operated by a company.`,
+        `TracklyLab is made and run by ${OWNER_NAME}, an individual developer. It is not operated by a company.`,
         `For anything about your data, or about this policy, write to ${SUPPORT_EMAIL}.`,
       ],
     },

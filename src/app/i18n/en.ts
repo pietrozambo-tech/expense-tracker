@@ -482,6 +482,6 @@ export const en = {
   'del.txExpenseTitle': 'Delete Expense?',
   'del.txIncomeTitle': 'Delete Income?',
   'del.txBody': 'Are you sure you want to delete "{name}"? This action cannot be undone.',
-  'set.version': 'Version 1.0',
+  'set.version': 'Version {v}',
   'set.signature': 'Brought to you by Zambop',
 } as const;

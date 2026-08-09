@@ -5,6 +5,7 @@ import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 import { LEGAL_DOCS } from './src/app/lib/legalContent'
 import { renderLegalHtml } from './src/app/lib/legalHtml'
+import pkg from './package.json'
 
 
 function figmaAssetResolver() {
@@ -80,6 +81,10 @@ export default defineConfig({
     // "which build is this device actually running?" is a glance instead of a
     // guess - stale service-worker bundles have twice masqueraded as sync bugs.
     __BUILD_STAMP__: JSON.stringify(new Date().toISOString().slice(0, 16).replace('T', ' ') + ' UTC'),
+    // package.json is the only place the version is written. It used to be
+    // typed by hand in two screens, which is exactly how About came to claim
+    // 1.0 while the footer three screens down still said 0.1.
+    __APP_VERSION__: JSON.stringify(pkg.version),
   },
   resolve: {
     alias: {
