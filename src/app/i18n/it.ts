@@ -155,6 +155,10 @@ export const it: Record<keyof typeof en, string> = {
   'tcb.title': 'Media Mensile per Categoria',
   'tcb.share': 'Quota',
   'tcb.avg': 'Media',
+  'tcb.subtitle.one': 'al mese su {n} categoria',
+  'tcb.subtitle.other': 'al mese su {n} categorie',
+  'tcb.showAll': 'Mostra altre {n}',
+  'tcb.showLess': 'Mostra meno',
 
   // Period picker sheet
   'ppm.title': 'Vai al periodo',

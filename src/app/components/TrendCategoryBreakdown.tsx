@@ -25,7 +25,14 @@ export function TrendCategoryBreakdown({
   currency,
   monthCount
 }: TrendCategoryBreakdownProps) {
-  const [categorySortBy, setCategorySortBy] = useState<'alphabetical' | 'amount'>('alphabetical');
+  // Opens on the answer, not the alphabet. This card exists to say what you
+  // spend most on; sorted A-Z the two categories that were half the spend sat
+  // sixth and seventh, and you had to rank fourteen numbers yourself. A-Z is
+  // still one tap away for when you are hunting a specific category.
+  const [categorySortBy, setCategorySortBy] = useState<'alphabetical' | 'amount'>('amount');
+  // Long tails are the norm here - a dozen categories at 1-3% each. Show the
+  // ones that carry the month, keep the rest one tap away.
+  const [showAll, setShowAll] = useState(false);
   
   // Calculate category totals and monthly averages
   const categoryBreakdown = trendSortedCategories.map(item => {
@@ -81,14 +88,38 @@ export function TrendCategoryBreakdown({
     }
   });
   
+  // The number the percentages are percentages OF. Without it a "26%" on the
+  // page has nothing to be a share of.
+  const totalMonthlyAvg = categoryBreakdown.reduce((sum, c) => sum + c.monthlyAvg, 0);
+  // Bars are scaled to the largest share, not to 100%: at 26% max, scaling to
+  // 100 would leave every bar a stub and encode nothing.
+  const maxShare = Math.max(...categoryBreakdown.map((c) => c.weightPercentage), 1);
+
+  const COLLAPSED = 8;
+  // Only worth collapsing when it actually hides something - folding one row
+  // behind a button that costs a row saves nothing.
+  const collapsible = sortedCategoryBreakdown.length > COLLAPSED + 1;
+  const visibleCategories = collapsible && !showAll
+    ? sortedCategoryBreakdown.slice(0, COLLAPSED)
+    : sortedCategoryBreakdown;
+  const hiddenCount = sortedCategoryBreakdown.length - visibleCategories.length;
+
   if (categoryBreakdown.length === 0) return null;
   
   return (
     <div className="px-6 py-4 bg-white">
-      <div className="flex items-center justify-between mb-3">
-        <h3 className="text-neutral-900 font-semibold text-sm">
-          {t('tcb.title')}
-        </h3>
+      <div className="flex items-start justify-between gap-3 mb-3">
+        <div className="min-w-0">
+          <h3 className="text-neutral-900 font-semibold text-sm">
+            {t('tcb.title')}
+          </h3>
+          <div className="text-[11.5px] mt-0.5" style={{ color: '#8E8E93' }}>
+            <AmountText amount={totalMonthlyAvg} currency={currency} decimals={0} abbreviate="fit" />
+            {' '}
+            {t(categoryBreakdown.length === 1 ? 'tcb.subtitle.one' : 'tcb.subtitle.other',
+               { n: categoryBreakdown.length })}
+          </div>
+        </div>
         <button
           onClick={() => setCategorySortBy(categorySortBy === 'alphabetical' ? 'amount' : 'alphabetical')}
           className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition-colors bg-neutral-100"
@@ -109,7 +140,7 @@ export function TrendCategoryBreakdown({
       </div>
       
       <div className="space-y-px">
-        {sortedCategoryBreakdown.map((item) => {
+        {visibleCategories.map((item) => {
           const isExpanded = trendExpandedCategory === item.name;
           const subcategories = item.subcategories;
           
@@ -137,7 +168,7 @@ export function TrendCategoryBreakdown({
                     })()}
                   </div>
                   <div className="flex-1 min-w-0 text-left">
-                    <div className="text-neutral-900 font-medium text-xs">{item.name}</div>
+                    <div className="text-neutral-900 font-medium text-[13.5px]">{item.name}</div>
                   </div>
                 </div>
                 <div className="flex items-center gap-0.5 flex-shrink-0 ml-1">
@@ -147,6 +178,21 @@ export function TrendCategoryBreakdown({
                   </div>
                 </div>
               </button>
+
+              {/* The share as something you see rather than parse. Indented to
+                  the name so the bars share a left edge and can be compared by
+                  length alone, and scaled to the biggest share on screen. */}
+              <div className="pl-[51px] pb-1.5" aria-hidden="true">
+                <div className="h-1 rounded-full" style={{ backgroundColor: '#F1F0EC' }}>
+                  <div
+                    className="h-full rounded-full transition-all"
+                    style={{
+                      width: `${Math.max((item.weightPercentage / maxShare) * 100, 1.5)}%`,
+                      backgroundColor: '#4F74F3',
+                    }}
+                  />
+                </div>
+              </div>
               
               {/* Subcategories */}
               {isExpanded && subcategories.length > 0 && (
@@ -175,6 +221,19 @@ export function TrendCategoryBreakdown({
           );
         })}
       </div>
+
+      {/* The tail. Named rather than a bare chevron, and it says how much is
+          under it, because "8 more" is the difference between a list that ends
+          and a list that was cut. */}
+      {collapsible && (
+        <button
+          onClick={() => setShowAll(!showAll)}
+          className="w-full mt-1 py-2 rounded-lg text-center transition-colors active:bg-neutral-50"
+          style={{ color: '#4F74F3', fontSize: 12.5, fontWeight: 600 }}
+        >
+          {showAll ? t('tcb.showLess') : t('tcb.showAll', { n: hiddenCount })}
+        </button>
+      )}
     </div>
   );
 }

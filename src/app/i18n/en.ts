@@ -154,6 +154,10 @@ export const en = {
   'tcb.title': 'Monthly Average by Category',
   'tcb.share': 'Share',
   'tcb.avg': 'Avg',
+  'tcb.subtitle.one': 'a month across {n} category',
+  'tcb.subtitle.other': 'a month across {n} categories',
+  'tcb.showAll': 'Show {n} more',
+  'tcb.showLess': 'Show less',
 
   // Period picker sheet
   'ppm.title': 'Jump to period',
