@@ -7,6 +7,7 @@ import { monthsShort, monthsFull, daysFull, daysShort, numberLocale, getLanguage
 import { t, useLanguage } from '../i18n';
 import { translateRecurrence } from '../i18n/store';
 import { getCategoryIcon } from './categoryIcons';
+import { FILTER_ACTIVE, FILTER_IDLE } from './filterChip';
 import { categoryHex, switchGlow } from './categoryColors';
 import { usualCurve, periodCurve } from '../lib/usual';
 import { dayOfWeekBreakdown, dowTakeaway } from '../lib/dayOfWeek';
@@ -3700,38 +3701,45 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
               // Get selected category icon
               const selectedCategoryObj = selectedCategory !== 'All' ? trendCategoryList.find(c => c.name === selectedCategory) : null;
               
+              // A filter that is filtering says so, in the same blue Activity
+              // uses for the same idea - see components/filterChip.ts.
+              const catOn = selectedCategory !== 'All';
+              const subOn = selectedSubcategory !== 'All';
+              const chip = (on: boolean) => (on ? FILTER_ACTIVE : FILTER_IDLE);
+
               return (
                 <div className="sticky top-0 z-10 bg-white border-b border-neutral-100 px-6 py-2">
                   <div className="flex items-center gap-1.5">
                     {/* Category Filter Button */}
                     <button
                       onClick={() => setIsTrendCategoryModalOpen(true)}
-                      className="flex items-center gap-1.5 px-2.5 py-1.5 bg-white border border-neutral-200 hover:bg-neutral-50 rounded-lg transition-colors"
+                      className="flex items-center gap-1.5 px-2.5 py-1.5 border rounded-lg transition-colors"
+                      style={{ backgroundColor: chip(catOn).bg, borderColor: chip(catOn).border }}
                     >
                       {selectedCategoryObj && (() => {
                         const Icon = getCategoryIcon(selectedCategoryObj.icon);
-                        return <Icon className="w-3.5 h-3.5 text-neutral-500" strokeWidth={2} />;
+                        return <Icon className="w-3.5 h-3.5" style={{ color: chip(catOn).text }} strokeWidth={2} />;
                       })()}
-                      <span className="text-neutral-600 text-xs">{selectedCategory === 'All' ? t('trend.allCategories') : selectedCategory}</span>
-                      <ChevronDown className="w-3 h-3 text-neutral-400" />
+                      <span className="text-xs" style={{ color: chip(catOn).text, fontWeight: catOn ? 600 : 400 }}>
+                        {catOn ? selectedCategory : t('trend.allCategories')}
+                      </span>
+                      <ChevronDown className="w-3 h-3" style={{ color: chip(catOn).icon }} />
                     </button>
-                    
+
                     {/* Subcategory toggle — appears right next to the category
                         toggle once a category (with subcategories) is selected,
                         mirroring the category toggle. Opens the subcategory
                         picker (which includes "All" to reset). */}
-                    {selectedCategory !== 'All' && availableSubcategories.length > 0 && (
+                    {catOn && availableSubcategories.length > 0 && (
                       <button
                         onClick={() => setIsTrendSubcategoryModalOpen(true)}
                         className="flex items-center gap-1.5 px-2.5 py-1.5 border rounded-lg transition-colors"
-                        style={selectedSubcategory === 'All'
-                          ? { backgroundColor: '#FFFFFF', borderColor: '#E5E5EA' }
-                          : { backgroundColor: '#EFF6FF', borderColor: '#BFDBFE' }}
+                        style={{ backgroundColor: chip(subOn).bg, borderColor: chip(subOn).border }}
                       >
-                        <span className="text-xs" style={{ color: selectedSubcategory === 'All' ? '#525252' : '#3D5BE0' }}>
-                          {selectedSubcategory === 'All' ? t('trend.allSubcategories') : selectedSubcategory}
+                        <span className="text-xs" style={{ color: chip(subOn).text, fontWeight: subOn ? 600 : 400 }}>
+                          {subOn ? selectedSubcategory : t('trend.allSubcategories')}
                         </span>
-                        <ChevronDown className="w-3 h-3" style={{ color: selectedSubcategory === 'All' ? '#A3A3A3' : '#60A5FA' }} />
+                        <ChevronDown className="w-3 h-3" style={{ color: chip(subOn).icon }} />
                       </button>
                     )}
                   </div>

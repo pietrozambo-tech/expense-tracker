@@ -4,6 +4,7 @@ import { t } from '../i18n';
 import { monthsShort } from '../i18n/store';
 import type { Source } from '../types';
 import { PeriodSheet, FiltersSheet } from './ActivityFilterSheets';
+import { FILTER_ACTIVE } from './filterChip';
 
 interface FilterBarProps {
   year: string; // e.g., "2025"
@@ -131,11 +132,12 @@ export function FilterBar({
 
         <button
           onClick={() => openSheet('filters')}
-          className={`${PILL} ${
+          className={`${PILL} ${activeChips.length ? 'font-semibold' : PILL_NEUTRAL}`}
+          style={
             activeChips.length
-              ? 'bg-[#EEF1FE] border-transparent text-[#4F74F3] font-semibold'
-              : PILL_NEUTRAL
-          }`}
+              ? { backgroundColor: FILTER_ACTIVE.bg, borderColor: FILTER_ACTIVE.border, color: FILTER_ACTIVE.text }
+              : undefined
+          }
         >
           <SlidersHorizontal className="w-3.5 h-3.5 flex-shrink-0" />
           <span>{t('act.filters')}</span>
@@ -164,10 +166,11 @@ export function FilterBar({
             <button
               key={c.key}
               onClick={c.clear}
-              className={`${PILL} bg-[#EEF1FE] border-transparent text-[#4F74F3] font-medium max-w-[160px]`}
+              className={`${PILL} font-medium max-w-[160px]`}
+              style={{ backgroundColor: FILTER_ACTIVE.bg, borderColor: FILTER_ACTIVE.border, color: FILTER_ACTIVE.text }}
             >
               <span className="truncate">{c.label}</span>
-              <X className="w-3.5 h-3.5 flex-shrink-0" style={{ color: '#93A6F8' }} />
+              <X className="w-3.5 h-3.5 flex-shrink-0" style={{ color: FILTER_ACTIVE.icon }} />
             </button>
           ))}
           {searchQuery && onClearSearch && (
