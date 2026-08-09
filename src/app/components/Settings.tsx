@@ -1,3 +1,4 @@
+import type { LucideIcon } from 'lucide-react';
 import { ChevronRight, ChevronLeft, UserCircle, Wallet, HelpCircle, ShieldCheck, ScrollText, Layers, FlaskConical, Trash2, Landmark, Cloud, LogOut, Upload, Copy, Download, FileSpreadsheet, Palmtree, UserX, Mail, LifeBuoy, CheckCircle2, Globe, CalendarClock } from 'lucide-react';
 import { sendSupportMessage, supportLimitReached } from '../lib/support';
 import { switchGlow } from './categoryColors';
@@ -41,6 +42,43 @@ const LANGUAGE_OPTIONS: { code: AppLanguage; flag: string; native: string }[] = 
   { code: 'en', flag: '🇬🇧', native: 'English' },
   { code: 'it', flag: '🇮🇹', native: 'Italiano' },
 ];
+
+// Settings rows used sixteen identical grey glyphs, so the one screen people
+// open to change something was the one screen with nothing to aim at - while
+// Trend's category list, three taps away, already used tinted tiles and is the
+// best-looking list in the app. Same formula here: a soft fill with the glyph
+// saturated on top, one hue per destination so the eye can learn a position.
+//
+// The hue means "which setting", nothing more. The only one carrying real
+// meaning is the red on Erase all data, which matches the destructive styling
+// that row already had.
+const TILE = {
+  profile:  { bg: '#EFEFF4', fg: '#3A3A3C' },
+  language: { bg: '#E8F1FE', fg: '#2F6FE4' },
+  category: { bg: '#F3EAFE', fg: '#8B5CF6' },
+  source:   { bg: '#E6F7F1', fg: '#0E9F6E' },
+  recurring:{ bg: '#EEF1FE', fg: '#4F74F3' },
+  currency: { bg: '#FFF4E5', fg: '#D97706' },
+  contact:  { bg: '#FDECF3', fg: '#DB2777' },
+  about:    { bg: '#EFEFF4', fg: '#6B7280' },
+  import:   { bg: '#E6F6FC', fg: '#0891B2' },
+  backup:   { bg: '#E9F7EE', fg: '#16A34A' },
+  csv:      { bg: '#ECFDF5', fg: '#059669' },
+  demo:     { bg: '#F5F0FE', fg: '#7C3AED' },
+  danger:   { bg: '#FEECEC', fg: '#DC2626' },
+  neutral:  { bg: '#EFEFF4', fg: '#6B7280' },
+} as const;
+
+function RowIcon({ icon: Icon, tone }: { icon: LucideIcon; tone: { bg: string; fg: string } }) {
+  return (
+    <span
+      className="w-8 h-8 rounded-[10px] flex items-center justify-center flex-shrink-0"
+      style={{ backgroundColor: tone.bg }}
+    >
+      <Icon className="w-[18px] h-[18px]" style={{ color: tone.fg }} strokeWidth={2.2} />
+    </span>
+  );
+}
 
 interface SettingsProps {
   categories: any[];
@@ -792,7 +830,7 @@ export function Settings({
                 className="w-full flex items-center gap-3 px-5 py-4 active:bg-neutral-100 transition-colors"
                 style={{ borderBottom: '1px solid #F2F1ED' }}
               >
-                <ShieldCheck className="w-5 h-5" style={{ color: '#8E8E93' }} strokeWidth={2} />
+                <RowIcon icon={ShieldCheck} tone={TILE.backup} />
                 <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '16px' }}>{t('set.privacy')}</span>
                 <ChevronRight className="w-5 h-5" style={{ color: '#C7C7CC' }} />
               </button>
@@ -800,7 +838,7 @@ export function Settings({
                 onClick={() => setLegalDoc(TERMS_OF_SERVICE)}
                 className="w-full flex items-center gap-3 px-5 py-4 active:bg-neutral-100 transition-colors"
               >
-                <ScrollText className="w-5 h-5" style={{ color: '#8E8E93' }} strokeWidth={2} />
+                <RowIcon icon={ScrollText} tone={TILE.neutral} />
                 <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '16px' }}>{t('set.terms')}</span>
                 <ChevronRight className="w-5 h-5" style={{ color: '#C7C7CC' }} />
               </button>
@@ -1352,7 +1390,7 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
                 onClick={onSignOut}
                 className="w-full flex items-center gap-3 px-5 py-4 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
               >
-                <LogOut className="w-5 h-5" style={{ color: '#8E8E93' }} strokeWidth={2} />
+                <RowIcon icon={LogOut} tone={TILE.neutral} />
                 <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '16px' }}>{t('set.signOut')}</span>
               </button>
             </>
@@ -1378,11 +1416,14 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
                 alt="Profile"
                 referrerPolicy="no-referrer"
                 onError={() => setAvatarBroken(true)}
-                className="w-7 h-7 -ml-1 rounded-full flex-shrink-0 object-cover"
+                className="w-8 h-8 rounded-[10px] flex-shrink-0 object-cover"
               />
             ) : userName ? (
+              // Same 32px rounded square as every RowIcon beside it: the avatar
+              // is still the one personal mark on the screen, but it sits on the
+              // list's rhythm instead of being the single circle among squares.
               <div
-                className="w-7 h-7 -ml-1 rounded-full flex items-center justify-center flex-shrink-0"
+                className="w-8 h-8 rounded-[10px] flex items-center justify-center flex-shrink-0"
                 style={{ backgroundColor: '#1C1C1E' }}
               >
                 <span style={{ color: '#FFFFFF', fontSize: '13px', fontWeight: 600 }}>
@@ -1390,7 +1431,7 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
                 </span>
               </div>
             ) : (
-              <UserCircle className="w-5 h-5" style={{ color: '#8E8E93' }} strokeWidth={2} />
+              <RowIcon icon={UserCircle} tone={TILE.profile} />
             )}
             <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '16px' }}>{t('set.profile')}</span>
             <span style={{ color: '#8E8E93', fontSize: '15px' }}>{userName}</span>
@@ -1403,7 +1444,7 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
             className="w-full flex items-center gap-3 px-5 py-4 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
             style={{ borderBottom: '1px solid #F2F1ED' }}
           >
-            <Globe className="w-5 h-5" style={{ color: '#8E8E93' }} strokeWidth={2} />
+            <RowIcon icon={Globe} tone={TILE.language} />
             <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '16px' }}>{t('settings.language')}</span>
             <span style={{ color: '#8E8E93', fontSize: '15px' }}>
               {LANGUAGE_OPTIONS.find((l) => l.code === language)?.flag}{' '}
@@ -1417,7 +1458,7 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
             className="w-full flex items-center gap-3 px-5 py-4 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
             style={{ borderBottom: '1px solid #F2F1ED' }}
           >
-            <Layers className="w-5 h-5" style={{ color: '#8E8E93' }} strokeWidth={2} />
+            <RowIcon icon={Layers} tone={TILE.category} />
             <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '16px' }}>{t('set.categories')}</span>
             <span style={{ color: '#8E8E93', fontSize: '15px' }}>{categories.length + incomeCategories.length}</span>
             <ChevronRight className="w-5 h-5" style={{ color: '#C7C7CC' }} />
@@ -1428,7 +1469,7 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
             className="w-full flex items-center gap-3 px-5 py-4 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
             style={{ borderBottom: '1px solid #F2F1ED' }}
           >
-            <Landmark className="w-5 h-5" style={{ color: '#8E8E93' }} strokeWidth={2} />
+            <RowIcon icon={Landmark} tone={TILE.source} />
             <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '16px' }}>{t('set.sources')}</span>
             <span style={{ color: '#8E8E93', fontSize: '15px' }}>{sources.length}</span>
             <ChevronRight className="w-5 h-5" style={{ color: '#C7C7CC' }} />
@@ -1439,7 +1480,7 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
             className="w-full flex items-center gap-3 px-5 py-4 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
             style={{ borderBottom: '1px solid #F2F1ED' }}
           >
-            <CalendarClock className="w-5 h-5" style={{ color: '#8E8E93' }} strokeWidth={2} />
+            <RowIcon icon={CalendarClock} tone={TILE.recurring} />
             <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '16px' }}>{t('set.scheduled')}</span>
             <span style={{ color: '#8E8E93', fontSize: '15px' }}>{upcomingSchedules(recurringRules).length}</span>
             <ChevronRight className="w-5 h-5" style={{ color: '#C7C7CC' }} />
@@ -1450,7 +1491,7 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
             className="w-full flex items-center gap-3 px-5 py-4 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
             style={{ borderBottom: '1px solid #F2F1ED' }}
           >
-            <Wallet className="w-5 h-5" style={{ color: '#8E8E93' }} strokeWidth={2} />
+            <RowIcon icon={Wallet} tone={TILE.currency} />
             <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '16px' }}>{t('set.currency')}</span>
             <span style={{ color: '#8E8E93', fontSize: '15px' }}>
               {CURRENCIES[userCurrency]?.flag} {userCurrency}
@@ -1463,7 +1504,7 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
             className="w-full flex items-center gap-3 px-5 py-4 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
             style={{ borderBottom: '1px solid #F2F1ED' }}
           >
-            <LifeBuoy className="w-5 h-5" style={{ color: '#8E8E93' }} strokeWidth={2} />
+            <RowIcon icon={LifeBuoy} tone={TILE.contact} />
             <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '16px' }}>{t('set.support')}</span>
             <ChevronRight className="w-5 h-5" style={{ color: '#C7C7CC' }} />
           </button>
@@ -1472,7 +1513,7 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
             onClick={() => setShowAbout(true)}
             className="w-full flex items-center gap-3 px-5 py-4 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
           >
-            <HelpCircle className="w-5 h-5" style={{ color: '#8E8E93' }} strokeWidth={2} />
+            <RowIcon icon={HelpCircle} tone={TILE.about} />
             <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '16px' }}>{t('set.about')}</span>
             <ChevronRight className="w-5 h-5" style={{ color: '#C7C7CC' }} />
           </button>
@@ -1489,7 +1530,7 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
               className="w-full flex items-center gap-3 px-5 py-4 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
               style={{ borderBottom: '1px solid #F2F1ED' }}
             >
-              <Upload className="w-5 h-5" style={{ color: '#8E8E93' }} strokeWidth={2} />
+              <RowIcon icon={Upload} tone={TILE.import} />
               <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '16px' }}>{t('set.importData')}</span>
               <ChevronRight className="w-5 h-5" style={{ color: '#C7C7CC' }} />
             </button>
@@ -1500,7 +1541,7 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
               className="w-full flex items-center gap-3 px-5 py-4 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
               style={{ borderBottom: '1px solid #F2F1ED' }}
             >
-              <Download className="w-5 h-5" style={{ color: '#8E8E93' }} strokeWidth={2} />
+              <RowIcon icon={Download} tone={TILE.backup} />
               <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '16px' }}>{t('set.exportBackup')}</span>
               <span style={{ color: '#8E8E93', fontSize: '13px' }}>{t('set.exportBackupSub')}</span>
             </button>
@@ -1511,7 +1552,7 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
               className="w-full flex items-center gap-3 px-5 py-4 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
               style={{ borderBottom: '1px solid #F2F1ED' }}
             >
-              <FileSpreadsheet className="w-5 h-5" style={{ color: '#8E8E93' }} strokeWidth={2} />
+              <RowIcon icon={FileSpreadsheet} tone={TILE.csv} />
               <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '16px' }}>{t('set.exportCsv')}</span>
               <span style={{ color: '#8E8E93', fontSize: '13px' }}>{t('set.exportCsvSub')}</span>
             </button>
@@ -1521,7 +1562,7 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
             className="w-full flex items-center gap-3 px-5 py-4 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
             style={hasDemoData && onEraseDemoData ? { borderBottom: '1px solid #F2F1ED' } : undefined}
           >
-            <FlaskConical className="w-5 h-5" style={{ color: '#8E8E93' }} strokeWidth={2} />
+            <RowIcon icon={FlaskConical} tone={TILE.demo} />
             <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '16px' }}>{t('set.loadDemo')}</span>
             <span style={{ color: '#8E8E93', fontSize: '13px' }}>{t('set.loadDemoSub')}</span>
           </button>
@@ -1531,7 +1572,7 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
               onClick={() => openConfirm('erase-demo')}
               className="w-full flex items-center gap-3 px-5 py-4 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
             >
-              <Trash2 className="w-5 h-5" style={{ color: '#8E8E93' }} strokeWidth={2} />
+              <RowIcon icon={Trash2} tone={TILE.danger} />
               <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '16px' }}>{t('set.eraseDemo')}</span>
               <span style={{ color: '#8E8E93', fontSize: '13px' }}>{t('set.eraseDemoSub')}</span>
             </button>

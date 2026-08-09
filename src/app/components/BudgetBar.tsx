@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X } from 'lucide-react';
+import { X, Target } from 'lucide-react';
 import { formatAbbreviatedAmount, CURRENCIES } from '../utils/currency';
 import { t } from '../i18n';
 import { AmountText } from './AmountText';
@@ -218,21 +218,25 @@ export function BudgetNudge({ currency, onSave, onDismiss }: BudgetNudgeProps) {
           },
         })}
       >
-        <div className="flex items-center justify-between mb-2">
-          <span style={{ color: '#1C1C1E', fontSize: 13, fontWeight: 600 }}>{t('budget.title')}</span>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              if (editing) setEditing(false);
-              else onDismiss();
-            }}
-            aria-label={editing ? t('budget.nudge.cancel') : t('budget.nudge.hide')}
-            className="-m-1 p-1 rounded-full transition-colors"
-            style={{ color: '#C7C7CC' }}
-          >
-            <X className="w-4 h-4" strokeWidth={2.5} />
-          </button>
-        </div>
+        {/* The title only earns its line once there is a form under it. At
+            rest this card is a single offer, and "Monthly Budget" above "Set a
+            monthly limit..." was the same sentence twice. */}
+        {editing && (
+          <div className="flex items-center justify-between mb-2">
+            <span style={{ color: '#1C1C1E', fontSize: 13, fontWeight: 600 }}>{t('budget.title')}</span>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setEditing(false);
+              }}
+              aria-label={t('budget.nudge.cancel')}
+              className="-m-1 p-1 rounded-full transition-colors"
+              style={{ color: '#C7C7CC' }}
+            >
+              <X className="w-4 h-4" strokeWidth={2.5} />
+            </button>
+          </div>
+        )}
 
         {editing ? (
           <>
@@ -279,14 +283,31 @@ export function BudgetNudge({ currency, onSave, onDismiss }: BudgetNudgeProps) {
             </p>
           </>
         ) : (
-          <>
-            <div className="h-2 rounded-full" style={{ backgroundColor: '#F2F1ED' }} />
-            <div className="mt-2">
-              <span style={{ color: '#4F74F3', fontSize: 12, fontWeight: 600 }}>
-                {t('budget.nudge.body')}
-              </span>
-            </div>
-          </>
+          // No empty track. A zero-length progress bar is a widget announcing
+          // it has nothing to show, and it sat second on the home screen. One
+          // line, a third of the height, reading as an offer rather than a gap.
+          <div className="flex items-center gap-2.5">
+            <span
+              className="w-8 h-8 rounded-[10px] flex items-center justify-center flex-shrink-0"
+              style={{ backgroundColor: '#EEF1FE' }}
+            >
+              <Target className="w-[18px] h-[18px]" style={{ color: '#4F74F3' }} strokeWidth={2.2} />
+            </span>
+            <span className="flex-1" style={{ color: '#1C1C1E', fontSize: 14, fontWeight: 600 }}>
+              {t('budget.nudge.title')}
+            </span>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onDismiss();
+              }}
+              aria-label={t('budget.nudge.hide')}
+              className="-m-1 p-1 rounded-full transition-colors flex-shrink-0"
+              style={{ color: '#C7C7CC' }}
+            >
+              <X className="w-4 h-4" strokeWidth={2.5} />
+            </button>
+          </div>
         )}
       </div>
     </div>

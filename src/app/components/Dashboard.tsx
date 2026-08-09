@@ -3747,8 +3747,11 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
               );
             })()}
 
-            {/* Summary Cards */}
-            <div className="px-6 py-4 bg-white mb-2">
+            {/* Summary Cards. Deliberately NOT wrapped in a white card like the
+                sections below it: these are already cards, and framing a card in
+                a card just draws a white border round the darkest thing on the
+                page. They sit straight on the cream. */}
+            <div className="px-5 pt-1 pb-3">
               {transactionType === 'savings' ? (() => {
                 // The saving rate is averaged across months rather than taken
                 // over the totals, so one unusually fat month cannot speak for
@@ -3872,7 +3875,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
             </div>
 
             {/* Line Chart */}
-            <div className="px-6 py-4 bg-white mb-2">
+            <div className="mx-4 px-5 py-4 bg-white mb-3 rounded-2xl" style={{ boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)' }}>
               <h3 className="text-neutral-900 font-semibold text-sm mb-3">
                 {transactionType === 'income' ? t('trend.chart.income') : transactionType === 'savings' ? t('trend.chart.savings') : t('trend.chart.spending')}
               </h3>
@@ -4124,7 +4127,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
             const M3 = monthsShort();
             const MFULL = monthsFull();
             return (
-            <div className="px-6 py-3 bg-white mb-2">
+            <div className="mx-4 px-5 py-3 bg-white mb-3 rounded-2xl" style={{ boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)' }}>
               <div className="flex items-baseline justify-between mb-2">
                 <span className="relative flex items-center gap-1">
                   <h3 className="text-neutral-900 font-semibold text-sm">
