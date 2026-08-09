@@ -91,9 +91,12 @@ export function TrendCategoryBreakdown({
   // The number the percentages are percentages OF. Without it a "26%" on the
   // page has nothing to be a share of.
   const totalMonthlyAvg = categoryBreakdown.reduce((sum, c) => sum + c.monthlyAvg, 0);
-  // Bars are scaled to the largest share, not to 100%: at 26% max, scaling to
-  // 100 would leave every bar a stub and encode nothing.
-  const maxShare = Math.max(...categoryBreakdown.map((c) => c.weightPercentage), 1);
+  // The solid a category paints with. Categories store the icon class
+  // ("text-teal-500"), never the solid, so it is derived - and every
+  // bg-<hue>-<shade> it can produce is already in the build because
+  // categoryColors.ts lists each one literally as its picker swatch.
+  const solidOf = (c: { color?: string }) =>
+    (c.color ?? 'text-neutral-500').replace('text-', 'bg-');
 
   const COLLAPSED = 6;
   // Only worth collapsing when it actually hides something - folding one row
@@ -103,6 +106,16 @@ export function TrendCategoryBreakdown({
     ? sortedCategoryBreakdown.slice(0, COLLAPSED)
     : sortedCategoryBreakdown;
   const hiddenCount = sortedCategoryBreakdown.length - visibleCategories.length;
+  // The bar always shows the same top slice, expanded or not. Tying it to the
+  // visible rows meant "Show more" shattered its right end into eight 1-3%
+  // slivers - the confetti this bar exists to replace. It is a summary: reading
+  // the tail in the list should not fragment the summary of it.
+  const barCategories = sortedCategoryBreakdown.slice(0, COLLAPSED);
+  // Guarded at half a point, not zero: when a short list is fully covered the
+  // shares sum to 100 and float error leaves a hair of remainder, which still
+  // rendered a grey segment.
+  const tailRemainder = 100 - barCategories.reduce((sum, c) => sum + c.weightPercentage, 0);
+  const tailShare = tailRemainder >= 0.5 ? tailRemainder : 0;
 
   if (categoryBreakdown.length === 0) return null;
   
@@ -132,6 +145,32 @@ export function TrendCategoryBreakdown({
         </button>
       </div>
       
+      {/* Where the month goes, in one stroke.
+          Six per-row bars, each scaled to the biggest share, ranked the rows
+          but never showed a SHARE - you cannot see "26% of the whole" in a bar
+          drawn against the largest slice. Stacked, the segments ARE the shares,
+          and the card stops rhyming with the eight-bar month card above it,
+          which asks a different question and should not look the same asking
+          it. Segments follow the list order, so the legend is the list.
+          The tail is one grey segment: honest about what the collapse hides. */}
+      {/* Gapless on purpose. Percentages already spend the full track, so any
+          gap is width borrowed from the segments - thirteen 2px gaps pushed the
+          smallest category clean off the end. The hue changes separate them. */}
+      <div className="flex h-2.5 mb-3.5 rounded-full overflow-hidden" aria-hidden="true">
+        {barCategories.map((item) => (
+          <div
+            key={item.name}
+            className={`h-full ${solidOf(item.category)}`}
+            // A floor in px, not %: a 1% category is 3px of a 318px track, and
+            // flex-shrink across a dozen gaps was taking it below visible.
+            style={{ width: `${item.weightPercentage}%`, minWidth: 3, flexShrink: 0 }}
+          />
+        ))}
+        {tailShare > 0 && (
+          <div className="h-full" style={{ width: `${tailShare}%`, minWidth: 3, backgroundColor: '#DEDCD6' }} />
+        )}
+      </div>
+
       {/* Column headers. Two bare trend arrows used to sit here, which said
           nothing about what the columns hold; naming them costs the same room. */}
       <div className="flex items-center justify-end gap-0.5 mb-2 pr-1">
@@ -167,6 +206,13 @@ export function TrendCategoryBreakdown({
                       return <Icon className={`w-3.5 h-3.5 ${item.category.color}`} strokeWidth={2} />;
                     })()}
                   </div>
+                  {/* Ties the row to its segment. The tile beside it carries
+                      the same hue but as a pale tint, which is not matchable
+                      against a saturated slice at a glance. */}
+                  <span
+                    className={`w-2 h-2 rounded-sm flex-shrink-0 ${solidOf(item.category)}`}
+                    aria-hidden="true"
+                  />
                   <div className="flex-1 min-w-0 text-left">
                     <div className="text-neutral-900 font-medium text-[13.5px]">{item.name}</div>
                   </div>
@@ -179,25 +225,7 @@ export function TrendCategoryBreakdown({
                 </div>
               </button>
 
-              {/* The share as something you see rather than parse. Same spec
-                  as the Monthly Breakdown bars one card up - 6px track,
-                  neutral-100, half-strength indigo - so the two lists read as
-                  one family instead of two competing bar systems. Indented to
-                  the name's left edge and stopped before the numeric columns:
-                  full-width bars under every row read as fourteen dividers.
-                  Scaled to the biggest share on screen, not to 100%. */}
-              <div className="pl-[64px] pr-[106px] pb-1.5" aria-hidden="true">
-                <div className="h-1.5 rounded-full bg-neutral-100 overflow-hidden">
-                  <div
-                    className="h-full rounded-full transition-all"
-                    style={{
-                      width: `${Math.max((item.weightPercentage / maxShare) * 100, 2)}%`,
-                      backgroundColor: 'rgba(79, 116, 243, 0.55)',
-                    }}
-                  />
-                </div>
-              </div>
-              
+
               {/* Subcategories */}
               {isExpanded && subcategories.length > 0 && (
                 <div className="ml-11 mt-0.5 mb-1 space-y-0.5 border-l-2 border-neutral-100 pl-3">
