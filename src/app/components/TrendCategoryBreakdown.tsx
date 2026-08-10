@@ -181,9 +181,9 @@ export function TrendCategoryBreakdown({
           Six per-row bars, each scaled to the biggest share, ranked the rows
           but never showed a SHARE - you cannot see "26% of the whole" in a bar
           drawn against the largest slice. Stacked, the segments ARE the shares,
-          and the card stops rhyming with the eight-bar month card above it,
-          which asks a different question and should not look the same asking
-          it. Segments follow the list order, so the legend is the list.
+          and the card stops rhyming with the per-month card below it, which
+          asks a different question and should not look the same asking it.
+          Segments follow the list order, so the legend is the list.
           The tail is one grey segment: honest about what the collapse hides. */}
       {/* Gapless on purpose. Percentages already spend the full track, so any
           gap is width borrowed from the segments - thirteen 2px gaps pushed the

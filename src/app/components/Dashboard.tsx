@@ -4191,6 +4191,36 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
               )}
             </div>
 
+            {/* Composition first, then the month-by-month rows.
+                Order matters here for a reason that is not taste. This card
+                answers the one question nothing else in the app answers -
+                what you spend on, per month, on average - while the chart
+                above and the rows below both plot the same time axis, so the
+                rows are the least urgent thing on the tab.
+                It also settles the growth problem: those rows run to twelve by
+                December. Last on the tab, that growth costs nothing, because
+                nothing sits underneath to be pushed down. Ahead of this card
+                it would have buried it 500px deep every December - exactly
+                when a full year is most worth reading. So the months are not
+                truncated; they are simply last. */}
+            {/* Category Breakdown Table - Only for Expenses and Income */}
+            {transactionType !== 'savings' && selectedCategory === 'All' && trendFilteredTransactions.length > 0 && (
+              <TrendCategoryBreakdown
+                trendFilteredTransactions={trendFilteredTransactions}
+                trendSortedCategories={trendSortedCategories}
+                trendExpandedCategory={trendExpandedCategory}
+                setTrendExpandedCategory={setTrendExpandedCategory}
+                currency={currency}
+                // The same denominator as the Monthly Average card above:
+                // complete months where this type had any activity at all.
+                // Without it each category divided by its own active months,
+                // and a one-off (a tax refund, an annual bill) showed its
+                // whole amount as a "monthly average" - and the month in
+                // progress counted as a full one, pulling every row down.
+                monthCount={monthsWithData.length}
+              />
+            )}
+
             {/* Monthly Breakdown - High Density. For expenses the heading is a
                 picker: the same rows bucketed by day of the week instead, the
                 rhythm view. Income (payday-dominated) and savings (a monthly
@@ -4598,24 +4628,6 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
             </div>
             );
             })()}
-
-            {/* Category Breakdown Table - Only for Expenses and Income */}
-            {transactionType !== 'savings' && selectedCategory === 'All' && trendFilteredTransactions.length > 0 && (
-              <TrendCategoryBreakdown
-                trendFilteredTransactions={trendFilteredTransactions}
-                trendSortedCategories={trendSortedCategories}
-                trendExpandedCategory={trendExpandedCategory}
-                setTrendExpandedCategory={setTrendExpandedCategory}
-                currency={currency}
-                // The same denominator as the Monthly Average card above:
-                // complete months where this type had any activity at all.
-                // Without it each category divided by its own active months,
-                // and a one-off (a tax refund, an annual bill) showed its
-                // whole amount as a "monthly average" - and the month in
-                // progress counted as a full one, pulling every row down.
-                monthCount={monthsWithData.length}
-              />
-            )}
           </div>
         );
       })()}
