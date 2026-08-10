@@ -523,7 +523,18 @@ export default function App() {
     if (!userId) {
       setCloudHydrated(false);
       setOwnerConflict(null);
-      rememberSyncBase(null, null);
+      // The sync base survives sign-out, deliberately. It is a fact about the
+      // SERVER - "this is what the cloud held when we last agreed" - and
+      // signing out changes nothing on the server. Wiping it here while the
+      // data stayed put meant the next sign-in merged with no base, and a
+      // merge without a base cannot tell "deleted elsewhere" from "added
+      // here": every row another device had deleted came back, was pushed to
+      // the cloud, and re-appeared on the device that deleted it. A lapsed
+      // session hit the same path without the user touching anything.
+      //
+      // A DIFFERENT account signing in never reaches the merge: the owner
+      // gate above stops it first, and its "start fresh" path clears the base
+      // along with the data. Erase-all clears it too (clearAllData).
       return;
     }
     // Whose data is on this device? If it belongs to a different account, stop
@@ -1328,16 +1339,26 @@ export default function App() {
     const rule = recurringRules.find((r) => r.id === t.recurrenceOf);
     if (rule) {
       const cutoff = occurrenceDueDate(t, rule);
+      // Stamped: a skip or an end is an edit of the rule, and the stamp is
+      // what lets a sync merge see this copy as the newer one instead of
+      // letting a stale device's copy win and un-remember the deletion.
+      const stamp = new Date().toISOString();
       if (scope === 'one') {
         // Remember the deleted occurrence so the engine never regenerates it.
         if (t.id.startsWith(`rec-${rule.id}-`)) {
           setRecurringRules((prev) =>
-            prev.map((r) => (r.id === rule.id ? { ...r, skipDates: [...(r.skipDates ?? []), cutoff] } : r)),
+            prev.map((r) =>
+              r.id === rule.id
+                ? { ...r, skipDates: [...(r.skipDates ?? []), cutoff], updatedAt: stamp }
+                : r,
+            ),
           );
         }
         setExpenses((prev) => prev.filter((e) => e.id !== t.id));
       } else {
-        setRecurringRules((prev) => prev.map((r) => (r.id === rule.id ? { ...r, endedAt: cutoff } : r)));
+        setRecurringRules((prev) =>
+          prev.map((r) => (r.id === rule.id ? { ...r, endedAt: cutoff, updatedAt: stamp } : r)),
+        );
         setExpenses((prev) =>
           prev.filter((e) => !(e.id === t.id || (e.recurrenceOf === rule.id && occurrenceDueDate(e, rule) >= cutoff))),
         );
@@ -1405,7 +1426,9 @@ export default function App() {
       // occurrences beyond it - they belong to the chain that replaced it.
       const cutoff = old.endedAt && old.endedAt < draft.start ? old.endedAt : draft.start;
       return [
-        ...prev.map((r) => (r.id === ruleId ? { ...r, endedAt: cutoff } : r)),
+        ...prev.map((r) =>
+          r.id === ruleId ? { ...r, endedAt: cutoff, updatedAt: new Date().toISOString() } : r,
+        ),
         {
           id: newRuleId(),
           rule: draft.rule,
@@ -1435,7 +1458,13 @@ export default function App() {
     const today = toDateStr(new Date());
     setRecurringRules((prev) =>
       prev.map((r) =>
-        r.id === ruleId ? { ...r, endedAt: r.endedAt && r.endedAt < today ? r.endedAt : today } : r,
+        r.id === ruleId
+          ? {
+              ...r,
+              endedAt: r.endedAt && r.endedAt < today ? r.endedAt : today,
+              updatedAt: new Date().toISOString(),
+            }
+          : r,
       ),
     );
     setRefreshKey((prev) => prev + 1);

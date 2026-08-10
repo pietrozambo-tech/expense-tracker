@@ -231,6 +231,40 @@ export function processRecurrence(
     txnsChanged = true;
   }
 
+  // --- Enforcement: a skipDate is a deletion, not a suggestion.
+  //
+  // Skipping a date used to stop the engine CREATING that occurrence, and
+  // nothing more. That is only half a deletion. A copy of the deleted row can
+  // arrive from outside the engine - a stale device merging without a sync
+  // base re-uploads whatever it still holds - and once it exists again, no
+  // amount of "don't create it" removes it. A real ledger looped exactly
+  // that way: delete the fee on the phone, a PC resurrects it into the cloud,
+  // the phone pulls it back, forever.
+  //
+  // So the engine now deletes what the skip list says is deleted, every open,
+  // on every device. Only rows the engine itself minted (`rec-<ruleId>-`) are
+  // eligible: they are reproducible artifacts, so removing one can never lose
+  // user-entered data - a manual transaction or a back-tagged imported row on
+  // the same date has a different id shape and is untouchable here.
+  {
+    const skipsByRule = new Map(
+      nextRules.filter((r) => r.skipDates?.length).map((r) => [r.id, new Set(r.skipDates)]),
+    );
+    if (skipsByRule.size > 0) {
+      const kept = txns.filter((t) => {
+        if (!t.recurrenceOf) return true;
+        const skips = skipsByRule.get(t.recurrenceOf);
+        if (!skips) return true;
+        const prefix = `rec-${t.recurrenceOf}-`;
+        return !(t.id.startsWith(prefix) && skips.has(t.id.slice(prefix.length)));
+      });
+      if (kept.length !== txns.length) {
+        txns = kept;
+        txnsChanged = true;
+      }
+    }
+  }
+
   // --- Materialization.
   const existingIds = new Set(txns.map((t) => t.id));
   // What the ledger already holds on each day. The engine used to ask only

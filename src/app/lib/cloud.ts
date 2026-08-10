@@ -340,6 +340,47 @@ export function mergePayloads(
     });
   };
 
+  // Recurring rules carry two fields that are records of DELETIONS, and a
+  // deletion must survive any merge, whichever copy of the rule wins.
+  //
+  // skipDates only ever grows: an entry is written when the user deletes one
+  // occurrence, and nothing removes one (editing a schedule starts a NEW rule
+  // and carries a subset forward under the new id). endedAt only ever moves
+  // earlier once set: stopping a chain, or "delete this and future ones".
+  // Because both are monotonic, the union of skips and the earlier cutoff are
+  // always the truer statement - there is no legitimate copy of a rule where
+  // a skip has been un-deleted.
+  //
+  // Without this, whichever whole-rule copy won the per-item merge silently
+  // dropped the other side's tombstones. A phone recorded a skip for a deleted
+  // fee; a PC holding the stale rule merged with no base, its copy won, and
+  // the deletion was not just resurrected but UN-REMEMBERED - so it came back
+  // on every device, every sync, no matter how often it was deleted again.
+  const mergeRules = (
+    baseList: RecurringRule[] | undefined,
+    localList: RecurringRule[] | undefined,
+    remoteList: RecurringRule[] | undefined,
+  ): RecurringRule[] => {
+    const merged = mergeList(baseList, localList, remoteList);
+    const l = new Map((localList ?? []).map((r) => [r.id, r]));
+    const r = new Map((remoteList ?? []).map((x) => [x.id, x]));
+    return merged.map((rule) => {
+      const ours = l.get(rule.id);
+      const theirs = r.get(rule.id);
+      if (!ours || !theirs) return rule; // only one side holds it - nothing to reconcile
+      const skips = [...new Set([...(ours.skipDates ?? []), ...(theirs.skipDates ?? [])])].sort();
+      const ends = [ours.endedAt, theirs.endedAt].filter((d): d is string => !!d);
+      const endedAt = ends.length ? ends.sort()[0] : undefined;
+      const sameSkips = (rule.skipDates ?? []).join(',') === skips.join(',');
+      if (sameSkips && rule.endedAt === endedAt) return rule;
+      return {
+        ...rule,
+        ...(skips.length ? { skipDates: skips } : {}),
+        ...(endedAt ? { endedAt } : {}),
+      };
+    });
+  };
+
   // Settings have no ids to merge on, so they go field by field against the
   // base. "The device in the user's hand wins" was only half right: it is true
   // of a value this device just CHANGED, and false of one it simply never had.
@@ -389,7 +430,7 @@ export function mergePayloads(
 
   return {
     transactions: byDateDesc(mergeList(base?.transactions, local.transactions, remote.transactions)),
-    recurringRules: mergeList(base?.recurringRules, local.recurringRules, remote.recurringRules),
+    recurringRules: mergeRules(base?.recurringRules, local.recurringRules, remote.recurringRules),
     categories: mergeCategoryList(base?.categories, local.categories, remote.categories),
     incomeCategories: mergeCategoryList(base?.incomeCategories, local.incomeCategories, remote.incomeCategories),
     sources: mergeList(base?.sources, local.sources, remote.sources),

@@ -41,6 +41,7 @@ export interface RecurringRule {
   anchorDate: string; // YYYY-MM-DD the cadence is anchored to (occurrences start after it)
   endedAt?: string; // exclusive cutoff: no occurrences on/after this date
   skipDates?: string[]; // occurrence dates the user deleted individually
+  updatedAt?: string; // ISO stamp of the last edit, so sync merges can pick the newer copy
   template: {
     description: string;
     amount: number;

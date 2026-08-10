@@ -205,6 +205,7 @@ function scenarioStamps() {
 scenarioUpcoming();
 scenarioDeleteOnFutureEndedChain();
 scenarioNothingHidden();
+scenarioSkipPurge();
 console.log('\n================================================================');
 console.log(` Recurring transactions   [${OLD ? 'BEFORE the fix' : 'AFTER the fix'}]`);
 console.log(' (running the real src/app/lib/recurrence.ts)');
@@ -778,4 +779,58 @@ function scenarioUpcoming() {
     strandedRules([rule({ id: 'done', endedAt: '2026-07-01' })], TODAY).length + '', '0');
   expect('stopping a stranded rule clears it from the screen',
     strandedRules([{ ...alien, endedAt: '2026-08-02' }], TODAY).length + '', '0');
+}
+
+// ---------------------------------------------------------------------------
+// 15. A skipDate DELETES - including copies that arrive from outside.
+//
+// Skipping used to stop the engine creating an occurrence, and nothing more.
+// That is half a deletion: a stale device merging without a sync base can
+// re-upload the deleted row, and "don't create it" cannot remove what sync
+// just put back. A real ledger looped that way for days - fee deleted on the
+// phone, resurrected by a PC, pulled back down, deleted again, forever.
+// The engine now enforces the skip list against the ledger itself, so a
+// resurrected copy dies on the next open of ANY device, whichever direction
+// the bad copy travelled.
+function scenarioSkipPurge() {
+  heading('15. A resurrected occurrence on a skipDate is removed, not just not-created');
+  const rule: RecurringRule = {
+    id: 'r-fee', rule: 'Every month', anchorDate: '2026-05-09',
+    skipDates: ['2026-08-09'],
+    template: { description: 'Card fee', amount: 20, currency: 'EUR', category: cat, type: 'expense' },
+  };
+  const mk = (date: string, id?: string): Transaction => ({
+    id: id ?? `rec-r-fee-${date}`, description: 'Card fee', amount: 20, currency: 'EUR',
+    category: cat, date, type: 'expense', recurrenceOf: 'r-fee',
+  } as Transaction);
+
+  // The ledger as sync left it: June and July legitimate, and the deleted
+  // August 9th BACK, exactly as another device re-uploaded it.
+  const ledger = [mk('2026-06-09'), mk('2026-07-09'), mk('2026-08-09')];
+  const res = processRecurrence(ledger, [rule], new Date(2026, 7, 11));
+  say(`ledger before: ${fmt(ledger)}   after open: ${fmt(res.transactions)}`);
+  expect('the resurrected occurrence is gone', fmt(res.transactions), '06-09:20 07-09:20');
+  expect('and the open reports the ledger changed', String(res.txnsChanged), 'true');
+
+  const again = processRecurrence(res.transactions, [rule], new Date(2026, 7, 11));
+  expect('a second open changes nothing', String(again.txnsChanged), 'false');
+  expect('and creates nothing', String(again.createdCount), '0');
+
+  // A row the USER put on that date is not the engine's to delete: manual
+  // entries and back-tagged imports carry their own ids, never the engine's
+  // rec- prefix, and data a person typed is out of bounds.
+  const manual = mk('2026-08-09', 'user-entered-row');
+  const keep = processRecurrence([mk('2026-06-09'), manual], [rule], new Date(2026, 7, 11));
+  expect('a user-entered row on the same date is untouched',
+    keep.transactions.some((t) => t.id === 'user-entered-row') ? 'kept' : 'deleted', 'kept');
+
+  // And the skip only speaks for its own rule.
+  const other: RecurringRule = {
+    id: 'r-rent', rule: 'Every month', anchorDate: '2026-05-09',
+    template: { description: 'Rent', amount: 800, currency: 'EUR', category: cat, type: 'expense' },
+  };
+  const rent = { ...mk('2026-08-09', 'rec-r-rent-2026-08-09'), description: 'Rent', amount: 800, recurrenceOf: 'r-rent' };
+  const cross = processRecurrence([rent], [rule, other], new Date(2026, 7, 11));
+  expect('another rule\'s occurrence on that date survives',
+    cross.transactions.some((t) => t.id === 'rec-r-rent-2026-08-09') ? 'kept' : 'deleted', 'kept');
 }

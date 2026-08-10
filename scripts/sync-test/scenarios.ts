@@ -45,6 +45,7 @@ const tx = (id: string, description: string, amount: number, date = '2026-07-28'
 class Phone {
   name: string;
   transactions: any[] = [];
+  rules: any[] = [];
   categories: any[] = [];
   budget: number | undefined = undefined;
   userName = '';
@@ -59,7 +60,7 @@ class Phone {
   private payload(): SyncPayload {
     return {
       transactions: this.transactions,
-      recurringRules: [],
+      recurringRules: this.rules,
       categories: this.categories,
       incomeCategories: [],
       sources: [],
@@ -81,6 +82,7 @@ class Phone {
       // against the base persisted from the last agreement.
       const merged = mergePayloads(this.base, this.payload(), cloud.payload);
       this.transactions = merged.transactions;
+      this.rules = merged.recurringRules ?? [];
       this.categories = merged.categories;
       this.budget = merged.settings.monthlyBudget;
       this.userName = merged.settings.userName;
@@ -125,6 +127,7 @@ class Phone {
       const merged = mergePayloads(this.base, payload, remote.payload);
       say(`${this.name} hits a conflict -> merges -> ${fmt(merged.transactions)}`);
       this.transactions = merged.transactions;
+      this.rules = merged.recurringRules ?? [];
       this.categories = merged.categories;
       this.budget = merged.settings.monthlyBudget;
       this.userName = merged.settings.userName;
@@ -160,6 +163,7 @@ class Phone {
       return;
     }
     this.transactions = merged.transactions;
+    this.rules = merged.recurringRules ?? [];
     this.categories = merged.categories;
     this.budget = merged.settings.monthlyBudget;
     this.userName = merged.settings.userName;
@@ -177,6 +181,7 @@ class Phone {
         if (remote) {
           const merged = mergePayloads(this.base, this.payload(), remote.payload);
           this.transactions = merged.transactions;
+          this.rules = merged.recurringRules ?? [];
           this.categories = merged.categories;
           this.budget = merged.settings.monthlyBudget;
           this.userName = merged.settings.userName;
@@ -198,12 +203,29 @@ class Phone {
     say(`${this.name} restores a backup  -> phone now has ${this.list()}`);
   }
 
-  // Signing out clears the persisted base along with the session (App.tsx
-  // does this when userId goes null), but the transactions stay on the device.
+  // Signing out. The data stays on the device either way; the question is the
+  // base. App.tsx used to clear it when userId went null - and a base-less
+  // merge cannot tell "deleted elsewhere" from "added here", so the next
+  // sign-in resurrected every deletion this device had not yet heard about
+  // and pushed them back to the cloud. Now the base survives sign-out: it is
+  // a statement about the server, and signing out changes nothing there.
+  // (A lapsed session took the same path with the user touching nothing.)
   signOut() {
+    if (OLD) {
+      this.base = null;
+      this.version = null;
+    }
+    say(`${this.name} signs out${OLD ? ' (base wiped - the old behaviour)' : ' (base kept)'}`);
+  }
+
+  // The involuntary version of what sign-out used to do: the persisted base
+  // evicted (iOS clears localStorage under pressure) while the data survived.
+  // Sign-out no longer takes this path, but eviction still can, so the
+  // deletions-survive-a-lost-base scenarios stay pointed at a real hazard.
+  loseBase() {
     this.base = null;
     this.version = null;
-    say(`${this.name} signs out`);
+    say(`${this.name} loses its sync base (storage evicted)`);
   }
 
   // A device that still holds a base from an earlier session but has no local
@@ -872,6 +894,8 @@ async function main() {
   await scenarioChipDeletionFuzz();
   await scenarioChipDeleteThenBaseLoss();
   await scenarioNewDeviceDefaultChips();
+  await scenarioRecurringDeleteSignOut();
+  await scenarioStaleRuleTombstones();
 
   console.log('\n================================================================');
   console.log(failures === 0 ? ' All checks passed - nothing lost.' : ` ${failures} check(s) FAILED.`);
@@ -971,7 +995,7 @@ async function scenarioChipDeleteThenBaseLoss() {
   await b.openApp();
 
   a.removeChip('groceries', 'Rewe');   // deleted, not yet pushed
-  a.signOut();                          // base cleared
+  a.loseBase();                         // storage evicted the base
   await a.openApp();                    // merges against a null base
   expect('the deletion survives losing the base', a.chips('groceries'), 'Groceries[Lidl]');
   await a.sync();
@@ -1002,4 +1026,85 @@ async function scenarioNewDeviceDefaultChips() {
   await b.sync();
   await a.foreground();
   expect('and does not push them back', a.chips('groceries'), 'Groceries[]');
+}
+
+// ---------------------------------------------------------------------------
+// The reported loop, end to end. An Amex fee was deleted on the phone; a PC
+// holding a stale copy signed out and back in, and the deleted row came back
+// on every device - because sign-out wiped the sync base, and a base-less
+// merge reads "I still have a row the cloud lacks" as an addition, never as
+// the deletion it actually was. Worse, the PC's stale RULE also won the
+// merge, un-remembering the skipDate, so even deleting again could not stick.
+async function scenarioRecurringDeleteSignOut() {
+  heading('27. A deleted occurrence survives another device signing out and in');
+  reset();
+  const phone = new Phone('iPhone');
+  const pc = new Phone('PC');
+
+  phone.rules = [{
+    id: 'r-amex', rule: 'Every month', anchorDate: '2026-06-09',
+    template: { description: 'Amex fee', amount: 20, currency: 'EUR', category: { id: 'c1', name: 'Fees' }, type: 'expense' },
+  }];
+  phone.add('rec-r-amex-2026-07-09', 'Amex fee', 20, '2026-07-09');
+  phone.add('rec-r-amex-2026-08-09', 'Amex fee', 20, '2026-08-09');
+  await phone.sync();
+  await pc.openApp(); // the PC now holds a full copy, and a base
+
+  // The phone deletes the August 9th occurrence, exactly as
+  // confirmRecurringDelete does: row out, skipDate recorded, rule stamped.
+  phone.transactions = phone.transactions.filter((t) => t.id !== 'rec-r-amex-2026-08-09');
+  phone.rules = phone.rules.map((r) =>
+    r.id === 'r-amex' ? { ...r, skipDates: ['2026-08-09'], updatedAt: nextStamp() } : r);
+  say('iPhone deletes the Aug 9 fee (skipDate recorded on the rule)');
+  await phone.sync();
+
+  // The PC - which never pulled the deletion - signs out and back in, then
+  // its next edit pushes. Under the old behaviour the sign-out wiped its
+  // base, so the merge saw the stale row as a local addition.
+  pc.signOut();
+  await pc.openApp();
+  await pc.sync();
+  await phone.poll();
+
+  const feesOn = (list: any[]) => list.filter((t) => t.description === 'Amex fee').map((t) => t.date).sort().join(',');
+  expect('the PC does not resurrect the deleted fee', feesOn(pc.transactions), '2026-07-09');
+  expect('the phone keeps its deletion', feesOn(phone.transactions), '2026-07-09');
+  const server = await loadCloud(USER);
+  expect('the server holds one fee', feesOn(server!.payload.transactions), '2026-07-09');
+  const serverRule = (server!.payload.recurringRules ?? []).find((r) => r.id === 'r-amex');
+  expect('and the rule still remembers the deletion', (serverRule?.skipDates ?? []).join(','), '2026-08-09');
+}
+
+// The rule-level half on its own: even when a stale copy of the RULE wins the
+// per-item merge (no base, no stamp on the stale side), the tombstones must
+// survive, because skipDates only ever grow and endedAt only ever moves
+// earlier. Whole-copy-wins silently dropped both.
+async function scenarioStaleRuleTombstones() {
+  heading('28. A stale rule copy cannot un-remember a skip or an end');
+  reset();
+  const phone = new Phone('iPhone');
+  const pc = new Phone('PC');
+
+  // The phone's copy: one skip recorded, and the chain stopped.
+  phone.rules = [{
+    id: 'r-gym', rule: 'Every month', anchorDate: '2026-01-05',
+    skipDates: ['2026-05-05'], endedAt: '2026-08-01', updatedAt: nextStamp(),
+    template: { description: 'Gym', amount: 45, currency: 'EUR', category: { id: 'c1', name: 'Sport' }, type: 'expense' },
+  }];
+  await phone.sync();
+
+  // The PC holds the rule as it looked months ago - live, nothing skipped,
+  // never stamped - and merges with no base at all (evicted storage).
+  pc.rules = [{
+    id: 'r-gym', rule: 'Every month', anchorDate: '2026-01-05',
+    template: { description: 'Gym', amount: 45, currency: 'EUR', category: { id: 'c1', name: 'Sport' }, type: 'expense' },
+  }];
+  pc.loseBase();
+  await pc.openApp();
+  await pc.sync();
+
+  const server = await loadCloud(USER);
+  const rule = (server!.payload.recurringRules ?? []).find((r) => r.id === 'r-gym');
+  expect('the skip survives the stale copy', (rule?.skipDates ?? []).join(','), '2026-05-05');
+  expect('the end survives the stale copy', rule?.endedAt ?? '(gone)', '2026-08-01');
 }
