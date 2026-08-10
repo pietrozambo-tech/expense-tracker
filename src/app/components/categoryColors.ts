@@ -69,6 +69,20 @@ const TEXT_HEX: Record<string, string> = {
 
 export const categoryHex = (colorClass?: string): string => TEXT_HEX[colorClass ?? ''] ?? '#8E8E93';
 
+/**
+ * The category's solid, softened - paint, never a class name.
+ *
+ * The tinted `bg-<hue>-50` a category carries is too pale to read as a fill on
+ * a light track: at 2px high against bg-neutral-100 it is not there. And the
+ * obvious way to soften a colour in markup, `bg-opacity-*`, was removed in
+ * Tailwind v4, so the class silently did nothing wherever it was still written.
+ * Alpha over the solid gives a fill that stays visible at any weight.
+ */
+export const categoryTint = (colorClass: string | undefined, alpha: number): string => {
+  const a = Math.round(Math.min(1, Math.max(0, alpha)) * 255).toString(16).padStart(2, '0');
+  return `${categoryHex(colorClass)}${a}`;
+};
+
 // The segmented Expense/Income/Savings switches carry their meaning-colour in
 // the thumb's SHADOW rather than its fill: a white thumb keeps the active
 // label crisp, and the glow underneath says which side you are on without

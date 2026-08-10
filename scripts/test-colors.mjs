@@ -42,20 +42,40 @@ const uncovered = [
 if (uncovered.length) fail(`categoryHex has no entry for: ${uncovered.join(', ')}`);
 else pass('every seeded and pickable colour resolves to a hex');
 
-// --- 2. nobody builds a Tailwind class out of a stored colour -----------
+// --- 2. nobody builds a Tailwind class name at runtime ------------------
 const walk = (dir) => readdirSync(dir).flatMap((f) => {
   const p = join(dir, f);
   return statSync(p).isDirectory() ? walk(p) : /\.tsx?$/.test(p) ? [p] : [];
 });
+// Comments stripped first: these checks look for code that RUNS. A comment
+// naming the mistake - which the fixes here deliberately do, so the next reader
+// knows why the code looks the way it does - is not the mistake.
+const decomment = (s) => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/.*$/gm, '$1');
+const files = walk('src').map((p) => [p, decomment(read(p))]);
 
-const derivers = walk('src').filter((p) => /replace\(\s*['"]text-['"]\s*,\s*['"]bg-['"]/.test(read(p)));
-if (derivers.length) {
-  fail(`derives a solid class from a text class (use categoryHex instead): ${derivers.join(', ')}`);
+// Any string surgery that ends up in a class list. Tailwind only emits classes
+// it can see written out, so one assembled at runtime is a coin flip.
+const derived = files.filter(([, s]) =>
+  /className=\{`[^`]*\$\{[^}]*\.replace\(/.test(s) || /replace\(\s*['"](?:text|bg|border)-['"]/.test(s));
+if (derived.length) {
+  fail(`builds a class name at runtime (use categoryHex/categoryTint instead): ${derived.map(([p]) => p).join(', ')}`);
 } else {
-  pass('no file turns a text- class into a bg- class at runtime');
+  pass('no file assembles a Tailwind class from a stored value');
 }
 
-// --- 3. the shades actually differ, so a wrong table entry shows up -----
+// --- 3. no utilities Tailwind v4 removed --------------------------------
+// bg-opacity-50 and friends were dropped in v4 in favour of the bg-white/50
+// slash syntax. They do not error - they emit nothing - so a fill written that
+// way keeps its base colour and silently ignores the opacity.
+const GONE = /\b(?:bg|text|border|divide|ring|placeholder)-opacity-\d+\b/;
+const stale = files.filter(([, s]) => GONE.test(s));
+if (stale.length) {
+  fail(`uses a v3 opacity utility that v4 removed: ${stale.map(([p]) => p).join(', ')}`);
+} else {
+  pass('no removed-in-v4 opacity utilities');
+}
+
+// --- 4. the shades actually differ, so a wrong table entry shows up -----
 // Guards against someone "fixing" a missing hue by copying its neighbour.
 const hexes = [...colorsSrc.matchAll(/'text-[a-z]+-\d+':\s*'(#[0-9A-Fa-f]{6})'/g)].map((m) => m[1].toUpperCase());
 const dupes = hexes.filter((h, i) => hexes.indexOf(h) !== i);

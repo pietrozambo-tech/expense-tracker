@@ -8,7 +8,7 @@ import { t, useLanguage } from '../i18n';
 import { translateRecurrence } from '../i18n/store';
 import { getCategoryIcon } from './categoryIcons';
 import { FILTER_ACTIVE, FILTER_IDLE } from './filterChip';
-import { categoryHex, switchGlow } from './categoryColors';
+import { categoryHex, categoryTint, switchGlow } from './categoryColors';
 import { usualCurve, periodCurve } from '../lib/usual';
 import { dayOfWeekBreakdown, dowTakeaway } from '../lib/dayOfWeek';
 import { BudgetBar, BudgetNudge } from './BudgetBar';
@@ -2581,9 +2581,17 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                                     <div className="flex-1 min-w-0">
                                       <div className="text-neutral-500 text-xs truncate">{sub.name}</div>
                                       <div className="h-0.5 bg-neutral-100 rounded-full overflow-hidden mt-1">
-                                        <div 
-                                          className={`h-full ${item.category.bgColor.replace('bg-', 'bg-opacity-50 bg-')}`}
-                                          style={{ width: `${sub.percentage}%` }}
+                                        {/* Tailwind v4 dropped bg-opacity-*, so the
+                                            class this built ("bg-opacity-50
+                                            bg-teal-50") left only the -50 tint -
+                                            #ECFDF5 on an #F5F5F5 track, at 2px
+                                            high. Alpha over the solid instead. */}
+                                        <div
+                                          className="h-full"
+                                          style={{
+                                            width: `${sub.percentage}%`,
+                                            backgroundColor: categoryTint(item.category.color, 0.55),
+                                          }}
                                         />
                                       </div>
                                     </div>
@@ -2622,9 +2630,15 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                                   <div className="flex-1 min-w-0">
                                     <div className="text-neutral-400 text-xs truncate italic">Other</div>
                                     <div className="h-0.5 bg-neutral-100 rounded-full overflow-hidden mt-1">
+                                      {/* Same dead bg-opacity-* as above. Kept
+                                          fainter than a named subcategory: this
+                                          row is the remainder, not a thing. */}
                                       <div
-                                        className={`h-full ${item.category.bgColor.replace('bg-', 'bg-opacity-30 bg-')}`}
-                                        style={{ width: `${Math.max(0, extras.otherPercentage)}%` }}
+                                        className="h-full"
+                                        style={{
+                                          width: `${Math.max(0, extras.otherPercentage)}%`,
+                                          backgroundColor: categoryTint(item.category.color, 0.3),
+                                        }}
                                       />
                                     </div>
                                   </div>
