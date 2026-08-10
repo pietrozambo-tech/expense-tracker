@@ -364,7 +364,7 @@ export function Activity({
       <div className="flex-shrink-0 pt-0" style={{ backgroundColor: '#F6F5F2' }}>
         <div className="px-6 pb-4 flex items-center justify-between">
           <div className="flex-1">
-            <h1 style={{ color: '#1C1C1E', fontSize: '28px', fontWeight: '600', letterSpacing: '-0.5px' }}>{t('act.title')}</h1>
+            <h1 style={{ color: '#1C1C1E', fontSize: '30px', fontWeight: '800', letterSpacing: '-1px' }}>{t('act.title')}</h1>
             <p style={{ color: '#8E8E93', fontSize: '14px', marginTop: '4px' }}>
               {t(totalCount === 1 ? 'act.header.one' : 'act.header.other', { n: totalCount })} · {headerTotal}
             </p>

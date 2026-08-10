@@ -1995,7 +1995,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
       <div className="flex flex-col" style={{ backgroundColor: '#F6F5F2', minHeight: 'calc(100dvh - 200px)' }}>
         <div className="px-6 pt-1">
           <p style={{ color: '#8E8E93', fontSize: '14px', marginBottom: '2px' }}>{greeting}</p>
-          <h1 style={{ color: '#1C1C1E', fontSize: '28px', fontWeight: '600', letterSpacing: '-0.5px' }}>
+          <h1 style={{ color: '#1C1C1E', fontSize: '30px', fontWeight: '800', letterSpacing: '-1px' }}>
             {t('tab.dashboard')}
           </h1>
         </div>
@@ -2049,7 +2049,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
 
           {/* Title row: tab title on the left, period selector on the right */}
           <div className="flex items-center justify-between gap-3">
-            <h1 style={{ color: '#1C1C1E', fontSize: '28px', fontWeight: '600', letterSpacing: '-0.5px' }}>
+            <h1 style={{ color: '#1C1C1E', fontSize: '30px', fontWeight: '800', letterSpacing: '-1px' }}>
               {t('tab.dashboard')}
             </h1>
 
@@ -2127,7 +2127,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
       ) : (
         <div className="px-6 pt-1 pb-3 flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <h1 style={{ color: '#1C1C1E', fontSize: '28px', fontWeight: '600', letterSpacing: '-0.5px' }}>
+            <h1 style={{ color: '#1C1C1E', fontSize: '30px', fontWeight: '800', letterSpacing: '-1px' }}>
               {t('tab.trend')}
             </h1>
             <div className="mt-0.5" style={{ fontSize: 13, color: '#8E8E93' }}>
@@ -2428,7 +2428,9 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                       column and nothing else, so it sits right-aligned above
                       that column, like the column headers in Trend. */}
                   <div className="flex items-center gap-2.5 min-w-0">
-                    <h2 style={{ color: '#1C1C1E', fontWeight: '600' }}>{t('cat.title')}</h2>
+                    {/* Explicit size: a bare h2 inherits 20px from theme.css, which made
+                        this the one card title on the page not on the shared scale. */}
+                    <h2 style={{ color: '#1C1C1E', fontWeight: '600', fontSize: 14 }}>{t('cat.title')}</h2>
                     <button
                       onClick={() => setCategorySortBy(categorySortBy === 'alphabetical' ? 'amount' : 'alphabetical')}
                       className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition-colors flex-shrink-0"
@@ -2567,10 +2569,10 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                               {/* Trend Indicator */}
                               <div className="w-8 flex items-center justify-center ml-1.5">
                                 {trend === 'up' && (
-                                  <TrendingUp className="w-3.5 h-3.5" style={{ color: transactionType === 'expense' ? '#FF3B30' : '#34C759', strokeWidth: 2.5 }} />
+                                  <TrendingUp className="w-3.5 h-3.5" style={{ color: transactionType === 'expense' ? '#B44A40' : '#1F7A43', strokeWidth: 2.5 }} />
                                 )}
                                 {trend === 'down' && (
-                                  <TrendingDown className="w-3.5 h-3.5" style={{ color: transactionType === 'expense' ? '#34C759' : '#FF3B30', strokeWidth: 2.5 }} />
+                                  <TrendingDown className="w-3.5 h-3.5" style={{ color: transactionType === 'expense' ? '#1F7A43' : '#B44A40', strokeWidth: 2.5 }} />
                                 )}
                                 {trend === 'neutral' && (
                                   <Minus className="w-3.5 h-3.5" style={{ color: '#8E8E93', strokeWidth: 2.5 }} />
@@ -2625,10 +2627,10 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                                       {/* Trend Indicator */}
                                       <div className="w-8 flex items-center justify-center ml-1.5">
                                         {subTrend === 'up' && (
-                                          <TrendingUp className="w-3 h-3" style={{ color: transactionType === 'expense' ? '#FF3B30' : '#34C759', strokeWidth: 2.5 }} />
+                                          <TrendingUp className="w-3 h-3" style={{ color: transactionType === 'expense' ? '#B44A40' : '#1F7A43', strokeWidth: 2.5 }} />
                                         )}
                                         {subTrend === 'down' && (
-                                          <TrendingDown className="w-3 h-3" style={{ color: transactionType === 'expense' ? '#34C759' : '#FF3B30', strokeWidth: 2.5 }} />
+                                          <TrendingDown className="w-3 h-3" style={{ color: transactionType === 'expense' ? '#1F7A43' : '#B44A40', strokeWidth: 2.5 }} />
                                         )}
                                         {subTrend === 'neutral' && (
                                           <Minus className="w-3 h-3" style={{ color: '#8E8E93', strokeWidth: 2.5 }} />
@@ -4640,8 +4642,8 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                             // Grey, not red, when the rate yields to the dash
                             // (deeper than -100%: almost no income that month).
                             color: monthlySavingRate < -100 ? '#8E8E93'
-                              : monthlySavingRate < 0 ? '#EF4444'
-                              : monthlySavingRate > 0 ? '#10B981' : '#8E8E93',
+                              : monthlySavingRate < 0 ? '#B44A40'
+                              : monthlySavingRate > 0 ? '#1F7A43' : '#8E8E93',
                           }}
                         >
                           {monthlySavingRate !== 0 ? formatSavingRate(monthlySavingRate) : '-'}

@@ -47,7 +47,10 @@ export function CategorySelector({
 
   return (
     <div className="px-6 pb-6">
-      <h3 className="text-neutral-700 font-semibold mb-2.5">{t('add.category')}</h3>
+      {/* The same quiet label the Schedule editor uses for these fields -
+          a bare h3 inherited 18px here, which put form labels on a heading
+          scale and made the sheet shout its own structure. */}
+      <h3 className="mb-1.5" style={{ color: '#8E8E93', fontSize: 12, fontWeight: 600, letterSpacing: 0.2 }}>{t('add.category')}</h3>
 
       <div className="grid grid-cols-2 gap-2.5">
         {sortedCategories.map((category, index) => {

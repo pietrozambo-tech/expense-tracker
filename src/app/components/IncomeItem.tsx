@@ -1,7 +1,7 @@
 import { Trash2, Repeat } from 'lucide-react';
 import { t } from '../i18n';
 import { homeAmount } from '../utils/currency';
-import { dateLocale, translateRecurrence } from '../i18n/store';
+import { dateLocale } from '../i18n/store';
 import { AmountText } from './AmountText';
 import { useState } from 'react';
 import { getCategoryIcon } from './categoryIcons';
@@ -102,11 +102,9 @@ export function IncomeItem({ income, onTap, onDelete, currency, showDate = false
               <p className="text-neutral-400 text-[10px] mt-0.5 font-medium">
                 {formatShortDate(income.date)}
               </p>
-            ) : isRecurrent ? (
-              <p className="text-neutral-400 text-[10px] mt-0.5 font-medium uppercase tracking-tight">
-                {translateRecurrence(income.recurrence ?? '')}
-              </p>
             ) : null}
+            {/* No third line for recurring rows: the repeat icon beside the
+                amount already says it, and the caps line said it again. */}
           </div>
 
           {/* Amount. Recurrence marker leads, so the amount's right edge stays

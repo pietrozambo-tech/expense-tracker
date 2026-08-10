@@ -258,6 +258,9 @@ export const en = {
   'add.expense': 'Expense',
   'add.income': 'Income',
   'add.description': 'Description',
+  'add.titleNewExpense': 'New expense',
+  'add.titleNewIncome': 'New income',
+  'add.titleEdit': 'Edit transaction',
   'add.category': 'Category',
   'add.subcategory': 'SUBCATEGORY',
   'add.clearSub': 'Clear subcategory',
@@ -376,7 +379,8 @@ export const en = {
 
   // Settings
   'set.title': 'Settings',
-  'set.subtitle': 'Manage your app preferences',
+  'set.subGuest': 'Guest - your data stays on this device',
+  'set.subBacked': 'Backed up as {email}',
   'set.signIn': 'Sign in to back up & sync',
   'set.signInSub': 'Keep your data safe across devices',
   'set.signOut': 'Sign out',

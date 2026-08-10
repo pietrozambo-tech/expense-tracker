@@ -259,6 +259,9 @@ export const it: Record<keyof typeof en, string> = {
   'add.expense': 'Spesa',
   'add.income': 'Entrata',
   'add.description': 'Descrizione',
+  'add.titleNewExpense': 'Nuova spesa',
+  'add.titleNewIncome': 'Nuova entrata',
+  'add.titleEdit': 'Modifica movimento',
   'add.category': 'Categoria',
   'add.subcategory': 'SOTTOCATEGORIA',
   'add.clearSub': 'Rimuovi sottocategoria',
@@ -377,7 +380,8 @@ export const it: Record<keyof typeof en, string> = {
 
   // Settings
   'set.title': 'Impostazioni',
-  'set.subtitle': 'Gestisci le preferenze dell’app',
+  'set.subGuest': 'Ospite - i dati restano su questo dispositivo',
+  'set.subBacked': 'Backup attivo come {email}',
   'set.signIn': 'Accedi per backup e sync',
   'set.signInSub': 'Tieni i tuoi dati al sicuro su tutti i dispositivi',
   'set.signOut': 'Esci',

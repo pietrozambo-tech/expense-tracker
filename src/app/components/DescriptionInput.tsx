@@ -49,7 +49,10 @@ export function DescriptionInput({
 
   return (
     <div className="px-6 pb-6">
-      <h3 className="text-neutral-700 font-semibold mb-2.5">{t('add.description')}</h3>
+      {/* The same quiet label the Schedule editor uses for these fields -
+          a bare h3 inherited 18px here, which put form labels on a heading
+          scale and made the sheet shout its own structure. */}
+      <h3 className="mb-1.5" style={{ color: '#8E8E93', fontSize: 12, fontWeight: 600, letterSpacing: 0.2 }}>{t('add.description')}</h3>
       <input
         type="text"
         value={value}

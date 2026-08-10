@@ -1,7 +1,7 @@
 import { Trash2, Repeat } from 'lucide-react';
 import { t } from '../i18n';
 import { homeAmount } from '../utils/currency';
-import { dateLocale, translateRecurrence } from '../i18n/store';
+import { dateLocale } from '../i18n/store';
 import { AmountText } from './AmountText';
 import { useState } from 'react';
 import { getCategoryIcon } from './categoryIcons';
@@ -51,7 +51,9 @@ export function ExpenseItem({ expense, onTap, onDelete, currency, showDate = fal
   // instead of a broken double-minus.
   const isCredit = expense.amount < 0;
   const sign = isCredit ? '+' : '-';
-  const creditStyle = isCredit ? { color: '#34C759' } : undefined;
+  // The muted green the app uses for money-meaning on white surfaces (the
+// vivid iOS pair is reserved for the dark hero and destructive actions).
+const creditStyle = isCredit ? { color: '#1F7A43' } : undefined;
 
   return (
     <>
@@ -98,11 +100,9 @@ export function ExpenseItem({ expense, onTap, onDelete, currency, showDate = fal
               <p className="text-neutral-400 text-[10px] mt-0.5 font-medium">
                 {formatShortDate(expense.date)}
               </p>
-            ) : isRecurrent ? (
-              <p className="text-neutral-400 text-[10px] mt-0.5 font-medium uppercase tracking-tight">
-                {translateRecurrence(expense.recurrence ?? '')}
-              </p>
             ) : null}
+            {/* No third line for recurring rows: the repeat icon beside the
+                amount already says it, and the caps line said it again. */}
           </div>
 
           {/* Amount. The recurrence marker leads rather than trails: after the

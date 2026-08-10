@@ -1356,9 +1356,9 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
     <div style={{ backgroundColor: '#F6F5F2', marginBottom: -16 }}>
       {/* Header */}
       <div className="px-6 pb-4 pt-1">
-        <h1 style={{ color: '#1C1C1E', fontSize: '28px', fontWeight: '600', letterSpacing: '-0.5px' }}>{t('set.title')}</h1>
+        <h1 style={{ color: '#1C1C1E', fontSize: '30px', fontWeight: '800', letterSpacing: '-1px' }}>{t('set.title')}</h1>
         <p style={{ color: '#8E8E93', fontSize: '13px', marginTop: '4px' }}>
-          {t('set.subtitle')}
+          {userEmail ? t('set.subBacked', { email: userEmail }) : t('set.subGuest')}
         </p>
       </div>
 

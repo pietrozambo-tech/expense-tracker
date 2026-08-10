@@ -2298,8 +2298,15 @@ export default function App() {
           <div className="fixed inset-0 bg-white z-60 flex flex-col max-w-[430px] mx-auto overflow-hidden">
             {/* Clear the iOS status bar when installed */}
             <div className="app-top-inset flex-shrink-0" style={{ backgroundColor: '#FFFFFF' }} />
-            {/* Header with close button */}
-            <div className="h-12 flex items-center justify-end px-6 flex-shrink-0">
+            {/* Header: what this sheet IS, then the close button. The X used
+                to float alone in an empty bar - the one sheet in the app that
+                never said what it was for. */}
+            <div className="h-12 flex items-center justify-between px-6 flex-shrink-0">
+              <h3 style={{ color: '#1C1C1E', fontSize: 17, fontWeight: 600 }}>
+                {editingExpenseId
+                  ? t('add.titleEdit')
+                  : transactionType === 'income' ? t('add.titleNewIncome') : t('add.titleNewExpense')}
+              </h3>
               <button 
                 onClick={handleCloseModal}
                 className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-neutral-100 active:bg-neutral-200 transition-colors"
