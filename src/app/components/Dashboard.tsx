@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { ChevronRight, ArrowUpDown, TrendingUp, TrendingDown, Minus, Plus, Receipt, ChevronLeft, ChevronDown, X, Wallet, Gauge } from 'lucide-react';
 import { TrendCategoryBreakdown } from './TrendCategoryBreakdown';
 import React from 'react';
-import { formatAmountListView, formatAbbreviatedAmount, abbreviateNumber, needsAbbreviation, formatPercent, CURRENCIES, homeAmount } from '../utils/currency';
+import { formatAmountListView, formatAbbreviatedAmount, abbreviateNumber, needsAbbreviation, formatSavingRate, CURRENCIES, homeAmount } from '../utils/currency';
 import { monthsShort, monthsFull, daysFull, daysShort, numberLocale, getLanguage, GROUPED } from '../i18n/store';
 import { t, useLanguage } from '../i18n';
 import { translateRecurrence } from '../i18n/store';
@@ -1242,13 +1242,25 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
 
   const heroNote = (() => {
     if (timePeriodType !== 'month' || !isAtCurrentPeriod()) return null;
-    if (totalIncome !== 0 || savings >= 0) return null;
+    // Fires while the month's real income has not landed - not only at zero.
+    // The old test was `totalIncome !== 0`, and one 50EUR win silenced the
+    // note while un-gating the saving rate, which then divided a month of
+    // spending by pocket change and read "<-999%". The threshold is the same
+    // one the rate tile uses to give up (deeper than -100%): if the rate is
+    // not worth stating, the calendar is the explanation, and this line is
+    // how the card says so.
+    if (savings >= 0) return null;
+    if (totalIncome > 0 && savings / totalIncome >= -1) return null;
     const periodStart = new Date(selectedYear, selectedMonth, 1);
     const days = expenses
       .filter((t) => t.type === 'income' && parseLocalDate(t.date) < periodStart)
       .map((t) => Number(t.date.slice(8, 10)))
       .sort((a, b) => a - b);
     if (days.length === 0) {
+      // No earlier income to learn a pattern from. With nothing in at all,
+      // the absence is the note; with a stray amount in, stay silent - the
+      // line above would be false, and "usually" has nothing to stand on.
+      if (totalIncome > 0) return null;
       return getLanguage() === 'it'
         ? 'Nessuna entrata registrata questo mese.'
         : 'No income recorded yet this month.';
@@ -2299,13 +2311,23 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="text-[11px] leading-tight mb-1" style={{ color: 'rgba(235,235,245,0.6)' }}>{t('dash.savingRate')}</div>
+                        {/* Below -100% the rate yields to a dash (see
+                            formatSavingRate), and the dash is white, not red:
+                            the Savings tile beside it already carries the red
+                            and the amount, and a coloured placeholder would
+                            add alarm without adding a fact. */}
                         <FitText
                           max={17}
                           min={11}
                           className="font-bold leading-none tabular-nums"
-                          style={{ color: savings < 0 ? '#FF6961' : savings > 0 ? '#30D158' : '#FFFFFF' }}
+                          style={{
+                            color:
+                              totalIncome > 0 && savings / totalIncome >= -1
+                                ? savings < 0 ? '#FF6961' : savings > 0 ? '#30D158' : '#FFFFFF'
+                                : '#FFFFFF',
+                          }}
                         >
-                          {totalIncome > 0 ? formatPercent((savings / totalIncome) * 100) : '-'}
+                          {totalIncome > 0 ? formatSavingRate((savings / totalIncome) * 100) : '-'}
                         </FitText>
                       </div>
                     </div>
@@ -3898,7 +3920,14 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                   periodIncome += monthIncome;
                   periodSpending += monthSpending;
                   if (monthIncome > 0) {
-                    monthlySavingRates.push(((monthIncome - monthSpending) / monthIncome) * 100);
+                    // Floored at -100 ("kept nothing, and as much again out of
+                    // savings") - the most a month can say in rate terms. A
+                    // month holding 50EUR of income against a full month of
+                    // spending is real and belongs in the average, but its raw
+                    // ratio (-4,400%) would poison the year's figure for good.
+                    monthlySavingRates.push(
+                      Math.max(-100, ((monthIncome - monthSpending) / monthIncome) * 100),
+                    );
                   }
                 });
 
@@ -3927,8 +3956,10 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                             label={getLanguage() === 'it'
                               ? <>Tasso<span className="max-[359px]:hidden"> di Risparmio</span></>
                               : <><span className="max-[359px]:hidden">Saving </span>Rate</>}
-                            value={formatPercent(overallSavingRate)}
-                            tone={Math.round(overallSavingRate)}
+                            value={formatSavingRate(overallSavingRate)}
+                            // Neutral when the value is the placeholder - a
+                            // red-tinted dash is alarm without a fact.
+                            tone={overallSavingRate < -100 ? 0 : Math.round(overallSavingRate)}
                           />
                         ) : undefined
                       }
@@ -3951,7 +3982,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                             label={getLanguage() === 'it'
                               ? <>Tasso<span className="max-[359px]:hidden"> di Risparmio</span></>
                               : <><span className="max-[359px]:hidden">Saving </span>Rate</>}
-                            value={formatPercent(avgMonthlySavingRate)}
+                            value={formatSavingRate(avgMonthlySavingRate)}
                             tone={Math.round(avgMonthlySavingRate)}
                           />
                         ) : (
@@ -4603,13 +4634,17 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                       
                       {/* Saving Rate % - only for savings view */}
                       {transactionType === 'savings' && (
-                        <div 
+                        <div
                           className="flex-shrink-0 w-10 text-right text-[11px] tabular-nums font-medium self-center"
-                          style={{ 
-                            color: monthlySavingRate < 0 ? '#EF4444' : monthlySavingRate > 0 ? '#10B981' : '#8E8E93'
+                          style={{
+                            // Grey, not red, when the rate yields to the dash
+                            // (deeper than -100%: almost no income that month).
+                            color: monthlySavingRate < -100 ? '#8E8E93'
+                              : monthlySavingRate < 0 ? '#EF4444'
+                              : monthlySavingRate > 0 ? '#10B981' : '#8E8E93',
                           }}
                         >
-                          {monthlySavingRate !== 0 ? formatPercent(monthlySavingRate) : '-'}
+                          {monthlySavingRate !== 0 ? formatSavingRate(monthlySavingRate) : '-'}
                         </div>
                       )}
                       

@@ -112,6 +112,20 @@ export function formatPercent(value: number, cap = 999): string {
   return `${r}%`;
 }
 
+// A saving rate exists between -100% and +100%: "kept all of it" down to
+// "spent all of it, and as much again". Beyond that the DENOMINATOR is the
+// story - almost nothing came in - and the figure stops being one anyone
+// thinks in. A card once read "<-999%" because 2,251EUR of spending stood
+// against a 50EUR casino win while the salary was still days away: true
+// arithmetic, no information. The euro savings figure beside these is the
+// honest number, so past the floor the rate yields to a placeholder rather
+// than shouting a fraction of the wrong thing.
+// (+100% needs no twin: savings can never exceed income.)
+export function formatSavingRate(value: number): string {
+  if (!Number.isFinite(value) || value < -100) return '-';
+  return formatPercent(value);
+}
+
 // Should a column of amounts be abbreviated to stay in its lane?
 //
 // The rule the Dashboard category list has always used, lifted out so every
