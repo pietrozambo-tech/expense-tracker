@@ -3695,7 +3695,23 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
         const avgAmount = monthsWithData.length > 0
           ? monthsWithData.reduce((sum, t) => sum + t.amount, 0) / monthsWithData.length
           : 0;
-        
+
+        // The transactions those months are made of - the numerator that goes
+        // with that denominator.
+        //
+        // The category card divides a total by monthsWithData.length. Handed
+        // the whole year it was dividing a total that INCLUDED the running
+        // month by a count that excluded it, so every row - and the card's own
+        // subtitle - came out high: 28,566 over 7 months read 4,081 a month
+        // while the tile above it said 3,883. Same months on both sides of the
+        // division, or the two cards cannot agree.
+        const avgMonthKeys = new Set(monthsWithData.map(t => `${t.year}-${getMonthNumber(t.month)}`));
+        const avgWindowTransactions = trendFilteredTransactions.filter(t => {
+          const d = parseLocalDate(t.date);
+          return avgMonthKeys.has(`${d.getFullYear()}-${d.getMonth()}`);
+        });
+
+
         const totalSpent = trendData.reduce((sum, t) => sum + t.amount, 0);
         
         // Find current month and max/min month indices.
@@ -4206,7 +4222,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
             {/* Category Breakdown Table - Only for Expenses and Income */}
             {transactionType !== 'savings' && selectedCategory === 'All' && trendFilteredTransactions.length > 0 && (
               <TrendCategoryBreakdown
-                trendFilteredTransactions={trendFilteredTransactions}
+                trendFilteredTransactions={avgWindowTransactions}
                 trendSortedCategories={trendSortedCategories}
                 trendExpandedCategory={trendExpandedCategory}
                 setTrendExpandedCategory={setTrendExpandedCategory}

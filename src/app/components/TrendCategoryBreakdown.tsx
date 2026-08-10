@@ -11,6 +11,10 @@ import { t } from '../i18n';
 const TAIL_GREY = '#DEDCD6';
 
 interface TrendCategoryBreakdownProps {
+  // Only the transactions inside the months monthCount counts. Every figure
+  // here is one of these totals divided by that count, so a wider list would
+  // divide a bigger numerator by the same denominator and read high - which is
+  // exactly what a full year over complete-months-only did.
   trendFilteredTransactions: any[];
   trendSortedCategories: any[];
   trendExpandedCategory: string | null;
