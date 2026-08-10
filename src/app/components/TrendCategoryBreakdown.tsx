@@ -2,6 +2,7 @@ import { ChevronRight, ArrowUpDown } from 'lucide-react';
 import { getCategoryIcon } from './categoryIcons';
 import { useState } from 'react';
 import { CURRENCIES, homeAmount } from '../utils/currency';
+import { categoryHex } from './categoryColors';
 import { AmountText } from './AmountText';
 import { t } from '../i18n';
 
@@ -95,12 +96,23 @@ export function TrendCategoryBreakdown({
   // The number the percentages are percentages OF. Without it a "26%" on the
   // page has nothing to be a share of.
   const totalMonthlyAvg = categoryBreakdown.reduce((sum, c) => sum + c.monthlyAvg, 0);
-  // The solid a category paints with. Categories store the icon class
-  // ("text-teal-500"), never the solid, so it is derived - and every
-  // bg-<hue>-<shade> it can produce is already in the build because
-  // categoryColors.ts lists each one literally as its picker swatch.
-  const solidOf = (c: { color?: string }) =>
-    (c.color ?? 'text-neutral-500').replace('text-', 'bg-');
+  // The solid a category paints with, as paint - never as a class name.
+  //
+  // This used to derive one by string surgery: "text-emerald-600" ->
+  // "bg-emerald-600". The comment here claimed every class it could produce was
+  // in the build, because categoryColors.ts writes each swatch literally. That
+  // was wrong. The swatch list carries ONE solid shade per hue - emerald at
+  // 500, sky at 500 - while four seeded categories are defined a shade darker:
+  // Transports (sky-600), Salary (emerald-600), Dividends (indigo-600),
+  // Royalties (purple-600). Tailwind never generated those four, so the class
+  // landed in the DOM with no rule behind it and the segment painted nothing.
+  // Salary is 95% of income, so the composition bar was almost entirely blank
+  // and its dot invisible.
+  //
+  // categoryHex exists for exactly this and lists both shades of all 22 hues,
+  // so nothing can be missing; an unknown class falls back to a visible grey
+  // rather than to transparent, which is the failure that hid this one.
+  const solidOf = (c: { color?: string }) => categoryHex(c.color);
 
   const COLLAPSED = 6;
   // Only worth collapsing when it actually hides something - folding one row
@@ -180,10 +192,15 @@ export function TrendCategoryBreakdown({
         {barCategories.map((item) => (
           <div
             key={item.name}
-            className={`h-full ${solidOf(item.category)}`}
+            className="h-full"
             // A floor in px, not %: a 1% category is 3px of a 318px track, and
             // flex-shrink across a dozen gaps was taking it below visible.
-            style={{ width: `${item.weightPercentage}%`, minWidth: 3, flexShrink: 0 }}
+            style={{
+              width: `${item.weightPercentage}%`,
+              minWidth: 3,
+              flexShrink: 0,
+              backgroundColor: solidOf(item.category),
+            }}
           />
         ))}
         {tailShare > 0 && (
@@ -232,10 +249,10 @@ export function TrendCategoryBreakdown({
                       the grey tail take the tail's grey: they are in the bar,
                       just not separately. */}
                   <span
-                    className={`w-2 h-2 rounded-sm flex-shrink-0 ${
-                      barNames.has(item.name) ? solidOf(item.category) : ''
-                    }`}
-                    style={barNames.has(item.name) ? undefined : { backgroundColor: TAIL_GREY }}
+                    className="w-2 h-2 rounded-sm flex-shrink-0"
+                    style={{
+                      backgroundColor: barNames.has(item.name) ? solidOf(item.category) : TAIL_GREY,
+                    }}
                     aria-hidden="true"
                   />
                   <div className="flex-1 min-w-0 text-left">

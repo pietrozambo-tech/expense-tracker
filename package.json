@@ -18,7 +18,8 @@
     "test:dow": "node scripts/test-dow.mjs",
     "test:viewstate": "node scripts/test-viewstate.mjs",
     "test:demo-i18n": "node scripts/test-demo-i18n.mjs",
-    "test:inputs": "node scripts/test-inputs.mjs"
+    "test:inputs": "node scripts/test-inputs.mjs",
+    "test:colors": "node scripts/test-colors.mjs"
   },
   "dependencies": {
     "@capacitor/app": "^8.1.1",
