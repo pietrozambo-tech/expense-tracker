@@ -3,6 +3,7 @@ import { ChevronRight } from 'lucide-react';
 import { CURRENCIES, MAIN_CURRENCY_CODES } from '../utils/currency';
 import { CurrencySearchList } from './CurrencySearchList';
 import { t, setLanguage, useLanguage, type Language } from '../i18n';
+import { TracklyLogo } from './TracklyLogo';
 
 interface OnboardingProps {
   onComplete: (userName: string, currency: string, language: Language) => void;
@@ -39,6 +40,22 @@ export function Onboarding({ onComplete, initialName = '' }: OnboardingProps) {
         className="flex-1 min-h-0 overflow-y-auto flex flex-col px-6"
         style={{ paddingTop: 'max(32px, env(safe-area-inset-top))' }}
       >
+        {/* The brand moment, on the true first screen. The tour used to open
+            with a logo slide, which meant a second "Welcome" immediately after
+            this one - two greetings for someone who had just typed their name
+            here. The mark belongs where the app is first met. */}
+        <div className="flex items-center gap-3 mb-5">
+          <TracklyLogo size={44} />
+          <div>
+            <div style={{ color: '#1C1C1E', fontSize: 19, fontWeight: 700, letterSpacing: '-0.02em' }}>
+              TracklyLab
+            </div>
+            <div style={{ color: '#4F74F3', fontSize: 12.5, fontWeight: 600, letterSpacing: '0.02em' }}>
+              Your Expense Lens
+            </div>
+          </div>
+        </div>
+
         <h1 style={{
           color: '#1C1C1E',
           fontSize: '32px',

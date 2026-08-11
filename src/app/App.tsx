@@ -1919,7 +1919,6 @@ export default function App() {
     return (
       <Suspense fallback={splash()}>
       <WelcomeCarousel
-        userName={userName}
         onDone={() => setHasSeenIntro(true)}
         onSetupCategories={() => {
           setHasSeenIntro(true);

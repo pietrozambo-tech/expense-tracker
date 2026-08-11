@@ -2,13 +2,12 @@ import { useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { monthsFull, getLanguage } from '../i18n/store';
 import { t } from '../i18n';
 import {
-  Minus, Plus, Wallet, Gauge, Calendar, Repeat, ChevronDown, ChevronRight, TrendingDown,
+  Minus, Plus, Wallet, Gauge, Calendar, Repeat, ChevronDown, ChevronRight,
   ShoppingCart, Car, Home, Clapperboard, Landmark, Layers, Pencil,
   FlaskConical, Trash2, FileSpreadsheet, Palmtree, UtensilsCrossed, Tv,
 } from 'lucide-react';
 import type { Source } from '../types';
 import { SourceLogo } from './SourceLogo';
-import { TracklyLogo } from './TracklyLogo';
 import { DEFAULT_SOURCES } from './sources';
 
 // A small line chart (line + soft area + endpoint dot), matching the app style
@@ -43,7 +42,6 @@ function Spark({ values, labels, color, h = 116 }: { values: number[]; labels: s
 }
 
 interface WelcomeCarouselProps {
-  userName?: string;
   onDone: () => void; // finish and enter the app
   onSetupCategories: () => void; // finish and jump to Settings › Categories
   onLoadDemo: () => void; // load sample data in place (stays in the carousel)
@@ -220,12 +218,6 @@ function currentMonthLabel(): string {
   return `${monthsFull()[new Date().getMonth()]} ${new Date().getFullYear()}`;
 }
 
-/** "Aug" - what the Dashboard's category trends are measured against. */
-function previousMonthLabel(): string {
-  const now = new Date();
-  return monthShortNames[new Date(now.getFullYear(), now.getMonth() - 1, 1).getMonth()];
-}
-
 function DashboardIllustration() {
   const metrics = [
     // Match the real hero: a red "−" for Spending and a green "+" for Income.
@@ -233,14 +225,6 @@ function DashboardIllustration() {
     { label: t('dash.income'), value: '3,380€', Icon: Plus, tint: 'rgba(48,209,88,0.16)', color: '#30D158', sw: 3 },
     { label: t('dash.savings'), value: '2,341€', Icon: Wallet, tint: 'rgba(100,160,255,0.16)', color: '#64A0FF', accent: '#30D158', sw: 2.5 },
     { label: t('dash.savingRate'), value: '69%', Icon: Gauge, tint: 'rgba(100,160,255,0.16)', color: '#64A0FF', accent: '#30D158', sw: 2.5 },
-  ];
-  // `trend` mirrors the real rows: flat when the month matches the last one,
-  // an arrow when it does not, and the word when there is no earlier figure to
-  // compare against at all.
-  const rows = [
-    { name: getLanguage() === 'it' ? 'Casa' : 'Housing', Icon: Home, bg: '#E3EDFF', fg: '#3B6FE0', pct: 87, amt: '900€', trend: 'flat' as const },
-    { name: getLanguage() === 'it' ? 'Spesa' : 'Groceries', Icon: ShoppingCart, bg: '#E7F6EC', fg: '#2E9E5B', pct: 8, amt: '84€', trend: 'down' as const },
-    { name: getLanguage() === 'it' ? 'Trasporti' : 'Transport', Icon: Car, bg: '#E3EDFF', fg: '#4589D6', pct: 5, amt: '55€', trend: 'new' as const },
   ];
   return (
     <div className="flex flex-col gap-3">
@@ -309,39 +293,6 @@ function DashboardIllustration() {
         </div>
       </div>
 
-      {/* Category breakdown */}
-      <div className="rounded-2xl px-4 py-3" style={{ background: '#FFFFFF', boxShadow: '0 8px 24px rgba(0,0,0,0.06)', border: '1px solid #EEEEF1' }}>
-        <div className="flex items-baseline justify-between mb-1.5">
-          <span className="text-sm font-semibold" style={{ color: '#1C1C1E' }}>{t('cat.title')}</span>
-          {/* Sits over the last column, as it does in the app - it labels the
-              trend markers and nothing else. The chevron is the whole tell that
-              the baseline can be changed, so the illustration carries it too. */}
-          <span className="flex items-center gap-0.5">
-            <span className="text-[9px]" style={{ color: '#A0A0A8' }}>vs. {previousMonthLabel()}</span>
-            <ChevronDown className="w-2 h-2" style={{ color: '#C7C7CC' }} strokeWidth={2.5} />
-          </span>
-        </div>
-        {rows.map((r) => (
-          <div key={r.name} className="flex items-center gap-2.5 py-1.5">
-            <span className="flex items-center justify-center flex-shrink-0" style={{ width: 28, height: 28, borderRadius: 8, background: r.bg }}>
-              <r.Icon className="w-4 h-4" style={{ color: r.fg }} />
-            </span>
-            <div className="flex-1 min-w-0">
-              <div className="text-[13px] font-medium mb-1" style={{ color: '#1C1C1E' }}>{r.name}</div>
-              <div className="h-1 rounded-full overflow-hidden" style={{ background: 'rgba(0,0,0,0.08)' }}>
-                <div className="h-full rounded-full" style={{ width: `${r.pct}%`, background: r.fg, opacity: 0.45 }} />
-              </div>
-            </div>
-            <span className="text-[11px] tabular-nums" style={{ color: '#B0B0B5' }}>{r.pct}%</span>
-            <MockAmount value={r.amt.replace('\u20AC', '')} className="text-[13px] font-bold tabular-nums w-12 text-right" style={{ color: '#1C1C1E' }} />
-            <span className="w-7 flex items-center justify-center flex-shrink-0">
-              {r.trend === 'down' && <TrendingDown className="w-3.5 h-3.5" style={{ color: '#1F7A43' }} strokeWidth={2.5} />}
-              {r.trend === 'flat' && <Minus className="w-3.5 h-3.5" style={{ color: '#8E8E93' }} strokeWidth={2.5} />}
-              {r.trend === 'new' && <span className="text-[9px] font-semibold" style={{ color: '#6B6B75' }}>{t('cat.new')}</span>}
-            </span>
-          </div>
-        ))}
-      </div>
     </div>
   );
 }
@@ -541,23 +492,12 @@ function Slide({ illustration, title, desc }: { illustration: ReactNode; title: 
   );
 }
 
-export function WelcomeCarousel({ userName, onDone, onSetupCategories, onLoadDemo }: WelcomeCarouselProps) {
+export function WelcomeCarousel({ onDone, onSetupCategories, onLoadDemo }: WelcomeCarouselProps) {
   const slides: Array<{ illustration: ReactNode; title: string; desc: string; cta?: 'demo' }> = [
-    {
-      illustration: (
-        <div className="flex flex-col items-center justify-center" style={{ minHeight: 220 }}>
-          <TracklyLogo size={92} />
-          <h2 style={{ color: '#1C1C1E', fontSize: 30, fontWeight: 700, letterSpacing: '-0.03em', marginTop: 18 }}>TracklyLab</h2>
-          <p style={{ color: '#4F74F3', fontSize: 15, fontWeight: 600, marginTop: 4, letterSpacing: '0.02em' }}>Your Expense Lens</p>
-        </div>
-      ),
-      title: userName
-        ? (getLanguage() === 'it' ? `Benvenuto, ${userName} 👋` : `Welcome, ${userName} 👋`)
-        : getLanguage() === 'it' ? 'Benvenuto su TracklyLab 👋' : 'Welcome to TracklyLab 👋',
-      desc: getLanguage() === 'it'
-        ? 'Uno sguardo veloce a cosa puoi fare - ci vogliono 20 secondi.'
-        : 'A quick look at what you can do - it takes 20 seconds.',
-    },
+    // No welcome slide. Onboarding's own screen already says "Welcome" and now
+    // carries the logo, so opening the tour with a second greeting spent a
+    // whole swipe on a word the user had just read. The tour starts on the
+    // first thing it can actually teach.
     {
       illustration: <AddIllustration />,
       title: getLanguage() === 'it' ? 'Aggiungi in pochi secondi' : 'Add in seconds',
@@ -582,9 +522,12 @@ export function WelcomeCarousel({ userName, onDone, onSetupCategories, onLoadDem
     {
       illustration: <DashboardIllustration />,
       title: getLanguage() === 'it' ? 'I tuoi soldi a colpo d’occhio' : 'Your money at a glance',
+      // Kept short on purpose: this slide carries the two tallest mocks in
+      // the tour, and every line of copy is a line the illustration loses.
+      // The long version pushed the art to 78% on a 667px phone in Italian.
       desc: getLanguage() === 'it'
-        ? 'Spese, entrate e risparmi a colpo d’occhio - e a mese concluso, una riga che ti dice in parole semplici com’è andato rispetto al tuo solito.'
-        : 'Spending, income and savings at a glance - and once a month is done, a line telling you in plain words how it compared with your own usual.',
+        ? 'Spese, entrate e risparmi a colpo d’occhio - e a fine mese, una riga che ti dice com’è andata rispetto al tuo solito.'
+        : 'Spending, income and savings at a glance - and when the month ends, a plain line on how it went against your usual.',
     },
     {
       illustration: <DemoIllustration />,
