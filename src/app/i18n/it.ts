@@ -103,7 +103,6 @@ export const it: Record<keyof typeof en, string> = {
   'rec.moreThisWeek': '+{n} altre questa settimana',
   'rec.oneOff': 'Una tantum',
   'rec.recurring': 'Ricorrenti',
-  'rec.back': 'Indietro',
   'rec.allPre': 'Tutti i',
   'rec.allMid': 'erano',
 

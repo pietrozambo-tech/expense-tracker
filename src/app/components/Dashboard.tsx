@@ -109,8 +109,6 @@ export interface DashboardViewState {
   drilldownSortBy: 'time' | 'amount';
   comparisonBaseline: ComparisonBaseline;
   categorySortBy: 'alphabetical' | 'amount';
-  recurrenceLayer: 'overview' | 'detail';
-  selectedRecurrenceSlice: string | null;
   cumulativeBenchmark: 'usual' | 'lastYear';
 }
 
@@ -372,8 +370,6 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
   } | null>(savedView?.drilldownContext ?? null);
   
   // State for recurrence donut chart
-  const [recurrenceLayer, setRecurrenceLayer] = useState<'overview' | 'detail'>(savedView?.recurrenceLayer ?? 'overview');
-  const [selectedRecurrenceSlice, setSelectedRecurrenceSlice] = useState<string | null>(savedView?.selectedRecurrenceSlice ?? null);
   
   // State for manual tooltip positioning
   const [tooltipData, setTooltipData] = useState<{
@@ -409,10 +405,8 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
       comparisonBaseline,
       cumulativeBenchmark,
       categorySortBy,
-      recurrenceLayer,
-      selectedRecurrenceSlice,
     };
-  }, [view, viewStateRef, timePeriodType, selectedMonth, selectedQuarter, selectedYear, transactionType, expandedCategory, drilldownContext, drilldownSortBy, comparisonBaseline, categorySortBy, recurrenceLayer, selectedRecurrenceSlice, cumulativeBenchmark]);
+  }, [view, viewStateRef, timePeriodType, selectedMonth, selectedQuarter, selectedYear, transactionType, expandedCategory, drilldownContext, drilldownSortBy, comparisonBaseline, categorySortBy, cumulativeBenchmark]);
 
 
   // Prevent background scroll when drilldown is open
@@ -472,7 +466,12 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
 
       // Cadence drilldown: the recurrence IS the filter, categories don't apply.
       if (drilldownContext.recurrence) {
-        return (expense.recurrence || 'Never repeat') === drilldownContext.recurrence;
+        const r = expense.recurrence || 'Never repeat';
+        // The two aggregates the card drills into directly. Exact cadence
+        // match stays for old saved views that still name one.
+        if (drilldownContext.recurrence === 'One-off') return r === 'Never repeat';
+        if (drilldownContext.recurrence === 'Recurring') return r !== 'Never repeat';
+        return r === drilldownContext.recurrence;
       }
 
       const categoryMatch = expense.category.name === categoryName;
@@ -590,18 +589,6 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
     };
   }, [showGreeting]);
 
-  // Reset recurrence layer when switching transaction type or time period -
-  // but not on mount, which would undo the restored layer on every remount and
-  // bounce the user out of the breakdown they were reading.
-  const recurrenceResetReady = useRef(false);
-  useEffect(() => {
-    if (!recurrenceResetReady.current) {
-      recurrenceResetReady.current = true;
-      return;
-    }
-    setRecurrenceLayer('overview');
-    setSelectedRecurrenceSlice(null);
-  }, [transactionType, timePeriodType, selectedMonth, selectedQuarter, selectedYear]);
 
   // Helper function to convert month name to month number (0-11)
   // trendData rows carry the month as its short label, so this must index the
@@ -3221,7 +3208,13 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
           {/* Recurrence Breakdown Donut Chart */}
           {(() => {
             const recurrenceData = getRecurrenceData();
-            const currentData = recurrenceLayer === 'overview' ? recurrenceData.overview : recurrenceData.detail;
+            // One layer only. There used to be a second, splitting Recurring
+            // by cadence - which answered "how much of this is weekly vs
+            // monthly", a question nobody budgets by, while burying the one
+            // people ask (WHICH subscriptions?) a further tap down. Both
+            // halves now drill straight to their transactions, where the
+            // names are.
+            const currentData = recurrenceData.overview;
             const totalValue = currentData.reduce((sum, item) => sum + item.value, 0);
             
             if (totalValue === 0) return null;
@@ -3235,21 +3228,12 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
             //
             // One-off is the paler of the pair: it is usually the bigger share,
             // and the larger area wants the lighter ink.
-            const colorScheme = recurrenceLayer === 'overview'
-              ? {
-                  primary: '#A5A2F6',    // One-off
-                  secondary: '#4F46E5',  // Recurring
-                  tertiary: '#7C6DF2',
-                  quaternary: '#C9C7FA',
-                }
-              : {
-                  // Detail layer: one schedule per colour, stepping down the
-                  // same ramp so they read as parts of "Recurring".
-                  primary: '#4F46E5',
-                  secondary: '#7C6DF2',
-                  tertiary: '#A5A2F6',
-                  quaternary: '#C9C7FA',
-                };
+            const colorScheme = {
+              primary: '#A5A2F6',    // One-off
+              secondary: '#4F46E5',  // Recurring
+              tertiary: '#7C6DF2',
+              quaternary: '#C9C7FA',
+            };
             
             // Assign colors to slices
             const dataWithColors = currentData.map((item, index) => {
@@ -3273,7 +3257,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
             // repeats it at 100% - half a screen to say one thing. State it in a
             // line instead; the card keeps its place so the page does not jump
             // once a second kind of expense appears.
-            if (recurrenceLayer === 'overview' && dataWithColors.length === 1) {
+            if (dataWithColors.length === 1) {
               const only = dataWithColors[0];
               return (
                 <div className="px-6 mb-4">
@@ -3316,33 +3300,15 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                       <h3 className="text-sm" style={{ color: '#1C1C1E', fontWeight: '600' }}>
                         {t('rec.title')}
                       </h3>
-                      {recurrenceLayer === 'detail' ? (
-                        <button
-                          onClick={() => {
-                            setRecurrenceLayer('overview');
-                            setSelectedRecurrenceSlice(null);
-                          }}
-                          className="flex items-center gap-1 px-2 py-1 rounded-lg transition-colors"
-                          style={{ 
-                            color: '#8E8E93',
-                            fontSize: '12px',
-                            backgroundColor: 'transparent'
-                          }}
-                        >
-                          <ChevronLeft size={14} />
-                          <span>{t('rec.back')}</span>
-                        </button>
-                      ) : (
-                        /* The donut used to carry the total in its hole. */
-                        <AmountText
-                          amount={totalValue}
-                          currency={currency}
-                          decimals={0}
-                          abbreviate={abbrevRec}
-                          className="tabular-nums"
-                          style={{ color: '#8E8E93', fontSize: '12px' }}
-                        />
-                      )}
+                      {/* The donut used to carry the total in its hole. */}
+                      <AmountText
+                        amount={totalValue}
+                        currency={currency}
+                        decimals={0}
+                        abbreviate={abbrevRec}
+                        className="tabular-nums"
+                        style={{ color: '#8E8E93', fontSize: '12px' }}
+                      />
                     </div>
                     
                     {/* Composition bar. A donut spent ~150px of height on a
@@ -3354,28 +3320,19 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                       className="flex gap-0.5 h-2.5 rounded-full overflow-hidden mb-1"
                       style={{ backgroundColor: '#F2F1ED' }}
                     >
-                      {dataWithColors.map((item, index) => {
-                        const isSelected = selectedRecurrenceSlice === item.name;
-                        return (
-                          <button
-                            key={`bar-${item.name}-${index}`}
-                            aria-label={`${recurrenceSliceLabel(item.name)}, ${item.percentage.toFixed(0)}%`}
-                            onClick={() => {
-                              if (item.name === 'Recurring' && recurrenceLayer === 'overview') {
-                                setRecurrenceLayer('detail');
-                              } else {
-                                setSelectedRecurrenceSlice(isSelected ? null : item.name);
-                              }
-                            }}
-                            style={{
-                              width: `${item.percentage}%`,
-                              backgroundColor: item.color,
-                              opacity: selectedRecurrenceSlice === null || isSelected ? 1 : 0.35,
-                              transition: 'opacity 0.2s',
-                            }}
-                          />
-                        );
-                      })}
+                      {dataWithColors.map((item, index) => (
+                        <button
+                          key={`bar-${item.name}-${index}`}
+                          aria-label={`${recurrenceSliceLabel(item.name)}, ${item.percentage.toFixed(0)}%`}
+                          onClick={() =>
+                            setDrilldownContext({ categoryName: '', subcategoryName: null, recurrence: item.name })
+                          }
+                          style={{
+                            width: `${item.percentage}%`,
+                            backgroundColor: item.color,
+                          }}
+                        />
+                      ))}
                     </div>
 
                     {/* Legend */}
@@ -3383,18 +3340,11 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                       {dataWithColors.map((item, index) => (
                         <button
                           key={`${item.name}-${index}`}
-                          onClick={() => {
-                            if (item.name === 'Recurring' && recurrenceLayer === 'overview') {
-                              setRecurrenceLayer('detail');
-                            } else if (recurrenceLayer === 'detail') {
-                              // Second layer: a cadence row opens the same
-                              // transaction drilldown the category table uses.
-                              setDrilldownContext({ categoryName: '', subcategoryName: null, recurrence: item.name });
-                            } else {
-                              const isSelected = selectedRecurrenceSlice === item.name;
-                              setSelectedRecurrenceSlice(isSelected ? null : item.name);
-                            }
-                          }}
+                          // Either half opens the same transaction drilldown
+                          // the category table uses - the names are the answer.
+                          onClick={() =>
+                            setDrilldownContext({ categoryName: '', subcategoryName: null, recurrence: item.name })
+                          }
                           style={{
                             width: '100%',
                             display: 'flex',
@@ -3409,8 +3359,6 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                             borderBottomColor: '#F6F5F2',
                             background: 'transparent',
                             cursor: 'pointer',
-                            opacity: selectedRecurrenceSlice === null || selectedRecurrenceSlice === item.name ? 1 : 0.5,
-                            transition: 'opacity 0.2s'
                           }}
                         >
                           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -3429,9 +3377,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                               fontWeight: '500'
                             }}>
                               {recurrenceSliceLabel(item.name)}
-                              {((item.name === 'Recurring' && recurrenceLayer === 'overview') || recurrenceLayer === 'detail') && (
-                                <ChevronRight size={14} style={{ display: 'inline', marginLeft: '4px', verticalAlign: 'middle' }} />
-                              )}
+                              <ChevronRight size={14} style={{ display: 'inline', marginLeft: '4px', verticalAlign: 'middle' }} />
                             </span>
                           </div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -3469,7 +3415,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                         rows inside seven days; a quiet week collapses to one
                         "next up" line; no schedules at all renders nothing,
                         because an empty promise-box is worse than none. */}
-                    {recurrenceLayer === 'overview' && isAtCurrentPeriod() && (() => {
+                    {isAtCurrentPeriod() && (() => {
                       const ups = upcomingSchedules(recurringRules, new Date())
                         .filter((u) => u.rule.template.type !== 'income');
                       if (ups.length === 0) return null;
@@ -4875,7 +4821,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                     </h3>
                     {(drilldownContext.recurrence || drilldownContext.subcategoryName) && (
                       <span className="text-[10px] text-neutral-400 font-bold px-2 py-0.5 bg-neutral-50 rounded-full border border-neutral-100 uppercase tracking-tight">
-                        {drilldownContext.recurrence ? t('rec.recurring') : drilldownContext.categoryName}
+                        {drilldownContext.recurrence ? t('rec.title') : drilldownContext.categoryName}
                       </span>
                     )}
                   </div>

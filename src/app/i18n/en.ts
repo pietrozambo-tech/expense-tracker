@@ -102,7 +102,6 @@ export const en = {
   'rec.moreThisWeek': '+{n} more this week',
   'rec.oneOff': 'One-off',
   'rec.recurring': 'Recurring',
-  'rec.back': 'Back',
   'rec.allPre': 'All',
   'rec.allMid': 'was',
 
