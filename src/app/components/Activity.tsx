@@ -301,11 +301,22 @@ export function Activity({
     // Back up to the configured first day of the week (1 Monday by default).
     start.setDate(now.getDate() - ((now.getDay() - weekStartsOn + 7) % 7));
     start.setHours(0, 0, 0, 0);
-    // Only when the visible period actually contains this week - the month
-    // picker can be on 'year', a past month, or another year entirely.
+    // Shown only while the picker is on the month we are living in.
+    //
+    // Anchored on TODAY, not on the week's first day: most weeks that contain
+    // a 1st begin in the previous month, and testing the week's month hid the
+    // strip for the first days of nearly every month - precisely when someone
+    // opening the app after a rollover would look for it. On 2 September the
+    // week starts 31 August; the strip still belongs on September.
+    //
+    // The whole-year view is excluded too: "this week" inside a year of rows
+    // is a claim about a scale the user is not reading at.
     const inView =
-      selectedYear === String(start.getFullYear()) &&
-      (selectedMonth === 'year' || selectedMonth === String(start.getMonth()));
+      selectedYear === String(now.getFullYear()) && selectedMonth === String(now.getMonth());
+    // The FULL ledger, keyed by date. Two things follow: a category filter
+    // cannot make a logged day look empty, and a week straddling a month
+    // boundary reads correctly - on 2 September, Monday the 31st shows filled
+    // if something was recorded that day, even though August is not on screen.
     const logged = new Set(transactions.map((t) => t.date));
     const todayStr = toDateStr(now);
     const days = Array.from({ length: 7 }, (_, i) => {
