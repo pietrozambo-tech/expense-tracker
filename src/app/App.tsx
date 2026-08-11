@@ -2070,6 +2070,7 @@ export default function App() {
             )}
             {currentTab === 'settings' && (
               <Settings
+                transactions={expenses}
                 categories={categories}
                 incomeCategories={incomeCategories}
                 weekStartsOn={weekStartsOn}

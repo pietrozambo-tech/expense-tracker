@@ -1,17 +1,19 @@
 import { useState } from 'react';
 import { Plus, Pencil, Trash2, CalendarClock } from 'lucide-react';
 import { t } from '../i18n';
-import { translateRecurrence } from '../i18n/store';
+import { translateRecurrence, monthsFull, numberLocale } from '../i18n/store';
 import { parseLocalDate } from '../lib/dates';
+import { priceChange } from '../lib/recurrence';
 import { dateLocale } from '../i18n/store';
 import { getCategoryIcon } from './categoryIcons';
 import { AmountText } from './AmountText';
+import { CURRENCIES } from '../utils/currency';
 import { SourceLogo } from './SourceLogo';
 import { ConfirmDialog } from './ConfirmDialog';
 import { ScheduleEditor } from './ScheduleEditor';
 import { upcomingSchedules, strandedRules } from '../lib/recurrence';
 import { needsAbbreviation } from '../utils/currency';
-import type { Category, RecurringRule, Source, TransactionType } from '../types';
+import type { Category, RecurringRule, Source, Transaction, TransactionType } from '../types';
 
 // "What is coming" - the only screen in the app that looks forward.
 //
@@ -26,6 +28,8 @@ import type { Category, RecurringRule, Source, TransactionType } from '../types'
 // screen answers is "what is about to leave my account".
 export interface ScheduledManagerProps {
   rules: RecurringRule[];
+  /** The ledger, read-only: price-change chips compare a bill's history. */
+  transactions: Transaction[];
   categories: Category[];
   incomeCategories: Category[];
   sources: Source[];
@@ -61,6 +65,7 @@ function dueLabel(dateStr: string): string {
 
 export function ScheduledManager({
   rules,
+  transactions,
   categories,
   incomeCategories,
   sources,
@@ -126,6 +131,38 @@ export function ScheduledManager({
                       {source && <span aria-hidden="true">·</span>}
                       {source && <SourceLogo source={source} size={12} />}
                     </div>
+                    {(() => {
+                      // "Did this bill just change?" - see priceChange for
+                      // what counts as a change worth announcing.
+                      const change = priceChange(rule, transactions);
+                      if (!change) return null;
+                      const up = change.to > change.from;
+                      const fmt = (n: number) =>
+                        n.toLocaleString(numberLocale(), { maximumFractionDigits: 2 });
+                      const month = monthsFull()[parseLocalDate(change.at).getMonth()];
+                      return (
+                        <span
+                          className="inline-flex items-center gap-1 mt-1.5"
+                          style={{
+                            // The budget bar's warn/good pairs: a rise is
+                            // information with an eyebrow raised, a drop is
+                            // good news - neither is an alarm.
+                            background: up ? '#FAF0DC' : '#E7F4ED',
+                            color: up ? '#96631A' : '#2C7A54',
+                            fontSize: 11,
+                            fontWeight: 600,
+                            padding: '2px 8px',
+                            borderRadius: 999,
+                          }}
+                        >
+                          {up ? '\u2197' : '\u2198'}{' '}
+                          {t(up ? 'sched.priceRose' : 'sched.priceFell', {
+                            amounts: `${fmt(change.from)} \u2192 ${fmt(change.to)}${CURRENCIES[rule.template.currency]?.symbol ?? rule.template.currency}`,
+                            month,
+                          })}
+                        </span>
+                      );
+                    })()}
                   </div>
                   <AmountText
                     amount={rule.template.amount}

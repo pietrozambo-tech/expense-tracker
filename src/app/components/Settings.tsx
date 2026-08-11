@@ -91,6 +91,8 @@ interface SettingsProps {
   // Upcoming recurring transactions. The rules are the source of truth; this
   // screen only ever projects them forward.
   recurringRules: RecurringRule[];
+  /** The ledger, for the price-change chips on the Recurring screen. */
+  transactions: any[];
   onCreateSchedule: (draft: ScheduleDraft) => void;
   onUpdateSchedule: (ruleId: string, draft: ScheduleDraft) => void;
   onStopSchedule: (ruleId: string) => void;
@@ -148,6 +150,7 @@ export function Settings({
   language = 'en',
   onSetLanguage,
   recurringRules,
+  transactions,
   onCreateSchedule,
   onUpdateSchedule,
   onStopSchedule,
@@ -1249,6 +1252,7 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
         <div className="flex-1 overflow-y-auto" style={{ paddingBottom: '96px' }}>
           <ScheduledManager
             rules={recurringRules}
+            transactions={transactions}
             categories={categories}
             incomeCategories={incomeCategories}
             sources={sources}

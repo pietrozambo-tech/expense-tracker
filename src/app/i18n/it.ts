@@ -228,6 +228,8 @@ export const it: Record<keyof typeof en, string> = {
   'sched.stopConfirm': 'Interrompi',
   'sched.editAria': 'Modifica la ricorrenza {name}',
   'sched.stopAria': 'Interrompi la ricorrenza {name}',
+  'sched.priceRose': 'Salito {amounts} a {month}',
+  'sched.priceFell': 'Sceso {amounts} a {month}',
   'sched.emptyTitle': 'Nessuna ricorrenza',
   'sched.emptyBody': 'Aggiungi ciò che si ripete - affitto, stipendio, abbonamento - e lo vedrai qui prima che accada.',
   'sched.toastCreated': 'Ricorrenza creata',

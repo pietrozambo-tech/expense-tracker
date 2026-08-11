@@ -10,6 +10,7 @@
 
 import {
   processRecurrence,
+  priceChange,
   applyFutureEdit,
   occurrenceDueDate,
   buildRuleTemplate,
@@ -206,6 +207,7 @@ scenarioUpcoming();
 scenarioDeleteOnFutureEndedChain();
 scenarioNothingHidden();
 scenarioSkipPurge();
+scenarioPriceChange();
 console.log('\n================================================================');
 console.log(` Recurring transactions   [${OLD ? 'BEFORE the fix' : 'AFTER the fix'}]`);
 console.log(' (running the real src/app/lib/recurrence.ts)');
@@ -833,4 +835,69 @@ function scenarioSkipPurge() {
   const cross = processRecurrence([rent], [rule, other], new Date(2026, 7, 11));
   expect('another rule\'s occurrence on that date survives',
     cross.transactions.some((t) => t.id === 'rec-r-rent-2026-08-09') ? 'kept' : 'deleted', 'kept');
+}
+
+// ---------------------------------------------------------------------------
+// 16. Price changes: announced when real, silent when noise.
+//
+// Every threshold here was tuned on one real ledger: an Amex fee that read
+// 60,62,62,60,62 before settling at 67, a Vodafone plan that dropped from 15
+// to 9.99, a streaming service oscillating 44/44.99/44.90 by rounding, and a
+// rent that never moved.
+function scenarioPriceChange() {
+  heading('16. Price changes: announced when real, silent when noise');
+  const NOW = new Date(2026, 7, 11);
+  const mkRule = (desc: string, amount: number): RecurringRule => ({
+    id: `r-${desc}`, rule: 'Every month', anchorDate: '2025-01-05',
+    template: { description: desc, amount, currency: 'EUR', category: cat, type: 'expense' },
+  });
+  const history = (desc: string, amounts: number[], endMonth = 7): Transaction[] =>
+    amounts.map((a, i) => {
+      const d = new Date(2026, endMonth - (amounts.length - 1 - i), 11);
+      return {
+        id: `h-${desc}-${i}`, description: desc, amount: a, currency: 'EUR',
+        category: cat, date: toDateStr(d), type: 'expense',
+      } as Transaction;
+    });
+
+  const amex = priceChange(mkRule('Amex', 67), history('Amex', [60, 62, 62, 60, 62, 67, 67, 67]), NOW);
+  say(`Amex 60,62,62,60,62 -> 67x3: ${amex ? `${amex.from} -> ${amex.to}` : 'silent'}`);
+  expect('a noisy history still names its usual old price', amex ? `${amex.from}->${amex.to}` : 'null', '62->67');
+
+  const voda = priceChange(mkRule('Vodafone', 9.99), history('Vodafone', [15, 15, 10, 15, 9.99, 9.99, 9.99]), NOW);
+  expect('a drop is announced too', voda ? `${voda.from}->${voda.to}` : 'null', '15->9.99');
+
+  const dazn = priceChange(mkRule('DAZN', 44.9),
+    history('DAZN', [44, 44, 44.99, 44, 45, 44.99, 44.9, 44.9, 44.99, 44.99, 44, 44.9, 44.9]), NOW);
+  expect('rounding wobble stays silent (sub-3%)', dazn ? 'announced' : 'silent', 'silent');
+
+  const rent = priceChange(mkRule('Rent', 800), history('Rent', [800, 800, 800, 800, 800, 800]), NOW);
+  expect('a stable price stays silent', rent ? 'announced' : 'silent', 'silent');
+
+  const outlier = priceChange(mkRule('Gym', 45), history('Gym', [45, 45, 45, 45, 45, 90]), NOW);
+  expect('one odd charge is a correction, not a price', outlier ? 'announced' : 'silent', 'silent');
+
+  // The same rise, but a year ago: true, not news.
+  const stale = priceChange(mkRule('Amex', 67), history('Amex', [62, 62, 62, 67, 67, 67], -6), NOW);
+  expect('a change older than six months is not news', stale ? 'announced' : 'silent', 'silent');
+
+  const thin = priceChange(mkRule('New', 12), history('New', [10, 12, 12]), NOW);
+  expect('three rows are not a history', thin ? 'announced' : 'silent', 'silent');
+
+  // Same wording in ANOTHER category must not pollute the history.
+  const otherCat = { ...cat, id: 'c2', name: 'Work' };
+  const mixed = [
+    ...history('Lunch', [12, 12, 12, 12]),
+    ...history('Lunch', [30, 30], 5).map((t) => ({ ...t, id: t.id + '-w', category: otherCat })),
+  ];
+  const lunch = priceChange(mkRule('Lunch', 12), mixed, NOW);
+  expect("another category's rows do not pollute the chain", lunch ? 'announced' : 'silent', 'silent');
+
+  // Nor does the same bill paid in another currency.
+  const fx = [
+    ...history('Spotify', [9.99, 9.99, 9.99, 9.99]),
+    ...history('Spotify', [10.99, 10.99], 9).map((t) => ({ ...t, id: t.id + '-us', currency: 'USD' })),
+  ];
+  const spotify = priceChange(mkRule('Spotify', 9.99), fx, NOW);
+  expect('another currency is another history', spotify ? 'announced' : 'silent', 'silent');
 }

@@ -704,6 +704,78 @@ export function nextDueDate(rule: RecurringRule, today: Date = new Date()): stri
  * that this screen never announced. A rule with nothing left projects to null
  * and falls out here on its own.
  */
+/**
+ * The last price change worth mentioning for a schedule, or null.
+ *
+ * "The chain's rows" means every transaction that looks like this bill -
+ * same wording, category, direction and currency - because a real price
+ * history crosses chain successions (editing a schedule starts a new rule)
+ * and imported history tagged onto it. The shapes in a real ledger tuned
+ * every rule here:
+ *
+ * - The NEW price must be established: the trailing run of equal amounts,
+ *   at least two charges long. One odd amount is a correction or a promo
+ *   month, not a price - an Amex history read 60,62,62,60,62 before
+ *   settling at 67, and any single amount in that stretch would have been
+ *   a false headline.
+ * - The OLD price is the most frequent amount before that run (ties go to
+ *   the more recent), for the same reason - noisy history has no single
+ *   "previous amount", but it does have a usual one.
+ * - Sub-3% moves stay quiet. A streaming service oscillating between
+ *   44, 44.90 and 44.99 is rounding wobble; announcing it would teach the
+ *   user to ignore the chip.
+ * - Older than six months is not news. The chip answers "did this bill
+ *   just change", not "has it ever".
+ */
+export function priceChange(
+  rule: RecurringRule,
+  transactions: Transaction[],
+  today: Date = new Date(),
+): { from: number; to: number; at: string } | null {
+  const tpl = rule.template;
+  const rows = transactions
+    .filter(
+      (t) =>
+        norm(t.description ?? '') === norm(tpl.description ?? '') &&
+        t.category?.id === tpl.category?.id &&
+        (t.type ?? 'expense') === (tpl.type ?? 'expense') &&
+        (t.currency || 'EUR') === (tpl.currency || 'EUR') &&
+        t.amount > 0,
+    )
+    .sort((a, b) => a.date.localeCompare(b.date));
+  if (rows.length < 4) return null;
+
+  // Trailing run of the same amount - the candidate new price.
+  let i = rows.length - 1;
+  while (i > 0 && rows[i - 1].amount === rows[rows.length - 1].amount) i--;
+  const run = rows.length - i;
+  if (run < 2) return null;
+  const prior = rows.slice(0, i);
+  if (prior.length < 2) return null;
+
+  const counts = new Map<number, { n: number; last: number }>();
+  prior.forEach((t, idx) => {
+    const c = counts.get(t.amount) ?? { n: 0, last: 0 };
+    counts.set(t.amount, { n: c.n + 1, last: idx });
+  });
+  let from = prior[prior.length - 1].amount;
+  let best = { n: 0, last: -1 };
+  for (const [amount, c] of counts) {
+    if (c.n > best.n || (c.n === best.n && c.last > best.last)) {
+      from = amount;
+      best = c;
+    }
+  }
+
+  const to = rows[rows.length - 1].amount;
+  if (from <= 0 || Math.abs(to - from) / from < 0.03) return null;
+
+  const at = rows[i].date;
+  const sixMonthsAgo = new Date(today.getFullYear(), today.getMonth() - 6, today.getDate());
+  if (parseLocalDate(at) < sixMonthsAgo) return null;
+  return { from, to, at };
+}
+
 export function upcomingSchedules(
   rules: RecurringRule[],
   today: Date = new Date(),
