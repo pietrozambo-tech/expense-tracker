@@ -3,8 +3,8 @@ import { monthsFull, getLanguage } from '../i18n/store';
 import { t } from '../i18n';
 import {
   Minus, Plus, Wallet, Gauge, Calendar, Repeat, ChevronDown, ChevronRight, TrendingDown,
-  ShoppingCart, Car, Home, Clapperboard, Landmark, Layers,
-  FlaskConical, Trash2, FileSpreadsheet, Palmtree, UtensilsCrossed,
+  ShoppingCart, Car, Home, Clapperboard, Landmark, Layers, Pencil,
+  FlaskConical, Trash2, FileSpreadsheet, Palmtree, UtensilsCrossed, Tv,
 } from 'lucide-react';
 import type { Source } from '../types';
 import { SourceLogo } from './SourceLogo';
@@ -140,6 +140,67 @@ function AddIllustration() {
   );
 }
 
+function RecurringIllustration() {
+  const it = getLanguage() === 'it';
+  // Dates move with the calendar like every other illustration here.
+  const now = new Date();
+  const fmt = (daysAhead: number) =>
+    new Date(now.getFullYear(), now.getMonth(), now.getDate() + daysAhead)
+      .toLocaleDateString(it ? 'it-IT' : 'en-GB', { weekday: 'short', day: 'numeric' });
+  return (
+    <div className="flex flex-col gap-3">
+      {/* A schedule as the Recurring screen shows it: editable, stoppable */}
+      <div className="rounded-2xl px-4 py-3.5" style={{ background: '#FFFFFF', boxShadow: '0 8px 24px rgba(0,0,0,0.06)', border: '1px solid #EEEEF1' }}>
+        <div className="flex items-center gap-2.5">
+          <span className="flex items-center justify-center flex-shrink-0" style={{ width: 34, height: 34, borderRadius: 11, background: '#EDE9FE' }}>
+            <Tv className="w-4 h-4" style={{ color: '#7C5CE0' }} />
+          </span>
+          <div className="flex-1 min-w-0">
+            <div className="text-[15px] font-medium" style={{ color: '#1C1C1E' }}>Netflix</div>
+            <div className="text-[11px]" style={{ color: '#8E8E93' }}>{it ? 'Ogni mese' : 'Every month'}</div>
+          </div>
+          <MockAmount value="-12.99" className="text-[15px] font-bold tabular-nums" style={{ color: '#1C1C1E' }} />
+        </div>
+        <div className="flex items-center justify-between mt-2.5 pt-2.5" style={{ borderTop: '1px solid #F2F1ED' }}>
+          <span className="text-[12px] font-semibold" style={{ color: '#4F74F3' }}>
+            {it ? 'Prossima' : 'Next'} {fmt(3)}
+          </span>
+          <span className="flex items-center gap-3">
+            <Pencil className="w-3.5 h-3.5" style={{ color: '#8E8E93' }} />
+            <Trash2 className="w-3.5 h-3.5" style={{ color: '#8E8E93' }} />
+          </span>
+        </div>
+      </div>
+
+      {/* The coming-up strip those schedules feed on the Dashboard */}
+      <div className="rounded-2xl px-4 py-3" style={{ background: '#FFFFFF', boxShadow: '0 8px 24px rgba(0,0,0,0.06)', border: '1px solid #EEEEF1' }}>
+        <div className="flex items-baseline justify-between mb-1">
+          <span className="text-[11.5px] font-semibold" style={{ color: '#8E8E93', letterSpacing: '0.2px' }}>{t('rec.comingUp')}</span>
+          <span className="text-[12px] font-semibold" style={{ color: '#4F74F3' }}>{t('rec.manage')}</span>
+        </div>
+        {[
+          { day: fmt(2), name: it ? 'Affitto' : 'Rent', amt: '-800' },
+          { day: fmt(3), name: 'Netflix', amt: '-12.99' },
+        ].map((r) => (
+          <div key={r.name} className="flex items-baseline gap-2 py-1">
+            <span className="flex-shrink-0 text-[12.5px]" style={{ color: '#8E8E93', minWidth: 52 }}>{r.day}</span>
+            <span className="flex-1 text-[13px] font-medium truncate" style={{ color: '#1C1C1E' }}>{r.name}</span>
+            <MockAmount value={r.amt} className="text-[13px] font-semibold tabular-nums" style={{ color: '#1C1C1E' }} />
+          </div>
+        ))}
+      </div>
+
+      {/* The point, in one line */}
+      <div className="flex items-center justify-center gap-1.5">
+        <Repeat className="w-3.5 h-3.5" style={{ color: '#8E8E93' }} />
+        <span style={{ color: '#8E8E93', fontSize: 12.5 }}>
+          {it ? 'Ogni addebito si registra da solo, alla data giusta' : 'Every charge records itself, on its date'}
+        </span>
+      </div>
+    </div>
+  );
+}
+
 // The illustrations mimic real screens, so their dates have to move with the
 // calendar - a tour that says "July 2026" to someone signing up in September
 // looks like a stale screenshot of someone else's app.
@@ -241,6 +302,11 @@ function DashboardIllustration() {
           </span>
           <span className="text-[12px]" style={{ color: '#8E8E93' }}>{t('budget.dayLeft.other', { n: 7 })}</span>
         </div>
+        {/* The card's most persuasive line, same keys as the real one. 65 is
+            the mock's own arithmetic: (1,500 - 1,039) / 7, floored. */}
+        <div className="mt-2 text-[12px]" style={{ color: '#8E8E93' }}>
+          {t('budget.perDayPre')} <span className="font-bold" style={{ color: '#1C1C1E' }}>65€</span> {t('budget.perDayPost')}
+        </div>
       </div>
 
       {/* Category breakdown */}
@@ -269,7 +335,7 @@ function DashboardIllustration() {
             <span className="text-[11px] tabular-nums" style={{ color: '#B0B0B5' }}>{r.pct}%</span>
             <MockAmount value={r.amt.replace('\u20AC', '')} className="text-[13px] font-bold tabular-nums w-12 text-right" style={{ color: '#1C1C1E' }} />
             <span className="w-7 flex items-center justify-center flex-shrink-0">
-              {r.trend === 'down' && <TrendingDown className="w-3.5 h-3.5" style={{ color: '#34C759' }} strokeWidth={2.5} />}
+              {r.trend === 'down' && <TrendingDown className="w-3.5 h-3.5" style={{ color: '#1F7A43' }} strokeWidth={2.5} />}
               {r.trend === 'flat' && <Minus className="w-3.5 h-3.5" style={{ color: '#8E8E93' }} strokeWidth={2.5} />}
               {r.trend === 'new' && <span className="text-[9px] font-semibold" style={{ color: '#6B6B75' }}>{t('cat.new')}</span>}
             </span>
@@ -498,6 +564,13 @@ export function WelcomeCarousel({ userName, onDone, onSetupCategories, onLoadDem
       desc: getLanguage() === 'it'
         ? "Inserisci un importo, scegli categoria e sottocategoria, poi imposta ogni quanto si ripete e da quale conto arriva."
         : 'Enter an amount, choose a category and subcategory, then set how often it repeats and which account it came from.',
+    },
+    {
+      illustration: <RecurringIllustration />,
+      title: getLanguage() === 'it' ? 'Imposta una volta sola' : 'Set it once',
+      desc: getLanguage() === 'it'
+        ? 'Affitto, abbonamenti, stipendio: programmali e ogni addebito arriva da solo. La dashboard mostra cosa sta per arrivare, e puoi modificare o fermare tutto quando vuoi.'
+        : 'Rent, subscriptions, salary - schedule them and every charge lands by itself. The dashboard shows what is about to hit, and you can edit or stop any of it whenever.',
     },
     {
       illustration: <ImportIllustration />,
