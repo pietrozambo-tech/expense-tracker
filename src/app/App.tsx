@@ -1817,11 +1817,11 @@ export default function App() {
     });
   };
 
+  // No toast here: Profile saves the name and the budget together, so only
+  // the caller knows which of them actually moved. It said "Name updated"
+  // even when the name was untouched.
   const handleUserNameChange = (newName: string) => {
     setUserName(newName);
-    toast.success(t('toast.nameUpdated'), {
-      duration: 1400,
-    });
   };
 
   // While the session (and, when signed in, the cloud data) is resolving, show
@@ -2048,6 +2048,7 @@ export default function App() {
                 budgetNudgeDismissed={budgetNudgeDismissed}
                 insightsEnabled={insightsEnabled}
                 onDisableInsights={() => setInsightsEnabled(false)}
+                onModalOpenChange={setIsModalOpen}
                 onSetMonthlyBudget={setMonthlyBudget}
                 onDismissBudgetNudge={() => setBudgetNudgeDismissed(true)}
                 onAddFirstExpense={() => setCurrentTab('add')}

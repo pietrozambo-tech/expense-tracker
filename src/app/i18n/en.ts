@@ -397,6 +397,8 @@ export const en = {
   'toast.checkConnection': 'Check your connection and try again.',
   'toast.currencyUpdated': 'Currency updated to {c}',
   'toast.currencyUpdatedDesc': 'New transactions will use this currency',
+  'toast.profileUpdated': 'Profile updated',
+  'toast.budgetUpdated': 'Budget updated',
   'toast.nameUpdated': 'Name updated successfully',
   'toast.dupes.one': '{n} duplicate removed',
   'toast.dupes.other': '{n} duplicates removed',

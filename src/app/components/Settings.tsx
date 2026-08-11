@@ -315,11 +315,22 @@ export function Settings({
 
   const handleNameSave = () => {
     if (!editedName.trim()) return;
-    onUserNameChange(editedName.trim());
+    const name = editedName.trim();
     // An empty budget field means "no budget" and hides the Dashboard bar.
     const raw = editedBudget.trim().replace(',', '.');
     const parsed = raw === '' ? undefined : Math.max(0, parseFloat(raw));
-    onMonthlyBudgetChange?.(parsed && isFinite(parsed) && parsed > 0 ? parsed : undefined);
+    const budget = parsed && isFinite(parsed) && parsed > 0 ? parsed : undefined;
+    const nameMoved = name !== userName;
+    const budgetMoved = budget !== monthlyBudget;
+    onUserNameChange(name);
+    onMonthlyBudgetChange?.(budget);
+    // Say what actually changed. This screen saves two fields and sits beside
+    // two more that apply on the spot, so a fixed "Name updated" was wrong
+    // more often than right - it fired for a budget edit, and for a Save
+    // pressed after only flipping the insights switch.
+    if (nameMoved && budgetMoved) toast.success(t('toast.profileUpdated'), { duration: 1400 });
+    else if (nameMoved) toast.success(t('toast.nameUpdated'), { duration: 1400 });
+    else if (budgetMoved) toast.success(t('toast.budgetUpdated'), { duration: 1400 });
     setShowNameEditor(false);
   };
 

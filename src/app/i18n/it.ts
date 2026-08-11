@@ -398,6 +398,8 @@ export const it: Record<keyof typeof en, string> = {
   'toast.checkConnection': 'Controlla la connessione e riprova.',
   'toast.currencyUpdated': 'Valuta aggiornata: {c}',
   'toast.currencyUpdatedDesc': 'Le nuove transazioni useranno questa valuta',
+  'toast.profileUpdated': 'Profilo aggiornato',
+  'toast.budgetUpdated': 'Budget aggiornato',
   'toast.nameUpdated': 'Nome aggiornato',
   'toast.dupes.one': '{n} duplicato rimosso',
   'toast.dupes.other': '{n} duplicati rimossi',

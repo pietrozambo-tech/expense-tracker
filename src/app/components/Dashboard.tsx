@@ -157,6 +157,10 @@ interface DashboardProps {
   monthlyBudget?: number;
   /** True once the user has waved away the "set a budget" card. */
   budgetNudgeDismissed?: boolean;
+  /** Raised while any sheet on this tab is open, so App can hide the floating
+   *  dock. Without it the dock sat on top of the period picker's bottom row -
+   *  and in the Year view that row IS the years. */
+  onModalOpenChange?: (open: boolean) => void;
   /** False once the user has turned the month-review card off in Settings. */
   insightsEnabled?: boolean;
   onDisableInsights?: () => void;
@@ -306,7 +310,7 @@ function StatChip({ label, value, tone }: { label: React.ReactNode; value: strin
 // starting from it means the first render already draws at the right scale.
 let lastChartWidth = 0;
 
-export function Dashboard({ expenses, categories, incomeCategories, sources = [], userName, currency, onEditExpense, onDeleteExpense, view = 'overview', onShowOverview, initialPeriod, viewStateRef, trendStateRef, monthlyBudget, budgetNudgeDismissed, insightsEnabled = true, onDisableInsights, onSetMonthlyBudget, onDismissBudgetNudge, onAddFirstExpense, onLoadDemoData, weekStartsOn = 1, recurringRules = [], onManageRecurring }: DashboardProps) {
+export function Dashboard({ expenses, categories, incomeCategories, sources = [], userName, currency, onEditExpense, onDeleteExpense, view = 'overview', onShowOverview, initialPeriod, viewStateRef, trendStateRef, monthlyBudget, budgetNudgeDismissed, insightsEnabled = true, onDisableInsights, onModalOpenChange, onSetMonthlyBudget, onDismissBudgetNudge, onAddFirstExpense, onLoadDemoData, weekStartsOn = 1, recurringRules = [], onManageRecurring }: DashboardProps) {
   // Restore the previous view (period + drilldown) unless a Trend->Overview
   // link supplied an explicit period - that must win and start clean.
   // Subscribing here does two jobs: it re-renders the Dashboard the instant the
@@ -1818,6 +1822,22 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
     const prev = inRange(periodRange(1)).filter((e) => e.type !== 'income');
     return prev.length >= 5;
   })();
+
+  // Anything that overlays this tab. The floating dock is drawn in a portal
+  // above the page, so a sheet that reaches the bottom of the screen loses its
+  // last row to it: the period picker's Year grid is a single row, and it
+  // landed exactly under the dock - visible, and unclickable.
+  const anySheetOpen =
+    isPeriodPickerOpen ||
+    isTrendCategoryModalOpen ||
+    isTrendSubcategoryModalOpen ||
+    confirmHideInsights ||
+    drilldownContext !== null;
+  useEffect(() => {
+    onModalOpenChange?.(anySheetOpen);
+    // Leaving the tab with a sheet open must not strand the dock hidden.
+    return () => onModalOpenChange?.(false);
+  }, [anySheetOpen, onModalOpenChange]);
 
   // Get cumulative spending data for the current period
   const getCumulativeData = () => {

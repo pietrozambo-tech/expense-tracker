@@ -128,21 +128,24 @@ export function PeriodPickerModal({
         <div className="px-6 py-4" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 28px)' }}>
           {/* Month / Quarter / Year */}
           <div className="flex p-1 rounded-xl" style={{ backgroundColor: '#F2F1ED' }}>
-            {(['month', 'quarter', 'year'] as const).map((t) => (
+            {/* `p`, not `t`: the loop variable used to shadow the translation
+                function, so these three buttons rendered their own English
+                keys and were the only untranslated control in the sheet. */}
+            {(['month', 'quarter', 'year'] as const).map((p) => (
               <button
-                key={t}
-                onClick={() => setDraftType(t)}
-                className="flex-1 py-1.5 rounded-lg text-xs capitalize"
+                key={p}
+                onClick={() => setDraftType(p)}
+                className="flex-1 py-1.5 rounded-lg text-xs"
                 style={{
-                  backgroundColor: draftType === t ? '#FFFFFF' : 'transparent',
-                  color: draftType === t ? '#1C1C1E' : '#8E8E93',
-                  fontWeight: draftType === t ? 600 : 500,
-                  boxShadow: draftType === t ? '0 1px 3px rgba(0,0,0,0.10)' : 'none',
+                  backgroundColor: draftType === p ? '#FFFFFF' : 'transparent',
+                  color: draftType === p ? '#1C1C1E' : '#8E8E93',
+                  fontWeight: draftType === p ? 600 : 500,
+                  boxShadow: draftType === p ? '0 1px 3px rgba(0,0,0,0.10)' : 'none',
                   transition: 'background-color 0.15s ease',
                   WebkitTapHighlightColor: 'rgba(255, 255, 255, 0)',
                 }}
               >
-                {t}
+                {t(`dash.periodType.${p}` as 'dash.periodType.month')}
               </button>
             ))}
           </div>
