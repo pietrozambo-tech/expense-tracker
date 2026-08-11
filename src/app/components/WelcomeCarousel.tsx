@@ -246,17 +246,10 @@ function DashboardIllustration() {
             </div>
           ))}
         </div>
-        {/* The line the app writes under the hero: a finished period says how
-            it compared with the user's own months, in words. */}
-        <div className="h-px mt-3" style={{ background: 'rgba(255,255,255,0.07)' }} />
-        <div className="pt-2.5">
-          <div className="text-[11px] leading-snug" style={{ color: 'rgba(235,235,245,0.6)' }}>
-            {getLanguage() === 'it' ? 'Spesa ha trainato il mese: 2x il solito (+180€).' : 'Groceries drove the month, 2x usual (+180€).'}
-          </div>
-          <div className="text-[11px] leading-snug mt-0.5" style={{ color: 'rgba(235,235,245,0.45)' }}>
-            {getLanguage() === 'it' ? 'Trasporti: 40% sotto il solito (55€).' : 'Transport was 40% below usual (55€).'}
-          </div>
-        </div>
+        {/* The hero used to carry two lines of narrative here. They moved to
+            the Summary card when that was built, so a tour still showing them
+            was advertising a screen the app no longer draws - and this mock is
+            headed by the CURRENT month, which never had them even before. */}
       </div>
 
       {/* Monthly budget - the bar sits here on the real Dashboard too, between
@@ -526,8 +519,8 @@ export function WelcomeCarousel({ onDone, onSetupCategories, onLoadDemo }: Welco
       // the tour, and every line of copy is a line the illustration loses.
       // The long version pushed the art to 78% on a 667px phone in Italian.
       desc: getLanguage() === 'it'
-        ? 'Spese, entrate e risparmi a colpo d’occhio - e a fine mese, una riga che ti dice com’è andata rispetto al tuo solito.'
-        : 'Spending, income and savings at a glance - and when the month ends, a plain line on how it went against your usual.',
+        ? 'Spese, entrate e risparmi a colpo d’occhio - e a fine mese, un breve riepilogo di com’è andata rispetto al tuo solito.'
+        : 'Spending, income and savings at a glance - and when the month ends, a short summary of how it went against your usual.',
     },
     {
       illustration: <DemoIllustration />,
