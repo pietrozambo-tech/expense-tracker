@@ -260,13 +260,27 @@ export function Activity({
   // once the order ignores days they would be scattered one-row bands. The
   // rows carry their own date instead (ExpenseItem's showDate).
   //
-  // Magnitude, not sign: "biggest first" means the 3,000 salary and the 3,000
-  // rent sit together. Sorting signed would bury every expense under every
-  // income on the All tab, which is a filter, not a sort.
+  // Signed, not magnitude. `amount` is stored unsigned and the direction lives
+  // in `type`, so the comparable value is the money's actual movement: minus
+  // for an expense, plus for income - which also puts a refund (an expense
+  // with a negative amount) correctly on the income side of the order, since
+  // that is money coming back.
+  //
+  // Sorting by |amount| looked reasonable and was not: it interleaved a 3,000
+  // salary with 3,000 of rent as though they were the same event, and on the
+  // All tab the biggest thing that happened to you could be either direction
+  // with no way to tell from position.
+  const signedAmount = (t: Transaction) =>
+    (t.type === 'income' ? 1 : -1) * homeAmount(t, currency);
+  // Biggest first, in the direction the tab is about: Income counts down from
+  // the largest sum received; Expenses and All count up from the largest spend,
+  // so All runs from the heaviest expense through to the largest income.
   const amountSorted =
     sortBy === 'amount'
-      ? [...filteredTransactions].sort(
-          (a, b) => Math.abs(homeAmount(b, currency)) - Math.abs(homeAmount(a, currency)),
+      ? [...filteredTransactions].sort((a, b) =>
+          activityType === 'income'
+            ? signedAmount(b) - signedAmount(a)
+            : signedAmount(a) - signedAmount(b),
         )
       : [];
 

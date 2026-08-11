@@ -30,7 +30,7 @@ import type { Source } from '../types';
 import type { ImportPayload } from '../lib/importData';
 import { t, type Language as AppLanguage } from '../i18n';
 import { CATCHALL_RE } from '../lib/categoryOps';
-import { dateLocale, daysFull, getLanguage } from '../i18n/store';
+import { dateLocale, daysShort, getLanguage } from '../i18n/store';
 import { isBackupFile } from '../lib/backup';
 
 // The languages the app ships in. The row leads with the ENDONYM - someone
@@ -597,10 +597,9 @@ export function Settings({
   if (showNameEditor) {
     return (
       <div className="flex flex-col" style={{ height: SUBPAGE_HEIGHT, backgroundColor: '#F6F5F2' }}>
-        {/* Fixed Header Section */}
+        {/* Header */}
         <div style={{ backgroundColor: '#F6F5F2' }}>
-          {/* Header with back button and title */}
-          <div className="px-6 pb-4 pt-0">
+          <div className="px-6 pb-3 pt-0">
             <div className="flex items-center justify-center relative">
               <button
                 onClick={() => {
@@ -616,122 +615,94 @@ export function Settings({
           </div>
         </div>
 
-        {/* Scrollable Content Section */}
-        <div className="flex-1 overflow-y-auto pb-24">
-          <div className="px-6 pb-6">
-            <p style={{ color: '#8E8E93', fontSize: '13px' }}>
-              {t('set.profileSub')}
-            </p>
-          </div>
+        <div className="px-6 pb-4">
+          <p style={{ color: '#8E8E93', fontSize: '13px', lineHeight: 1.45 }}>
+            {t('set.profileSub')}
+          </p>
+        </div>
 
-          <div className="px-6">
-            <p style={{ color: '#8E8E93', fontSize: 13, fontWeight: 500, marginBottom: 8 }}>{t('set.name')}</p>
-            {/* No autoFocus. It was right when this page was only a name box
-                and typing was the one thing to do here; now the keyboard
-                covers the budget and the week start, so the page opens on a
-                screen you cannot read. */}
-            <input
-              type="text"
-              value={editedName}
-              onChange={(e) => setEditedName(e.target.value)}
-              placeholder=""
-              className="w-full px-4 py-4 rounded-xl text-base outline-none transition-all"
-              style={{
-                backgroundColor: '#FFFFFF',
-                color: '#1C1C1E',
-                border: '1px solid #E5E5EA',
-                boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)'
-              }}
-              onFocus={(e) => {
-                e.target.style.border = '1.5px solid #4F74F3';
-                e.target.style.boxShadow = '0 0 0 3px rgba(0, 122, 255, 0.08)';
-              }}
-              onBlur={(e) => {
-                e.target.style.border = '1px solid #E5E5EA';
-                e.target.style.boxShadow = '0 1px 3px rgba(0, 0, 0, 0.04)';
-              }}
-            />
-
-            <p style={{ color: '#8E8E93', fontSize: 13, fontWeight: 500, margin: '24px 0 8px' }}>
-              {t('set.monthlyBudget')}
-            </p>
-            <div
-              className="flex items-center gap-2 px-4 rounded-xl"
-              style={{ backgroundColor: '#FFFFFF', border: '1px solid #E5E5EA', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}
-            >
-              <span style={{ color: '#8E8E93', fontSize: 16 }}>{CURRENCIES[userCurrency]?.symbol ?? ''}</span>
+        {/* The page is four settings, so it is four rows of one card rather
+            than four labelled blocks each with its own heading, input and
+            footnote. That version ran 750px against 485px of room on a small
+            phone, which put the Save button exactly on the fold - and every
+            hint under every field was competing with the field above it.
+            Grouping them puts the labels IN the rows, where they cost nothing,
+            and leaves one explanatory line for the whole card. */}
+        <div className="flex-1 overflow-y-auto px-6" style={{ paddingBottom: 28 }}>
+          <div
+            className="rounded-2xl overflow-hidden"
+            style={{ backgroundColor: '#FFFFFF', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}
+          >
+            {/* Name */}
+            <div className="flex items-center gap-3 px-4" style={{ height: 52, borderBottom: '1px solid #F2F1ED' }}>
+              <span className="flex-shrink-0" style={{ color: '#1C1C1E', fontSize: 15 }}>{t('set.name')}</span>
               <input
                 type="text"
-                inputMode="decimal"
-                value={editedBudget}
-                onChange={(e) => {
-                  const v = e.target.value.replace(',', '.');
-                  if (v === '' || /^\d*\.?\d{0,2}$/.test(v)) setEditedBudget(v);
-                }}
-                placeholder={t('set.noLimit')}
-                className="flex-1 py-4 bg-transparent outline-none tabular-nums"
-                style={{ fontSize: 16, color: '#1C1C1E' }}
+                value={editedName}
+                onChange={(e) => setEditedName(e.target.value)}
+                className="flex-1 min-w-0 text-right bg-transparent outline-none"
+                // 16px, not 15: below that iOS zooms the page on focus.
+                style={{ fontSize: 16, color: '#1C1C1E', fontWeight: 500 }}
               />
             </div>
-            <p style={{ color: '#B0B0B5', fontSize: 12, marginTop: 6, lineHeight: 1.45 }}>
-              {t('set.budgetHint')}
-            </p>
 
-            <p style={{ color: '#8E8E93', fontSize: 13, fontWeight: 500, margin: '24px 0 8px' }}>
-              {t('set.weekStartsOn')}
-            </p>
-            {/* Applies immediately, unlike name and budget: it is a preference,
-                not a value being typed, and a wrong tap is one tap to undo. */}
-            <div
-              className="flex p-1 rounded-xl"
-              style={{ backgroundColor: '#FFFFFF', border: '1px solid #E5E5EA', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}
-            >
-              {[1, 6, 0].map((day) => ({ day, label: daysFull()[day] })).map(({ day, label }) => (
-                <button
-                  key={day}
-                  onClick={() => onSetWeekStartsOn?.(day)}
-                  className="flex-1 py-2 rounded-lg text-sm"
-                  style={{
-                    backgroundColor: weekStartsOn === day ? '#1C1C1E' : 'transparent',
-                    color: weekStartsOn === day ? '#FFFFFF' : '#8E8E93',
-                    fontWeight: weekStartsOn === day ? 600 : 500,
-                    transition: 'background-color 0.15s ease',
-                    WebkitTapHighlightColor: 'rgba(255, 255, 255, 0)',
+            {/* Monthly budget */}
+            <div className="flex items-center gap-3 px-4" style={{ height: 52, borderBottom: '1px solid #F2F1ED' }}>
+              <span className="flex-shrink-0" style={{ color: '#1C1C1E', fontSize: 15 }}>{t('set.monthlyBudget')}</span>
+              <div className="flex-1 min-w-0 flex items-center justify-end gap-1">
+                <span style={{ color: '#8E8E93', fontSize: 15 }}>{CURRENCIES[userCurrency]?.symbol ?? ''}</span>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  value={editedBudget}
+                  onChange={(e) => {
+                    const v = e.target.value.replace(',', '.');
+                    if (v === '' || /^\d*\.?\d{0,2}$/.test(v)) setEditedBudget(v);
                   }}
-                >
-                  {label}
-                </button>
-              ))}
+                  placeholder="—"
+                  className="w-24 text-right bg-transparent outline-none tabular-nums"
+                  style={{ fontSize: 16, color: '#1C1C1E', fontWeight: 500 }}
+                />
+              </div>
             </div>
-            <p style={{ color: '#B0B0B5', fontSize: 12, marginTop: 6, lineHeight: 1.45 }}>
-              {t('set.weekHint')}
-            </p>
 
-            {/* Applies immediately, like the week start above it: a switch that
-                needed saving would be a switch that lies about its own state. */}
-            <p style={{ color: '#8E8E93', fontSize: 13, fontWeight: 500, margin: '24px 0 8px' }}>
-              {t('set.insights')}
-            </p>
+            {/* Week start. Applies immediately, unlike the two fields above:
+                it is a preference, not a value being typed. */}
+            <div className="px-4 py-2.5" style={{ borderBottom: '1px solid #F2F1ED' }}>
+              <div className="flex items-center gap-3">
+                <span className="flex-shrink-0" style={{ color: '#1C1C1E', fontSize: 15 }}>{t('set.weekStartsOn')}</span>
+                <div className="flex-1 flex p-0.5 rounded-lg" style={{ backgroundColor: '#F2F1ED' }}>
+                  {[1, 6, 0].map((day) => ({ day, label: daysShort()[day] })).map(({ day, label }) => (
+                    <button
+                      key={day}
+                      onClick={() => onSetWeekStartsOn?.(day)}
+                      className="flex-1 py-1.5 rounded-md text-[13px] transition-colors"
+                      style={{
+                        backgroundColor: weekStartsOn === day ? '#FFFFFF' : 'transparent',
+                        color: weekStartsOn === day ? '#1C1C1E' : '#8E8E93',
+                        fontWeight: weekStartsOn === day ? 600 : 500,
+                        boxShadow: weekStartsOn === day ? '0 1px 3px rgba(0,0,0,0.10)' : 'none',
+                        WebkitTapHighlightColor: 'rgba(255, 255, 255, 0)',
+                      }}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Monthly insights */}
             <button
               onClick={() => onSetInsightsEnabled?.(!insightsEnabled)}
               role="switch"
               aria-checked={insightsEnabled}
-              className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl"
-              style={{ backgroundColor: '#FFFFFF', border: '1px solid #E5E5EA', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}
+              className="w-full flex items-center gap-3 px-4"
+              style={{ height: 52 }}
             >
-              <span
-                className="w-8 h-8 rounded-[10px] flex items-center justify-center flex-shrink-0"
-                style={{ backgroundColor: insightsEnabled ? '#EEF1FE' : '#F2F1ED' }}
-              >
-                <Sparkles className="w-4 h-4" style={{ color: insightsEnabled ? '#4F74F3' : '#B0B0B5' }} strokeWidth={2.2} />
+              <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: 15 }}>
+                {t('set.insights')}
               </span>
-              {/* The section label above already names the feature; the row
-                  says what the switch does. */}
-              <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: 15, fontWeight: 500 }}>
-                {t('set.insightsRow')}
-              </span>
-              {/* The same sliding thumb the app's other switches use, at the
-                  size a single boolean needs. */}
               <span
                 className="relative flex-shrink-0 rounded-full transition-colors"
                 style={{ width: 46, height: 28, backgroundColor: insightsEnabled ? '#4F74F3' : '#E3E2DD' }}
@@ -747,24 +718,30 @@ export function Settings({
                 />
               </span>
             </button>
-            <p style={{ color: '#B0B0B5', fontSize: 12, marginTop: 6, lineHeight: 1.45 }}>
-              {t('set.insightsHint')}
-            </p>
-
-            <button
-              onClick={handleNameSave}
-              disabled={!editedName.trim()}
-              className="w-full mt-6 py-4 rounded-xl font-medium text-base transition-all active:scale-[0.98]"
-              style={{
-                backgroundColor: !editedName.trim() ? '#E5E5EA' : '#4F74F3',
-                color: '#FFFFFF',
-                boxShadow: !editedName.trim() ? 'none' : '0 2px 8px rgba(0, 122, 255, 0.25)',
-                cursor: !editedName.trim() ? 'not-allowed' : 'pointer'
-              }}
-            >
-              {t('common.save')}
-            </button>
           </div>
+
+          {/* One line for the card, instead of one under every field. */}
+          <p style={{ color: '#B0B0B5', fontSize: 12, marginTop: 10, lineHeight: 1.45 }}>
+            {t('set.profileHint')}
+          </p>
+
+          {/* In the flow, right after what it saves. Pinned to the bottom it
+              sat alone under 300px of nothing on a tall phone; the card is
+              short enough now that it lands on screen unscrolled anyway, and
+              the padding below keeps it clear of the fold if it ever does. */}
+          <button
+            onClick={handleNameSave}
+            disabled={!editedName.trim()}
+            className="w-full mt-5 py-3.5 rounded-xl font-medium text-base transition-all active:scale-[0.98]"
+            style={{
+              backgroundColor: !editedName.trim() ? '#E5E5EA' : '#4F74F3',
+              color: '#FFFFFF',
+              boxShadow: !editedName.trim() ? 'none' : '0 2px 8px rgba(0, 122, 255, 0.25)',
+              cursor: !editedName.trim() ? 'not-allowed' : 'pointer'
+            }}
+          >
+            {t('common.save')}
+          </button>
         </div>
       </div>
     );
