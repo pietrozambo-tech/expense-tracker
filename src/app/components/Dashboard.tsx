@@ -2447,7 +2447,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                   </div>
 
                   {/* Only the running period explains itself here. A finished
-                      one is narrated by the Review card below, which has room
+                      one is narrated by the Summary card below, which has room
                       for the whole story - keeping a copy in the hero as well
                       said the same sentence twice on one screen. */}
                   {heroNote && (
