@@ -2421,27 +2421,16 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                     </div>
                   </div>
 
-                  {/* A running period explains itself; a finished one gets
-                      summarised. The two can never both apply. */}
-                  {(heroNote || periodSummary) && (
+                  {/* Only the running period explains itself here. A finished
+                      one is narrated by the Review card below, which has room
+                      for the whole story - keeping a copy in the hero as well
+                      said the same sentence twice on one screen. */}
+                  {heroNote && (
                     <>
                       <div className="h-px mt-3" style={{ backgroundColor: 'rgba(255,255,255,0.07)' }} />
                       <div className="pt-2.5" style={{ color: 'rgba(235,235,245,0.6)' }}>
-                        {heroNote ? (
-                          // Structurally one line: truncate rather than wrap.
-                          <div className="text-[11px] leading-snug truncate">{heroNote}</div>
-                        ) : (
-                          <>
-                            <div className="text-[11px] leading-snug">
-                              <InsightLine text={periodSummary!.line1} />
-                            </div>
-                            {periodSummary!.line2 && (
-                              <div className="text-[11px] leading-snug mt-0.5" style={{ color: 'rgba(235,235,245,0.45)' }}>
-                                <InsightLine text={periodSummary!.line2} />
-                              </div>
-                            )}
-                          </>
-                        )}
+                        {/* Structurally one line: truncate rather than wrap. */}
+                        <div className="text-[11px] leading-snug truncate">{heroNote}</div>
                       </div>
                     </>
                   )}
@@ -2514,33 +2503,37 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
             </div>
           )}
 
-          {/* A finished month, as a card. Above the budget bar because a
-              past month's budget is a verdict while this is the story, and
-              the story is why the screen was opened. */}
-          {periodReview && (
+          {/* The month, told. Deliberately NOT a second copy of the hero:
+              the period is named directly above, the total sits in the hero's
+              own Spending tile, and repeating either was the card spending
+              its best rows on facts already on screen. What is left is what
+              only this card can say - how the month compares, what drove it,
+              and what it looks like with the one outlier removed.
+
+              Expenses only. Every figure here is expense-side (the baseline,
+              the movers, the categories), so under the Income toggle it would
+              be answering a question nobody asked. */}
+          {transactionType === 'expense' && periodReview && (
             <div className="px-6 mb-4">
               <div
                 className="rounded-2xl overflow-hidden"
                 style={{ backgroundColor: '#FFFFFF', boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)' }}
               >
-                <div style={{ padding: '14px 16px 12px', background: 'linear-gradient(135deg, #EEF1FE 0%, #FFFFFF 70%)' }}>
+                <div style={{ padding: '13px 16px 12px', background: 'linear-gradient(135deg, #EEF1FE 0%, #FFFFFF 70%)' }}>
                   <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', color: '#4F74F3' }}>
-                    {t('review.eyebrow', { period: getPeriodDisplayName().toUpperCase() })}
+                    {t('review.eyebrow')}
                   </div>
-                  <div className="mt-1" style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.5px', color: '#1C1C1E' }}>
-                    <AmountText amount={periodReview.spent} currency={currency} decimals={0} abbreviate="fit" />
-                    {' '}
-                    <span style={{ fontSize: 15, fontWeight: 600, color: '#8E8E93' }}>{t('review.spent')}</span>
-                  </div>
+                  {/* The verdict takes the headline the total used to hold. */}
                   {periodReview.vsUsual !== null && (
                     <div
-                      className="mt-0.5"
+                      className="mt-1"
                       style={{
-                        fontSize: 12,
-                        fontWeight: 600,
-                        // Amber over usual, green under, grey in line - the
-                        // budget bar's tones, not the alarm reds.
-                        color: periodReview.vsUsual > 5 ? '#96631A' : periodReview.vsUsual < -5 ? '#2C7A54' : '#8E8E93',
+                        fontSize: 20,
+                        fontWeight: 800,
+                        letterSpacing: '-0.4px',
+                        // The budget bar's tones: amber over, green under,
+                        // ink when it is neither. Not the alarm reds.
+                        color: periodReview.vsUsual > 5 ? '#96631A' : periodReview.vsUsual < -5 ? '#2C7A54' : '#1C1C1E',
                       }}
                     >
                       {Math.abs(periodReview.vsUsual) <= 5
@@ -2548,6 +2541,20 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                         : t(periodReview.vsUsual > 0 ? 'review.above' : 'review.below', {
                             pct: Math.abs(periodReview.vsUsual),
                           })}
+                    </div>
+                  )}
+                  {/* The sentences that used to sit in the hero. They are the
+                      WHY behind the headline, so they belong under it. */}
+                  {periodSummary && (
+                    <div className="mt-1.5" style={{ color: '#6B6B75' }}>
+                      <div style={{ fontSize: 12.5, lineHeight: 1.45 }}>
+                        <InsightLine text={periodSummary.line1} />
+                      </div>
+                      {periodSummary.line2 && (
+                        <div className="mt-0.5" style={{ fontSize: 12.5, lineHeight: 1.45, color: '#8E8E93' }}>
+                          <InsightLine text={periodSummary.line2} />
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -2562,15 +2569,19 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                     <ReviewRow
                       label={t('review.biggest')}
                       value={`${periodReview.biggest.name} · ${formatAbbreviatedAmount(periodReview.biggest.amount, currency)}`}
+                      last={!periodReview.without}
                     />
                   )}
                   {periodReview.without && (
                     <ReviewRow
                       label={t('review.without', { name: periodReview.without.label })}
+                      // Terser than the headline's phrasing on purpose: the
+                      // baseline is established two lines up, and "above your
+                      // usual" three times in one card reads as a stutter.
                       value={
                         periodReview.without.pct >= 0
-                          ? t('review.above', { pct: periodReview.without.pct })
-                          : t('review.below', { pct: Math.abs(periodReview.without.pct) })
+                          ? t('review.aboveShort', { pct: periodReview.without.pct })
+                          : t('review.belowShort', { pct: Math.abs(periodReview.without.pct) })
                       }
                       tone={periodReview.without.pct < 0 ? '#2C7A54' : '#96631A'}
                       last
@@ -2580,6 +2591,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
               </div>
             </div>
           )}
+
 
           {budgetView?.nudge === false && (
             <BudgetBar

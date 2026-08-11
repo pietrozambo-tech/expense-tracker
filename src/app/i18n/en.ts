@@ -54,11 +54,13 @@ export const en = {
   'dash.empty.demo': 'Or look around with sample data',
 
   // Budget bar + nudge
-  'review.eyebrow': '{period}, IN REVIEW',
+  'review.eyebrow': 'REVIEW',
   'review.spent': 'spent',
   'review.above': '{pct}% above your usual',
   'review.below': '{pct}% below your usual',
   'review.inLine': 'In line with your usual',
+  'review.aboveShort': '{pct}% above',
+  'review.belowShort': '{pct}% below',
   'review.topCategory': 'Top category',
   'review.biggest': 'Biggest expense',
   'review.without': 'Without {name}',

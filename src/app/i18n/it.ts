@@ -55,11 +55,13 @@ export const it: Record<keyof typeof en, string> = {
   'dash.empty.demo': 'Oppure esplora con dati di esempio',
 
   // Budget bar + nudge
-  'review.eyebrow': '{period}, IL RIEPILOGO',
+  'review.eyebrow': 'RIEPILOGO',
   'review.spent': 'spesi',
   'review.above': '{pct}% sopra il tuo solito',
   'review.below': '{pct}% sotto il tuo solito',
   'review.inLine': 'In linea con il tuo solito',
+  'review.aboveShort': '{pct}% sopra',
+  'review.belowShort': '{pct}% sotto',
   'review.topCategory': 'Categoria principale',
   'review.biggest': 'Spesa più grande',
   'review.without': 'Senza {name}',
