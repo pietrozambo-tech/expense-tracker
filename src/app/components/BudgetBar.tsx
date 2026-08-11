@@ -171,6 +171,29 @@ export function BudgetBar({ spent, budget, currency, daysLeft, monthProgress, us
             </span>
           )}
         </div>
+        {/* The actionable number: what the remaining budget allows per day.
+            Shown only while following it is possible - it vanishes once the
+            month is over budget, on the last day (nothing left to pace), and
+            when the allowance falls under ~10% of the budget's own daily pace:
+            "spend up to 1EUR/day" is arithmetic wearing a straight face, and
+            the status chip already says how the month is going. Floored, not
+            rounded - advice that says "up to" must not overshoot. */}
+        {(() => {
+          if (!isLive || over || (daysLeft as number) < 1) return null;
+          const allowance = Math.floor((budget - spent) / (daysLeft as number));
+          const daysInMonth = Math.round((daysLeft as number) / (1 - (monthProgress as number)));
+          if (allowance < (budget / daysInMonth) * 0.1) return null;
+          return (
+            <div style={{ marginTop: 8, fontSize: 12, color: '#8E8E93' }}>
+              {t('budget.perDayPre')}{' '}
+              <span style={{ color: '#1C1C1E', fontWeight: 700 }}>
+                <AmountText amount={allowance} currency={currency} decimals={0} />
+              </span>{' '}
+              {t('budget.perDayPost')}
+            </div>
+          );
+        })()}
+
       </div>
     </div>
   );

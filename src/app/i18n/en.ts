@@ -64,6 +64,8 @@ export const en = {
   'budget.pctUsed': '{pct}% used',
   'budget.dayLeft.one': '{n} day left',
   'budget.dayLeft.other': '{n} days left',
+  'budget.perDayPre': 'Spend up to',
+  'budget.perDayPost': 'a day to finish the month under budget',
   'budget.lastDay': 'Last day',
   'budget.nudge.title': 'Set a monthly budget',
   'budget.nudge.body': "Set a monthly limit to track how you're doing",
@@ -94,6 +96,10 @@ export const en = {
 
   // One-off vs Recurring
   'rec.title': 'One-off vs Recurring',
+  'rec.comingUp': 'Coming up',
+  'rec.manage': 'Manage',
+  'rec.nextUp': 'Next:',
+  'rec.moreThisWeek': '+{n} more this week',
   'rec.oneOff': 'One-off',
   'rec.recurring': 'Recurring',
   'rec.back': 'Back',

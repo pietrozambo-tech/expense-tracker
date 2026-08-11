@@ -65,6 +65,8 @@ export const it: Record<keyof typeof en, string> = {
   'budget.pctUsed': '{pct}% usato',
   'budget.dayLeft.one': '{n} giorno rimasto',
   'budget.dayLeft.other': '{n} giorni rimasti',
+  'budget.perDayPre': 'Fino a',
+  'budget.perDayPost': 'al giorno per chiudere il mese entro il budget',
   'budget.lastDay': 'Ultimo giorno',
   'budget.nudge.title': 'Imposta un budget mensile',
   'budget.nudge.body': 'Fissa un limite mensile per capire come stai andando',
@@ -95,6 +97,10 @@ export const it: Record<keyof typeof en, string> = {
 
   // One-off vs Recurring
   'rec.title': 'Una tantum vs Ricorrenti',
+  'rec.comingUp': 'In arrivo',
+  'rec.manage': 'Gestisci',
+  'rec.nextUp': 'Prossima:',
+  'rec.moreThisWeek': '+{n} altre questa settimana',
   'rec.oneOff': 'Una tantum',
   'rec.recurring': 'Ricorrenti',
   'rec.back': 'Indietro',

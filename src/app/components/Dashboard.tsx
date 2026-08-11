@@ -3,13 +3,14 @@ import { ChevronRight, ArrowUpDown, TrendingUp, TrendingDown, Minus, Plus, Recei
 import { TrendCategoryBreakdown } from './TrendCategoryBreakdown';
 import React from 'react';
 import { formatAmountListView, formatAbbreviatedAmount, abbreviateNumber, needsAbbreviation, formatSavingRate, CURRENCIES, homeAmount } from '../utils/currency';
-import { monthsShort, monthsFull, daysFull, daysShort, numberLocale, getLanguage, GROUPED } from '../i18n/store';
+import { monthsShort, monthsFull, daysFull, daysShort, numberLocale, getLanguage, dateLocale, GROUPED } from '../i18n/store';
 import { t, useLanguage } from '../i18n';
 import { translateRecurrence } from '../i18n/store';
 import { getCategoryIcon } from './categoryIcons';
 import { FILTER_ACTIVE, FILTER_IDLE } from './filterChip';
 import { categoryHex, categoryTint, switchGlow } from './categoryColors';
 import { usualCurve, periodCurve } from '../lib/usual';
+import { upcomingSchedules, toDateStr } from '../lib/recurrence';
 import { dayOfWeekBreakdown, dowTakeaway } from '../lib/dayOfWeek';
 import { BudgetBar, BudgetNudge } from './BudgetBar';
 import { FitText } from './FitText';
@@ -165,6 +166,10 @@ interface DashboardProps {
   onLoadDemoData?: () => void;
   /** First day of the week for the day-of-week breakdown (Settings > Profile). */
   weekStartsOn?: number;
+  /** Live schedules, for the "coming up" strip on the One-off vs Recurring card. */
+  recurringRules?: import('../types').RecurringRule[];
+  /** Opens Settings > Recurring - the strip's "Manage" link. */
+  onManageRecurring?: () => void;
 }
 
 // Sentinel drilldown target: only the transactions with no subcategory
@@ -286,7 +291,7 @@ function StatChip({ label, value, tone }: { label: React.ReactNode; value: strin
 // starting from it means the first render already draws at the right scale.
 let lastChartWidth = 0;
 
-export function Dashboard({ expenses, categories, incomeCategories, sources = [], userName, currency, onEditExpense, onDeleteExpense, view = 'overview', onShowOverview, initialPeriod, viewStateRef, trendStateRef, monthlyBudget, budgetNudgeDismissed, onSetMonthlyBudget, onDismissBudgetNudge, onAddFirstExpense, onLoadDemoData, weekStartsOn = 1 }: DashboardProps) {
+export function Dashboard({ expenses, categories, incomeCategories, sources = [], userName, currency, onEditExpense, onDeleteExpense, view = 'overview', onShowOverview, initialPeriod, viewStateRef, trendStateRef, monthlyBudget, budgetNudgeDismissed, onSetMonthlyBudget, onDismissBudgetNudge, onAddFirstExpense, onLoadDemoData, weekStartsOn = 1, recurringRules = [], onManageRecurring }: DashboardProps) {
   // Restore the previous view (period + drilldown) unless a Trend->Overview
   // link supplied an explicit period - that must win and start clean.
   // Subscribing here does two jobs: it re-renders the Dashboard the instant the
@@ -3453,6 +3458,80 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                         </button>
                       ))}
                     </div>
+
+                    {/* Coming up: the forward half of the same story. The
+                        split above says what recurring spending DID this
+                        month; this says what it does next, so commitments
+                        live where the user looks daily instead of only in
+                        Settings. Only on the current period - browsing last
+                        March must not show next week - and only in the
+                        overview layer. Sized to stay small: at most three
+                        rows inside seven days; a quiet week collapses to one
+                        "next up" line; no schedules at all renders nothing,
+                        because an empty promise-box is worse than none. */}
+                    {recurrenceLayer === 'overview' && isAtCurrentPeriod() && (() => {
+                      const ups = upcomingSchedules(recurringRules, new Date())
+                        .filter((u) => u.rule.template.type !== 'income');
+                      if (ups.length === 0) return null;
+                      const horizon = new Date();
+                      horizon.setDate(horizon.getDate() + 7);
+                      const limit = toDateStr(horizon);
+                      const week = ups.filter((u) => u.next <= limit);
+                      const shown = week.slice(0, 3);
+                      const extra = week.length - shown.length;
+                      const dayLabel = (d: string) =>
+                        parseLocalDate(d).toLocaleDateString(dateLocale(), { weekday: 'short', day: 'numeric' });
+                      const farLabel = (d: string) =>
+                        parseLocalDate(d).toLocaleDateString(dateLocale(), { day: 'numeric', month: 'short' });
+                      return (
+                        <div className="mt-3 pt-3" style={{ borderTop: '1px solid #F2F1ED' }}>
+                          <div className="flex items-baseline justify-between mb-1">
+                            <span style={{ color: '#8E8E93', fontSize: 11.5, fontWeight: 600, letterSpacing: 0.2 }}>
+                              {t('rec.comingUp')}
+                            </span>
+                            <button
+                              onClick={onManageRecurring}
+                              style={{ color: '#4F74F3', fontSize: 12, fontWeight: 600 }}
+                            >
+                              {t('rec.manage')}
+                            </button>
+                          </div>
+                          {week.length === 0 ? (
+                            // Nothing inside the week: one line keeps the card
+                            // honest about what exists without listing it all.
+                            <div className="flex items-baseline justify-between py-0.5">
+                              <span style={{ color: '#8E8E93', fontSize: 12.5 }}>
+                                {t('rec.nextUp')} {ups[0].rule.template.description} · {farLabel(ups[0].next)}
+                              </span>
+                              <span style={{ color: '#1C1C1E', fontSize: 12.5, fontWeight: 600 }} className="tabular-nums">
+                                -<AmountText amount={ups[0].rule.template.amount} currency={currency} decimals={ups[0].rule.template.amount % 1 ? 2 : 0} />
+                              </span>
+                            </div>
+                          ) : (
+                            <>
+                              {shown.map((u) => (
+                                <div key={u.rule.id} className="flex items-baseline gap-2 py-1">
+                                  <span className="flex-shrink-0" style={{ color: '#8E8E93', fontSize: 12.5, minWidth: 52 }}>
+                                    {dayLabel(u.next)}
+                                  </span>
+                                  <span className="flex-1 truncate" style={{ color: '#1C1C1E', fontSize: 13, fontWeight: 500 }}>
+                                    {u.rule.template.description}
+                                  </span>
+                                  <span style={{ color: '#1C1C1E', fontSize: 13, fontWeight: 600 }} className="tabular-nums">
+                                    -<AmountText amount={u.rule.template.amount} currency={currency} decimals={u.rule.template.amount % 1 ? 2 : 0} />
+                                  </span>
+                                </div>
+                              ))}
+                              {extra > 0 && (
+                                <div style={{ color: '#8E8E93', fontSize: 11.5, paddingTop: 2 }}>
+                                  {t('rec.moreThisWeek', { n: extra })}
+                                </div>
+                              )}
+                            </>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
               </div>

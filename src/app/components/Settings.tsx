@@ -125,6 +125,8 @@ interface SettingsProps {
   onEditSource: (id: string, updates: Omit<Source, 'id'>) => void;
   onDeleteSource: (id: string) => void;
   openSourcesOnMount?: boolean;
+  openScheduledOnMount?: boolean;
+  onScheduledOpened?: () => void;
   onSourcesOpened?: () => void;
   openCategoriesOnMount?: boolean;
   onCategoriesOpened?: () => void;
@@ -180,6 +182,8 @@ export function Settings({
   onEditSource,
   onDeleteSource,
   openSourcesOnMount,
+  openScheduledOnMount,
+  onScheduledOpened,
   onSourcesOpened,
   openCategoriesOnMount,
   onCategoriesOpened,
@@ -270,6 +274,14 @@ export function Settings({
       onSourcesOpened?.();
     }
   }, [openSourcesOnMount, onSourcesOpened]);
+
+  // Same pattern for the Dashboard's "Manage" link on the coming-up strip.
+  useEffect(() => {
+    if (openScheduledOnMount) {
+      setShowScheduled(true);
+      onScheduledOpened?.();
+    }
+  }, [openScheduledOnMount, onScheduledOpened]);
 
   useEffect(() => {
     if (openCategoriesOnMount) {

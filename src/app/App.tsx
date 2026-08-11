@@ -311,6 +311,7 @@ export default function App() {
   );
   const [showSourceSelector, setShowSourceSelector] = useState(false);
   const [openSourcesOnSettings, setOpenSourcesOnSettings] = useState(false); // deep-link Settings → Sources
+  const [openRecurringOnSettings, setOpenRecurringOnSettings] = useState(false); // deep-link Settings → Recurring
   const [openCategoriesOnSettings, setOpenCategoriesOnSettings] = useState(false); // deep-link Settings → Categories
 
   // Auth + cloud sync
@@ -2040,6 +2041,11 @@ export default function App() {
                 onDismissBudgetNudge={() => setBudgetNudgeDismissed(true)}
                 onAddFirstExpense={() => setCurrentTab('add')}
                 onLoadDemoData={handleLoadDemoData}
+                recurringRules={recurringRules}
+                onManageRecurring={() => {
+                  setCurrentTab('settings');
+                  setOpenRecurringOnSettings(true);
+                }}
               />
             )}
             {currentTab === 'trend' && (
@@ -2106,6 +2112,8 @@ export default function App() {
                 onEditSource={handleEditSource}
                 onDeleteSource={handleDeleteSource}
                 openSourcesOnMount={openSourcesOnSettings}
+                openScheduledOnMount={openRecurringOnSettings}
+                onScheduledOpened={() => setOpenRecurringOnSettings(false)}
                 onSourcesOpened={() => setOpenSourcesOnSettings(false)}
                 openCategoriesOnMount={openCategoriesOnSettings}
                 onCategoriesOpened={() => setOpenCategoriesOnSettings(false)}
