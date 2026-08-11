@@ -6,7 +6,8 @@
     "isTrendCategoryModalOpen": "a modal is never mid-open across a remount",
     "isTrendSubcategoryModalOpen": "a modal is never mid-open across a remount",
     "tooltipData": "a chart tooltip belongs to a touch that has ended",
-    "showGreeting": "governed by a module-level once-per-launch flag, not by the tab"
+    "showGreeting": "governed by a module-level once-per-launch flag, not by the tab",
+    "reviewPointerGone": "waving away the pointer to last month's review loses nothing - the review lives on that month permanently, so it need not survive a remount, and the first days of a month may reasonably offer it again"
   },
   "Activity.tsx": {
     "isCategoryModalOpen": "a modal is never mid-open across a remount",

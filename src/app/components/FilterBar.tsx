@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ChevronDown, Search, X, SlidersHorizontal } from 'lucide-react';
+import { ChevronDown, Search, X, SlidersHorizontal, ArrowDownWideNarrow } from 'lucide-react';
 import { t } from '../i18n';
 import { monthsShort } from '../i18n/store';
 import type { Source } from '../types';
@@ -23,6 +23,9 @@ interface FilterBarProps {
   onOpenSubcategorySelector?: () => void;
   onOpenSourceSelector?: () => void;
   onOpenSearch: () => void;
+  /** 'date' (newest first, the default) or 'amount' (largest first). */
+  sortBy?: 'date' | 'amount';
+  onToggleSort?: () => void;
   onClearSearch?: () => void;
   onTypeFilterChange?: (type: string) => void;
   // Clearing a filter from its chip. Selecting one already goes through the
@@ -73,6 +76,8 @@ export function FilterBar({
   onOpenSubcategorySelector,
   onOpenSourceSelector,
   onOpenSearch,
+  sortBy = 'date',
+  onToggleSort,
   onClearSearch,
   onTypeFilterChange,
   onSourceClear,
@@ -151,10 +156,36 @@ export function FilterBar({
           )}
         </button>
 
+        {/* Sort. Silent at rest: on the default (newest first) it is an icon
+            the size of the search button beside it, saying only "order can be
+            changed". Switched to amount it becomes a labelled pill in the same
+            active blue the Filters chip uses - the list is no longer in its
+            expected order, and the control that did it says so. */}
+        <button
+          onClick={onToggleSort}
+          aria-label={t('act.ariaSort')}
+          aria-pressed={sortBy === 'amount'}
+          className={
+            sortBy === 'amount'
+              ? `${PILL} font-semibold ml-auto flex-shrink-0`
+              : 'ml-auto flex items-center justify-center w-8 h-8 rounded-lg border border-transparent bg-neutral-100 hover:bg-neutral-200/60 transition-colors flex-shrink-0'
+          }
+          style={
+            sortBy === 'amount'
+              ? { backgroundColor: FILTER_ACTIVE.bg, borderColor: FILTER_ACTIVE.border, color: FILTER_ACTIVE.text }
+              : undefined
+          }
+        >
+          <ArrowDownWideNarrow
+            className={sortBy === 'amount' ? 'w-3.5 h-3.5 flex-shrink-0' : 'w-4 h-4 text-neutral-400'}
+          />
+          {sortBy === 'amount' && <span>{t('act.sortAmount')}</span>}
+        </button>
+
         <button
           onClick={onOpenSearch}
           aria-label={t('act.ariaSearch')}
-          className="ml-auto flex items-center justify-center w-8 h-8 rounded-lg border border-transparent bg-neutral-100 hover:bg-neutral-200/60 transition-colors flex-shrink-0"
+          className="flex items-center justify-center w-8 h-8 rounded-lg border border-transparent bg-neutral-100 hover:bg-neutral-200/60 transition-colors flex-shrink-0"
         >
           <Search className="w-4 h-4 text-neutral-400" />
         </button>

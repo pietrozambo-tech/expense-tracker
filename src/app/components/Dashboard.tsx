@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { ChevronRight, ArrowUpDown, TrendingUp, TrendingDown, Minus, Plus, Receipt, ChevronLeft, ChevronDown, X, Wallet, Gauge } from 'lucide-react';
+import { ChevronRight, ArrowUpDown, TrendingUp, TrendingDown, Minus, Plus, Receipt, ChevronLeft, ChevronDown, X, Wallet, Gauge, Sparkles } from 'lucide-react';
 import { TrendCategoryBreakdown } from './TrendCategoryBreakdown';
 import React from 'react';
 import { formatAmountListView, formatAbbreviatedAmount, abbreviateNumber, needsAbbreviation, formatSavingRate, CURRENCIES, homeAmount } from '../utils/currency';
@@ -259,6 +259,19 @@ const savingsColor = (value: number) => (value < 0 ? '#FF6961' : value > 0 ? '#3
 //
 // Tint is kept at 0.12 rather than the 0.16 used for the Overview icons: at
 // 0.16 the red-on-red contrast lands just under 4.5:1, and this text is small.
+// One line of the month-in-review card: a quiet label, the fact in ink.
+function ReviewRow({ label, value, tone, last }: { label: string; value: string; tone?: string; last?: boolean }) {
+  return (
+    <div
+      className="flex items-baseline justify-between gap-3 py-2"
+      style={{ borderBottom: last ? undefined : '1px solid #F6F5F2' }}
+    >
+      <span className="flex-shrink-0" style={{ color: '#8E8E93', fontSize: 12.5 }}>{label}</span>
+      <span className="text-right" style={{ color: tone ?? '#1C1C1E', fontSize: 12.5, fontWeight: 600 }}>{value}</span>
+    </div>
+  );
+}
+
 function StatChip({ label, value, tone }: { label: React.ReactNode; value: string; tone: number }) {
   return (
     // The negative margin is exactly the horizontal padding, so the label
@@ -352,6 +365,11 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
   // What the cumulative chart's dotted line is: the median of recent periods
   // ("Your usual") or the same period one year back. Chosen from the legend.
   const [cumulativeBenchmark, setCumulativeBenchmark] = useState<'usual' | 'lastYear'>(savedView?.cumulativeBenchmark ?? 'usual');
+  // Transient by design (see scripts/test-viewstate.mjs): waving away the
+  // pointer to last month's review loses nothing - the review itself lives on
+  // that month forever - so it is not worth persisting, and a fresh launch
+  // during the first days may reasonably offer it again.
+  const [reviewPointerGone, setReviewPointerGone] = useState(false);
   const [transactionType, setTransactionType] = useState<TransactionType>(initialPeriod?.type || savedView?.transactionType || savedTrend?.transactionType || 'expense');
   const [isTrendCategoryModalOpen, setIsTrendCategoryModalOpen] = useState(false);
   const [isTrendSubcategoryModalOpen, setIsTrendSubcategoryModalOpen] = useState(false);
@@ -1718,6 +1736,84 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
     };
   }, [expenses, currency, selectedCategory, selectedSubcategory, transactionType, trendYearFilter]);
 
+  // A finished period, told as a card rather than a footnote.
+  //
+  // The two grey lines under the hero said this already, quietly, and they
+  // are the seed of it: same helpers, same "your usual" baseline. Promoting
+  // them buys the thing a footnote cannot carry - the headline figure, the
+  // rows behind it, and above all the counterfactual, which is the only line
+  // here that changes a reader's mind about their own month.
+  //
+  // It is a VIEW, not a notification: it exists on every completed period,
+  // for as long as that period exists. Nothing to dismiss, nothing to miss.
+  // The pointer on the current month (see reviewPointer) is the transient
+  // half, and it only navigates.
+  const periodReview = React.useMemo(() => {
+    // A future period has no rows, so the spend check below covers it too.
+    if (isAtCurrentPeriod()) return null;
+    const expensesOnly = (list: Expense[]) => list.filter((e) => e.type !== 'income');
+    const inPeriod = (back: number) => expensesOnly(inRange(periodRange(back)));
+    const rows = inPeriod(0);
+    const spent = rows.reduce((sum, e) => sum + homeAmount(e, currency), 0);
+    if (spent === 0) return null;
+
+    // The same rule the hero lines use: under three comparable periods there
+    // is no "usual" worth quoting.
+    const priors: number[] = [];
+    for (let back = 1; back <= 12 && priors.length < 6; back++) {
+      const p = inPeriod(back);
+      if (p.length > 0) priors.push(p.reduce((sum, e) => sum + homeAmount(e, currency), 0));
+    }
+    const usual = priors.length >= 3 ? priors.reduce((a, b) => a + b, 0) / priors.length : null;
+    const vsUsual = usual && usual > 0 ? Math.round((spent / usual - 1) * 100) : null;
+
+    const byCat = new Map<string, number>();
+    for (const e of rows) byCat.set(e.category.name, (byCat.get(e.category.name) ?? 0) + homeAmount(e, currency));
+    const top = [...byCat.entries()].sort((a, b) => b[1] - a[1])[0] ?? null;
+    const biggest = [...rows].sort((a, b) => homeAmount(b, currency) - homeAmount(a, currency))[0] ?? null;
+
+    // The counterfactual, and the reason this card is worth a screen: a month
+    // can be 30% over on one holiday and otherwise ordinary, which is a
+    // completely different fact from "you overspent". Only offered when the
+    // single expense is big enough to have caused the overshoot on its own -
+    // otherwise it is arithmetic looking for an excuse.
+    let without: { label: string; pct: number } | null = null;
+    if (biggest && usual && usual > 0 && vsUsual !== null && vsUsual > 0) {
+      const rest = spent - homeAmount(biggest, currency);
+      const restPct = Math.round((rest / usual - 1) * 100);
+      if (homeAmount(biggest, currency) / spent >= 0.1 && restPct < vsUsual - 5) {
+        without = { label: biggest.description, pct: restPct };
+      }
+    }
+
+    return {
+      spent,
+      vsUsual,
+      top: top ? { name: top[0], amount: top[1], share: Math.round((top[1] / spent) * 100) } : null,
+      biggest: biggest ? { name: biggest.description, amount: homeAmount(biggest, currency) } : null,
+      without,
+      count: rows.length,
+    };
+  }, [expenses, currency, timePeriodType, selectedMonth, selectedQuarter, selectedYear]);
+
+  // Does the pointer to last month's review belong on screen?
+  //
+  // Only on the current month (a pointer to "last month" from inside March is
+  // nonsense), only in its first days, only in the month view, and only when
+  // that month has enough rows that the review will say something. It reads
+  // the previous month directly rather than through periodReview, which by
+  // design returns null while we are standing on the current period.
+  const previousPeriodName = (() => {
+    const d = new Date(selectedYear, selectedMonth - 1, 1);
+    return `${monthsFull()[d.getMonth()]}`;
+  })();
+  const showReviewPointer = (() => {
+    if (reviewPointerGone || timePeriodType !== 'month' || !isAtCurrentPeriod()) return false;
+    if (new Date().getDate() > 5) return false;
+    const prev = inRange(periodRange(1)).filter((e) => e.type !== 'income');
+    return prev.length >= 5;
+  })();
+
   // Get cumulative spending data for the current period
   const getCumulativeData = () => {
     if (transactionType !== 'expense') return [];
@@ -2388,6 +2484,102 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
               </button>
             </div>
           </div>
+
+          {/* The transient half: a line on the current month pointing back at
+              the one that just ended. It only NAVIGATES - the review lives on
+              that month permanently, so dismissing this costs nothing and
+              missing it costs nothing either. Gone after the 5th, by which
+              point last month is no longer news. */}
+          {showReviewPointer && (
+            <div className="px-6 mb-4">
+              <button
+                onClick={() => {
+                  navigatePrevious();
+                  setReviewPointerGone(true);
+                }}
+                className="w-full flex items-center gap-2.5 rounded-2xl px-4 py-3 transition-all active:scale-[0.99]"
+                style={{ backgroundColor: '#EEF1FE', boxShadow: '0 1px 4px rgba(79,116,243,0.10)' }}
+              >
+                <span
+                  className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0"
+                  style={{ backgroundColor: '#FFFFFF' }}
+                >
+                  <Sparkles className="w-3.5 h-3.5" style={{ color: '#4F74F3' }} strokeWidth={2.2} />
+                </span>
+                <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: 14, fontWeight: 600 }}>
+                  {t('review.pointer', { period: previousPeriodName })}
+                </span>
+                <ChevronRight className="w-4 h-4 flex-shrink-0" style={{ color: '#4F74F3' }} />
+              </button>
+            </div>
+          )}
+
+          {/* A finished month, as a card. Above the budget bar because a
+              past month's budget is a verdict while this is the story, and
+              the story is why the screen was opened. */}
+          {periodReview && (
+            <div className="px-6 mb-4">
+              <div
+                className="rounded-2xl overflow-hidden"
+                style={{ backgroundColor: '#FFFFFF', boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)' }}
+              >
+                <div style={{ padding: '14px 16px 12px', background: 'linear-gradient(135deg, #EEF1FE 0%, #FFFFFF 70%)' }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', color: '#4F74F3' }}>
+                    {t('review.eyebrow', { period: getPeriodDisplayName().toUpperCase() })}
+                  </div>
+                  <div className="mt-1" style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.5px', color: '#1C1C1E' }}>
+                    <AmountText amount={periodReview.spent} currency={currency} decimals={0} abbreviate="fit" />
+                    {' '}
+                    <span style={{ fontSize: 15, fontWeight: 600, color: '#8E8E93' }}>{t('review.spent')}</span>
+                  </div>
+                  {periodReview.vsUsual !== null && (
+                    <div
+                      className="mt-0.5"
+                      style={{
+                        fontSize: 12,
+                        fontWeight: 600,
+                        // Amber over usual, green under, grey in line - the
+                        // budget bar's tones, not the alarm reds.
+                        color: periodReview.vsUsual > 5 ? '#96631A' : periodReview.vsUsual < -5 ? '#2C7A54' : '#8E8E93',
+                      }}
+                    >
+                      {Math.abs(periodReview.vsUsual) <= 5
+                        ? t('review.inLine')
+                        : t(periodReview.vsUsual > 0 ? 'review.above' : 'review.below', {
+                            pct: Math.abs(periodReview.vsUsual),
+                          })}
+                    </div>
+                  )}
+                </div>
+                <div style={{ padding: '2px 16px 6px' }}>
+                  {periodReview.top && (
+                    <ReviewRow
+                      label={t('review.topCategory')}
+                      value={`${periodReview.top.name} · ${formatAbbreviatedAmount(periodReview.top.amount, currency)} (${periodReview.top.share}%)`}
+                    />
+                  )}
+                  {periodReview.biggest && (
+                    <ReviewRow
+                      label={t('review.biggest')}
+                      value={`${periodReview.biggest.name} · ${formatAbbreviatedAmount(periodReview.biggest.amount, currency)}`}
+                    />
+                  )}
+                  {periodReview.without && (
+                    <ReviewRow
+                      label={t('review.without', { name: periodReview.without.label })}
+                      value={
+                        periodReview.without.pct >= 0
+                          ? t('review.above', { pct: periodReview.without.pct })
+                          : t('review.below', { pct: Math.abs(periodReview.without.pct) })
+                      }
+                      tone={periodReview.without.pct < 0 ? '#2C7A54' : '#96631A'}
+                      last
+                    />
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
 
           {budgetView?.nudge === false && (
             <BudgetBar

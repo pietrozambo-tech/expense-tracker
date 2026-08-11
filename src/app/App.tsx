@@ -2004,6 +2004,7 @@ export default function App() {
         {/* Content - Different structure for activity tab vs others */}
         {currentTab === 'activity' ? (
           <Activity
+            weekStartsOn={weekStartsOn}
             preset={activityPreset ?? undefined}
             onPresetConsumed={() => setActivityPreset(null)}
             viewStateRef={activityViewRef}

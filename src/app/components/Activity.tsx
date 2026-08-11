@@ -1,6 +1,8 @@
 import { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { FilterBar } from './FilterBar';
 import { ActivityDayGroup } from './ActivityDayGroup';
+import { ExpenseItem } from './ExpenseItem';
+import { IncomeItem } from './IncomeItem';
 import { CategoryFilterModal } from './CategoryFilterModal';
 import { SubcategoryFilterModal } from './SubcategoryFilterModal';
 import { SourceFilterModal } from './SourceFilterModal';
@@ -10,7 +12,8 @@ import { CURRENCIES, homeAmount } from '../utils/currency';
 import { AmountText } from './AmountText';
 import { switchGlow } from './categoryColors';
 import { t } from '../i18n';
-import { monthsShort } from '../i18n/store';
+import { monthsShort, daysShort } from '../i18n/store';
+import { toDateStr } from '../lib/recurrence';
 import { Download } from 'lucide-react';
 import { buildTransactionsCsv, downloadTransactionsCsv } from '../lib/csv';
 import { toast } from 'sonner';
@@ -33,11 +36,17 @@ export interface ActivityViewState {
   searchQuery: string;
   typeFilter: string;
   sourceFilter: string;
+  sortBy: ActivitySort;
   scrollTop: number;
 }
 
+/** Date (newest first) is the default; amount is largest-first, ungrouped. */
+export type ActivitySort = 'date' | 'amount';
+
 interface ActivityProps {
   transactions: Transaction[];
+  /** First day of the week, for the this-week strip. 1 Monday, 0 Sunday. */
+  weekStartsOn?: number;
   onEditTransaction: (id: string) => void;
   onDeleteTransaction: (id: string) => void;
   onModalOpenChange?: (isOpen: boolean) => void;
@@ -69,7 +78,8 @@ export function Activity({
   sources,
   preset,
   onPresetConsumed,
-  viewStateRef
+  viewStateRef,
+  weekStartsOn = 1
 }: ActivityProps) {
   const now = new Date();
   const currentYear = String(now.getFullYear());
@@ -92,6 +102,7 @@ export function Activity({
   const [searchQuery, setSearchQuery] = useState(saved?.searchQuery ?? '');
   const [typeFilter, setTypeFilter] = useState(preset?.typeFilter ?? saved?.typeFilter ?? 'All'); // All / One-off / Recurring / Imported
   const [sourceFilter, setSourceFilter] = useState(saved?.sourceFilter ?? 'All'); // 'All' or a source id
+  const [sortBy, setSortBy] = useState<ActivitySort>(saved?.sortBy ?? 'date');
 
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [isSubcategoryModalOpen, setIsSubcategoryModalOpen] = useState(false);
@@ -119,9 +130,10 @@ export function Activity({
       searchQuery,
       typeFilter,
       sourceFilter,
+      sortBy,
       scrollTop: viewStateRef.current?.scrollTop ?? 0,
     };
-  }, [viewStateRef, activityType, selectedYear, selectedMonth, categoryFilter, subcategoryFilter, searchQuery, typeFilter, sourceFilter]);
+  }, [viewStateRef, activityType, selectedYear, selectedMonth, categoryFilter, subcategoryFilter, searchQuery, typeFilter, sourceFilter, sortBy]);
 
   // Put the list back where it was, before the browser paints - restoring in a
   // plain effect would show the top of the list for a frame first. The filters
@@ -244,6 +256,20 @@ export function Activity({
     setSubcategoryFilter('All');
   };
 
+  // Sorted by size, ungrouped: day headers are a statement about order, and
+  // once the order ignores days they would be scattered one-row bands. The
+  // rows carry their own date instead (ExpenseItem's showDate).
+  //
+  // Magnitude, not sign: "biggest first" means the 3,000 salary and the 3,000
+  // rent sit together. Sorting signed would bury every expense under every
+  // income on the All tab, which is a filter, not a sort.
+  const amountSorted =
+    sortBy === 'amount'
+      ? [...filteredTransactions].sort(
+          (a, b) => Math.abs(homeAmount(b, currency)) - Math.abs(homeAmount(a, currency)),
+        )
+      : [];
+
   // Group transactions by date
   const groupedTransactions = filteredTransactions.reduce((groups, t) => {
     if (!groups[t.date]) groups[t.date] = [];
@@ -266,6 +292,38 @@ export function Activity({
     (sum, t) => (t.type === 'income' ? sum + homeAmount(t, currency) : sum), 0);
   const outTotal = filteredTransactions.reduce(
     (sum, t) => (t.type === 'income' ? sum : sum + homeAmount(t, currency)), 0);
+  // This week's dots. Built from ALL transactions, not the filtered list: the
+  // strip answers "have I been logging", and a category filter must not make
+  // a logged day look empty.
+  const { showWeekStrip, weekDays } = (() => {
+    const now = new Date();
+    const start = new Date(now);
+    // Back up to the configured first day of the week (1 Monday by default).
+    start.setDate(now.getDate() - ((now.getDay() - weekStartsOn + 7) % 7));
+    start.setHours(0, 0, 0, 0);
+    // Only when the visible period actually contains this week - the month
+    // picker can be on 'year', a past month, or another year entirely.
+    const inView =
+      selectedYear === String(start.getFullYear()) &&
+      (selectedMonth === 'year' || selectedMonth === String(start.getMonth()));
+    const logged = new Set(transactions.map((t) => t.date));
+    const todayStr = toDateStr(now);
+    const days = Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(start);
+      d.setDate(start.getDate() + i);
+      const key = toDateStr(d);
+      return {
+        key,
+        // First letter of the day's own name, so Italian reads L M M G V S D.
+        letter: daysShort()[d.getDay()].charAt(0),
+        filled: logged.has(key),
+        future: key > todayStr,
+        isToday: key === todayStr,
+      };
+    });
+    return { showWeekStrip: inView, weekDays: days };
+  })();
+
   const headerTotal =
     activityType === 'expense' ? (
       <span style={{ color: '#1C1C1E', fontWeight: 600 }}>
@@ -368,6 +426,35 @@ export function Activity({
             <p style={{ color: '#8E8E93', fontSize: '14px', marginTop: '4px' }}>
               {t(totalCount === 1 ? 'act.header.one' : 'act.header.other', { n: totalCount })} · {headerTotal}
             </p>
+            {/* This week, one dot a day: filled where something is recorded.
+                A quiet nudge to keep logging, not a streak to defend - there
+                is no counter and nothing breaks by missing a day.
+
+                Only while the view IS this week's month. On any other period
+                "this week" is a claim about a calendar the user is not
+                looking at, so the row disappears rather than lie - which also
+                means it costs its 24px only where it means something. */}
+            {showWeekStrip && (
+              <div className="flex gap-2.5 mt-2.5" aria-hidden="true">
+                {weekDays.map((d) => (
+                  <div key={d.key} className="flex flex-col items-center gap-1">
+                    <span style={{ fontSize: 9, fontWeight: 600, color: d.future ? '#C7C7CC' : '#8E8E93' }}>
+                      {d.letter}
+                    </span>
+                    <span
+                      style={{
+                        width: 7,
+                        height: 7,
+                        borderRadius: 999,
+                        backgroundColor: d.filled ? '#4F74F3' : d.future ? 'transparent' : '#E3E2DD',
+                        border: d.future ? '1.5px solid #E3E2DD' : undefined,
+                        boxShadow: d.isToday ? '0 0 0 2.5px rgba(79,116,243,0.22)' : undefined,
+                      }}
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
           {filteredTransactions.length > 0 && (
             <button
@@ -412,6 +499,8 @@ export function Activity({
 
         {/* Filter Bar - Always Visible */}
         <FilterBar
+          sortBy={sortBy}
+          onToggleSort={() => setSortBy((s) => (s === 'date' ? 'amount' : 'date'))}
           year={selectedYear}
           month={selectedMonth}
           category={categoryFilter}
@@ -459,7 +548,31 @@ export function Activity({
         }}
         className="flex-1 overflow-y-auto pt-2 pb-24"
       >
-        {Object.entries(groupedTransactions).length === 0 ? (
+        {sortBy === 'amount' && filteredTransactions.length > 0 ? (
+          <div>
+            {amountSorted.map((transaction) =>
+              transaction.type === 'income' ? (
+                <IncomeItem
+                  key={transaction.id}
+                  income={transaction}
+                  onTap={onEditTransaction}
+                  onDelete={onDeleteTransaction}
+                  currency={currency}
+                  showDate
+                />
+              ) : (
+                <ExpenseItem
+                  key={transaction.id}
+                  expense={transaction}
+                  onTap={onEditTransaction}
+                  onDelete={onDeleteTransaction}
+                  currency={currency}
+                  showDate
+                />
+              ),
+            )}
+          </div>
+        ) : Object.entries(groupedTransactions).length === 0 ? (
           <div className="px-6 py-16 text-center">
             <div className="text-neutral-400 text-sm mb-2">{t('act.noTx')}</div>
             <p className="text-neutral-500 text-xs">
