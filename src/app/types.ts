@@ -90,6 +90,9 @@ export interface UserSettings {
   // Set once the user dismisses the Dashboard's "set a budget" card, so it
   // stays gone until a budget actually exists
   budgetNudgeDismissed?: boolean;
+  /** The month-review card on the Dashboard. Absent means on - a setting the
+   *  user has never touched should not have to be written to be true. */
+  insightsEnabled?: boolean;
   // Whether the first-run feature carousel has been shown
   hasSeenIntro?: boolean;
   // Source pre-selected on new transactions, separately for each direction

@@ -17,6 +17,7 @@ export interface SyncPayload {
     currency: string;
     monthlyBudget?: number;
     budgetNudgeDismissed?: boolean;
+    insightsEnabled?: boolean;
     hasSeenIntro: boolean;
     defaultSourceExpense?: string;
     defaultSourceIncome?: string;
@@ -405,6 +406,7 @@ export function mergePayloads(
       currency: pick('currency'),
       monthlyBudget: pick('monthlyBudget'),
       budgetNudgeDismissed: pick('budgetNudgeDismissed'),
+      insightsEnabled: pick('insightsEnabled'),
       hasSeenIntro: pick('hasSeenIntro'),
       defaultSourceExpense: pick('defaultSourceExpense'),
       defaultSourceIncome: pick('defaultSourceIncome'),

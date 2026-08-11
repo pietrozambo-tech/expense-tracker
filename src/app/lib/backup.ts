@@ -18,6 +18,7 @@ export interface BackupFile {
     // card. Only matters when no budget is set - with one, the card is gone
     // anyway - which is exactly the case a restore would otherwise reset.
     budgetNudgeDismissed?: boolean;
+  insightsEnabled?: boolean;
     defaultSourceExpense?: string;
     defaultSourceIncome?: string;
   };
@@ -33,6 +34,7 @@ export function buildBackup(data: {
   currency: string;
   monthlyBudget?: number;
   budgetNudgeDismissed?: boolean;
+  insightsEnabled?: boolean;
   defaultSourceExpense?: string;
   defaultSourceIncome?: string;
   categories: Category[];

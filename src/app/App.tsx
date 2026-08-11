@@ -206,6 +206,10 @@ export default function App() {
   const [userCurrency, setUserCurrency] = useState(() => loadSettings().currency);
   const [monthlyBudget, setMonthlyBudget] = useState<number | undefined>(() => loadSettings().monthlyBudget);
   const [budgetNudgeDismissed, setBudgetNudgeDismissed] = useState<boolean>(() => !!loadSettings().budgetNudgeDismissed);
+  // Absent means on: a preference nobody has touched should not need to be
+  // written to be true, and every account that predates this setting has it
+  // absent. Only an explicit `false` turns the card off.
+  const [insightsEnabled, setInsightsEnabled] = useState<boolean>(() => loadSettings().insightsEnabled !== false);
   // Currency for the transaction being added or edited. Seeded from the saved
   // setting rather than a hardcoded 'EUR', and re-seeded by the effect below
   // every time the Add screen opens for a new transaction.
@@ -395,13 +399,14 @@ export default function App() {
       currency: userCurrency,
       monthlyBudget,
       budgetNudgeDismissed,
+      insightsEnabled,
       hasSeenIntro,
       defaultSourceExpense,
       defaultSourceIncome,
       weekStartsOn,
       language,
     });
-  }, [hasCompletedOnboarding, userName, userCurrency, monthlyBudget, budgetNudgeDismissed, hasSeenIntro, defaultSourceExpense, defaultSourceIncome, weekStartsOn, language]);
+  }, [hasCompletedOnboarding, userName, userCurrency, monthlyBudget, budgetNudgeDismissed, insightsEnabled, hasSeenIntro, defaultSourceExpense, defaultSourceIncome, weekStartsOn, language]);
 
   // Warm the tab chunks once the first screen has settled. Deliberately on an
   // idle callback with a timeout rather than straight after mount: the point
@@ -477,6 +482,7 @@ export default function App() {
       currency: userCurrency,
       monthlyBudget,
       budgetNudgeDismissed,
+      insightsEnabled,
       hasSeenIntro,
       defaultSourceExpense,
       defaultSourceIncome,
@@ -499,6 +505,7 @@ export default function App() {
     setUserCurrency(s.currency ?? 'EUR');
     setMonthlyBudget(s.monthlyBudget);
     setBudgetNudgeDismissed(!!s.budgetNudgeDismissed);
+    setInsightsEnabled(s.insightsEnabled !== false);
     setHasSeenIntro(!!s.hasSeenIntro);
     setDefaultSourceExpense(s.defaultSourceExpense ?? DEFAULT_SOURCE_EXPENSE);
     setDefaultSourceIncome(s.defaultSourceIncome ?? DEFAULT_SOURCE_INCOME);
@@ -671,7 +678,7 @@ export default function App() {
   // budgetNudgeDismissed is in the payload, so it belongs in the deps -
   // without it, dismissing the nudge didn't sync until the next unrelated
   // change, and a re-hydrate on another device could re-show the card.
-  }, [userId, cloudHydrated, syncRetryTick, expenses, recurringRules, categories, incomeCategories, sources, hasCompletedOnboarding, userName, userCurrency, monthlyBudget, budgetNudgeDismissed, hasSeenIntro, defaultSourceExpense, defaultSourceIncome, weekStartsOn, language]);
+  }, [userId, cloudHydrated, syncRetryTick, expenses, recurringRules, categories, incomeCategories, sources, hasCompletedOnboarding, userName, userCurrency, monthlyBudget, budgetNudgeDismissed, insightsEnabled, hasSeenIntro, defaultSourceExpense, defaultSourceIncome, weekStartsOn, language]);
 
   // Coming back to the app pulls anything another device wrote while we were
   // away. Previously returning to the foreground only ever pushed, so a device
@@ -1532,6 +1539,7 @@ export default function App() {
           currency: userCurrency,
           monthlyBudget,
           budgetNudgeDismissed,
+          insightsEnabled,
           defaultSourceExpense,
           defaultSourceIncome,
           categories,
@@ -1613,6 +1621,7 @@ export default function App() {
       // Absent in backups written before this was tracked, which is the same
       // thing as "never dismissed" - so the plain coercion is the right read.
       setBudgetNudgeDismissed(!!b.settings.budgetNudgeDismissed);
+      setInsightsEnabled(b.settings.insightsEnabled !== false);
       if (typeof b.settings.userName === 'string') setUserName(b.settings.userName);
       if (typeof b.settings.defaultSourceExpense === 'string') setDefaultSourceExpense(b.settings.defaultSourceExpense);
       if (typeof b.settings.defaultSourceIncome === 'string') setDefaultSourceIncome(b.settings.defaultSourceIncome);
@@ -2037,6 +2046,8 @@ export default function App() {
                 viewStateRef={dashboardViewRef}
                 monthlyBudget={monthlyBudget}
                 budgetNudgeDismissed={budgetNudgeDismissed}
+                insightsEnabled={insightsEnabled}
+                onDisableInsights={() => setInsightsEnabled(false)}
                 onSetMonthlyBudget={setMonthlyBudget}
                 onDismissBudgetNudge={() => setBudgetNudgeDismissed(true)}
                 onAddFirstExpense={() => setCurrentTab('add')}
@@ -2072,6 +2083,8 @@ export default function App() {
             {currentTab === 'settings' && (
               <Settings
                 transactions={expenses}
+                insightsEnabled={insightsEnabled}
+                onSetInsightsEnabled={setInsightsEnabled}
                 categories={categories}
                 incomeCategories={incomeCategories}
                 weekStartsOn={weekStartsOn}

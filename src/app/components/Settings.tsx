@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react';
-import { ChevronRight, ChevronLeft, UserCircle, Wallet, HelpCircle, ShieldCheck, ScrollText, Layers, FlaskConical, Trash2, Landmark, Cloud, LogOut, Upload, Copy, Download, FileSpreadsheet, Palmtree, UserX, Mail, LifeBuoy, CheckCircle2, Globe, CalendarClock } from 'lucide-react';
+import { ChevronRight, ChevronLeft, UserCircle, Wallet, HelpCircle, ShieldCheck, ScrollText, Layers, FlaskConical, Trash2, Landmark, Cloud, LogOut, Upload, Copy, Download, FileSpreadsheet, Palmtree, UserX, Mail, LifeBuoy, CheckCircle2, Globe, CalendarClock, Sparkles } from 'lucide-react';
 import { sendSupportMessage, supportLimitReached } from '../lib/support';
 import { switchGlow } from './categoryColors';
 
@@ -127,6 +127,9 @@ interface SettingsProps {
   onEditSource: (id: string, updates: Omit<Source, 'id'>) => void;
   onDeleteSource: (id: string) => void;
   openSourcesOnMount?: boolean;
+  /** The Dashboard's month-review card. Absent/true = shown. */
+  insightsEnabled?: boolean;
+  onSetInsightsEnabled?: (on: boolean) => void;
   openScheduledOnMount?: boolean;
   onScheduledOpened?: () => void;
   onSourcesOpened?: () => void;
@@ -185,6 +188,8 @@ export function Settings({
   onEditSource,
   onDeleteSource,
   openSourcesOnMount,
+  insightsEnabled = true,
+  onSetInsightsEnabled,
   openScheduledOnMount,
   onScheduledOpened,
   onSourcesOpened,
@@ -700,6 +705,50 @@ export function Settings({
             </div>
             <p style={{ color: '#B0B0B5', fontSize: 12, marginTop: 6, lineHeight: 1.45 }}>
               {t('set.weekHint')}
+            </p>
+
+            {/* Applies immediately, like the week start above it: a switch that
+                needed saving would be a switch that lies about its own state. */}
+            <p style={{ color: '#8E8E93', fontSize: 13, fontWeight: 500, margin: '24px 0 8px' }}>
+              {t('set.insights')}
+            </p>
+            <button
+              onClick={() => onSetInsightsEnabled?.(!insightsEnabled)}
+              role="switch"
+              aria-checked={insightsEnabled}
+              className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl"
+              style={{ backgroundColor: '#FFFFFF', border: '1px solid #E5E5EA', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}
+            >
+              <span
+                className="w-8 h-8 rounded-[10px] flex items-center justify-center flex-shrink-0"
+                style={{ backgroundColor: insightsEnabled ? '#EEF1FE' : '#F2F1ED' }}
+              >
+                <Sparkles className="w-4 h-4" style={{ color: insightsEnabled ? '#4F74F3' : '#B0B0B5' }} strokeWidth={2.2} />
+              </span>
+              {/* The section label above already names the feature; the row
+                  says what the switch does. */}
+              <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: 15, fontWeight: 500 }}>
+                {t('set.insightsRow')}
+              </span>
+              {/* The same sliding thumb the app's other switches use, at the
+                  size a single boolean needs. */}
+              <span
+                className="relative flex-shrink-0 rounded-full transition-colors"
+                style={{ width: 46, height: 28, backgroundColor: insightsEnabled ? '#4F74F3' : '#E3E2DD' }}
+              >
+                <span
+                  className="absolute rounded-full"
+                  style={{
+                    top: 3, left: 3, width: 22, height: 22, backgroundColor: '#FFFFFF',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+                    transform: insightsEnabled ? 'translateX(18px)' : 'translateX(0)',
+                    transition: 'transform 200ms cubic-bezier(0.32, 0.72, 0, 1)',
+                  }}
+                />
+              </span>
+            </button>
+            <p style={{ color: '#B0B0B5', fontSize: 12, marginTop: 6, lineHeight: 1.45 }}>
+              {t('set.insightsHint')}
             </p>
 
             <button

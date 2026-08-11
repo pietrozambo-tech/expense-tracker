@@ -19,6 +19,7 @@ import { parseLocalDate } from '../lib/dates';
 import { CategoryFilterModal } from './CategoryFilterModal';
 import { SubcategoryFilterModal } from './SubcategoryFilterModal';
 import { PeriodPickerModal } from './PeriodPickerModal';
+import { ConfirmDialog } from './ConfirmDialog';
 import { SourceLogo } from './SourceLogo';
 import type { Source } from '../types';
 
@@ -156,6 +157,9 @@ interface DashboardProps {
   monthlyBudget?: number;
   /** True once the user has waved away the "set a budget" card. */
   budgetNudgeDismissed?: boolean;
+  /** False once the user has turned the month-review card off in Settings. */
+  insightsEnabled?: boolean;
+  onDisableInsights?: () => void;
   onSetMonthlyBudget?: (value: number) => void;
   onDismissBudgetNudge?: () => void;
   // First-run: with an empty ledger the Overview shows one clear next action
@@ -260,7 +264,7 @@ const savingsColor = (value: number) => (value < 0 ? '#FF6961' : value > 0 ? '#3
 // Tint is kept at 0.12 rather than the 0.16 used for the Overview icons: at
 // 0.16 the red-on-red contrast lands just under 4.5:1, and this text is small.
 // One line of the month-in-review card: a quiet label, the fact in ink.
-function ReviewRow({ label, value, tone, last }: { label: string; value: string; tone?: string; last?: boolean }) {
+function ReviewRow({ label, value, tone, last }: { label: string; value: React.ReactNode; tone?: string; last?: boolean }) {
   return (
     <div
       className="flex items-baseline justify-between gap-3 py-2"
@@ -302,7 +306,7 @@ function StatChip({ label, value, tone }: { label: React.ReactNode; value: strin
 // starting from it means the first render already draws at the right scale.
 let lastChartWidth = 0;
 
-export function Dashboard({ expenses, categories, incomeCategories, sources = [], userName, currency, onEditExpense, onDeleteExpense, view = 'overview', onShowOverview, initialPeriod, viewStateRef, trendStateRef, monthlyBudget, budgetNudgeDismissed, onSetMonthlyBudget, onDismissBudgetNudge, onAddFirstExpense, onLoadDemoData, weekStartsOn = 1, recurringRules = [], onManageRecurring }: DashboardProps) {
+export function Dashboard({ expenses, categories, incomeCategories, sources = [], userName, currency, onEditExpense, onDeleteExpense, view = 'overview', onShowOverview, initialPeriod, viewStateRef, trendStateRef, monthlyBudget, budgetNudgeDismissed, insightsEnabled = true, onDisableInsights, onSetMonthlyBudget, onDismissBudgetNudge, onAddFirstExpense, onLoadDemoData, weekStartsOn = 1, recurringRules = [], onManageRecurring }: DashboardProps) {
   // Restore the previous view (period + drilldown) unless a Trend->Overview
   // link supplied an explicit period - that must win and start clean.
   // Subscribing here does two jobs: it re-renders the Dashboard the instant the
@@ -370,6 +374,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
   // that month forever - so it is not worth persisting, and a fresh launch
   // during the first days may reasonably offer it again.
   const [reviewPointerGone, setReviewPointerGone] = useState(false);
+  const [confirmHideInsights, setConfirmHideInsights] = useState(false);
   const [transactionType, setTransactionType] = useState<TransactionType>(initialPeriod?.type || savedView?.transactionType || savedTrend?.transactionType || 'expense');
   const [isTrendCategoryModalOpen, setIsTrendCategoryModalOpen] = useState(false);
   const [isTrendSubcategoryModalOpen, setIsTrendSubcategoryModalOpen] = useState(false);
@@ -2479,7 +2484,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
               that month permanently, so dismissing this costs nothing and
               missing it costs nothing either. Gone after the 5th, by which
               point last month is no longer news. */}
-          {showReviewPointer && (
+          {insightsEnabled && showReviewPointer && (
             <div className="px-6 mb-4">
               <button
                 onClick={() => {
@@ -2513,15 +2518,45 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
               Expenses only. Every figure here is expense-side (the baseline,
               the movers, the categories), so under the Income toggle it would
               be answering a question nobody asked. */}
-          {transactionType === 'expense' && periodReview && (
+          {confirmHideInsights && (
+            <ConfirmDialog
+              variant="neutral"
+              icon={Sparkles}
+              title={t('review.hideTitle')}
+              message={t('review.hideBody')}
+              confirmLabel={t('review.hideConfirm')}
+              onConfirm={() => {
+                setConfirmHideInsights(false);
+                onDisableInsights?.();
+              }}
+              onCancel={() => setConfirmHideInsights(false)}
+            />
+          )}
+
+          {insightsEnabled && transactionType === 'expense' && periodReview && (
             <div className="px-6 mb-4">
               <div
                 className="rounded-2xl overflow-hidden"
                 style={{ backgroundColor: '#FFFFFF', boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)' }}
               >
                 <div style={{ padding: '13px 16px 12px', background: 'linear-gradient(135deg, #EEF1FE 0%, #FFFFFF 70%)' }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', color: '#4F74F3' }}>
-                    {t('review.eyebrow')}
+                  <div className="flex items-start justify-between gap-2">
+                    <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', color: '#4F74F3' }}>
+                      {t('review.eyebrow')}
+                    </div>
+                    {/* Quiet, and it asks before it acts: the card is the only
+                        place these sentences exist now, so leaving would be a
+                        real loss if it were a slip. The dialog says where to
+                        bring it back, which is what turns a dismissal into a
+                        setting the user still owns. */}
+                    <button
+                      onClick={() => setConfirmHideInsights(true)}
+                      aria-label={t('review.hideAria')}
+                      className="-m-1 p-1 rounded-full flex-shrink-0 transition-colors active:bg-black/5"
+                      style={{ color: '#B0B0B5' }}
+                    >
+                      <X className="w-4 h-4" strokeWidth={2.5} />
+                    </button>
                   </div>
                   {/* The verdict takes the headline the total used to hold. */}
                   {periodReview.vsUsual !== null && (
@@ -2562,13 +2597,24 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                   {periodReview.top && (
                     <ReviewRow
                       label={t('review.topCategory')}
-                      value={`${periodReview.top.name} · ${formatAbbreviatedAmount(periodReview.top.amount, currency)} (${periodReview.top.share}%)`}
+                      value={
+                        <>
+                          {periodReview.top.name} ·{' '}
+                          <AmountText amount={periodReview.top.amount} currency={currency} decimals={0} abbreviate="fit" />
+                          {` (${periodReview.top.share}%)`}
+                        </>
+                      }
                     />
                   )}
                   {periodReview.biggest && (
                     <ReviewRow
                       label={t('review.biggest')}
-                      value={`${periodReview.biggest.name} · ${formatAbbreviatedAmount(periodReview.biggest.amount, currency)}`}
+                      value={
+                        <>
+                          {periodReview.biggest.name} ·{' '}
+                          <AmountText amount={periodReview.biggest.amount} currency={currency} decimals={0} abbreviate="fit" />
+                        </>
+                      }
                       last={!periodReview.without}
                     />
                   )}
