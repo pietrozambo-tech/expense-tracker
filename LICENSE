@@ -1,0 +1,41 @@
+Copyright (c) 2026 Pietro Zamboni. All rights reserved.
+
+TracklyLab and its source code are proprietary. This repository is
+readable in public so that anyone using the app can see how it handles
+their money and their data. Being readable is not a grant of any right
+to use it.
+
+No permission is given to copy, modify, merge, publish, distribute,
+sublicense, sell, or create derivative works from this software or any
+part of it, in source or compiled form, whether or not for commercial
+purposes.
+
+Two things you may do without asking:
+
+  1. Read the code, and quote short excerpts of it for the purpose of
+     comment, criticism, review, teaching, or reporting a problem.
+  2. Keep a copy for your own private study.
+
+Anything beyond that needs written permission from the copyright holder.
+If you want to use part of this, ask - the answer may well be yes.
+
+The name TracklyLab, the logo, and the visual design of the application
+are not licensed under any terms and are reserved separately from the
+source code.
+
+Nothing here narrows the rights you have as a user of the app, which are
+set out in its Terms of Service and Privacy Policy, or any right granted
+to you by law that a licence cannot take away.
+
+Third-party dependencies listed in package.json are covered by their own
+licences, which this notice does not affect.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES
+OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+OTHER DEALINGS IN THE SOFTWARE.
+
+Contact: support@tracklylab.com

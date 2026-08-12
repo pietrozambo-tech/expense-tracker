@@ -1,6 +1,8 @@
 {
   "name": "expense-tracker",
   "private": true,
+  "license": "SEE LICENSE IN LICENSE",
+  "author": "Pietro Zamboni",
   "version": "1.0.0",
   "type": "module",
   "scripts": {
