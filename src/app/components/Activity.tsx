@@ -571,7 +571,12 @@ export function Activity({
         onScroll={(e) => {
           if (viewStateRef?.current) viewStateRef.current.scrollTop = e.currentTarget.scrollTop;
         }}
-        className="flex-1 overflow-y-auto pt-2 pb-24"
+        // No top padding: the first day's band sits flush against the filter
+        // bar's hairline, so that line reads as the list's top edge. The 8px
+        // that was here only showed at rest - it scrolls away with the
+        // content - so the gap appeared and vanished for no reason, and under
+        // TODAY's tinted band it looked like the tint had stopped short.
+        className="flex-1 overflow-y-auto pb-24"
       >
         {sortBy === 'amount' && filteredTransactions.length > 0 ? (
           <div>
