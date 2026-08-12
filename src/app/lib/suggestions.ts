@@ -1,3 +1,4 @@
+import { toDateStr } from './recurrence';
 import type { Category, Source, Transaction } from '../types';
 
 // A row offered under the Description field while typing. Picking one fills
@@ -48,7 +49,9 @@ export function buildDescriptionSuggestions(
     else groups.set(key, { latest: t, count: 1 });
   }
 
-  const today = new Date().toISOString().slice(0, 10);
+  // Local, not toISOString(): in UTC+2 before 2am the UTC day is yesterday,
+  // which shifted the recency boost by a day at exactly the wrong moment.
+  const today = toDateStr(new Date());
   const daysAgo = (date: string) =>
     Math.max(0, (Date.parse(today) - Date.parse(date)) / 86400000);
 

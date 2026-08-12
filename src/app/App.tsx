@@ -45,7 +45,7 @@ import { SaveButton } from './components/SaveButton';
 import { DescriptionInput } from './components/DescriptionInput';
 import { Onboarding } from './components/Onboarding';
 import { useAuth } from './auth/AuthProvider';
-import { processRecurrence, buildRuleTemplate, newRuleId, occurrenceDueDate, isActiveRule, generatesOn, applyFutureEdit, findPastSeriesMatches, findUnclaimedSeriesRows, findGeneratedDuplicates, tagPastSeries, anchorForStart, toDateStr, chargeHistory, type SeriesClaim } from './lib/recurrence';
+import { processRecurrence, buildRuleTemplate, newRuleId, occurrenceDueDate, isActiveRule, generatesOn, applyFutureEdit, findPastSeriesMatches, findUnclaimedSeriesRows, findGeneratedDuplicates, tagPastSeries, anchorForStart, anchorPlanForStart, toDateStr, chargeHistory, type SeriesClaim } from './lib/recurrence';
 import { SeriesClaimDialog } from './components/SeriesClaimDialog';
 import type { ScheduleDraft } from './components/ScheduledManager';
 import { RecurringScopeDialog } from './components/RecurringScopeDialog';
@@ -1393,12 +1393,18 @@ export default function App() {
     // anchor, because normally the anchor is a seed transaction that is itself
     // the first instance. Here there is no seed, and deliberately so: nothing
     // is recorded until the day arrives.
+    // anchorPlanForStart, not anchorForStart: a monthly start late in the month
+    // backs into a shorter month, the day clamps, and the chain then fires on
+    // the clamped day forever - a rent set for the 31st ran on the 28th. The
+    // plan anchors where the day fits and skips the clamped fires in between.
+    const plan = anchorPlanForStart(draft.start, draft.rule);
     setRecurringRules((prev) => [
       ...prev,
       {
         id: newRuleId(),
         rule: draft.rule,
-        anchorDate: anchorForStart(draft.start, draft.rule),
+        anchorDate: plan.anchorDate,
+        ...(plan.skipDates.length ? { skipDates: plan.skipDates } : {}),
         template: {
           description: draft.description,
           amount: draft.amount,
@@ -1470,6 +1476,8 @@ export default function App() {
       // only its remaining tail, and editing that tail must not revive the
       // occurrences beyond it - they belong to the chain that replaced it.
       const cutoff = old.endedAt && old.endedAt < draft.start ? old.endedAt : draft.start;
+      // Same month-end reasoning as handleCreateSchedule above.
+      const plan = anchorPlanForStart(draft.start, draft.rule);
       return [
         ...prev.map((r) =>
           r.id === ruleId ? { ...r, endedAt: cutoff, updatedAt: new Date().toISOString() } : r,
@@ -1477,8 +1485,10 @@ export default function App() {
         {
           id: newRuleId(),
           rule: draft.rule,
-          anchorDate: anchorForStart(draft.start, draft.rule),
-          ...(carriedSkips.length ? { skipDates: carriedSkips } : {}),
+          anchorDate: plan.anchorDate,
+          ...(carriedSkips.length || plan.skipDates.length
+            ? { skipDates: [...new Set([...plan.skipDates, ...carriedSkips])].sort() }
+            : {}),
           template: {
             description: draft.description,
             amount: draft.amount,

@@ -832,6 +832,9 @@ export function strandedRules(
  * instance. A schedule created from Settings has no seed - the user picks a
  * start date and expects money to appear on it - so the anchor is backdated by
  * exactly one period, and the engine's first output lands on `start`.
+ *
+ * Monthly rules starting late in a month cannot use this directly: see
+ * anchorPlanForStart, which is what the app calls.
  */
 export function anchorForStart(start: string, rule: string): string {
   const d = parseLocalDate(start);
@@ -864,4 +867,43 @@ export function anchorForStart(start: string, rule: string): string {
       break;
   }
   return toDateStr(d);
+}
+
+/**
+ * The anchor AND the skips that make `start` truly the first monthly fire.
+ *
+ * "Back one month" is lossy for a start late in the month: March 31 backs into
+ * February, the day clamps to the 28th, and the generator - which reads its
+ * day-of-month from the anchor - then fires on the 28th forever. The user
+ * picked the 31st and never saw it. A date in a short month simply cannot
+ * encode day 31, so instead the anchor walks back to the NEAREST month that
+ * can hold the intended day, and every month passed over contributes its
+ * clamped fire date as a skip - materialisation and the due-date projections
+ * both honour skipDates, so those intermediate dates never appear anywhere.
+ *
+ * March 31 -> anchor Jan 31, skip Feb 28; fires Mar 31, Apr 30, May 31 - the
+ * month-end walk the anchor day implies, starting exactly where asked.
+ */
+export function anchorPlanForStart(
+  start: string,
+  rule: string,
+): { anchorDate: string; skipDates: string[] } {
+  if (rule === 'Every month') {
+    const s = parseLocalDate(start);
+    const day = s.getDate();
+    let y = s.getFullYear();
+    let m = s.getMonth();
+    const skips: string[] = [];
+    // 12 is a hard bound, not a guess: every day 1-31 exists somewhere in any
+    // twelve consecutive months.
+    for (let i = 0; i < 12; i++) {
+      m -= 1;
+      if (m < 0) { m += 12; y -= 1; }
+      if (daysInMonth(y, m) >= day) {
+        return { anchorDate: toDateStr(new Date(y, m, day)), skipDates: skips.reverse() };
+      }
+      skips.push(toDateStr(new Date(y, m, daysInMonth(y, m))));
+    }
+  }
+  return { anchorDate: anchorForStart(start, rule), skipDates: [] };
 }

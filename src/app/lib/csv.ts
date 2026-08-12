@@ -23,7 +23,7 @@ export function buildTransactionsCsv(
     // = + @ or a tab. A transaction described as "=HYPERLINK(...)" must open
     // as text, not run. (Only user-entered strings pass through here - the
     // numeric columns are emitted directly.)
-    if (/^[=+@\t]/.test(s)) s = `'${s}`;
+    if (/^[=+\-@\t]/.test(s)) s = `'${s}`;
     return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
   };
   const sourceName = (id?: string) => (id ? sources.find((s) => s.id === id)?.name ?? id : '');

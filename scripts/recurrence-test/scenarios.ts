@@ -23,6 +23,7 @@ import {
   nextDueDate,
   upcomingSchedules,
   anchorForStart,
+  anchorPlanForStart,
   strandedRules,
   generatesOn,
   isActiveRule,
@@ -208,6 +209,7 @@ scenarioDeleteOnFutureEndedChain();
 scenarioNothingHidden();
 scenarioSkipPurge();
 scenarioReprice();
+scenarioMonthEndStart();
 console.log('\n================================================================');
 console.log(` Recurring transactions   [${OLD ? 'BEFORE the fix' : 'AFTER the fix'}]`);
 console.log(' (running the real src/app/lib/recurrence.ts)');
@@ -905,4 +907,35 @@ function scenarioReprice() {
   const c = repriceCandidate(tpl('DAZN', 44.99), rows, 24.2)!;
   const repaired = rows.filter((r) => r.amount === c.usual).length;
   expect('the count offered is the count repaired', String(repaired), String(c.count));
+}
+
+
+// 17. A monthly schedule starting late in the month fires on the day picked.
+//
+// "Back one month" is lossy for the 29th-31st: March 31 backed into February,
+// clamped to the 28th, and the chain fired on the 28th forever - the chosen
+// day never appeared once. The plan anchors where the day fits and skips the
+// clamped fires in between.
+function scenarioMonthEndStart() {
+  heading('17. Monthly schedules starting on the 29th-31st');
+  const mk = (plan: { anchorDate: string; skipDates: string[] }): RecurringRule => ({
+    id: 'r-me', rule: 'Every month', anchorDate: plan.anchorDate,
+    ...(plan.skipDates.length ? { skipDates: plan.skipDates } : {}),
+    template: { description: 'Rent', amount: 800, currency: 'EUR', category: cat, type: 'expense' },
+  });
+  const fires = (start: string) =>
+    nextDueDates(mk(anchorPlanForStart(start, 'Every month')), new Date(2026, 1, 1), 3).join(' ');
+
+  expect('the 31st starts on the 31st, then walks month-end',
+    fires('2026-03-31'), '2026-03-31 2026-04-30 2026-05-31');
+  expect('the 30th starts on the 30th', fires('2026-03-30'), '2026-03-30 2026-04-30 2026-05-30');
+  expect('an ordinary day is exactly as before', fires('2026-03-15'), '2026-03-15 2026-04-15 2026-05-15');
+  expect('ordinary days carry no skips',
+    String(anchorPlanForStart('2026-03-15', 'Every month').skipDates.length), '0');
+
+  const res = processRecurrence([], [mk(anchorPlanForStart('2026-03-31', 'Every month'))], new Date(2026, 11, 31));
+  const dates = res.transactions.map((t) => t.date).sort();
+  expect('nothing materialises before the chosen start',
+    String(dates.filter((d) => d < '2026-03-31').length), '0');
+  expect('and the first row IS the chosen start', dates[0], '2026-03-31');
 }
