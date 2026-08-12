@@ -690,23 +690,9 @@ export function nextDueDate(rule: RecurringRule, today: Date = new Date()): stri
   return nextDueDates(rule, today, 1)[0] ?? null;
 }
 
-/**
- * Schedules with a future left, ordered by what fires next.
- *
- * One place decides "what is scheduled", so the Settings screen and anything
- * that later wants the same answer cannot drift apart.
- *
- * Deliberately NOT filtered by isActiveRule. That flag answers "is this the
- * live chain to edit", and a rule whose `endedAt` is still ahead of us fails it
- * while the engine goes on creating occurrences right up to that date - which
- * is exactly what an edit dated a week out leaves behind: the current chain's
- * last charge, still pending. Hiding it would drop a transaction into Activity
- * that this screen never announced. A rule with nothing left projects to null
- * and falls out here on its own.
- */
-// Sub-3% moves stay quiet everywhere. A streaming service oscillating between
-// 44, 44.90 and 44.99 is rounding wobble, and announcing it would teach the
-// user to ignore the chip - and asking about it would be worse.
+// Sub-3% moves are not a price change. A streaming service oscillating between
+// 44, 44.90 and 44.99 is rounding wobble, and asking the user to rule on it
+// would be worse than saying nothing.
 const MOVED = 0.03;
 
 /**
@@ -789,68 +775,19 @@ export function repriceCandidate(
 }
 
 /**
- * The last price change worth mentioning for a schedule, or null.
+ * Schedules with a future left, ordered by what fires next.
  *
- * Two things can tell us a bill's price moved, and the card was reading only
- * one of them:
+ * One place decides "what is scheduled", so the Settings screen and anything
+ * that later wants the same answer cannot drift apart.
  *
- *   DECLARED - the schedule's own amount no longer matches what this bill has
- *   been charging. That is true the instant the user edits the amount, which
- *   is exactly when they know, and it was invisible: reading history alone,
- *   changing DAZN from 44.90 to 24.20 produced nothing until two charges at
- *   the new price had actually landed, months later. Symmetric for rises - the
- *   Amex chip only ever appeared because that price had already been charged
- *   three times before anyone looked.
- *
- *   OBSERVED - the recorded history changed under its own steam, which is the
- *   case the user never sees coming: a provider raising a price quietly.
- *
- * Declared wins when both are available, because it is the more current fact.
- * A declared change carries no date (`at: null`) - it has not happened yet.
- *
- * "This bill's rows" means every transaction with the same wording, category,
- * direction and currency, because a real price history crosses chain
- * successions (editing a schedule starts a new rule) and imported history
- * tagged onto it.
+ * Deliberately NOT filtered by isActiveRule. That flag answers "is this the
+ * live chain to edit", and a rule whose `endedAt` is still ahead of us fails it
+ * while the engine goes on creating occurrences right up to that date - which
+ * is exactly what an edit dated a week out leaves behind: the current chain's
+ * last charge, still pending. Hiding it would drop a transaction into Activity
+ * that this screen never announced. A rule with nothing left projects to null
+ * and falls out here on its own.
  */
-export function priceChange(
-  rule: RecurringRule,
-  transactions: Transaction[],
-  today: Date = new Date(),
-): { from: number; to: number; at: string | null } | null {
-  const tpl = rule.template;
-  const rows = chargeHistory(tpl, transactions);
-  if (rows.length < 2) return null;
-
-  // --- Declared ------------------------------------------------------------
-  const settled = usualAmount(rows);
-  const current = tpl.amount;
-  if (settled > 0 && current > 0 && Math.abs(current - settled) / settled >= MOVED) {
-    return { from: settled, to: current, at: null };
-  }
-
-  // --- Observed ------------------------------------------------------------
-  if (rows.length < 4) return null;
-  // The new price must be ESTABLISHED: the trailing run of equal charges, at
-  // least two long. A single odd amount is a correction or a promo month.
-  let i = rows.length - 1;
-  while (i > 0 && rows[i - 1].amount === rows[rows.length - 1].amount) i--;
-  if (rows.length - i < 2) return null;
-  const prior = rows.slice(0, i);
-  if (prior.length < 2) return null;
-
-  const from = usualAmount(prior);
-  const to = rows[rows.length - 1].amount;
-  if (from <= 0 || Math.abs(to - from) / from < MOVED) return null;
-
-  // Older than six months is not news: the chip answers "did this bill just
-  // change", not "has it ever".
-  const at = rows[i].date;
-  const sixMonthsAgo = new Date(today.getFullYear(), today.getMonth() - 6, today.getDate());
-  if (parseLocalDate(at) < sixMonthsAgo) return null;
-  return { from, to, at };
-}
-
 export function upcomingSchedules(
   rules: RecurringRule[],
   today: Date = new Date(),
