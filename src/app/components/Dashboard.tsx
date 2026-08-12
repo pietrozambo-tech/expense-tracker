@@ -701,10 +701,13 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
   // including each period that feeds the average.
   const truncateToElapsed = ({ start, end }: { start: Date; end: Date }) => {
     if (!isAtCurrentPeriod()) return { start, end };
-    const day = 24 * 60 * 60 * 1000;
-    const elapsed = Math.floor((new Date().getTime() - periodRange(0).start.getTime()) / day);
-    const cutoff = new Date(start.getTime() + elapsed * day);
-    cutoff.setHours(23, 59, 59, 999);
+    // Calendar days, not wall-clock milliseconds: dividing a local-time delta
+    // by 24h loses an hour across a DST spring-forward, and floor() then eats
+    // a whole day - the comparison window ran one day short for the rest of
+    // the month. UTC-anchored dates have no DST to lose.
+    const dayIndex = (d: Date) => Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 86400000;
+    const elapsed = Math.floor(dayIndex(new Date()) - dayIndex(periodRange(0).start));
+    const cutoff = new Date(start.getFullYear(), start.getMonth(), start.getDate() + elapsed, 23, 59, 59, 999);
     return { start, end: cutoff < end ? cutoff : end };
   };
 
@@ -2914,7 +2917,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                                   className="flex items-center justify-between gap-3 py-1 w-full text-left active:bg-neutral-100 rounded-md pl-1 pr-0 transition-colors"
                                 >
                                   <div className="flex-1 min-w-0">
-                                    <div className="text-neutral-400 text-xs truncate italic">Other</div>
+                                    <div className="text-neutral-400 text-xs truncate italic">{t('trend.other')}</div>
                                     <div className="h-0.5 bg-neutral-100 rounded-full overflow-hidden mt-1">
                                       {/* Same dead bg-opacity-* as above. Kept
                                           fainter than a named subcategory: this
@@ -2948,7 +2951,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                                 className="flex items-center gap-1 py-1.5 w-full text-left active:bg-neutral-100 rounded-md px-1 transition-colors"
                               >
                                 <span className="text-[11px] font-medium" style={{ color: '#4F74F3' }}>
-                                  View all {extras.totalCount} transactions
+                                  {t('cat.viewAll', { n: extras.totalCount })}
                                 </span>
                                 <ChevronRight className="w-3.5 h-3.5" style={{ color: '#4F74F3' }} />
                               </button>

@@ -104,6 +104,7 @@ export const it: Record<keyof typeof en, string> = {
   'cat.emptyHintIncome': 'Aggiungi qualche entrata per vedere il dettaglio',
   'cat.average': 'Media',
   'cat.noTransactions': 'Nessuna transazione per questa selezione.',
+  'cat.viewAll': 'Vedi tutte le {n} transazioni',
 
   // Cumulative chart
   'chart.cumulative': 'Spesa Cumulata',

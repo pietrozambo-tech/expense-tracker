@@ -103,6 +103,7 @@ export const en = {
   'cat.emptyHintIncome': 'Start adding income to see your breakdown',
   'cat.average': 'Average',
   'cat.noTransactions': 'No transactions found for this selection.',
+  'cat.viewAll': 'View all {n} transactions',
 
   // Cumulative chart
   'chart.cumulative': 'Cumulative Spending',
