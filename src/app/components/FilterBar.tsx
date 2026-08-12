@@ -118,9 +118,25 @@ export function FilterBar({
   };
 
   return (
+    // Header chrome, so it takes the PAGE colour. As bg-white it became the
+    // card grey in dark and read as a slab across the top of the tab.
+    //
+    // The hairline STAYS, unlike Trend's, because here it marks something
+    // real: this bar sits in Activity's fixed header and the transaction list
+    // is a separate scroll container starting at exactly this edge, so rows
+    // are genuinely clipped on that line. Without it a row scrolling up looks
+    // sliced in mid-air - the same fault the Settings sub-pages had.
+    //
+    // `sticky` is dropped: the bar is inside a flex-shrink-0 header that never
+    // scrolls, so it was inert, and z-10 with it (z-index needs positioning,
+    // and the header and list do not overlap).
     <div
-      className="sticky top-0 z-10 bg-white border-b border-neutral-100 px-6 py-2.5"
-      style={{ WebkitTapHighlightColor: 'rgba(255, 255, 255, 0)' }}
+      className="border-b px-6 py-2.5"
+      style={{
+        backgroundColor: 'var(--bg-page)',
+        borderColor: 'var(--line-2)',
+        WebkitTapHighlightColor: 'rgba(255, 255, 255, 0)',
+      }}
     >
       {/* One row: period, everything else, search. The six-control version
           wrapped to two lines and spent most of its width rendering the word
