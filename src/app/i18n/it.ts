@@ -247,6 +247,7 @@ export const it: Record<keyof typeof en, string> = {
   'sched.stopConfirm': 'Interrompi',
   'sched.editAria': 'Modifica la ricorrenza {name}',
   'sched.stopAria': 'Interrompi la ricorrenza {name}',
+  'sched.priceNext': 'Nuovo prezzo: {amounts}',
   'sched.priceRose': 'Salito {amounts} a {month}',
   'sched.priceFell': 'Sceso {amounts} a {month}',
   'sched.emptyTitle': 'Nessuna ricorrenza',

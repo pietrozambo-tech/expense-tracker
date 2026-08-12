@@ -246,6 +246,7 @@ export const en = {
   'sched.stopConfirm': 'Stop it',
   'sched.editAria': 'Edit the {name} recurring transaction',
   'sched.stopAria': 'Stop the {name} recurring transaction',
+  'sched.priceNext': 'Next charge: {amounts}',
   'sched.priceRose': 'Rose {amounts} in {month}',
   'sched.priceFell': 'Down {amounts} in {month}',
   'sched.emptyTitle': 'Nothing recurring yet',

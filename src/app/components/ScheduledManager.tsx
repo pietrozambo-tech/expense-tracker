@@ -137,9 +137,18 @@ export function ScheduledManager({
                       const change = priceChange(rule, transactions);
                       if (!change) return null;
                       const up = change.to > change.from;
+                      // Cents on either side put cents on both, so the pair
+                      // lines up with each other and with the row's amount.
+                      const cents = change.from % 1 !== 0 || change.to % 1 !== 0;
                       const fmt = (n: number) =>
-                        n.toLocaleString(numberLocale(), { maximumFractionDigits: 2 });
-                      const month = monthsFull()[parseLocalDate(change.at).getMonth()];
+                        n.toLocaleString(numberLocale(), {
+                          minimumFractionDigits: cents ? 2 : 0,
+                          maximumFractionDigits: cents ? 2 : 0,
+                        });
+                      // A declared change has not happened yet, so it has no
+                      // month to name - it names the next charge instead.
+                      const month = change.at ? monthsFull()[parseLocalDate(change.at).getMonth()] : '';
+                      const amounts = `${fmt(change.from)} \u2192 ${fmt(change.to)}${CURRENCIES[rule.template.currency]?.symbol ?? rule.template.currency}`;
                       return (
                         <span
                           className="inline-flex items-center gap-1 mt-1.5"
@@ -156,10 +165,9 @@ export function ScheduledManager({
                           }}
                         >
                           {up ? '\u2197' : '\u2198'}{' '}
-                          {t(up ? 'sched.priceRose' : 'sched.priceFell', {
-                            amounts: `${fmt(change.from)} \u2192 ${fmt(change.to)}${CURRENCIES[rule.template.currency]?.symbol ?? rule.template.currency}`,
-                            month,
-                          })}
+                          {change.at
+                            ? t(up ? 'sched.priceRose' : 'sched.priceFell', { amounts, month })
+                            : t('sched.priceNext', { amounts })}
                         </span>
                       );
                     })()}
@@ -167,7 +175,10 @@ export function ScheduledManager({
                   <AmountText
                     amount={rule.template.amount}
                     currency={rule.template.currency || currency}
-                    decimals={0}
+                    // Cents when the bill has them: 9.99 and 44.90 both read
+                    // as "10" and "45" rounded, which is not what leaves the
+                    // account. Whole amounts stay whole - "800.00" is noise.
+                    decimals={rule.template.amount % 1 ? 2 : 0}
                     abbreviate={abbrev}
                     sign={income ? '+' : '-'}
                     style={{ color: income ? '#1F7A43' : '#1C1C1E', fontSize: 15, fontWeight: 600 }}

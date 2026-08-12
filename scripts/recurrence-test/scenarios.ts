@@ -881,6 +881,32 @@ function scenarioPriceChange() {
   const stale = priceChange(mkRule('Amex', 67), history('Amex', [62, 62, 62, 67, 67, 67], -6), NOW);
   expect('a change older than six months is not news', stale ? 'announced' : 'silent', 'silent');
 
+  // The case a real user raised: you KNOW the price changed, so you edit the
+  // schedule - and the card said nothing for two months, because it was
+  // reading history and history had not caught up. The schedule's own amount
+  // is the more current fact, and it is available the instant it is typed.
+  const declaredDown = priceChange(mkRule('DAZN', 24.2), history('DAZN', [44.9, 44.9, 44.9, 44.9, 44.9, 44.9]), NOW);
+  say(`DAZN charged 44.90x6, schedule edited to 24.20: ${declaredDown ? `${declaredDown.from} -> ${declaredDown.to}` : 'silent'}`);
+  expect('an edited amount is announced at once', declaredDown ? `${declaredDown.from}->${declaredDown.to}` : 'null', '44.9->24.2');
+  expect('and carries no date - it has not happened yet',
+    declaredDown && declaredDown.at === null ? 'no date' : 'dated', 'no date');
+
+  const declaredUp = priceChange(mkRule('Gym', 60), history('Gym', [45, 45, 45, 45]), NOW);
+  expect('the same holds for a rise', declaredUp ? `${declaredUp.from}->${declaredUp.to}` : 'null', '45->60');
+
+  // A schedule that agrees with its history must not manufacture a change.
+  const agrees = priceChange(mkRule('Rent', 800), history('Rent', [800, 800, 800, 800, 800]), NOW);
+  expect('a schedule matching its history stays silent', agrees ? 'announced' : 'silent', 'silent');
+
+  // And a correction under 3% is not a price change.
+  const typo = priceChange(mkRule('Netflix', 12.99), history('Netflix', [12.9, 12.9, 12.9, 12.9]), NOW);
+  expect('a sub-3% correction stays silent', typo ? 'announced' : 'silent', 'silent');
+
+  // Observed still wins where the schedule already agrees with the new price.
+  const observed = priceChange(mkRule('Amex', 67), history('Amex', [60, 62, 62, 60, 62, 67, 67, 67]), NOW);
+  expect('history-only changes are still found, and dated',
+    observed && observed.at ? `${observed.from}->${observed.to} dated` : 'null', '62->67 dated');
+
   const thin = priceChange(mkRule('New', 12), history('New', [10, 12, 12]), NOW);
   expect('three rows are not a history', thin ? 'announced' : 'silent', 'silent');
 

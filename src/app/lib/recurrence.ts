@@ -707,31 +707,33 @@ export function nextDueDate(rule: RecurringRule, today: Date = new Date()): stri
 /**
  * The last price change worth mentioning for a schedule, or null.
  *
- * "The chain's rows" means every transaction that looks like this bill -
- * same wording, category, direction and currency - because a real price
- * history crosses chain successions (editing a schedule starts a new rule)
- * and imported history tagged onto it. The shapes in a real ledger tuned
- * every rule here:
+ * Two things can tell us a bill's price moved, and the card was reading only
+ * one of them:
  *
- * - The NEW price must be established: the trailing run of equal amounts,
- *   at least two charges long. One odd amount is a correction or a promo
- *   month, not a price - an Amex history read 60,62,62,60,62 before
- *   settling at 67, and any single amount in that stretch would have been
- *   a false headline.
- * - The OLD price is the most frequent amount before that run (ties go to
- *   the more recent), for the same reason - noisy history has no single
- *   "previous amount", but it does have a usual one.
- * - Sub-3% moves stay quiet. A streaming service oscillating between
- *   44, 44.90 and 44.99 is rounding wobble; announcing it would teach the
- *   user to ignore the chip.
- * - Older than six months is not news. The chip answers "did this bill
- *   just change", not "has it ever".
+ *   DECLARED - the schedule's own amount no longer matches what this bill has
+ *   been charging. That is true the instant the user edits the amount, which
+ *   is exactly when they know, and it was invisible: reading history alone,
+ *   changing DAZN from 44.90 to 24.20 produced nothing until two charges at
+ *   the new price had actually landed, months later. Symmetric for rises - the
+ *   Amex chip only ever appeared because that price had already been charged
+ *   three times before anyone looked.
+ *
+ *   OBSERVED - the recorded history changed under its own steam, which is the
+ *   case the user never sees coming: a provider raising a price quietly.
+ *
+ * Declared wins when both are available, because it is the more current fact.
+ * A declared change carries no date (`at: null`) - it has not happened yet.
+ *
+ * "This bill's rows" means every transaction with the same wording, category,
+ * direction and currency, because a real price history crosses chain
+ * successions (editing a schedule starts a new rule) and imported history
+ * tagged onto it.
  */
 export function priceChange(
   rule: RecurringRule,
   transactions: Transaction[],
   today: Date = new Date(),
-): { from: number; to: number; at: string } | null {
+): { from: number; to: number; at: string | null } | null {
   const tpl = rule.template;
   const rows = transactions
     .filter(
@@ -743,33 +745,52 @@ export function priceChange(
         t.amount > 0,
     )
     .sort((a, b) => a.date.localeCompare(b.date));
-  if (rows.length < 4) return null;
+  if (rows.length < 2) return null;
 
-  // Trailing run of the same amount - the candidate new price.
+  // Sub-3% moves stay quiet in both paths. A streaming service oscillating
+  // between 44, 44.90 and 44.99 is rounding wobble, and announcing it would
+  // teach the user to ignore the chip.
+  const MOVED = 0.03;
+
+  // What this bill normally charges: the most frequent amount, ties going to
+  // the more recent. Noisy history has no single "previous amount" but it does
+  // have a usual one - a real Amex read 60,62,62,60,62 before settling at 67.
+  const usualOf = (list: Transaction[]) => {
+    const counts = new Map<number, { n: number; last: number }>();
+    list.forEach((t, i) => {
+      const c = counts.get(t.amount) ?? { n: 0, last: -1 };
+      counts.set(t.amount, { n: c.n + 1, last: i });
+    });
+    let best = { amount: list[list.length - 1].amount, n: 0, last: -1 };
+    for (const [amount, c] of counts) {
+      if (c.n > best.n || (c.n === best.n && c.last > best.last)) best = { amount, n: c.n, last: c.last };
+    }
+    return best.amount;
+  };
+
+  // --- Declared ------------------------------------------------------------
+  const settled = usualOf(rows);
+  const current = tpl.amount;
+  if (settled > 0 && current > 0 && Math.abs(current - settled) / settled >= MOVED) {
+    return { from: settled, to: current, at: null };
+  }
+
+  // --- Observed ------------------------------------------------------------
+  if (rows.length < 4) return null;
+  // The new price must be ESTABLISHED: the trailing run of equal charges, at
+  // least two long. A single odd amount is a correction or a promo month.
   let i = rows.length - 1;
   while (i > 0 && rows[i - 1].amount === rows[rows.length - 1].amount) i--;
-  const run = rows.length - i;
-  if (run < 2) return null;
+  if (rows.length - i < 2) return null;
   const prior = rows.slice(0, i);
   if (prior.length < 2) return null;
 
-  const counts = new Map<number, { n: number; last: number }>();
-  prior.forEach((t, idx) => {
-    const c = counts.get(t.amount) ?? { n: 0, last: 0 };
-    counts.set(t.amount, { n: c.n + 1, last: idx });
-  });
-  let from = prior[prior.length - 1].amount;
-  let best = { n: 0, last: -1 };
-  for (const [amount, c] of counts) {
-    if (c.n > best.n || (c.n === best.n && c.last > best.last)) {
-      from = amount;
-      best = c;
-    }
-  }
-
+  const from = usualOf(prior);
   const to = rows[rows.length - 1].amount;
-  if (from <= 0 || Math.abs(to - from) / from < 0.03) return null;
+  if (from <= 0 || Math.abs(to - from) / from < MOVED) return null;
 
+  // Older than six months is not news: the chip answers "did this bill just
+  // change", not "has it ever".
   const at = rows[i].date;
   const sixMonthsAgo = new Date(today.getFullYear(), today.getMonth() - 6, today.getDate());
   if (parseLocalDate(at) < sixMonthsAgo) return null;
