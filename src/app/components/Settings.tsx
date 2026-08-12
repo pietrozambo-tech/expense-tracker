@@ -1430,6 +1430,7 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
               onChange={(e) => setSupportMessage(e.target.value)}
               placeholder={t('set.supportPlaceholder')}
               rows={6}
+              maxLength={5000}
               // 16px keeps iOS from auto-zooming on focus
               className="w-full p-4 rounded-2xl bg-white shadow-sm outline-none resize-none focus:ring-2 focus:ring-blue-500"
               style={{ fontSize: 16, color: '#1C1C1E', lineHeight: 1.5 }}

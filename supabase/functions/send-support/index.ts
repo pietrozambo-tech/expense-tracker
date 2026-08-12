@@ -44,13 +44,27 @@ Deno.serve(async (req: Request) => {
     return json(400, { error: 'Invalid request body' });
   }
 
-  const message = String(payload.message ?? '').trim();
-  const replyEmail = String(payload.email ?? '').trim();
-  const name = String(payload.name ?? '').trim();
+  // Server-side bounds. The client caps nothing, and this endpoint is
+  // reachable by anyone holding the public anon key - without limits a script
+  // can pump megabytes into the support inbox (and into the subject line,
+  // which interpolates the name). The message is REJECTED over the cap so the
+  // sender knows; the metadata fields are merely context, so they truncate.
+  const MAX_MESSAGE = 5000;
+  const clip = (v: unknown, n: number) => String(v ?? '').trim().slice(0, n);
+  const message = clip(payload.message, MAX_MESSAGE + 1);
+  const replyEmailRaw = clip(payload.email, 200);
+  const name = clip(payload.name, 100);
   const isGuest = Boolean(payload.isGuest);
-  const appVersion = String(payload.appVersion ?? '?');
-  const userAgent = String(payload.userAgent ?? '');
+  const appVersion = clip(payload.appVersion, 32) || '?';
+  const userAgent = clip(payload.userAgent, 300);
   if (!message) return json(400, { error: 'Message is empty' });
+  if (message.length > MAX_MESSAGE) {
+    return json(400, { error: `Message is too long (over ${MAX_MESSAGE} characters)` });
+  }
+  // A malformed reply-to must not sink the whole send - Resend rejects the
+  // request outright on an invalid address. Keep the text the user typed in
+  // the metadata block either way; only the header falls back to the account.
+  const replyEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(replyEmailRaw) ? replyEmailRaw : '';
 
   // The signed-in account email straight from the JWT is authoritative (the
   // form email could be anything). Guests have no account.
@@ -81,7 +95,7 @@ Deno.serve(async (req: Request) => {
 
   const meta = [
     `Name: ${name || '—'}`,
-    `Reply-to: ${replyEmail || '—'}`,
+    `Reply-to: ${replyEmailRaw || '—'}`,
     `Account: ${accountEmail || (isGuest ? 'guest (no account)' : 'unknown')}`,
     `Account ID: ${accountId || '—'}`,
     `Status: ${isGuest ? 'guest' : 'signed in'}`,

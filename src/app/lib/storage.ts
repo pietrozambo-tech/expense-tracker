@@ -158,12 +158,11 @@ export interface SyncBase {
 
 export const loadSyncBase = (): SyncBase | null => read<SyncBase | null>(KEYS.syncBase, null);
 export const saveSyncBase = (base: SyncBase | null) => {
+  // Through kv like every other path: raw localStorage.removeItem skipped the
+  // native shell's durable store, so an erased base came back on the next
+  // launch and the merge re-read deletions as remote additions.
   if (base === null) {
-    try {
-      localStorage.removeItem(KEYS.syncBase);
-    } catch {
-      /* storage unavailable */
-    }
+    removeItem(KEYS.syncBase);
     return;
   }
   write(KEYS.syncBase, base);

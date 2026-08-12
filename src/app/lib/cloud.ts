@@ -336,7 +336,7 @@ export function mergePayloads(
       const chips = baseCat
         ? mergeChips(baseCat.subcategories, ours.subcategories, theirs.subcategories)
         : newerChips() ?? mergeChips(undefined, ours.subcategories, theirs.subcategories);
-      const same = (x: string[] = []) => x.join(' ');
+      const same = (x: string[] = []) => x.join('\u0000');
       return same(chips) === same(cat.subcategories) ? cat : { ...cat, subcategories: chips };
     });
   };

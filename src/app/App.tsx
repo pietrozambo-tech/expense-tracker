@@ -1437,8 +1437,16 @@ export default function App() {
         );
         corrected = hit.size;
         if (corrected) {
+          // Re-lock the FX value alongside the amount, as every other write
+          // path does (add, edit, materialisation). Without it a corrected
+          // foreign-currency bill kept displaying its OLD value anywhere the
+          // home-currency figure is computed - homeAmount() reads baseAmount
+          // whenever the row's currency differs from the home currency.
+          const baseAmount = convertAmount(draft.amount, draft.currency, BASE_CURRENCY);
           setExpenses((prev) =>
-            prev.map((t) => (hit.has(t.id) ? { ...t, amount: draft.amount, updatedAt: stamp } : t)),
+            prev.map((t) =>
+              hit.has(t.id) ? { ...t, amount: draft.amount, baseAmount, updatedAt: stamp } : t,
+            ),
           );
         }
       }
