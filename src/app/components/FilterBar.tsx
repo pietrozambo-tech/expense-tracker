@@ -133,7 +133,9 @@ export function FilterBar({
     <div
       className="border-b px-6 py-2.5"
       style={{
-        backgroundColor: 'var(--bg-page)',
+        backgroundColor: 'var(--bg-chrome)',
+        // Not --line-chrome: this edge is load-bearing in both themes, because
+        // the transaction list is a real scroll container starting on it.
         borderColor: 'var(--line-2)',
         WebkitTapHighlightColor: 'rgba(255, 255, 255, 0)',
       }}

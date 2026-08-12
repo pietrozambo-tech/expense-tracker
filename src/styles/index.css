@@ -100,6 +100,15 @@
   --tone-income: #1F7A43;
   --tone-danger: #EF4444;
   --accent-text: #4F74F3;
+  /* Header bars (Trend's toggle + filter rows, Activity's filter bar).
+   * Light keeps the original look - a white bar on the cream page with a
+   * hairline under it - because at these two shades the bar reads as a panel
+   * and the line is what separates it. Dark cannot do that: the same "bar"
+   * colour there is the CARD colour, which turns the header into a grey slab
+   * on near-black, so dark drops back to the page and lets the black do the
+   * separating. */
+  --bg-chrome: #FFFFFF;
+  --line-chrome: #F5F5F5;
 }
 
 html[data-theme="dark"] {
@@ -126,6 +135,8 @@ html[data-theme="dark"] {
   --tone-income: #4ADE80;
   --tone-danger: #FF6B6B;
   --accent-text: #8AA4FF;
+  --bg-chrome: var(--bg-page);
+  --line-chrome: transparent;
   --ink: #F2F2F4;
   --ink-2: #A6A6AE;
   --ink-3: #A8A8B0;

@@ -4082,7 +4082,10 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                 below it. Activity's filter header already sits on the page;
                 this makes Trend match. No divider between the two rows: they
                 are one header unit, and only its bottom edge needs a line. */}
-            <div className="px-6 pt-2 pb-3" style={{ backgroundColor: 'var(--bg-page)' }}>
+            <div
+              className="px-6 pt-2 pb-3"
+              style={{ backgroundColor: 'var(--bg-chrome)', borderBottom: '1px solid var(--line-chrome)' }}
+            >
               <div className="flex items-center gap-3 justify-between">
                 {/* The same control as the Dashboard's, one segment wider:
                     an inset track and a thumb that slides to the chosen third.
@@ -4172,7 +4175,10 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
               // from content sitting plainly below it, which the gap between
               // the cards already does.
               return (
-                <div className="px-6 py-2" style={{ backgroundColor: 'var(--bg-page)' }}>
+                <div
+                  className="px-6 py-2"
+                  style={{ backgroundColor: 'var(--bg-chrome)', borderBottom: '1px solid var(--line-chrome)' }}
+                >
                   <div className="flex items-center gap-1.5">
                     {/* Category Filter Button */}
                     <button
