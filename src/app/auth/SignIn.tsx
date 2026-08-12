@@ -97,8 +97,8 @@ export function SignIn() {
             {/* Brand hero */}
             <div className="flex flex-col items-center text-center pb-8" style={{ paddingTop: 'clamp(36px, 9vh, 80px)' }}>
               <TracklyLogo size={64} className="mb-4" />
-              <h1 style={{ color: '#1C1C1E', fontSize: 34, fontWeight: 700, letterSpacing: '-0.03em', lineHeight: 1 }}>TracklyLab</h1>
-              <p className="mt-2.5" style={{ color: '#6B6B75', fontSize: 16, lineHeight: 1.4, maxWidth: 300 }}>{TAGLINE}</p>
+              <h1 style={{ color: 'var(--ink)', fontSize: 34, fontWeight: 700, letterSpacing: '-0.03em', lineHeight: 1 }}>TracklyLab</h1>
+              <p className="mt-2.5" style={{ color: 'var(--ink-3)', fontSize: 16, lineHeight: 1.4, maxWidth: 300 }}>{TAGLINE}</p>
             </div>
 
             {authError && (
@@ -128,13 +128,13 @@ export function SignIn() {
               onClick={google}
               disabled={busy}
               className="w-full py-4 rounded-2xl font-medium text-base flex items-center justify-center gap-3 transition-all active:scale-[0.98]"
-              style={{ backgroundColor: '#FFFFFF', color: '#1C1C1E', border: '1px solid #E5E5EA', boxShadow: '0 2px 10px rgba(17,24,39,0.05)' }}
+              style={{ backgroundColor: 'var(--bg-card)', color: 'var(--ink)', border: '1px solid var(--line)', boxShadow: '0 2px 10px rgba(17,24,39,0.05)' }}
             >
               <GoogleG />
               {getLanguage() === 'it' ? 'Continua con Google' : 'Continue with Google'}
             </button>
 
-            <p className="text-center mt-3.5 px-6" style={{ color: '#8E8E93', fontSize: 13, lineHeight: 1.45 }}>
+            <p className="text-center mt-3.5 px-6" style={{ color: 'var(--ink-2)', fontSize: 13, lineHeight: 1.45 }}>
               {getLanguage() === 'it' ? 'Accedi per salvare i tuoi dati e sincronizzarli su tutti i tuoi dispositivi.' : 'Sign in to back up your data and sync it across your devices.'}
             </p>
 
@@ -146,13 +146,13 @@ export function SignIn() {
                 {/* Divider */}
                 <div className="flex items-center gap-3 my-4">
                   <div className="flex-1 h-px" style={{ background: '#E3E3E8' }} />
-                  <span style={{ color: '#A5A5AD', fontSize: 12, fontWeight: 500 }}>OR</span>
+                  <span style={{ color: 'var(--disabled)', fontSize: 12, fontWeight: 500 }}>OR</span>
                   <div className="flex-1 h-px" style={{ background: '#E3E3E8' }} />
                 </div>
 
                 {/* Email input */}
                 <div className="relative">
-                  <Mail className="w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2" style={{ color: '#8E8E93' }} />
+                  <Mail className="w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2" style={{ color: 'var(--ink-2)' }} />
                   <input
                     type="email"
                     inputMode="email"
@@ -162,9 +162,9 @@ export function SignIn() {
                     onKeyDown={(e) => { if (e.key === 'Enter') send(); }}
                     placeholder="you@email.com"
                     className="w-full pl-11 pr-4 py-4 rounded-2xl text-base outline-none transition-all"
-                    style={{ backgroundColor: '#FFFFFF', color: '#1C1C1E', border: '1px solid #E5E5EA', boxShadow: '0 2px 10px rgba(17,24,39,0.04)' }}
+                    style={{ backgroundColor: 'var(--bg-card)', color: 'var(--ink)', border: '1px solid var(--line)', boxShadow: '0 2px 10px rgba(17,24,39,0.04)' }}
                     onFocus={(e) => { e.target.style.border = '1.5px solid #4F74F3'; e.target.style.boxShadow = '0 0 0 3px rgba(59,130,246,0.10)'; }}
-                    onBlur={(e) => { e.target.style.border = '1px solid #E5E5EA'; e.target.style.boxShadow = '0 2px 10px rgba(17,24,39,0.04)'; }}
+                    onBlur={(e) => { e.target.style.border = '1px solid var(--line)'; e.target.style.boxShadow = '0 2px 10px rgba(17,24,39,0.04)'; }}
                   />
                 </div>
               </>
@@ -175,9 +175,9 @@ export function SignIn() {
             <button onClick={() => { setStep('start'); setError(null); }} className="flex items-center gap-1 -ml-1 mb-5 self-start" style={{ color: '#4F74F3', fontSize: 15 }}>
               <ArrowLeft className="w-4 h-4" />{getLanguage() === 'it' ? 'Indietro' : 'Back'}</button>
             <TracklyLogo size={48} className="mb-5" />
-            <h1 style={{ color: '#1C1C1E', fontSize: 28, fontWeight: 700, letterSpacing: '-0.02em', marginBottom: 8 }}>{getLanguage() === 'it' ? 'Inserisci il codice' : 'Enter your code'}</h1>
-            <p style={{ color: '#6B6B75', fontSize: 15, lineHeight: 1.45 }}>
-              {getLanguage() === 'it' ? 'Abbiamo inviato un codice di accesso a' : 'We emailed a sign-in code to'} <span style={{ color: '#1C1C1E', fontWeight: 600 }}>{email.trim()}</span>{getLanguage() === 'it' ? '. Inseriscilo qui sotto.' : '. Enter it below.'}
+            <h1 style={{ color: 'var(--ink)', fontSize: 28, fontWeight: 700, letterSpacing: '-0.02em', marginBottom: 8 }}>{getLanguage() === 'it' ? 'Inserisci il codice' : 'Enter your code'}</h1>
+            <p style={{ color: 'var(--ink-3)', fontSize: 15, lineHeight: 1.45 }}>
+              {getLanguage() === 'it' ? 'Abbiamo inviato un codice di accesso a' : 'We emailed a sign-in code to'} <span style={{ color: 'var(--ink)', fontWeight: 600 }}>{email.trim()}</span>{getLanguage() === 'it' ? '. Inseriscilo qui sotto.' : '. Enter it below.'}
             </p>
             <input
               type="text"
@@ -190,9 +190,9 @@ export function SignIn() {
               placeholder="000000"
               autoFocus
               className="w-full mt-6 py-4 rounded-2xl text-center outline-none transition-all"
-              style={{ backgroundColor: '#FFFFFF', color: '#1C1C1E', border: '1px solid #E5E5EA', boxShadow: '0 2px 10px rgba(17,24,39,0.04)', fontSize: 30, fontWeight: 700, letterSpacing: '10px' }}
+              style={{ backgroundColor: 'var(--bg-card)', color: 'var(--ink)', border: '1px solid var(--line)', boxShadow: '0 2px 10px rgba(17,24,39,0.04)', fontSize: 30, fontWeight: 700, letterSpacing: '10px' }}
               onFocus={(e) => { e.target.style.border = '1.5px solid #4F74F3'; e.target.style.boxShadow = '0 0 0 3px rgba(59,130,246,0.10)'; }}
-              onBlur={(e) => { e.target.style.border = '1px solid #E5E5EA'; e.target.style.boxShadow = '0 2px 10px rgba(17,24,39,0.04)'; }}
+              onBlur={(e) => { e.target.style.border = '1px solid var(--line)'; e.target.style.boxShadow = '0 2px 10px rgba(17,24,39,0.04)'; }}
             />
             {error && <p className="mt-3" style={{ color: '#FF3B30', fontSize: 13 }}>{error}</p>}
             <button onClick={send} disabled={busy} className="mt-4 text-[15px] font-medium self-start" style={{ color: '#4F74F3' }}>
@@ -211,18 +211,18 @@ export function SignIn() {
                 onClick={send}
                 disabled={!emailValid || busy}
                 className="w-full py-4 rounded-2xl font-medium text-base transition-all active:scale-[0.98]"
-                style={{ backgroundColor: !emailValid ? '#E5E5EA' : '#1C1C1E', color: '#FFFFFF', boxShadow: !emailValid ? 'none' : '0 6px 18px rgba(28,28,30,0.22)', cursor: !emailValid ? 'not-allowed' : 'pointer' }}
+                style={{ backgroundColor: !emailValid ? 'var(--line)' : 'var(--chip-ink)', color: '#FFFFFF', boxShadow: !emailValid ? 'none' : '0 6px 18px rgba(28,28,30,0.22)', cursor: !emailValid ? 'not-allowed' : 'pointer' }}
               >
                 {busy ? (getLanguage() === 'it' ? 'Invio…' : 'Sending…') : (getLanguage() === 'it' ? 'Inviami un codice via email' : 'Email me a code')}
               </button>
             )}
-            <button onClick={continueAsGuest} className="w-full py-3 mt-2 text-[15px] font-medium" style={{ color: '#8E8E93' }}>
+            <button onClick={continueAsGuest} className="w-full py-3 mt-2 text-[15px] font-medium" style={{ color: 'var(--ink-2)' }}>
               {getLanguage() === 'it' ? 'Continua senza account' : 'Continue without an account'}
             </button>
-            <p className="text-center mt-3 px-4" style={{ color: '#A5A5AD', fontSize: 12, lineHeight: 1.5 }}>
+            <p className="text-center mt-3 px-4" style={{ color: 'var(--disabled)', fontSize: 12, lineHeight: 1.5 }}>
               By continuing you agree to our{' '}
-              <span style={{ color: '#8E8E93', fontWeight: 500 }}>{getLanguage() === 'it' ? 'Termini' : 'Terms'}</span> &{' '}
-              <span style={{ color: '#8E8E93', fontWeight: 500 }}>Privacy Policy</span>.
+              <span style={{ color: 'var(--ink-2)', fontWeight: 500 }}>{getLanguage() === 'it' ? 'Termini' : 'Terms'}</span> &{' '}
+              <span style={{ color: 'var(--ink-2)', fontWeight: 500 }}>Privacy Policy</span>.
             </p>
           </>
         ) : (
@@ -230,7 +230,7 @@ export function SignIn() {
             onClick={verify}
             disabled={!codeValid || busy}
             className="w-full py-4 rounded-2xl font-medium text-base transition-all active:scale-[0.98]"
-            style={{ backgroundColor: !codeValid ? '#E5E5EA' : '#1C1C1E', color: '#FFFFFF', boxShadow: !codeValid ? 'none' : '0 6px 18px rgba(28,28,30,0.22)', cursor: !codeValid ? 'not-allowed' : 'pointer' }}
+            style={{ backgroundColor: !codeValid ? 'var(--line)' : 'var(--chip-ink)', color: '#FFFFFF', boxShadow: !codeValid ? 'none' : '0 6px 18px rgba(28,28,30,0.22)', cursor: !codeValid ? 'not-allowed' : 'pointer' }}
           >
             {busy ? (getLanguage() === 'it' ? 'Verifica…' : 'Verifying…') : (getLanguage() === 'it' ? 'Verifica e accedi' : 'Verify & sign in')}
           </button>

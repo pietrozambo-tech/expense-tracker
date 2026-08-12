@@ -39,7 +39,7 @@ export function SeriesClaimDialog({
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-6 max-w-[430px] mx-auto">
       <div className="bg-white rounded-2xl w-full max-w-sm flex flex-col" style={{ maxHeight: '80vh' }}>
         <div className="pt-6 px-6 flex justify-center">
-          <div className="w-16 h-16 rounded-full flex items-center justify-center" style={{ backgroundColor: '#EFF6FF' }}>
+          <div className="w-16 h-16 rounded-full flex items-center justify-center" style={{ backgroundColor: 'var(--wash-accent2)' }}>
             <Repeat className="w-8 h-8" style={{ color: '#3D5BE0' }} strokeWidth={2} />
           </div>
         </div>
@@ -69,16 +69,16 @@ export function SeriesClaimDialog({
                     height: 22,
                     borderRadius: 7,
                     backgroundColor: on ? '#4F74F3' : '#FFFFFF',
-                    border: on ? '1px solid #4F74F3' : '1.5px solid #D1D1D6',
+                    border: on ? '1px solid #4F74F3' : '1.5px solid var(--ghost-2)',
                   }}
                 >
                   {on && <Check className="w-3.5 h-3.5" style={{ color: '#FFFFFF' }} strokeWidth={3} />}
                 </span>
                 <span className="flex-1 min-w-0">
-                  <span className="block text-[15px] font-medium truncate" style={{ color: '#1C1C1E' }}>
+                  <span className="block text-[15px] font-medium truncate" style={{ color: 'var(--ink)' }}>
                     {c.label}
                   </span>
-                  <span className="block text-[12px]" style={{ color: '#8E8E93' }}>
+                  <span className="block text-[12px]" style={{ color: 'var(--ink-2)' }}>
                     {t(c.rows.length === 1 ? 'act.header.one' : 'act.header.other', { n: c.rows.length })} · {t('series.typically')}{' '}
                     <AmountText amount={c.medianAmount} currency={currency} decimals={0} />
                   </span>
@@ -86,7 +86,7 @@ export function SeriesClaimDialog({
                       judged rather than just trusted. */}
                   {/* Wraps rather than truncates: a claim made on shape has to
                       be readable in full to be judged. */}
-                  <span className="block text-[12px] leading-snug" style={{ color: sameWording ? '#8E8E93' : '#C77700' }}>
+                  <span className="block text-[12px] leading-snug" style={{ color: sameWording ? 'var(--ink-2)' : '#C77700' }}>
                     {t(sameWording ? 'series.joins' : 'series.joinsShape', { name: seriesName })}
                   </span>
                 </span>
@@ -101,13 +101,13 @@ export function SeriesClaimDialog({
             disabled={total === 0}
             className="w-full py-3.5 rounded-xl font-medium text-[15px] transition-all active:scale-[0.98]"
             style={{
-              backgroundColor: total === 0 ? '#E5E5EA' : '#4F74F3',
+              backgroundColor: total === 0 ? 'var(--line)' : '#4F74F3',
               color: total === 0 ? '#9CA3AF' : '#FFFFFF',
             }}
           >
             {total === 0 ? t('series.nothing') : t(total === 1 ? 'series.mark.one' : 'series.mark.other', { n: total })}
           </button>
-          <button onClick={onCancel} className="w-full py-2.5 text-[14px] font-medium" style={{ color: '#8E8E93' }}>
+          <button onClick={onCancel} className="w-full py-2.5 text-[14px] font-medium" style={{ color: 'var(--ink-2)' }}>
             {t('common.notNow')}
           </button>
         </div>

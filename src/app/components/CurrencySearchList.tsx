@@ -33,7 +33,7 @@ export function CurrencySearchList({ selected, onSelect, autoFocus = true }: Cur
           autoFocus={autoFocus}
           // 16px (text-base) prevents iOS Safari from auto-zooming on focus
           className="w-full pl-9 pr-3 py-2.5 bg-white rounded-xl text-base outline-none shadow-sm focus:ring-2 focus:ring-blue-500"
-          style={{ color: '#1C1C1E' }}
+          style={{ color: 'var(--ink)' }}
         />
       </div>
 
@@ -52,16 +52,16 @@ export function CurrencySearchList({ selected, onSelect, autoFocus = true }: Cur
                 key={code}
                 onClick={() => onSelect(code)}
                 className="w-full flex items-center gap-3 px-4 py-3 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
-                style={{ borderBottom: i < codes.length - 1 ? '1px solid #F2F1ED' : 'none' }}
+                style={{ borderBottom: i < codes.length - 1 ? '1px solid var(--bg-inset)' : 'none' }}
               >
                 <span
                   className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
-                  style={{ backgroundColor: isSelected ? '#E3F2FF' : '#F2F1ED', fontSize: '19px' }}
+                  style={{ backgroundColor: isSelected ? 'var(--wash-accent3)' : 'var(--bg-inset)', fontSize: '19px' }}
                 >
                   {c.flag}
                 </span>
                 <span className="flex flex-col items-start min-w-0">
-                  <span className="font-medium" style={{ color: isSelected ? '#4F74F3' : '#1C1C1E', fontSize: '15px' }}>
+                  <span className="font-medium" style={{ color: isSelected ? '#4F74F3' : 'var(--ink)', fontSize: '15px' }}>
                     {code}
                   </span>
                   <span className="text-neutral-500 text-[13px] truncate">{c.name}</span>

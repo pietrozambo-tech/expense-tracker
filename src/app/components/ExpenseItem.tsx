@@ -57,7 +57,7 @@ const creditStyle = isCredit ? { color: '#1F7A43' } : undefined;
 
   return (
     <>
-      <div className="relative overflow-hidden" style={{ backgroundColor: 'white' }}>
+      <div className="relative overflow-hidden" style={{ backgroundColor: 'var(--bg-card)' }}>
         {/* Delete action revealed by swiping the row left */}
         <button
           onClick={() => {
@@ -79,7 +79,7 @@ const creditStyle = isCredit ? { color: '#1F7A43' } : undefined;
           className="w-full flex items-center gap-3 px-6 py-2.5 active:bg-neutral-100 min-h-[52px] relative"
           style={{
             ...rowStyle,
-            backgroundColor: 'white',
+            backgroundColor: 'var(--bg-card)',
             transform: `translateX(${translateX}px)`,
             transition: dragging ? 'none' : 'transform 0.3s cubic-bezier(0.22, 1, 0.36, 1)',
           }}

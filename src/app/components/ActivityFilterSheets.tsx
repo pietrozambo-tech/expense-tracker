@@ -28,13 +28,13 @@ function Sheet({ title, onClose, children }: { title: string; onClose: () => voi
         style={{ paddingBottom: 'max(20px, env(safe-area-inset-bottom))' }}
       >
         <div className="flex items-center justify-between px-6 pt-5 pb-3">
-          <h3 style={{ color: '#1C1C1E', fontSize: 17, fontWeight: 600 }}>{title}</h3>
+          <h3 style={{ color: 'var(--ink)', fontSize: 17, fontWeight: 600 }}>{title}</h3>
           <button
             onClick={onClose}
             aria-label={t('common.close')}
             className="w-8 h-8 rounded-full flex items-center justify-center active:bg-neutral-100 transition-colors"
           >
-            <X className="w-4.5 h-4.5" style={{ color: '#8E8E93' }} />
+            <X className="w-4.5 h-4.5" style={{ color: 'var(--ink-2)' }} />
           </button>
         </div>
         {children}
@@ -76,7 +76,7 @@ export function PeriodSheet({
                 onClick={() => onYearChange(y)}
                 className="px-3.5 py-1.5 rounded-full text-[13px] font-semibold flex-shrink-0 transition-colors"
                 style={{
-                  backgroundColor: on ? '#4F74F3' : '#F4F4F5',
+                  backgroundColor: on ? '#4F74F3' : 'var(--bg-field)',
                   color: on ? '#FFFFFF' : '#5c5c60',
                 }}
               >
@@ -90,7 +90,7 @@ export function PeriodSheet({
           onClick={() => { onMonthChange('year'); onClose(); }}
           className="w-full mb-2 py-2.5 rounded-xl text-[14px] font-semibold transition-colors"
           style={{
-            backgroundColor: month === 'year' ? '#EEF1FE' : '#F4F4F5',
+            backgroundColor: month === 'year' ? 'var(--wash-accent)' : 'var(--bg-field)',
             color: month === 'year' ? '#4F74F3' : '#5c5c60',
           }}
         >
@@ -109,7 +109,7 @@ export function PeriodSheet({
                 onClick={() => { onMonthChange(value); onClose(); }}
                 className="py-2.5 rounded-xl text-[13px] font-semibold transition-colors disabled:opacity-35"
                 style={{
-                  backgroundColor: on ? '#4F74F3' : '#F4F4F5',
+                  backgroundColor: on ? '#4F74F3' : 'var(--bg-field)',
                   color: on ? '#FFFFFF' : '#5c5c60',
                 }}
               >
@@ -157,10 +157,10 @@ export function FiltersSheet({
       onClick={onClick}
       className="w-full flex items-center justify-between px-6 py-3.5 active:bg-neutral-50 transition-colors border-b border-neutral-100 last:border-b-0"
     >
-      <span style={{ color: '#1C1C1E', fontSize: 15 }}>{label}</span>
+      <span style={{ color: 'var(--ink)', fontSize: 15 }}>{label}</span>
       <span className="flex items-center gap-1.5">
-        <span style={{ color: '#8E8E93', fontSize: 15 }}>{value}</span>
-        <ChevronRight className="w-4 h-4" style={{ color: '#C7C7CC' }} />
+        <span style={{ color: 'var(--ink-2)', fontSize: 15 }}>{value}</span>
+        <ChevronRight className="w-4 h-4" style={{ color: 'var(--ghost)' }} />
       </span>
     </button>
   );
@@ -170,7 +170,7 @@ export function FiltersSheet({
       <div>
         {onTypeChange && (
           <div className="px-6 py-3.5 border-b border-neutral-100">
-            <div style={{ color: '#1C1C1E', fontSize: 15, marginBottom: 10 }}>{t('act.type')}</div>
+            <div style={{ color: 'var(--ink)', fontSize: 15, marginBottom: 10 }}>{t('act.type')}</div>
             <div className="flex gap-2 flex-wrap">
               {['All', 'One-off', 'Recurring', 'Imported'].map((v) => {
                 const on = (typeFilter || 'All') === v;
@@ -180,7 +180,7 @@ export function FiltersSheet({
                     onClick={() => onTypeChange(v)}
                     className="px-3.5 py-1.5 rounded-full text-[13px] font-semibold transition-colors"
                     style={{
-                      backgroundColor: on ? '#4F74F3' : '#F4F4F5',
+                      backgroundColor: on ? '#4F74F3' : 'var(--bg-field)',
                       color: on ? '#FFFFFF' : '#5c5c60',
                     }}
                   >
@@ -202,7 +202,7 @@ export function FiltersSheet({
           <button
             onClick={() => { onClearAll(); onClose(); }}
             className="w-full py-3 rounded-xl text-[15px] font-medium active:scale-[0.98] transition-transform"
-            style={{ backgroundColor: '#F4F4F5', color: '#1C1C1E' }}
+            style={{ backgroundColor: 'var(--bg-field)', color: 'var(--ink)' }}
           >
             {t('act.clearFilters')}
           </button>

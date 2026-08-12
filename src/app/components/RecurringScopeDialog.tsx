@@ -32,7 +32,7 @@ export function RecurringScopeDialog({
         <div className="pt-6 px-6 flex justify-center">
           <div
             className="w-16 h-16 rounded-full flex items-center justify-center"
-            style={{ backgroundColor: variant === 'danger' ? '#FEF2F2' : '#EFF6FF' }}
+            style={{ backgroundColor: variant === 'danger' ? 'var(--wash-red)' : 'var(--wash-accent2)' }}
           >
             <Repeat className="w-8 h-8" style={{ color: accent }} />
           </div>
@@ -54,14 +54,14 @@ export function RecurringScopeDialog({
           <button
             onClick={onFuture}
             className="w-full py-3 rounded-xl font-medium text-base transition-transform active:scale-[0.98]"
-            style={{ backgroundColor: variant === 'danger' ? '#FEF2F2' : '#EFF6FF', color: accent }}
+            style={{ backgroundColor: variant === 'danger' ? 'var(--wash-red)' : 'var(--wash-accent2)', color: accent }}
           >
             {futureLabel}
           </button>
           <button
             onClick={onCancel}
             className="w-full py-2.5 rounded-xl font-medium text-[15px]"
-            style={{ color: '#8E8E93' }}
+            style={{ color: 'var(--ink-2)' }}
           >{t('common.cancel')}</button>
         </div>
       </div>

@@ -171,13 +171,13 @@ export function DateInput({ value, onChange, showDatePicker, setShowDatePicker, 
                   }}
                   className="w-full flex items-center justify-between px-5 py-4 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
                   style={{
-                    borderBottom: index < recurrenceOptions.length - 1 ? '1px solid #F2F1ED' : 'none'
+                    borderBottom: index < recurrenceOptions.length - 1 ? '1px solid var(--bg-inset)' : 'none'
                   }}
                 >
                   <span
                     className="font-medium"
                     style={{
-                      color: recurrenceState === option ? '#4F74F3' : '#1C1C1E',
+                      color: recurrenceState === option ? '#4F74F3' : 'var(--ink)',
                       fontSize: '16px'
                     }}
                   >

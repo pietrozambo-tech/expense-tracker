@@ -162,7 +162,7 @@ export function TrendCategoryBreakdown({
           <h3 className="text-neutral-900 font-semibold text-sm">
             {t('tcb.title')}
           </h3>
-          <div className="text-[11.5px] mt-0.5" style={{ color: '#8E8E93' }}>
+          <div className="text-[11.5px] mt-0.5" style={{ color: 'var(--ink-2)' }}>
             <AmountText amount={totalMonthlyAvg} currency={currency} decimals={0} abbreviate="fit" />
             {' '}
             {t(categoryBreakdown.length === 1 ? 'tcb.subtitle.one' : 'tcb.subtitle.other',

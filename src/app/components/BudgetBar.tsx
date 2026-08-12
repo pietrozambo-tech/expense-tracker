@@ -81,7 +81,7 @@ export function BudgetBar({ spent, budget, currency, daysLeft, monthProgress, us
     <div className="px-6 mb-4">
       <div className="rounded-2xl px-4 py-3.5 bg-white shadow-sm">
         <div className="flex items-baseline justify-between mb-2 gap-2">
-          <span className="flex-shrink-0" style={{ color: '#1C1C1E', fontSize: 13, fontWeight: 600 }}>
+          <span className="flex-shrink-0" style={{ color: 'var(--ink)', fontSize: 13, fontWeight: 600 }}>
             {t('budget.title')}
           </span>
           {/* Two amounts and a currency code can outgrow the row - let them
@@ -93,7 +93,7 @@ export function BudgetBar({ spent, budget, currency, daysLeft, monthProgress, us
               compact={`${formatAbbreviatedAmount(spent, currency)} ${t('budget.of')} ${formatAbbreviatedAmount(budget, currency)}`}
               compactNode={
                 <>
-                  <span style={{ color: over ? tone.text : '#1C1C1E', fontWeight: 600 }}>
+                  <span style={{ color: over ? tone.text : 'var(--ink)', fontWeight: 600 }}>
                     <AmountText amount={spent} currency={currency} decimals={0} abbreviate="fit" />
                   </span>
                   {` ${t('budget.of')} `}
@@ -101,9 +101,9 @@ export function BudgetBar({ spent, budget, currency, daysLeft, monthProgress, us
                 </>
               }
               className="tabular-nums"
-              style={{ color: '#8E8E93' }}
+              style={{ color: 'var(--ink-2)' }}
             >
-              <span style={{ color: over ? tone.text : '#1C1C1E', fontWeight: 600 }}>
+              <span style={{ color: over ? tone.text : 'var(--ink)', fontWeight: 600 }}>
                 <AmountText amount={spent} currency={currency} decimals={0} />
               </span>
               {` ${t('budget.of')} `}
@@ -113,7 +113,7 @@ export function BudgetBar({ spent, budget, currency, daysLeft, monthProgress, us
         </div>
 
         {/* Track */}
-        <div className="relative h-2 rounded-full overflow-hidden" style={{ backgroundColor: '#F2F1ED' }}>
+        <div className="relative h-2 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--bg-inset)' }}>
           <div
             className="h-full rounded-full transition-all"
             style={{
@@ -145,7 +145,7 @@ export function BudgetBar({ spent, budget, currency, daysLeft, monthProgress, us
 
         <div className="flex items-center justify-between mt-2">
           <span className="flex items-center gap-1.5 min-w-0">
-            <span className="flex-shrink-0" style={{ color: '#8E8E93', fontSize: 12, fontWeight: 500 }}>
+            <span className="flex-shrink-0" style={{ color: 'var(--ink-2)', fontSize: 12, fontWeight: 500 }}>
               {t('budget.pctUsed', { pct })}
             </span>
             {/* Status as a chip: the state gets a shape, not just a colour. */}
@@ -153,7 +153,7 @@ export function BudgetBar({ spent, budget, currency, daysLeft, monthProgress, us
               className="truncate"
               style={{
                 color: tone.text,
-                backgroundColor: tone === TONES.good ? '#E7F4ED' : tone === TONES.warn ? '#FAF0DC' : '#FAE7E4',
+                backgroundColor: tone === TONES.good ? 'var(--wash-green)' : tone === TONES.warn ? '#FAF0DC' : '#FAE7E4',
                 fontSize: 11,
                 fontWeight: 600,
                 padding: '2px 8px',
@@ -164,7 +164,7 @@ export function BudgetBar({ spent, budget, currency, daysLeft, monthProgress, us
             </span>
           </span>
           {isLive && (
-            <span style={{ color: '#8E8E93', fontSize: 12 }}>
+            <span style={{ color: 'var(--ink-2)', fontSize: 12 }}>
               {daysLeft === 0
                 ? t('budget.lastDay')
                 : t(daysLeft === 1 ? 'budget.dayLeft.one' : 'budget.dayLeft.other', { n: daysLeft })}
@@ -184,9 +184,9 @@ export function BudgetBar({ spent, budget, currency, daysLeft, monthProgress, us
           const daysInMonth = Math.round((daysLeft as number) / (1 - (monthProgress as number)));
           if (allowance < (budget / daysInMonth) * 0.1) return null;
           return (
-            <div style={{ marginTop: 8, fontSize: 12, color: '#8E8E93' }}>
+            <div style={{ marginTop: 8, fontSize: 12, color: 'var(--ink-2)' }}>
               {t('budget.perDayPre')}{' '}
-              <span style={{ color: '#1C1C1E', fontWeight: 700 }}>
+              <span style={{ color: 'var(--ink)', fontWeight: 700 }}>
                 <AmountText amount={allowance} currency={currency} decimals={0} />
               </span>{' '}
               {t('budget.perDayPost')}
@@ -246,7 +246,7 @@ export function BudgetNudge({ currency, onSave, onDismiss }: BudgetNudgeProps) {
             monthly limit..." was the same sentence twice. */}
         {editing && (
           <div className="flex items-center justify-between mb-2">
-            <span style={{ color: '#1C1C1E', fontSize: 13, fontWeight: 600 }}>{t('budget.title')}</span>
+            <span style={{ color: 'var(--ink)', fontSize: 13, fontWeight: 600 }}>{t('budget.title')}</span>
             <button
               onClick={(e) => {
                 e.stopPropagation();
@@ -254,7 +254,7 @@ export function BudgetNudge({ currency, onSave, onDismiss }: BudgetNudgeProps) {
               }}
               aria-label={t('budget.nudge.cancel')}
               className="-m-1 p-1 rounded-full transition-colors"
-              style={{ color: '#C7C7CC' }}
+              style={{ color: 'var(--ghost)' }}
             >
               <X className="w-4 h-4" strokeWidth={2.5} />
             </button>
@@ -266,9 +266,9 @@ export function BudgetNudge({ currency, onSave, onDismiss }: BudgetNudgeProps) {
             <div className="flex items-center gap-2">
               <div
                 className="flex items-center gap-1.5 px-3 rounded-xl flex-1 min-w-0"
-                style={{ border: '1px solid #E5E5EA' }}
+                style={{ border: '1px solid var(--line)' }}
               >
-                <span style={{ color: '#8E8E93', fontSize: 15 }}>{CURRENCIES[currency]?.symbol ?? ''}</span>
+                <span style={{ color: 'var(--ink-2)', fontSize: 15 }}>{CURRENCIES[currency]?.symbol ?? ''}</span>
                 <input
                   autoFocus
                   type="text"
@@ -285,7 +285,7 @@ export function BudgetNudge({ currency, onSave, onDismiss }: BudgetNudgeProps) {
                   className="flex-1 min-w-0 py-2 bg-transparent outline-none tabular-nums"
                   // 16, not 15: below that iOS zooms the page in on focus. See
                   // the form-control floor in theme.css.
-                  style={{ fontSize: 16, color: '#1C1C1E' }}
+                  style={{ fontSize: 16, color: 'var(--ink)' }}
                 />
               </div>
               <button
@@ -293,7 +293,7 @@ export function BudgetNudge({ currency, onSave, onDismiss }: BudgetNudgeProps) {
                 disabled={!valid}
                 className="px-4 py-2 rounded-xl font-medium transition-all active:scale-[0.97] flex-shrink-0"
                 style={{
-                  backgroundColor: valid ? '#4F74F3' : '#E5E5EA',
+                  backgroundColor: valid ? '#4F74F3' : 'var(--line)',
                   color: '#FFFFFF',
                   fontSize: 14,
                 }}
@@ -301,7 +301,7 @@ export function BudgetNudge({ currency, onSave, onDismiss }: BudgetNudgeProps) {
                 {t('budget.nudge.save')}
               </button>
             </div>
-            <p style={{ color: '#B0B0B5', fontSize: 12, marginTop: 6 }}>
+            <p style={{ color: 'var(--faint)', fontSize: 12, marginTop: 6 }}>
               {t('budget.nudge.hint')}
             </p>
           </>
@@ -312,11 +312,11 @@ export function BudgetNudge({ currency, onSave, onDismiss }: BudgetNudgeProps) {
           <div className="flex items-center gap-2.5">
             <span
               className="w-8 h-8 rounded-[10px] flex items-center justify-center flex-shrink-0"
-              style={{ backgroundColor: '#EEF1FE' }}
+              style={{ backgroundColor: 'var(--wash-accent)' }}
             >
               <Target className="w-[18px] h-[18px]" style={{ color: '#4F74F3' }} strokeWidth={2.2} />
             </span>
-            <span className="flex-1" style={{ color: '#1C1C1E', fontSize: 14, fontWeight: 600 }}>
+            <span className="flex-1" style={{ color: 'var(--ink)', fontSize: 14, fontWeight: 600 }}>
               {t('budget.nudge.title')}
             </span>
             <button
@@ -326,7 +326,7 @@ export function BudgetNudge({ currency, onSave, onDismiss }: BudgetNudgeProps) {
               }}
               aria-label={t('budget.nudge.hide')}
               className="-m-1 p-1 rounded-full transition-colors flex-shrink-0"
-              style={{ color: '#C7C7CC' }}
+              style={{ color: 'var(--ghost)' }}
             >
               <X className="w-4 h-4" strokeWidth={2.5} />
             </button>

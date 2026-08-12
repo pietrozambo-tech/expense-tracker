@@ -23,11 +23,11 @@ const CADENCES = [
   'Every year',
 ];
 
-const LABEL: React.CSSProperties = { color: '#8E8E93', fontSize: 12, fontWeight: 600, letterSpacing: 0.2 };
+const LABEL: React.CSSProperties = { color: 'var(--ink-2)', fontSize: 12, fontWeight: 600, letterSpacing: 0.2 };
 // 16px, not the 15 the rest of this sheet uses: anything smaller makes iOS zoom
 // the page in when the field takes focus. See the floor in theme.css.
 const FIELD = 'w-full px-4 py-3 rounded-xl text-[16px]';
-const FIELD_STYLE: React.CSSProperties = { backgroundColor: '#F4F4F5', color: '#1C1C1E', border: 'none', outline: 'none' };
+const FIELD_STYLE: React.CSSProperties = { backgroundColor: 'var(--bg-field)', color: 'var(--ink)', border: 'none', outline: 'none' };
 
 /**
  * Create or edit a schedule.
@@ -125,7 +125,7 @@ export function ScheduleEditor({
         style={{ paddingBottom: 'max(20px, env(safe-area-inset-bottom))' }}
       >
         <div className="flex items-center justify-between px-6 pt-5 pb-3">
-          <h3 style={{ color: '#1C1C1E', fontSize: 17, fontWeight: 600 }}>
+          <h3 style={{ color: 'var(--ink)', fontSize: 17, fontWeight: 600 }}>
             {rule ? t('sched.editTitle') : t('sched.addTitle')}
           </h3>
           <button
@@ -133,18 +133,18 @@ export function ScheduleEditor({
             aria-label={t('common.close')}
             className="w-8 h-8 rounded-full flex items-center justify-center active:bg-neutral-100 transition-colors"
           >
-            <X className="w-4.5 h-4.5" style={{ color: '#8E8E93' }} />
+            <X className="w-4.5 h-4.5" style={{ color: 'var(--ink-2)' }} />
           </button>
         </div>
 
         <div className="px-6 space-y-4">
           {/* Same sliding-thumb switch as the Add screen and the Dashboard. */}
-          <div className="relative flex p-1 rounded-full" style={{ backgroundColor: '#ECEAE4' }}>
+          <div className="relative flex p-1 rounded-full" style={{ backgroundColor: 'var(--bg-track)' }}>
             <div
               className="absolute rounded-full"
               style={{
                 top: 4, bottom: 4, left: 4, width: 'calc(50% - 4px)',
-                backgroundColor: '#FFFFFF',
+                backgroundColor: 'var(--bg-card)',
                 boxShadow: switchGlow(type === 'income' ? 'income' : 'expense'),
                 transform: type === 'income' ? 'translateX(100%)' : 'translateX(0)',
                 transition: 'transform 220ms cubic-bezier(0.32, 0.72, 0, 1)',
@@ -154,14 +154,14 @@ export function ScheduleEditor({
             <button
               onClick={() => switchType('expense')}
               className="relative flex-1 py-1.5 text-sm font-medium transition-colors"
-              style={{ color: type === 'expense' ? '#C2352B' : '#8E8E93' }}
+              style={{ color: type === 'expense' ? '#C2352B' : 'var(--ink-2)' }}
             >
               {t('seg.expenses')}
             </button>
             <button
               onClick={() => switchType('income')}
               className="relative flex-1 py-1.5 text-sm font-medium transition-colors"
-              style={{ color: type === 'income' ? '#1F7A43' : '#8E8E93' }}
+              style={{ color: type === 'income' ? '#1F7A43' : 'var(--ink-2)' }}
             >
               {t('seg.income')}
             </button>
@@ -221,28 +221,28 @@ export function ScheduleEditor({
                       role="radio"
                       aria-checked={on}
                       className="w-full flex items-start gap-2.5 px-3.5 py-3 rounded-xl text-left transition-colors"
-                      style={{ backgroundColor: on ? '#EEF1FE' : '#F4F4F5' }}
+                      style={{ backgroundColor: on ? 'var(--wash-accent)' : 'var(--bg-field)' }}
                     >
                       <span
                         className="w-4 h-4 rounded-full flex-shrink-0 flex items-center justify-center"
                         style={{
                           marginTop: 2,
-                          border: `1.5px solid ${on ? '#4F74F3' : '#C7C7CC'}`,
+                          border: `1.5px solid ${on ? '#4F74F3' : 'var(--ghost)'}`,
                           backgroundColor: on ? '#4F74F3' : 'transparent',
                         }}
                       >
-                        {on && <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: '#FFFFFF' }} />}
+                        {on && <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: 'var(--bg-card)' }} />}
                       </span>
                       <span className="min-w-0 flex-1">
                         <span
                           className="block text-[14px]"
-                          style={{ color: on ? '#4F74F3' : '#1C1C1E', fontWeight: on ? 600 : 500 }}
+                          style={{ color: on ? '#4F74F3' : 'var(--ink)', fontWeight: on ? 600 : 500 }}
                         >
                           {t(k === 'change' ? 'sched.repriceChange' : 'sched.repriceWrong')}
                         </span>
                         <span
                           className="block text-[12px] mt-0.5"
-                          style={{ color: '#8E8E93', lineHeight: 1.4 }}
+                          style={{ color: 'var(--ink-2)', lineHeight: 1.4 }}
                         >
                           {k === 'change'
                             ? t('sched.repriceChangeNote', { amount: money(reprice.usual) })
@@ -263,7 +263,7 @@ export function ScheduleEditor({
             <div style={LABEL} className="mb-1.5">{t('add.recurrence')}</div>
             <div className={`${FIELD} relative flex items-center`} style={FIELD_STYLE}>
               <span className="flex-1">{translateRecurrence(cadence)}</span>
-              <ChevronDown className="w-4 h-4" style={{ color: '#8E8E93' }} />
+              <ChevronDown className="w-4 h-4" style={{ color: 'var(--ink-2)' }} />
               <select
                 aria-label={t('add.recurrence')}
                 value={cadence}
@@ -288,14 +288,14 @@ export function ScheduleEditor({
                     key={c.id}
                     onClick={() => setCategoryId(c.id)}
                     className="flex items-center gap-2 px-3 py-2.5 rounded-xl transition-colors"
-                    style={{ backgroundColor: on ? '#EEF1FE' : '#F4F4F5' }}
+                    style={{ backgroundColor: on ? 'var(--wash-accent)' : 'var(--bg-field)' }}
                   >
                     <span className={`w-7 h-7 rounded-lg ${c.bgColor} flex items-center justify-center flex-shrink-0`}>
                       <Icon className={`w-3.5 h-3.5 ${c.color}`} />
                     </span>
                     <span
                       className="truncate text-[13px]"
-                      style={{ color: on ? '#4F74F3' : '#1C1C1E', fontWeight: on ? 600 : 500 }}
+                      style={{ color: on ? '#4F74F3' : 'var(--ink)', fontWeight: on ? 600 : 500 }}
                     >
                       {c.name}
                     </span>
@@ -316,10 +316,10 @@ export function ScheduleEditor({
                       key={s.id}
                       onClick={() => setSourceId(on ? '' : s.id)}
                       className="flex items-center gap-1.5 px-3 py-2 rounded-xl transition-colors"
-                      style={{ backgroundColor: on ? '#EEF1FE' : '#F4F4F5' }}
+                      style={{ backgroundColor: on ? 'var(--wash-accent)' : 'var(--bg-field)' }}
                     >
                       <SourceLogo source={s} size={16} />
-                      <span className="text-[13px]" style={{ color: on ? '#4F74F3' : '#1C1C1E', fontWeight: on ? 600 : 500 }}>
+                      <span className="text-[13px]" style={{ color: on ? '#4F74F3' : 'var(--ink)', fontWeight: on ? 600 : 500 }}>
                         {s.name}
                       </span>
                     </button>
@@ -331,7 +331,7 @@ export function ScheduleEditor({
 
           {/* Says plainly what saving does, because "edit" on a schedule is
               ambiguous until you know it cannot touch what already happened. */}
-          <p style={{ color: '#8E8E93', fontSize: 12, lineHeight: 1.45 }}>
+          <p style={{ color: 'var(--ink-2)', fontSize: 12, lineHeight: 1.45 }}>
             {/* The standing note promises the past is never rewritten, which
                 is true of every edit except the one the user has just asked
                 for. Saying it anyway would contradict the choice above. */}
@@ -362,8 +362,8 @@ export function ScheduleEditor({
             }
             className="w-full py-3.5 rounded-xl font-medium transition-all active:scale-[0.98]"
             style={{
-              backgroundColor: valid ? '#4F74F3' : '#E5E5EA',
-              color: valid ? '#FFFFFF' : '#A5A5AD',
+              backgroundColor: valid ? '#4F74F3' : 'var(--line)',
+              color: valid ? '#FFFFFF' : 'var(--disabled)',
               fontSize: 15,
             }}
           >

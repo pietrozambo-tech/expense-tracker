@@ -48,7 +48,7 @@ export const BANK_LIBRARY: { name: string; brand: string; monogram: string }[] =
 // A colour palette offered when creating a custom source.
 export const SOURCE_COLORS = [
   '#0B0B0D', '#EC0000', '#00854A', '#2FA84F', '#0A84FF',
-  '#5E5CE6', '#FF9F0A', '#FF375F', '#14B8A6', '#8E8E93',
+  '#5E5CE6', '#FF9F0A', '#FF375F', '#14B8A6', 'var(--ink-2)',
 ];
 
 // Build a 1–2 letter monogram from a source name (e.g. "Intesa Sanpaolo" → "IS").

@@ -95,17 +95,17 @@ export function AmountInput({ value, onChange, currency, onCurrencyChange, right
         key={code}
         onClick={() => handleCurrencySelect(code)}
         className="w-full flex items-center justify-between px-5 py-3.5 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
-        style={{ borderBottom: showBorder ? '1px solid #F2F1ED' : 'none' }}
+        style={{ borderBottom: showBorder ? '1px solid var(--bg-inset)' : 'none' }}
       >
         <div className="flex items-center gap-3">
           <div
             className="w-10 h-10 rounded-full flex items-center justify-center"
-            style={{ backgroundColor: currency === code ? '#E3F2FF' : '#F2F1ED', fontSize: '22px' }}
+            style={{ backgroundColor: currency === code ? 'var(--wash-accent3)' : 'var(--bg-inset)', fontSize: '22px' }}
           >
             {currencyData.flag}
           </div>
           <div className="flex flex-col items-start">
-            <span className="font-medium" style={{ color: currency === code ? '#4F74F3' : '#1C1C1E', fontSize: '16px' }}>
+            <span className="font-medium" style={{ color: currency === code ? '#4F74F3' : 'var(--ink)', fontSize: '16px' }}>
               {code}
             </span>
             <span className="text-neutral-500 text-sm">{currencyData.name}</span>

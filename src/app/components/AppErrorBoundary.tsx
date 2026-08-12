@@ -34,15 +34,15 @@ export class AppErrorBoundary extends Component<Props, State> {
           justifyContent: 'center',
           padding: 32,
           textAlign: 'center',
-          backgroundColor: '#F6F5F2',
+          backgroundColor: 'var(--bg-page)',
           fontFamily: 'system-ui, sans-serif',
         }}
       >
         <div style={{ fontSize: 40, marginBottom: 12 }}>😵</div>
-        <h1 style={{ color: '#1C1C1E', fontSize: 20, fontWeight: 700, margin: 0 }}>
+        <h1 style={{ color: 'var(--ink)', fontSize: 20, fontWeight: 700, margin: 0 }}>
           Something went wrong
         </h1>
-        <p style={{ color: '#6B6B75', fontSize: 15, lineHeight: 1.5, marginTop: 8, maxWidth: 300 }}>
+        <p style={{ color: 'var(--ink-3)', fontSize: 15, lineHeight: 1.5, marginTop: 8, maxWidth: 300 }}>
           Sorry about that. Your data is safe - reloading usually fixes it.
         </p>
         <button

@@ -38,14 +38,14 @@ export function ExportScopeModal({ filteredCount, totalCount, filters, onSelect,
         WebkitTapHighlightColor: 'rgba(255, 255, 255, 0)',
       }}
     >
-      <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#E3F2FF' }}>
+      <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: 'var(--wash-accent3)' }}>
         <Icon className="w-4 h-4" style={{ color: '#4F74F3' }} strokeWidth={2.2} />
       </div>
       <div className="min-w-0 flex-1">
-        <div className="text-[15px] font-semibold" style={{ color: '#1C1C1E' }}>{title}</div>
-        <div className="text-[13px] leading-snug mt-0.5 truncate" style={{ color: '#8E8E93' }}>{subtitle}</div>
+        <div className="text-[15px] font-semibold" style={{ color: 'var(--ink)' }}>{title}</div>
+        <div className="text-[13px] leading-snug mt-0.5 truncate" style={{ color: 'var(--ink-2)' }}>{subtitle}</div>
       </div>
-      <div className="text-[13px] tabular-nums flex-shrink-0" style={{ color: '#8E8E93' }}>{rows.toLocaleString(numberLocale(), GROUPED)}</div>
+      <div className="text-[13px] tabular-nums flex-shrink-0" style={{ color: 'var(--ink-2)' }}>{rows.toLocaleString(numberLocale(), GROUPED)}</div>
     </button>
   );
 

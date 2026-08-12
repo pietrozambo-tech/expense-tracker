@@ -188,10 +188,10 @@ function DockTab({
       className="flex flex-col items-center justify-center gap-1 h-[46px] w-full rounded-2xl transition-colors duration-200 pointer-events-auto"
       style={{ backgroundColor: active ? 'rgba(255, 255, 255, 0.13)' : 'transparent' }}
     >
-      <Icon size={22} style={{ color: active ? '#FFFFFF' : '#8E8E93' }} strokeWidth={active ? 2.4 : 2} />
+      <Icon size={22} style={{ color: active ? '#FFFFFF' : 'var(--ink-2)' }} strokeWidth={active ? 2.4 : 2} />
       <span
         className="text-[9.5px] font-semibold leading-none whitespace-nowrap"
-        style={{ color: active ? '#FFFFFF' : '#8E8E93' }}
+        style={{ color: active ? '#FFFFFF' : 'var(--ink-2)' }}
       >
         {label}
       </span>
@@ -1882,15 +1882,15 @@ export default function App() {
     <div className="tab-loading flex justify-center pt-24" role="status" aria-label="Loading">
       <div
         className="tab-loading-spinner w-6 h-6 rounded-full border-2"
-        style={{ borderColor: '#E5E5EA', borderTopColor: '#8E8E93' }}
+        style={{ borderColor: 'var(--line)', borderTopColor: 'var(--ink-2)' }}
       />
     </div>
   );
 
   const splash = (label?: string) => (
-    <div className="min-h-screen flex flex-col items-center justify-center gap-3" style={{ backgroundColor: '#F6F5F2' }}>
+    <div className="min-h-screen flex flex-col items-center justify-center gap-3" style={{ backgroundColor: 'var(--bg-page)' }}>
       <TracklyLogo size={64} />
-      {label && <p style={{ color: '#8E8E93', fontSize: 14 }}>{label}</p>}
+      {label && <p style={{ color: 'var(--ink-2)', fontSize: 14 }}>{label}</p>}
     </div>
   );
 
@@ -1904,25 +1904,25 @@ export default function App() {
   // screen that could show the data itself.
   if (session && ownerConflict) {
     return (
-      <div className="flex flex-col max-w-[430px] mx-auto px-6" style={{ height: '100dvh', backgroundColor: '#F6F5F2' }}>
+      <div className="flex flex-col max-w-[430px] mx-auto px-6" style={{ height: '100dvh', backgroundColor: 'var(--bg-page)' }}>
         <div className="flex-1 flex flex-col items-center justify-center text-center">
           <TracklyLogo size={56} className="mb-5" />
-          <h1 style={{ color: '#1C1C1E', fontSize: 22, fontWeight: 700, letterSpacing: '-0.02em', marginBottom: 10 }}>
+          <h1 style={{ color: 'var(--ink)', fontSize: 22, fontWeight: 700, letterSpacing: '-0.02em', marginBottom: 10 }}>
             {t('guard.title')}
           </h1>
-          <p style={{ color: '#6B6B75', fontSize: 15, lineHeight: 1.5, maxWidth: 320 }}>
+          <p style={{ color: 'var(--ink-3)', fontSize: 15, lineHeight: 1.5, maxWidth: 320 }}>
             {getLanguage() === 'it' ? (
               <>
-                Hai effettuato l'accesso come <span style={{ color: '#1C1C1E', fontWeight: 600 }}>{userEmail}</span>,
+                Hai effettuato l'accesso come <span style={{ color: 'var(--ink)', fontWeight: 600 }}>{userEmail}</span>,
                 ma le spese salvate qui appartengono a{' '}
-                <span style={{ color: '#1C1C1E', fontWeight: 600 }}>{ownerConflict.email || 'un altro account'}</span>.
+                <span style={{ color: 'var(--ink)', fontWeight: 600 }}>{ownerConflict.email || 'un altro account'}</span>.
                 Per proteggerle, nulla è stato caricato sul tuo account.
               </>
             ) : (
               <>
-                You're signed in as <span style={{ color: '#1C1C1E', fontWeight: 600 }}>{userEmail}</span>, but the
+                You're signed in as <span style={{ color: 'var(--ink)', fontWeight: 600 }}>{userEmail}</span>, but the
                 expenses stored here belong to{' '}
-                <span style={{ color: '#1C1C1E', fontWeight: 600 }}>{ownerConflict.email || 'a different account'}</span>.
+                <span style={{ color: 'var(--ink)', fontWeight: 600 }}>{ownerConflict.email || 'a different account'}</span>.
                 To protect them, nothing has been uploaded to your account.
               </>
             )}
@@ -1943,12 +1943,12 @@ export default function App() {
           >
             {t('guard.fresh')}
           </button>
-          <p className="text-center mt-2 px-4" style={{ color: '#A5A5AD', fontSize: 12, lineHeight: 1.45 }}>
+          <p className="text-center mt-2 px-4" style={{ color: 'var(--disabled)', fontSize: 12, lineHeight: 1.45 }}>
             {getLanguage() === 'it'
               ? <>Rimuove quei dati solo da questo dispositivo. {ownerConflict.email || "L'altro account"} conserva l'ultimo backup fatto sul proprio account.</>
               : <>Removes that data from this device only. {ownerConflict.email || 'The other account'} keeps whatever was last backed up to its own account.</>}
           </p>
-          <button onClick={() => void signOut()} className="w-full py-3 mt-1 text-[15px] font-medium" style={{ color: '#8E8E93' }}>
+          <button onClick={() => void signOut()} className="w-full py-3 mt-1 text-[15px] font-medium" style={{ color: 'var(--ink-2)' }}>
             {t('guard.back')}
           </button>
         </div>
@@ -2055,10 +2055,10 @@ export default function App() {
           its transaction list scrolls; other tabs scroll as a whole page */}
       <div
         className={`max-w-[430px] mx-auto flex flex-col md:shadow-[0_0_40px_rgba(0,0,0,0.07)] ${currentTab === 'activity' ? 'overflow-hidden' : 'min-h-screen'}`}
-        style={{ backgroundColor: '#F6F5F2', ...(currentTab === 'activity' ? { height: '100dvh' } : {}) }}
+        style={{ backgroundColor: 'var(--bg-page)', ...(currentTab === 'activity' ? { height: '100dvh' } : {}) }}
       >
         {/* Status Bar Space — clears the iOS status bar when installed, minimal in a browser tab */}
-        <div className="app-top-inset flex-shrink-0" style={{ backgroundColor: '#F6F5F2' }} />
+        <div className="app-top-inset flex-shrink-0" style={{ backgroundColor: 'var(--bg-page)' }} />
 
         {/* Content - Different structure for activity tab vs others */}
         {currentTab === 'activity' ? (
@@ -2378,12 +2378,12 @@ export default function App() {
         {currentTab === 'add' && (
           <div className="fixed inset-0 bg-white z-60 flex flex-col max-w-[430px] mx-auto overflow-hidden">
             {/* Clear the iOS status bar when installed */}
-            <div className="app-top-inset flex-shrink-0" style={{ backgroundColor: '#FFFFFF' }} />
+            <div className="app-top-inset flex-shrink-0" style={{ backgroundColor: 'var(--bg-card)' }} />
             {/* Header: what this sheet IS, then the close button. The X used
                 to float alone in an empty bar - the one sheet in the app that
                 never said what it was for. */}
             <div className="h-12 flex items-center justify-between px-6 flex-shrink-0">
-              <h3 style={{ color: '#1C1C1E', fontSize: 17, fontWeight: 600 }}>
+              <h3 style={{ color: 'var(--ink)', fontSize: 17, fontWeight: 600 }}>
                 {editingExpenseId
                   ? t('add.titleEdit')
                   : transactionType === 'income' ? t('add.titleNewIncome') : t('add.titleNewExpense')}
@@ -2401,12 +2401,12 @@ export default function App() {
               {/* Transaction Type Switch — the same sliding-thumb segmented
                   control the Dashboard settled on, sized to its content. */}
               <div className="px-6 pb-5">
-                <div className="relative inline-flex p-1 rounded-full" style={{ backgroundColor: '#ECEAE4' }}>
+                <div className="relative inline-flex p-1 rounded-full" style={{ backgroundColor: 'var(--bg-track)' }}>
                   <div
                     className="absolute rounded-full"
                     style={{
                       top: 4, bottom: 4, left: 4, width: 'calc(50% - 4px)',
-                      backgroundColor: '#FFFFFF',
+                      backgroundColor: 'var(--bg-card)',
                       boxShadow: switchGlow(transactionType === 'income' ? 'income' : 'expense'),
                       transform: transactionType === 'income' ? 'translateX(100%)' : 'translateX(0)',
                       transition: 'transform 220ms cubic-bezier(0.32, 0.72, 0, 1)',
@@ -2416,14 +2416,14 @@ export default function App() {
                   <button
                     onClick={() => handleTransactionTypeChange('expense')}
                     className="relative px-5 py-1.5 text-sm font-medium transition-colors"
-                    style={{ color: transactionType === 'expense' ? '#C2352B' : '#8E8E93', minWidth: 96 }}
+                    style={{ color: transactionType === 'expense' ? '#C2352B' : 'var(--ink-2)', minWidth: 96 }}
                   >
                     {t('add.expense')}
                   </button>
                   <button
                     onClick={() => handleTransactionTypeChange('income')}
                     className="relative px-5 py-1.5 text-sm font-medium transition-colors"
-                    style={{ color: transactionType === 'income' ? '#1F7A43' : '#8E8E93', minWidth: 96 }}
+                    style={{ color: transactionType === 'income' ? '#1F7A43' : 'var(--ink-2)', minWidth: 96 }}
                   >
                     {t('add.income')}
                   </button>
@@ -2441,11 +2441,11 @@ export default function App() {
                     type="button"
                     onClick={() => setShowSourceSelector(true)}
                     className="flex items-center gap-1 rounded-full pl-1 pr-1.5 py-1 active:scale-95 transition-transform"
-                    style={{ backgroundColor: '#F2F1ED', WebkitTapHighlightColor: 'transparent' }}
+                    style={{ backgroundColor: 'var(--bg-inset)', WebkitTapHighlightColor: 'transparent' }}
                     aria-label={t('add.selectSource')}
                   >
                     <SourceLogo source={sources.find(s => s.id === selectedSourceId)} size={24} />
-                    <ChevronDown className="w-3.5 h-3.5" style={{ color: '#8E8E93' }} strokeWidth={2.5} />
+                    <ChevronDown className="w-3.5 h-3.5" style={{ color: 'var(--ink-2)' }} strokeWidth={2.5} />
                   </button>
                 }
               />
@@ -2471,8 +2471,8 @@ export default function App() {
                   in the Activity list - the repeat icon covers it there. */}
               {editingAutoOccurrence && (
                 <div className="px-6 -mt-2 pb-4 flex items-center gap-1.5">
-                  <Repeat className="w-3.5 h-3.5 flex-shrink-0" style={{ color: '#8E8E93' }} strokeWidth={2} />
-                  <span style={{ color: '#8E8E93', fontSize: 12.5, lineHeight: 1.4 }}>
+                  <Repeat className="w-3.5 h-3.5 flex-shrink-0" style={{ color: 'var(--ink-2)' }} strokeWidth={2} />
+                  <span style={{ color: 'var(--ink-2)', fontSize: 12.5, lineHeight: 1.4 }}>
                     {t('add.occurrenceNote')}
                   </span>
                 </div>

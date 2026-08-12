@@ -38,6 +38,6 @@ export const DOCK_CLEARANCE = 96;
  */
 export const SUBPAGE_STYLE = {
   height: SUBPAGE_HEIGHT,
-  backgroundColor: '#F6F5F2',
+  backgroundColor: 'var(--bg-page)',
   marginBottom: -PARENT_DOCK_PADDING,
 };

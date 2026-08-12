@@ -50,7 +50,7 @@ export function CategorySelector({
       {/* The same quiet label the Schedule editor uses for these fields -
           a bare h3 inherited 18px here, which put form labels on a heading
           scale and made the sheet shout its own structure. */}
-      <h3 className="mb-1.5" style={{ color: '#8E8E93', fontSize: 12, fontWeight: 600, letterSpacing: 0.2 }}>{t('add.category')}</h3>
+      <h3 className="mb-1.5" style={{ color: 'var(--ink-2)', fontSize: 12, fontWeight: 600, letterSpacing: 0.2 }}>{t('add.category')}</h3>
 
       <div className="grid grid-cols-2 gap-2.5">
         {sortedCategories.map((category, index) => {
@@ -101,8 +101,8 @@ export function CategorySelector({
                 <div
                   className="col-span-2 rounded-xl px-3.5 py-3"
                   style={{
-                    backgroundColor: '#FFFFFF',
-                    border: '1px solid #ECECEF',
+                    backgroundColor: 'var(--bg-card)',
+                    border: '1px solid var(--line-2)',
                     boxShadow: '0 1px 4px rgba(0, 0, 0, 0.05)'
                   }}
                 >
@@ -111,7 +111,7 @@ export function CategorySelector({
                   <div className="flex items-center justify-between mb-2 h-6">
                     <span
                       className="text-[11px] font-semibold"
-                      style={{ color: '#8E8E93', letterSpacing: '0.06em' }}
+                      style={{ color: 'var(--ink-2)', letterSpacing: '0.06em' }}
                     >
                       {t('add.subcategory')}
                     </span>
@@ -124,7 +124,7 @@ export function CategorySelector({
                         pointerEvents: selectedSubcategory ? 'auto' : 'none'
                       }}
                     >
-                      <X className="w-4 h-4" style={{ color: '#8E8E93' }} />
+                      <X className="w-4 h-4" style={{ color: 'var(--ink-2)' }} />
                     </button>
                   </div>
 

@@ -34,7 +34,7 @@ export function Onboarding({ onComplete, initialName = '' }: OnboardingProps) {
     // Fixed viewport height with the form scrolling inside it, not
     // min-h-screen: the language step made this screen tall enough that on a
     // shorter phone the CTA fell below the fold with nothing to say so.
-    <div className="flex flex-col max-w-[430px] mx-auto" style={{ height: '100dvh', backgroundColor: '#F6F5F2' }}>
+    <div className="flex flex-col max-w-[430px] mx-auto" style={{ height: '100dvh', backgroundColor: 'var(--bg-page)' }}>
       {/* Content */}
       <div
         className="flex-1 min-h-0 overflow-y-auto flex flex-col px-6"
@@ -47,7 +47,7 @@ export function Onboarding({ onComplete, initialName = '' }: OnboardingProps) {
         <div className="flex items-center gap-3 mb-5">
           <TracklyLogo size={44} />
           <div>
-            <div style={{ color: '#1C1C1E', fontSize: 19, fontWeight: 700, letterSpacing: '-0.02em' }}>
+            <div style={{ color: 'var(--ink)', fontSize: 19, fontWeight: 700, letterSpacing: '-0.02em' }}>
               TracklyLab
             </div>
             <div style={{ color: '#4F74F3', fontSize: 12.5, fontWeight: 600, letterSpacing: '0.02em' }}>
@@ -57,7 +57,7 @@ export function Onboarding({ onComplete, initialName = '' }: OnboardingProps) {
         </div>
 
         <h1 style={{
-          color: '#1C1C1E',
+          color: 'var(--ink)',
           fontSize: '32px',
           fontWeight: '600',
           letterSpacing: '-0.7px',
@@ -65,7 +65,7 @@ export function Onboarding({ onComplete, initialName = '' }: OnboardingProps) {
         }}>
           {t('onboarding.title')}
         </h1>
-        <p style={{ color: '#8E8E93', fontSize: '15px', lineHeight: '1.4' }}>
+        <p style={{ color: 'var(--ink-2)', fontSize: '15px', lineHeight: '1.4' }}>
           {t('onboarding.subtitle')}
         </p>
 
@@ -73,7 +73,7 @@ export function Onboarding({ onComplete, initialName = '' }: OnboardingProps) {
         <div className="mt-8">
           <label
             className="block mb-2"
-            style={{ color: '#1C1C1E', fontSize: '15px', fontWeight: '600' }}
+            style={{ color: 'var(--ink)', fontSize: '15px', fontWeight: '600' }}
           >
             {t('onboarding.language')}
           </label>
@@ -86,8 +86,8 @@ export function Onboarding({ onComplete, initialName = '' }: OnboardingProps) {
                   onClick={() => setLanguage(option.code)}
                   className="flex items-center gap-3 p-4 rounded-xl text-left outline-none transition-all"
                   style={{
-                    backgroundColor: isSelected ? '#F2F1ED' : '#FFFFFF',
-                    border: isSelected ? '2px solid #4F74F3' : '1px solid #E5E5EA',
+                    backgroundColor: isSelected ? 'var(--bg-inset)' : '#FFFFFF',
+                    border: isSelected ? '2px solid #4F74F3' : '1px solid var(--line)',
                     boxShadow: isSelected
                       ? '0 0 0 3px rgba(0, 122, 255, 0.08)'
                       : '0 1px 3px rgba(0, 0, 0, 0.04)'
@@ -96,7 +96,7 @@ export function Onboarding({ onComplete, initialName = '' }: OnboardingProps) {
                   <span style={{ fontSize: '22px' }}>{option.flag}</span>
                   <span
                     style={{
-                      color: isSelected ? '#4F74F3' : '#1C1C1E',
+                      color: isSelected ? '#4F74F3' : 'var(--ink)',
                       fontSize: '15px',
                       fontWeight: '600'
                     }}
@@ -113,7 +113,7 @@ export function Onboarding({ onComplete, initialName = '' }: OnboardingProps) {
         <div className="mt-8">
           <label
             className="block mb-2"
-            style={{ color: '#1C1C1E', fontSize: '15px', fontWeight: '600' }}
+            style={{ color: 'var(--ink)', fontSize: '15px', fontWeight: '600' }}
           >
             {t('onboarding.name')}
           </label>
@@ -125,9 +125,9 @@ export function Onboarding({ onComplete, initialName = '' }: OnboardingProps) {
             autoComplete="given-name"
             className="w-full px-4 py-4 rounded-xl text-base outline-none transition-all"
             style={{
-              backgroundColor: '#FFFFFF',
-              color: '#1C1C1E',
-              border: '1px solid #E5E5EA',
+              backgroundColor: 'var(--bg-card)',
+              color: 'var(--ink)',
+              border: '1px solid var(--line)',
               boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)'
             }}
             onFocus={(e) => {
@@ -135,7 +135,7 @@ export function Onboarding({ onComplete, initialName = '' }: OnboardingProps) {
               e.target.style.boxShadow = '0 0 0 3px rgba(0, 122, 255, 0.08)';
             }}
             onBlur={(e) => {
-              e.target.style.border = '1px solid #E5E5EA';
+              e.target.style.border = '1px solid var(--line)';
               e.target.style.boxShadow = '0 1px 3px rgba(0, 0, 0, 0.04)';
             }}
           />
@@ -145,7 +145,7 @@ export function Onboarding({ onComplete, initialName = '' }: OnboardingProps) {
         <div className="mt-8">
           <label
             className="block mb-2"
-            style={{ color: '#1C1C1E', fontSize: '15px', fontWeight: '600' }}
+            style={{ color: 'var(--ink)', fontSize: '15px', fontWeight: '600' }}
           >
             {t('onboarding.currency')}
           </label>
@@ -158,8 +158,8 @@ export function Onboarding({ onComplete, initialName = '' }: OnboardingProps) {
                   onClick={() => setCurrency(option.code)}
                   className="flex items-center gap-3 p-4 rounded-xl text-left outline-none transition-all"
                   style={{
-                    backgroundColor: isSelected ? '#F2F1ED' : '#FFFFFF',
-                    border: isSelected ? '2px solid #4F74F3' : '1px solid #E5E5EA',
+                    backgroundColor: isSelected ? 'var(--bg-inset)' : '#FFFFFF',
+                    border: isSelected ? '2px solid #4F74F3' : '1px solid var(--line)',
                     boxShadow: isSelected
                       ? '0 0 0 3px rgba(0, 122, 255, 0.08)'
                       : '0 1px 3px rgba(0, 0, 0, 0.04)'
@@ -169,14 +169,14 @@ export function Onboarding({ onComplete, initialName = '' }: OnboardingProps) {
                   <div className="flex flex-col">
                     <span
                       style={{
-                        color: isSelected ? '#4F74F3' : '#1C1C1E',
+                        color: isSelected ? '#4F74F3' : 'var(--ink)',
                         fontSize: '15px',
                         fontWeight: '600'
                       }}
                     >
                       {option.code}
                     </span>
-                    <span style={{ color: '#8E8E93', fontSize: '12px' }}>{option.name}</span>
+                    <span style={{ color: 'var(--ink-2)', fontSize: '12px' }}>{option.name}</span>
                   </div>
                 </button>
               );
@@ -188,8 +188,8 @@ export function Onboarding({ onComplete, initialName = '' }: OnboardingProps) {
             onClick={() => setShowAllCurrencies(true)}
             className="w-full flex items-center gap-3 p-4 mt-3 rounded-xl text-left outline-none transition-all"
             style={{
-              backgroundColor: nonMainPick ? '#F2F1ED' : '#FFFFFF',
-              border: nonMainPick ? '2px solid #4F74F3' : '1px solid #E5E5EA',
+              backgroundColor: nonMainPick ? 'var(--bg-inset)' : '#FFFFFF',
+              border: nonMainPick ? '2px solid #4F74F3' : '1px solid var(--line)',
               boxShadow: nonMainPick
                 ? '0 0 0 3px rgba(0, 122, 255, 0.08)'
                 : '0 1px 3px rgba(0, 0, 0, 0.04)'
@@ -200,13 +200,13 @@ export function Onboarding({ onComplete, initialName = '' }: OnboardingProps) {
                 <span style={{ fontSize: '22px' }}>{nonMainPick.flag}</span>
                 <div className="flex flex-col flex-1">
                   <span style={{ color: '#4F74F3', fontSize: '15px', fontWeight: '600' }}>{nonMainPick.code}</span>
-                  <span style={{ color: '#8E8E93', fontSize: '12px' }}>{nonMainPick.name}</span>
+                  <span style={{ color: 'var(--ink-2)', fontSize: '12px' }}>{nonMainPick.name}</span>
                 </div>
               </>
             ) : (
-              <span className="flex-1" style={{ color: '#1C1C1E', fontSize: '15px', fontWeight: '600' }}>{t('onboarding.otherCurrencies')}</span>
+              <span className="flex-1" style={{ color: 'var(--ink)', fontSize: '15px', fontWeight: '600' }}>{t('onboarding.otherCurrencies')}</span>
             )}
-            <ChevronRight className="w-5 h-5" style={{ color: '#C7C7CC' }} />
+            <ChevronRight className="w-5 h-5" style={{ color: 'var(--ghost)' }} />
           </button>
         </div>
         <div className="h-6 flex-shrink-0" />
@@ -220,7 +220,7 @@ export function Onboarding({ onComplete, initialName = '' }: OnboardingProps) {
         >
           <div
             className="w-full max-w-[430px] rounded-t-3xl p-5 pb-8 flex flex-col"
-            style={{ backgroundColor: '#F6F5F2', height: '88vh' }}
+            style={{ backgroundColor: 'var(--bg-page)', height: '88vh' }}
             onClick={(e) => e.stopPropagation()}
           >
             <h3 className="text-lg font-semibold text-neutral-900 mb-3">{t('onboarding.selectCurrency')}</h3>
@@ -247,7 +247,7 @@ export function Onboarding({ onComplete, initialName = '' }: OnboardingProps) {
           disabled={!name.trim()}
           className="w-full py-4 rounded-xl font-medium text-base transition-all active:scale-[0.98]"
           style={{
-            backgroundColor: !name.trim() ? '#E5E5EA' : '#4F74F3',
+            backgroundColor: !name.trim() ? 'var(--line)' : '#4F74F3',
             color: '#FFFFFF',
             boxShadow: !name.trim() ? 'none' : '0 2px 8px rgba(0, 122, 255, 0.25)',
             cursor: !name.trim() ? 'not-allowed' : 'pointer'

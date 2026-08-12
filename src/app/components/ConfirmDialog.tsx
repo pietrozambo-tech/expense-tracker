@@ -32,7 +32,7 @@ export function ConfirmDialog({
         <div className="pt-6 px-6 flex justify-center">
           <div
             className="w-16 h-16 rounded-full flex items-center justify-center"
-            style={{ backgroundColor: isDanger ? '#FEF2F2' : '#EFF6FF' }}
+            style={{ backgroundColor: isDanger ? 'var(--wash-red)' : 'var(--wash-accent2)' }}
           >
             {isDanger ? (
               <AlertTriangle className="w-8 h-8 text-red-500" />
@@ -53,7 +53,7 @@ export function ConfirmDialog({
           <button
             onClick={onCancel}
             className="flex-1 py-3 rounded-xl font-medium text-base transition-colors active:scale-[0.98]"
-            style={{ backgroundColor: '#F2F1ED', color: '#1C1C1E' }}
+            style={{ backgroundColor: 'var(--bg-inset)', color: 'var(--ink)' }}
           >
             {t('common.cancel')}
           </button>

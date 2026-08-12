@@ -35,7 +35,7 @@ export function ImportReviewDialog({
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-6 max-w-[430px] mx-auto">
       <div className="bg-white rounded-2xl w-full max-w-sm flex flex-col" style={{ maxHeight: '80vh' }}>
         <div className="pt-6 px-6 flex justify-center">
-          <div className="w-16 h-16 rounded-full flex items-center justify-center" style={{ backgroundColor: '#EFF6FF' }}>
+          <div className="w-16 h-16 rounded-full flex items-center justify-center" style={{ backgroundColor: 'var(--wash-accent2)' }}>
             <Layers className="w-8 h-8" style={{ color: '#3D5BE0' }} strokeWidth={2} />
           </div>
         </div>
@@ -67,16 +67,16 @@ export function ImportReviewDialog({
                     height: 22,
                     borderRadius: 7,
                     backgroundColor: on ? '#4F74F3' : '#FFFFFF',
-                    border: on ? '1px solid #4F74F3' : '1.5px solid #D1D1D6',
+                    border: on ? '1px solid #4F74F3' : '1.5px solid var(--ghost-2)',
                   }}
                 >
                   {on && <Check className="w-3.5 h-3.5" style={{ color: '#FFFFFF' }} strokeWidth={3} />}
                 </span>
                 <span className="flex-1 min-w-0">
-                  <span className="block text-[15px] font-medium truncate" style={{ color: '#1C1C1E' }}>
+                  <span className="block text-[15px] font-medium truncate" style={{ color: 'var(--ink)' }}>
                     {p.name}
                   </span>
-                  <span className="block text-[12px]" style={{ color: '#8E8E93' }}>
+                  <span className="block text-[12px]" style={{ color: 'var(--ink-2)' }}>
                     in {p.categoryName} · {p.rows} row{p.rows === 1 ? '' : 's'}
                   </span>
                 </span>
@@ -93,7 +93,7 @@ export function ImportReviewDialog({
           >
             {t(result.added === 1 ? 'imp.importCta.one' : 'imp.importCta.other', { n: result.added })}
           </button>
-          <button onClick={onCancel} className="w-full py-2.5 text-[14px] font-medium" style={{ color: '#8E8E93' }}>{t('imp.cancelImport')}</button>
+          <button onClick={onCancel} className="w-full py-2.5 text-[14px] font-medium" style={{ color: 'var(--ink-2)' }}>{t('imp.cancelImport')}</button>
         </div>
       </div>
     </div>

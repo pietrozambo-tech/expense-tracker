@@ -29,7 +29,7 @@ export function ImportSummaryDialog({
         <div className="pt-6 px-6 flex justify-center">
           <div
             className="w-16 h-16 rounded-full flex items-center justify-center"
-            style={{ backgroundColor: failed ? '#FEF2F2' : '#EFF6FF' }}
+            style={{ backgroundColor: failed ? 'var(--wash-red)' : 'var(--wash-accent2)' }}
           >
             {failed ? (
               <AlertTriangle className="w-8 h-8" style={{ color: '#DC2626' }} strokeWidth={2} />

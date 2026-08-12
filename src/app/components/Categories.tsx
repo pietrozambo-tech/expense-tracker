@@ -118,15 +118,15 @@ export function Categories({
   };
 
   return (
-    <div style={{ backgroundColor: '#F6F5F2' }}>
+    <div style={{ backgroundColor: 'var(--bg-page)' }}>
       {/* Empty State */}
       {categories.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 px-6">
-          <div className="w-16 h-16 rounded-full flex items-center justify-center mb-4" style={{ backgroundColor: '#F2F1ED' }}>
-            <Plus className="w-8 h-8" style={{ color: '#8E8E93' }} />
+          <div className="w-16 h-16 rounded-full flex items-center justify-center mb-4" style={{ backgroundColor: 'var(--bg-inset)' }}>
+            <Plus className="w-8 h-8" style={{ color: 'var(--ink-2)' }} />
           </div>
-          <h2 style={{ color: '#1C1C1E', fontWeight: '600', fontSize: '18px', marginBottom: '8px' }}>{t('mgmt.noCategories')}</h2>
-          <p style={{ color: '#8E8E93', fontSize: '14px', textAlign: 'center', marginBottom: '24px' }}>
+          <h2 style={{ color: 'var(--ink)', fontWeight: '600', fontSize: '18px', marginBottom: '8px' }}>{t('mgmt.noCategories')}</h2>
+          <p style={{ color: 'var(--ink-2)', fontSize: '14px', textAlign: 'center', marginBottom: '24px' }}>
             {t('mgmt.noCategoriesHint')}
           </p>
           <button
@@ -135,7 +135,7 @@ export function Categories({
               onModalOpenChange(true);
             }}
             className="px-6 py-3 rounded-xl font-medium transition-colors"
-            style={{ backgroundColor: '#1C1C1E', color: '#FFFFFF' }}
+            style={{ backgroundColor: 'var(--ink)', color: '#FFFFFF' }}
           >
             {t('mgmt.addFirstCategory')}
           </button>
@@ -150,7 +150,7 @@ export function Categories({
 
               return (
                 <div key={category.id} className="rounded-xl overflow-hidden" style={{ 
-                  backgroundColor: '#FFFFFF',
+                  backgroundColor: 'var(--bg-card)',
                   boxShadow: '0 1px 4px rgba(0, 0, 0, 0.04)'
                 }}>
                   {/* Category Row */}
@@ -164,9 +164,9 @@ export function Categories({
                           onClick={() => toggleCategoryExpansion(category.id)}
                           className="flex-1 text-left"
                         >
-                          <div style={{ color: '#1C1C1E', fontWeight: '500', fontSize: '15px' }}>{category.name}</div>
+                          <div style={{ color: 'var(--ink)', fontWeight: '500', fontSize: '15px' }}>{category.name}</div>
                           <div className="flex items-center gap-1 mt-0.5">
-                            <span style={{ color: '#8E8E93', fontSize: '11px' }}>
+                            <span style={{ color: 'var(--ink-2)', fontSize: '11px' }}>
                               {t(
                                 (category.subcategories?.length || 0) === 1
                                   ? 'set.subcatCount.one'
@@ -175,9 +175,9 @@ export function Categories({
                               )}
                             </span>
                             {isExpanded ? (
-                              <ChevronDown className="w-3 h-3" style={{ color: '#8E8E93' }} />
+                              <ChevronDown className="w-3 h-3" style={{ color: 'var(--ink-2)' }} />
                             ) : (
-                              <ChevronRight className="w-3 h-3" style={{ color: '#8E8E93' }} />
+                              <ChevronRight className="w-3 h-3" style={{ color: 'var(--ink-2)' }} />
                             )}
                           </div>
                         </button>
@@ -189,7 +189,7 @@ export function Categories({
                           style={{ backgroundColor: 'transparent' }}
                           aria-label={t('mgmt.editCategory', { name: category.name })}
                         >
-                          <Pencil className="w-3.5 h-3.5" style={{ color: '#8E8E93' }} />
+                          <Pencil className="w-3.5 h-3.5" style={{ color: 'var(--ink-2)' }} />
                         </button>
                         {/* Grey, not red. One red trash is a warning; nine of
                             them stacked down the screen is just noise, and the
@@ -204,7 +204,7 @@ export function Categories({
                           style={{ backgroundColor: 'transparent' }}
                           aria-label={t('mgmt.deleteCategory', { name: category.name })}
                         >
-                          <Trash2 className="w-3.5 h-3.5" style={{ color: '#8E8E93' }} />
+                          <Trash2 className="w-3.5 h-3.5" style={{ color: 'var(--ink-2)' }} />
                         </button>
                       </div>
                     </div>

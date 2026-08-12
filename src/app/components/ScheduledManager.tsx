@@ -100,14 +100,14 @@ export function ScheduledManager({
     : undefined;
 
   return (
-    <div style={{ backgroundColor: '#F6F5F2' }}>
+    <div style={{ backgroundColor: 'var(--bg-page)' }}>
       {upcoming.length === 0 && stranded.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 px-6">
-          <div className="w-16 h-16 rounded-full flex items-center justify-center mb-4" style={{ backgroundColor: '#F2F1ED' }}>
-            <CalendarClock className="w-8 h-8" style={{ color: '#8E8E93' }} />
+          <div className="w-16 h-16 rounded-full flex items-center justify-center mb-4" style={{ backgroundColor: 'var(--bg-inset)' }}>
+            <CalendarClock className="w-8 h-8" style={{ color: 'var(--ink-2)' }} />
           </div>
-          <h2 style={{ color: '#1C1C1E', fontWeight: 600, fontSize: 18, marginBottom: 8 }}>{t('sched.emptyTitle')}</h2>
-          <p style={{ color: '#8E8E93', fontSize: 14, textAlign: 'center', marginBottom: 24, lineHeight: 1.45 }}>
+          <h2 style={{ color: 'var(--ink)', fontWeight: 600, fontSize: 18, marginBottom: 8 }}>{t('sched.emptyTitle')}</h2>
+          <p style={{ color: 'var(--ink-2)', fontSize: 14, textAlign: 'center', marginBottom: 24, lineHeight: 1.45 }}>
             {t('sched.emptyBody')}
           </p>
         </div>
@@ -121,17 +121,17 @@ export function ScheduledManager({
               <div
                 key={rule.id}
                 className="rounded-xl overflow-hidden px-4 py-3"
-                style={{ backgroundColor: '#FFFFFF', boxShadow: '0 1px 4px rgba(0, 0, 0, 0.04)' }}
+                style={{ backgroundColor: 'var(--bg-card)', boxShadow: '0 1px 4px rgba(0, 0, 0, 0.04)' }}
               >
                 <div className="flex items-center gap-2.5">
                   <div className={`w-8 h-8 rounded-full ${rule.template.category?.bgColor ?? 'bg-neutral-100'} flex items-center justify-center flex-shrink-0`}>
                     <Icon className={`w-4 h-4 ${rule.template.category?.color ?? 'text-neutral-500'}`} />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="truncate" style={{ color: '#1C1C1E', fontWeight: 500, fontSize: 15 }}>
+                    <div className="truncate" style={{ color: 'var(--ink)', fontWeight: 500, fontSize: 15 }}>
                       {rule.template.description}
                     </div>
-                    <div className="flex items-center gap-1.5 mt-0.5" style={{ color: '#8E8E93', fontSize: 11 }}>
+                    <div className="flex items-center gap-1.5 mt-0.5" style={{ color: 'var(--ink-2)', fontSize: 11 }}>
                       <span>{translateRecurrence(rule.rule)}</span>
                       {source && <span aria-hidden="true">·</span>}
                       {source && <SourceLogo source={source} size={12} />}
@@ -146,17 +146,17 @@ export function ScheduledManager({
                     decimals={rule.template.amount % 1 ? 2 : 0}
                     abbreviate={abbrev}
                     sign={income ? '+' : '-'}
-                    style={{ color: income ? '#1F7A43' : '#1C1C1E', fontSize: 15, fontWeight: 600 }}
+                    style={{ color: income ? '#1F7A43' : 'var(--ink)', fontSize: 15, fontWeight: 600 }}
                   />
                 </div>
-                <div className="flex items-center gap-1 mt-2.5 pt-2.5" style={{ borderTop: '1px solid #F6F5F2' }}>
+                <div className="flex items-center gap-1 mt-2.5 pt-2.5" style={{ borderTop: '1px solid var(--bg-page)' }}>
                   {/* The reason the screen exists, so it gets the emphasis.
                       A finishing chain says so instead: after an edit, the old
                       amount is still owed once, and two rows with the same name
                       would otherwise read as a duplicate rather than a handover. */}
                   <span
                     className="flex-1"
-                    style={{ color: last ? '#8E8E93' : '#4F74F3', fontSize: 12, fontWeight: 600 }}
+                    style={{ color: last ? 'var(--ink-2)' : '#4F74F3', fontSize: 12, fontWeight: 600 }}
                   >
                     {t(last ? 'sched.lastOne' : 'sched.next', { date: dueLabel(next) })}
                   </span>
@@ -165,14 +165,14 @@ export function ScheduledManager({
                     aria-label={t('sched.editAria', { name: rule.template.description })}
                     className="w-7 h-7 rounded-full flex items-center justify-center active:bg-neutral-100 transition-colors"
                   >
-                    <Pencil className="w-3.5 h-3.5" style={{ color: '#8E8E93' }} />
+                    <Pencil className="w-3.5 h-3.5" style={{ color: 'var(--ink-2)' }} />
                   </button>
                   <button
                     onClick={() => open(() => setStopping(rule))}
                     aria-label={t('sched.stopAria', { name: rule.template.description })}
                     className="w-7 h-7 rounded-full flex items-center justify-center active:bg-neutral-100 transition-colors"
                   >
-                    <Trash2 className="w-3.5 h-3.5" style={{ color: '#8E8E93' }} />
+                    <Trash2 className="w-3.5 h-3.5" style={{ color: 'var(--ink-2)' }} />
                   </button>
                 </div>
               </div>
@@ -186,20 +186,20 @@ export function ScheduledManager({
           problem and offers only removal. */}
       {stranded.length > 0 && (
         <div className="px-6 pt-5 space-y-2">
-          <div style={{ color: '#8E8E93', fontSize: 12, fontWeight: 600, letterSpacing: 0.2 }}>
+          <div style={{ color: 'var(--ink-2)', fontSize: 12, fontWeight: 600, letterSpacing: 0.2 }}>
             {t('sched.strandedTitle')}
           </div>
           {stranded.map((rule) => (
             <div
               key={rule.id}
               className="rounded-xl px-4 py-3 flex items-center gap-2.5"
-              style={{ backgroundColor: '#FFFFFF', boxShadow: '0 1px 4px rgba(0, 0, 0, 0.04)' }}
+              style={{ backgroundColor: 'var(--bg-card)', boxShadow: '0 1px 4px rgba(0, 0, 0, 0.04)' }}
             >
               <div className="flex-1 min-w-0">
-                <div className="truncate" style={{ color: '#1C1C1E', fontWeight: 500, fontSize: 15 }}>
+                <div className="truncate" style={{ color: 'var(--ink)', fontWeight: 500, fontSize: 15 }}>
                   {rule.template.description}
                 </div>
-                <div style={{ color: '#8E8E93', fontSize: 11, marginTop: 2 }}>
+                <div style={{ color: 'var(--ink-2)', fontSize: 11, marginTop: 2 }}>
                   {t('sched.strandedNote', { rule: rule.rule })}
                 </div>
               </div>
@@ -208,7 +208,7 @@ export function ScheduledManager({
                 aria-label={t('sched.stopAria', { name: rule.template.description })}
                 className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 active:bg-neutral-100 transition-colors"
               >
-                <Trash2 className="w-3.5 h-3.5" style={{ color: '#8E8E93' }} />
+                <Trash2 className="w-3.5 h-3.5" style={{ color: 'var(--ink-2)' }} />
               </button>
             </div>
           ))}

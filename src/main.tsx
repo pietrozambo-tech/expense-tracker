@@ -4,6 +4,7 @@ import { AuthProvider } from "./app/auth/AuthProvider.tsx";
 import { AppErrorBoundary } from "./app/components/AppErrorBoundary.tsx";
 import { initAnalytics } from "./app/lib/analytics.ts";
 import { initFx } from "./app/lib/fx.ts";
+import { initThemeMode } from "./app/lib/themeMode.ts";
 import { hydrateStorage, loadSettings } from "./app/lib/storage.ts";
 import { setLanguage, deviceLanguageGuess } from "./app/i18n/store.ts";
 import { preventPinchZoom } from "./app/lib/noZoom.ts";
@@ -11,6 +12,7 @@ import "./styles/index.css";
 
 initAnalytics();
 initFx();
+initThemeMode();
 preventPinchZoom();
 // One line per launch: lets a console (or a screenshot of it) say which build
 // a misbehaving device is really on.

@@ -29,14 +29,14 @@ export function renderLegalHtml(doc: LegalDoc): string {
   body { margin: 0 auto; padding: 40px 24px 80px; max-width: 680px;
          font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif;
          color: #1C1C1E; background: #fff; }
-  header { border-bottom: 1px solid #E5E5EA; padding-bottom: 20px; margin-bottom: 28px; }
+  header { border-bottom: 1px solid var(--line); padding-bottom: 20px; margin-bottom: 28px; }
   .brand { font-size: 13px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #4F74F3; }
   h1 { font-size: 30px; letter-spacing: -.5px; margin: 8px 0 6px; }
   .updated { color: #8E8E93; font-size: 14px; margin: 0; }
   .intro { font-size: 17px; color: #3A3A3C; }
   h2 { font-size: 17px; margin: 32px 0 8px; }
   p { color: #48484A; margin: 0 0 10px; }
-  footer { margin-top: 48px; padding-top: 20px; border-top: 1px solid #E5E5EA; color: #8E8E93; font-size: 13px; }
+  footer { margin-top: 48px; padding-top: 20px; border-top: 1px solid var(--line); color: #8E8E93; font-size: 13px; }
   a { color: #4F74F3; }
   @media (prefers-color-scheme: dark) {
     body { color: #F2F1ED; background: #1C1C1E; }

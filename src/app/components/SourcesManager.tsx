@@ -52,7 +52,7 @@ export function SourcesManager({
     // the fix would have been missed.
     <div className="flex flex-col overflow-hidden" style={SUBPAGE_STYLE}>
       {/* Header */}
-      <div className="flex-shrink-0" style={{ backgroundColor: '#F6F5F2' }}>
+      <div className="flex-shrink-0" style={{ backgroundColor: 'var(--bg-page)' }}>
         <div className="px-6 pb-4 pt-0">
           <div className="flex items-center justify-center relative">
             <button
@@ -61,14 +61,14 @@ export function SourcesManager({
             >
               <ChevronLeft size={24} style={{ color: '#4F74F3' }} />
             </button>
-            <h1 style={{ color: '#1C1C1E', fontSize: '20px', fontWeight: '600', letterSpacing: '-0.3px' }}>{t('set.sources')}</h1>
+            <h1 style={{ color: 'var(--ink)', fontSize: '20px', fontWeight: '600', letterSpacing: '-0.3px' }}>{t('set.sources')}</h1>
           </div>
         </div>
       </div>
 
       <div className="flex-1 overflow-y-auto" style={{ paddingBottom: DOCK_CLEARANCE }}>
         <div className="px-6 pb-5">
-          <p style={{ color: '#8E8E93', fontSize: '13px' }}>
+          <p style={{ color: 'var(--ink-2)', fontSize: '13px' }}>
             {getLanguage() === 'it'
               ? 'Da dove entrano ed escono i soldi: contanti o le tue banche. Le nuove transazioni partono dal predefinito.'
               : 'Where money flows in and out - cash or your banks. New transactions start on your default.'}
@@ -76,55 +76,55 @@ export function SourcesManager({
         </div>
 
         {/* Defaults */}
-        <p className="px-7 mb-2" style={{ color: '#8E8E93', fontSize: '13px' }}>{t('mgmt.defaults')}</p>
+        <p className="px-7 mb-2" style={{ color: 'var(--ink-2)', fontSize: '13px' }}>{t('mgmt.defaults')}</p>
         <div className="px-6">
           <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
             <button
               onClick={() => setPickerFor('expense')}
               className="w-full flex items-center gap-3 px-4 py-3 active:bg-neutral-50 transition-colors"
-              style={{ borderBottom: '1px solid #F2F1ED' }}
+              style={{ borderBottom: '1px solid var(--bg-inset)' }}
             >
-              <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '15px' }}>{t('mgmt.expensesPaidWith')}</span>
+              <span className="flex-1 text-left" style={{ color: 'var(--ink)', fontSize: '15px' }}>{t('mgmt.expensesPaidWith')}</span>
               <SourceLogo source={byId(defaultSourceExpense)} size={22} />
-              <span style={{ color: '#8E8E93', fontSize: '14px' }}>{byId(defaultSourceExpense)?.name || 'None'}</span>
-              <ChevronRight className="w-4.5 h-4.5" style={{ color: '#C7C7CC' }} />
+              <span style={{ color: 'var(--ink-2)', fontSize: '14px' }}>{byId(defaultSourceExpense)?.name || 'None'}</span>
+              <ChevronRight className="w-4.5 h-4.5" style={{ color: 'var(--ghost)' }} />
             </button>
             <button
               onClick={() => setPickerFor('income')}
               className="w-full flex items-center gap-3 px-4 py-3 active:bg-neutral-50 transition-colors"
             >
-              <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: '15px' }}>{t('mgmt.incomeReceivedInto')}</span>
+              <span className="flex-1 text-left" style={{ color: 'var(--ink)', fontSize: '15px' }}>{t('mgmt.incomeReceivedInto')}</span>
               <SourceLogo source={byId(defaultSourceIncome)} size={22} />
-              <span style={{ color: '#8E8E93', fontSize: '14px' }}>{byId(defaultSourceIncome)?.name || 'None'}</span>
-              <ChevronRight className="w-4.5 h-4.5" style={{ color: '#C7C7CC' }} />
+              <span style={{ color: 'var(--ink-2)', fontSize: '14px' }}>{byId(defaultSourceIncome)?.name || 'None'}</span>
+              <ChevronRight className="w-4.5 h-4.5" style={{ color: 'var(--ghost)' }} />
             </button>
           </div>
         </div>
 
         {/* Source list */}
-        <p className="px-7 mt-6 mb-2" style={{ color: '#8E8E93', fontSize: '13px' }}>{t('mgmt.yourSources')}</p>
+        <p className="px-7 mt-6 mb-2" style={{ color: 'var(--ink-2)', fontSize: '13px' }}>{t('mgmt.yourSources')}</p>
         <div className="px-6">
           <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
             {sources.map((source, index) => (
               <div
                 key={source.id}
                 className="flex items-center gap-3 px-4 py-3"
-                style={{ borderBottom: index < sources.length - 1 ? '1px solid #F2F1ED' : 'none' }}
+                style={{ borderBottom: index < sources.length - 1 ? '1px solid var(--bg-inset)' : 'none' }}
               >
                 <SourceLogo source={source} size={30} />
-                <span className="flex-1" style={{ color: '#1C1C1E', fontSize: '15px' }}>{source.name}</span>
+                <span className="flex-1" style={{ color: 'var(--ink)', fontSize: '15px' }}>{source.name}</span>
                 <button
                   onClick={() => openEdit(source)}
                   className="w-8 h-8 rounded-full flex items-center justify-center active:bg-neutral-100"
                 >
-                  <Pencil className="w-4 h-4" style={{ color: '#8E8E93' }} />
+                  <Pencil className="w-4 h-4" style={{ color: 'var(--ink-2)' }} />
                 </button>
                 <button
                   onClick={() => setDeleteTarget(source)}
                   disabled={sources.length <= 1}
                   className="w-8 h-8 rounded-full flex items-center justify-center active:bg-neutral-100 disabled:opacity-30"
                 >
-                  <Trash2 className="w-4 h-4" style={{ color: '#8E8E93' }} />
+                  <Trash2 className="w-4 h-4" style={{ color: 'var(--ink-2)' }} />
                 </button>
               </div>
             ))}
@@ -254,14 +254,14 @@ function SourceFormModal({
               placeholder={t('mgmt.sourcePlaceholder')}
               autoFocus
               className="flex-1 px-4 py-3 rounded-xl text-base outline-none"
-              style={{ backgroundColor: '#F2F2F5', color: '#1C1C1E' }}
+              style={{ backgroundColor: '#F2F2F5', color: 'var(--ink)' }}
             />
           </div>
 
           {/* Bank quick-picks — only when adding (not editing / not cash) */}
           {!initial && !isCash && (
             <>
-              <p className="mb-2" style={{ color: '#8E8E93', fontSize: '13px' }}>{t('mgmt.pickBank')}</p>
+              <p className="mb-2" style={{ color: 'var(--ink-2)', fontSize: '13px' }}>{t('mgmt.pickBank')}</p>
               <div className="grid grid-cols-7 gap-2 mb-6">
                 {BANK_LIBRARY.map((bank) => {
                   const selected = name.trim().toLowerCase() === bank.name.toLowerCase();
@@ -285,7 +285,7 @@ function SourceFormModal({
             </>
           )}
 
-          <p className="mb-2" style={{ color: '#8E8E93', fontSize: '13px' }}>{t('mgmt.colour')}</p>
+          <p className="mb-2" style={{ color: 'var(--ink-2)', fontSize: '13px' }}>{t('mgmt.colour')}</p>
           <div className="flex flex-wrap gap-2.5 mb-6">
             {SOURCE_COLORS.map((c) => (
               <button
@@ -309,7 +309,7 @@ function SourceFormModal({
             disabled={!trimmed}
             className="w-full py-3.5 rounded-xl font-medium transition-all active:scale-[0.99]"
             style={{
-              backgroundColor: !trimmed ? '#E5E5EA' : '#4F74F3',
+              backgroundColor: !trimmed ? 'var(--line)' : '#4F74F3',
               color: '#FFFFFF',
               cursor: !trimmed ? 'not-allowed' : 'pointer',
             }}

@@ -21,12 +21,12 @@ export function SourceLogo({ source, size = 22, className }: SourceLogoProps) {
           width: size,
           height: size,
           borderRadius: radius,
-          background: '#E5E5EA',
+          background: 'var(--line)',
           display: 'inline-flex',
           alignItems: 'center',
           justifyContent: 'center',
           flexShrink: 0,
-          color: '#8E8E93',
+          color: 'var(--ink-2)',
           fontWeight: 800,
           fontSize: Math.round(size * 0.5)
         }}

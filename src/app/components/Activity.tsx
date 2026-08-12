@@ -351,7 +351,7 @@ export function Activity({
 
   const headerTotal =
     activityType === 'expense' ? (
-      <span style={{ color: '#1C1C1E', fontWeight: 600 }}>
+      <span style={{ color: 'var(--ink)', fontWeight: 600 }}>
         <AmountText amount={-netTotal} currency={currency} decimals={0} abbreviate="fit" />
       </span>
     ) : activityType === 'income' ? (
@@ -366,7 +366,7 @@ export function Activity({
           <AmountText amount={inTotal} currency={currency} decimals={0} abbreviate="fit" />
         </span>
         <span> {t('act.in')} · </span>
-        <span style={{ color: '#1C1C1E', fontWeight: 600 }}>
+        <span style={{ color: 'var(--ink)', fontWeight: 600 }}>
           <AmountText amount={outTotal} currency={currency} decimals={0} abbreviate="fit" />
         </span>
         <span> {t('act.out')}</span>
@@ -436,19 +436,19 @@ export function Activity({
   // carries the meaning-colour and the thumb's glow repeats it underneath.
   // All is a scope rather than a direction, so it glows neutral.
   const typeOptions: Array<{ value: ActivityTypeFilter; label: string; activeColor: string }> = [
-    { value: 'all', label: t('act.all'), activeColor: '#1C1C1E' },
+    { value: 'all', label: t('act.all'), activeColor: 'var(--ink)' },
     { value: 'expense', label: t('act.expenses'), activeColor: '#C2352B' },
     { value: 'income', label: t('act.income'), activeColor: '#1F7A43' }
   ];
 
   return (
-    <div className="flex flex-col flex-1 min-h-0" style={{ backgroundColor: '#F6F5F2' }}>
+    <div className="flex flex-col flex-1 min-h-0" style={{ backgroundColor: 'var(--bg-page)' }}>
       {/* Fixed Header - Always Visible */}
-      <div className="flex-shrink-0 pt-0" style={{ backgroundColor: '#F6F5F2' }}>
+      <div className="flex-shrink-0 pt-0" style={{ backgroundColor: 'var(--bg-page)' }}>
         <div className="px-6 pb-4 flex items-center justify-between">
           <div className="flex-1">
-            <h1 style={{ color: '#1C1C1E', fontSize: '30px', fontWeight: '800', letterSpacing: '-1px' }}>{t('act.title')}</h1>
-            <p style={{ color: '#8E8E93', fontSize: '14px', marginTop: '4px' }}>
+            <h1 style={{ color: 'var(--ink)', fontSize: '30px', fontWeight: '800', letterSpacing: '-1px' }}>{t('act.title')}</h1>
+            <p style={{ color: 'var(--ink-2)', fontSize: '14px', marginTop: '4px' }}>
               {t(totalCount === 1 ? 'act.header.one' : 'act.header.other', { n: totalCount })} · {headerTotal}
             </p>
             {/* This week, one dot a day: filled where something is recorded.
@@ -463,7 +463,7 @@ export function Activity({
               <div className="flex gap-2.5 mt-2.5" aria-hidden="true">
                 {weekDays.map((d) => (
                   <div key={d.key} className="flex flex-col items-center gap-1">
-                    <span style={{ fontSize: 9, fontWeight: 600, color: d.future ? '#C7C7CC' : '#8E8E93' }}>
+                    <span style={{ fontSize: 9, fontWeight: 600, color: d.future ? 'var(--ghost)' : 'var(--ink-2)' }}>
                       {d.letter}
                     </span>
                     <span
@@ -471,8 +471,8 @@ export function Activity({
                         width: 7,
                         height: 7,
                         borderRadius: 999,
-                        backgroundColor: d.filled ? '#4F74F3' : d.future ? 'transparent' : '#E3E2DD',
-                        border: d.future ? '1.5px solid #E3E2DD' : undefined,
+                        backgroundColor: d.filled ? '#4F74F3' : d.future ? 'transparent' : 'var(--bg-off)',
+                        border: d.future ? '1.5px solid var(--bg-off)' : undefined,
                         boxShadow: d.isToday ? '0 0 0 2.5px rgba(79,116,243,0.22)' : undefined,
                       }}
                     />
@@ -485,21 +485,21 @@ export function Activity({
             <button
               onClick={downloadActivity}
               className="flex-shrink-0 w-9 h-9 flex items-center justify-center rounded-full transition-colors active:bg-neutral-200"
-              style={{ backgroundColor: '#F2F1ED' }}
+              style={{ backgroundColor: 'var(--bg-inset)' }}
             >
-              <Download size={18} style={{ color: '#1C1C1E' }} />
+              <Download size={18} style={{ color: 'var(--ink)' }} />
             </button>
           )}
         </div>
 
         {/* All / Expenses / Income type filter */}
         <div className="px-6 pb-3">
-          <div className="relative flex p-1 rounded-full" style={{ backgroundColor: '#ECEAE4' }}>
+          <div className="relative flex p-1 rounded-full" style={{ backgroundColor: 'var(--bg-track)' }}>
             <div
               className="absolute rounded-full"
               style={{
                 top: 4, bottom: 4, left: 4, width: 'calc((100% - 8px) / 3)',
-                backgroundColor: '#FFFFFF',
+                backgroundColor: 'var(--bg-card)',
                 boxShadow: switchGlow(activityType === 'all' ? 'all' : activityType),
                 transform:
                   activityType === 'expense' ? 'translateX(100%)'
@@ -514,7 +514,7 @@ export function Activity({
                 key={option.value}
                 onClick={() => handleActivityTypeChange(option.value)}
                 className="relative flex-1 min-w-0 py-1.5 text-sm font-medium transition-colors"
-                style={{ color: activityType === option.value ? option.activeColor : '#8E8E93' }}
+                style={{ color: activityType === option.value ? option.activeColor : 'var(--ink-2)' }}
               >
                 {option.label}
               </button>

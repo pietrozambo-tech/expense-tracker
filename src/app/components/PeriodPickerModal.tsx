@@ -55,7 +55,7 @@ function Cell({ label, sub, selected, disabled, hasData, onClick }: {
       className="rounded-xl flex flex-col items-center justify-center disabled:opacity-30"
       style={{
         height: sub ? '58px' : '52px',
-        backgroundColor: selected ? '#EFF6FF' : '#F7F7F8',
+        backgroundColor: selected ? 'var(--wash-accent2)' : '#F7F7F8',
         boxShadow: selected ? 'inset 0 0 0 2px #4F74F3' : 'none',
         transition: 'background-color 0.15s ease',
         WebkitTapHighlightColor: 'rgba(255, 255, 255, 0)',
@@ -63,12 +63,12 @@ function Cell({ label, sub, selected, disabled, hasData, onClick }: {
     >
       <span
         className="text-sm tabular-nums leading-none"
-        style={{ color: selected ? '#3D5BE0' : '#1C1C1E', fontWeight: selected ? 600 : 500 }}
+        style={{ color: selected ? '#3D5BE0' : 'var(--ink)', fontWeight: selected ? 600 : 500 }}
       >
         {label}
       </span>
       {sub && (
-        <span className="text-[10px] leading-none mt-1" style={{ color: selected ? '#60A5FA' : '#8E8E93' }}>
+        <span className="text-[10px] leading-none mt-1" style={{ color: selected ? '#60A5FA' : 'var(--ink-2)' }}>
           {sub}
         </span>
       )}
@@ -78,7 +78,7 @@ function Cell({ label, sub, selected, disabled, hasData, onClick }: {
         className="rounded-full mt-1.5"
         style={{
           width: '4px', height: '4px',
-          backgroundColor: hasData ? (selected ? '#4F74F3' : '#C7C7CC') : 'transparent',
+          backgroundColor: hasData ? (selected ? '#4F74F3' : 'var(--ghost)') : 'transparent',
         }}
       />
     </button>
@@ -127,7 +127,7 @@ export function PeriodPickerModal({
         {/* The home indicator sits over the last row of cells otherwise. */}
         <div className="px-6 py-4" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 28px)' }}>
           {/* Month / Quarter / Year */}
-          <div className="flex p-1 rounded-xl" style={{ backgroundColor: '#F2F1ED' }}>
+          <div className="flex p-1 rounded-xl" style={{ backgroundColor: 'var(--bg-inset)' }}>
             {/* `p`, not `t`: the loop variable used to shadow the translation
                 function, so these three buttons rendered their own English
                 keys and were the only untranslated control in the sheet. */}
@@ -137,8 +137,8 @@ export function PeriodPickerModal({
                 onClick={() => setDraftType(p)}
                 className="flex-1 py-1.5 rounded-lg text-xs"
                 style={{
-                  backgroundColor: draftType === p ? '#FFFFFF' : 'transparent',
-                  color: draftType === p ? '#1C1C1E' : '#8E8E93',
+                  backgroundColor: draftType === p ? 'var(--bg-card)' : 'transparent',
+                  color: draftType === p ? 'var(--ink)' : 'var(--ink-2)',
                   fontWeight: draftType === p ? 600 : 500,
                   boxShadow: draftType === p ? '0 1px 3px rgba(0,0,0,0.10)' : 'none',
                   transition: 'background-color 0.15s ease',
@@ -177,8 +177,8 @@ export function PeriodPickerModal({
                       onClick={() => setDraftYear(y)}
                       className="px-3.5 py-1.5 rounded-full text-xs tabular-nums flex-shrink-0"
                       style={{
-                        backgroundColor: on ? '#1C1C1E' : '#F2F1ED',
-                        color: on ? '#FFFFFF' : '#8E8E93',
+                        backgroundColor: on ? 'var(--chip-ink)' : 'var(--bg-inset)',
+                        color: on ? '#FFFFFF' : 'var(--ink-2)',
                         fontWeight: on ? 600 : 500,
                         transition: 'background-color 0.15s ease',
                         WebkitTapHighlightColor: 'rgba(255, 255, 255, 0)',

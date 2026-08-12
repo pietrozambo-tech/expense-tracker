@@ -72,7 +72,7 @@ export function ActivityDayGroup({
           and the only place on this screen the brand colour appears. */}
       <div
         className="flex items-center justify-between px-6 py-1"
-        style={{ backgroundColor: isToday ? 'rgba(79, 116, 243, 0.07)' : 'rgba(250, 250, 250, 0.5)' }}
+        style={{ backgroundColor: isToday ? 'rgba(79, 116, 243, 0.07)' : 'var(--day-head)' }}
       >
         <h3
           className="font-bold text-[10px] uppercase tracking-wider"

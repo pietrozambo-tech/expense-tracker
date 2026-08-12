@@ -11,6 +11,18 @@
     <meta name="description" content="TracklyLab - Your Expense Lens. Track every expense in seconds with a clean, fast interface built for quick input and clear insights." />
     <meta name="robots" content="noindex, nofollow" />
     <meta name="theme-color" content="#F5F5F7" />
+    <script>
+      // Applied before first paint so a dark launch never flashes light.
+      // Mirrors src/app/lib/themeMode.ts, which takes over once the app runs.
+      try {
+        var t = localStorage.getItem('expense-tracker.v1.theme');
+        var dark = t === 'dark' || (t !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches);
+        if (dark) {
+          document.documentElement.setAttribute('data-theme', 'dark');
+          document.querySelector('meta[name="theme-color"]').setAttribute('content', '#121214');
+        }
+      } catch (e) {}
+    </script>
     <!-- Same mark as src/app/components/TracklyLogo.tsx - see the note there. -->
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'><defs><linearGradient id='g' gradientUnits='userSpaceOnUse' x1='0' y1='0' x2='48' y2='48'><stop offset='0' stop-color='%233B82F6'/><stop offset='1' stop-color='%236366F1'/></linearGradient></defs><rect width='48' height='48' rx='13' fill='url(%23g)'/><circle cx='24' cy='24' r='13.2' fill='none' stroke='white' stroke-width='3'/><circle cx='33.33' cy='14.67' r='5' fill='url(%23g)'/><polyline points='17.5,27.8 21,23.8 24.5,26.3 33.33,14.67' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/><circle cx='33.33' cy='14.67' r='3.4' fill='white'/></svg>" />
     <meta name="apple-mobile-web-app-capable" content="yes" />

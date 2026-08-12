@@ -46,3 +46,182 @@
     animation: none;
   }
 }
+
+/* ── Dark mode ──────────────────────────────────────────────────────────────
+ *
+ * One rule makes this safe: LIGHT MODE IS PIXEL-IDENTICAL. Every token's
+ * :root value is the exact hex the code used yesterday, so with no
+ * data-theme set nothing anywhere can shift. Dark redefines the tokens.
+ *
+ * The inline styles were migrated hex -> var() by property context, because
+ * the same hex means different things in different seats: #1C1C1E is ink as
+ * a text colour and a surface inside the dark hero's gradient - only the
+ * first became var(--ink). #FFFFFF converts only where it is a card surface;
+ * text on dark or accent surfaces stays white in both themes.
+ *
+ * html gets data-theme before first paint (see the inline script in
+ * index.html), so there is no light flash on launch.
+ */
+:root {
+  color-scheme: light;
+  --ink: #1C1C1E;
+  --ink-2: #8E8E93;
+  --ink-3: #6B6B75;
+  --faint: #B0B0B5;
+  --faint-2: #A0A0A8;
+  --disabled: #A5A5AD;
+  --ghost: #C7C7CC;
+  --ghost-2: #D1D1D6;
+  --line: #E5E5EA;
+  --line-2: #EEEEF1;
+  --bg-page: #F6F5F2;
+  --bg-card: #FFFFFF;
+  --bg-inset: #F2F1ED;
+  --bg-field: #F4F4F5;
+  --bg-track: #ECEAE4;
+  --bg-off: #E3E2DD;
+  --wash-accent: #EEF1FE;
+  --wash-accent2: #EFF6FF;
+  --wash-accent3: #E3F2FF;
+  --wash-green: #E7F6EC;
+  --wash-red: #FEF2F2;
+  --chip-ink: #1C1C1E;
+  --chip-text: #525252;
+  --chip-icon: #A3A3A3;
+  --day-head: rgba(250, 250, 250, 0.5);
+}
+
+html[data-theme="dark"] {
+  color-scheme: dark;
+  /* The legacy theme.css tokens body still paints through. */
+  --background: #121214;
+  --foreground: #F2F2F4;
+  --chip-ink: #3A3A40;
+  --chip-text: #C2C2CA;
+  --chip-icon: #8A8A92;
+  --day-head: rgba(30, 30, 34, 0.5);
+  --ink: #F2F2F4;
+  --ink-2: #98989F;
+  --ink-3: #A8A8B0;
+  --faint: #707078;
+  --faint-2: #7A7A82;
+  --disabled: #6C6C74;
+  --ghost: #62626A;
+  --ghost-2: #55555D;
+  --line: #38383E;
+  --line-2: #2E2E34;
+  --bg-page: #121214;
+  --bg-card: #1E1E22;
+  --bg-inset: #2A2A2F;
+  --bg-field: #2A2A2F;
+  --bg-track: #26262B;
+  --bg-off: #3A3A40;
+  --wash-accent: #262C42;
+  --wash-accent2: #24293C;
+  --wash-accent3: #223046;
+  --wash-green: #1E3328;
+  --wash-red: #3A2626;
+}
+
+/* Utility shim: the Tailwind grey utilities the app actually uses, restated
+ * for dark. Bounded and explicit - every selector here was grepped from src,
+ * nothing is generated - so light mode never routes through this block. */
+html[data-theme="dark"] {
+  & .bg-white { background-color: var(--bg-card); }
+  & .bg-neutral-50, & .hover\:bg-neutral-50:hover, & .active\:bg-neutral-50:active { background-color: #26262B; }
+  & .bg-neutral-100, & .hover\:bg-neutral-100:hover, & .active\:bg-neutral-100:active { background-color: #2A2A2F; }
+  & .bg-neutral-200, & .hover\:bg-neutral-200:hover, & .active\:bg-neutral-200:active { background-color: #38383E; }
+  & .bg-neutral-200\/60 { background-color: rgba(56, 56, 62, 0.6); }
+  & .border-neutral-100 { border-color: #2E2E34; }
+  & .border-neutral-200 { border-color: #3A3A40; }
+  & .text-neutral-900 { color: var(--ink); }
+  & .text-neutral-800 { color: #E4E4E8; }
+  & .text-neutral-700 { color: #CFCFD6; }
+  & .text-neutral-600 { color: #B4B4BC; }
+  & .text-neutral-500 { color: #98989F; }
+  & .text-neutral-400 { color: #7A7A82; }
+  & .text-neutral-300 { color: #5C5C64; }
+  & .bg-blue-50 { background-color: var(--wash-accent2); }
+  & .bg-neutral-900 { background-color: #E8E8EC; }
+  /* The two arbitrary-value page backgrounds in App.tsx. */
+  & .bg-\[\#F6F5F2\] { background-color: var(--bg-page); }
+  @media (min-width: 768px) { & .md\:bg-\[\#ECEAE6\] { background-color: #0C0C0E; } }
+
+  /* Category tiles: the stored data says bg-<hue>-100 / text-<hue>-600, which
+   * are pastel-on-white classes. In dark the same tile becomes a translucent
+   * glow of its own hue with a lifted icon - the iOS treatment - using the
+   * palette vars Tailwind v4 already emits. */
+  & .bg-red-100 { background-color: color-mix(in oklab, var(--color-red-500) 22%, transparent); }
+  & .bg-green-100 { background-color: color-mix(in oklab, var(--color-green-500) 22%, transparent); }
+  & .bg-blue-100 { background-color: color-mix(in oklab, var(--color-blue-500) 22%, transparent); }
+  & .bg-amber-100 { background-color: color-mix(in oklab, var(--color-amber-500) 22%, transparent); }
+  & .bg-emerald-100 { background-color: color-mix(in oklab, var(--color-emerald-500) 22%, transparent); }
+  & .bg-indigo-100 { background-color: color-mix(in oklab, var(--color-indigo-500) 22%, transparent); }
+  & .bg-violet-100 { background-color: color-mix(in oklab, var(--color-violet-500) 22%, transparent); }
+  & .bg-teal-100 { background-color: color-mix(in oklab, var(--color-teal-500) 22%, transparent); }
+  & .bg-orange-100 { background-color: color-mix(in oklab, var(--color-orange-500) 22%, transparent); }
+  & .bg-pink-100 { background-color: color-mix(in oklab, var(--color-pink-500) 22%, transparent); }
+  & .bg-purple-100 { background-color: color-mix(in oklab, var(--color-purple-500) 22%, transparent); }
+  & .bg-yellow-100 { background-color: color-mix(in oklab, var(--color-yellow-500) 22%, transparent); }
+  & .bg-sky-100 { background-color: color-mix(in oklab, var(--color-sky-500) 22%, transparent); }
+  & .bg-rose-100 { background-color: color-mix(in oklab, var(--color-rose-500) 22%, transparent); }
+  & .bg-lime-100 { background-color: color-mix(in oklab, var(--color-lime-500) 22%, transparent); }
+  & .bg-cyan-100 { background-color: color-mix(in oklab, var(--color-cyan-500) 22%, transparent); }
+  & .bg-red-50 { background-color: color-mix(in oklab, var(--color-red-500) 20%, transparent); }
+  & .bg-green-50 { background-color: color-mix(in oklab, var(--color-green-500) 20%, transparent); }
+  & .bg-blue-50 { background-color: color-mix(in oklab, var(--color-blue-500) 20%, transparent); }
+  & .bg-amber-50 { background-color: color-mix(in oklab, var(--color-amber-500) 20%, transparent); }
+  & .bg-emerald-50 { background-color: color-mix(in oklab, var(--color-emerald-500) 20%, transparent); }
+  & .bg-indigo-50 { background-color: color-mix(in oklab, var(--color-indigo-500) 20%, transparent); }
+  & .bg-violet-50 { background-color: color-mix(in oklab, var(--color-violet-500) 20%, transparent); }
+  & .bg-teal-50 { background-color: color-mix(in oklab, var(--color-teal-500) 20%, transparent); }
+  & .bg-orange-50 { background-color: color-mix(in oklab, var(--color-orange-500) 20%, transparent); }
+  & .bg-pink-50 { background-color: color-mix(in oklab, var(--color-pink-500) 20%, transparent); }
+  & .bg-purple-50 { background-color: color-mix(in oklab, var(--color-purple-500) 20%, transparent); }
+  & .bg-yellow-50 { background-color: color-mix(in oklab, var(--color-yellow-500) 20%, transparent); }
+  & .bg-sky-50 { background-color: color-mix(in oklab, var(--color-sky-500) 20%, transparent); }
+  & .bg-rose-50 { background-color: color-mix(in oklab, var(--color-rose-500) 20%, transparent); }
+  & .bg-lime-50 { background-color: color-mix(in oklab, var(--color-lime-500) 20%, transparent); }
+  & .bg-cyan-50 { background-color: color-mix(in oklab, var(--color-cyan-500) 20%, transparent); }
+  & .bg-slate-50 { background-color: color-mix(in oklab, var(--color-slate-500) 20%, transparent); }
+  & [class*="text-rose-5"] { color: var(--color-rose-400); }
+  & [class*="text-emerald-5"] { color: var(--color-emerald-400); }
+  & [class*="text-orange-5"] { color: var(--color-orange-400); }
+  & [class*="text-purple-5"] { color: var(--color-purple-400); }
+  & [class*="text-pink-5"] { color: var(--color-pink-400); }
+  & [class*="text-indigo-5"] { color: var(--color-indigo-400); }
+  & [class*="text-teal-5"] { color: var(--color-teal-400); }
+  & [class*="text-sky-5"] { color: var(--color-sky-400); }
+  & [class*="text-yellow-5"] { color: var(--color-yellow-400); }
+  & [class*="text-violet-5"] { color: var(--color-violet-400); }
+  & [class*="text-cyan-5"] { color: var(--color-cyan-400); }
+  & [class*="text-lime-5"] { color: var(--color-lime-400); }
+  & [class*="text-slate-5"] { color: var(--color-slate-400); }
+  & [class*="text-slate-6"] { color: var(--color-slate-400); }
+  & [class*="text-red-6"], & .text-red-500 { color: var(--color-red-400); }
+  & [class*="text-green-6"] { color: var(--color-green-400); }
+  & [class*="text-blue-6"] { color: var(--color-blue-400); }
+  & [class*="text-amber-6"] { color: var(--color-amber-400); }
+  & [class*="text-emerald-6"] { color: var(--color-emerald-400); }
+  & [class*="text-indigo-6"] { color: var(--color-indigo-400); }
+  & [class*="text-violet-6"] { color: var(--color-violet-400); }
+  & [class*="text-teal-6"] { color: var(--color-teal-400); }
+  & [class*="text-orange-6"] { color: var(--color-orange-400); }
+  & [class*="text-pink-6"] { color: var(--color-pink-400); }
+  & [class*="text-purple-6"] { color: var(--color-purple-400); }
+  & [class*="text-sky-6"] { color: var(--color-sky-400); }
+  & [class*="text-lime-6"] { color: var(--color-lime-400); }
+  & [class*="text-cyan-6"] { color: var(--color-cyan-400); }
+
+  & .settings-tile { background-color: color-mix(in oklab, currentColor 20%, transparent) !important; }
+
+  /* SVG presentation attributes cannot hold var(), so the chart furniture is
+   * retargeted by attribute value instead - matches exactly the literals the
+   * chart code writes. */
+  & svg [stroke="#F2F1ED"] { stroke: var(--line-2); }
+  & svg [stroke="#E5E5EA"] { stroke: var(--line); }
+  & svg [stroke="#F1F1F1"] { stroke: var(--line-2); }
+  & svg [stroke="#C7C7CC"] { stroke: var(--ghost); }
+  & svg [stroke="#A3A3A3"] { stroke: #6E6E76; }
+  & svg text[fill="#8E8E93"] { fill: var(--ink-2); }
+}

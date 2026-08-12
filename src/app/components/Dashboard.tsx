@@ -272,10 +272,10 @@ function ReviewRow({ label, value, tone, last }: { label: string; value: React.R
   return (
     <div
       className="flex items-baseline justify-between gap-3 py-2"
-      style={{ borderBottom: last ? undefined : '1px solid #F6F5F2' }}
+      style={{ borderBottom: last ? undefined : '1px solid var(--bg-page)' }}
     >
-      <span className="flex-shrink-0" style={{ color: '#8E8E93', fontSize: 12.5 }}>{label}</span>
-      <span className="text-right" style={{ color: tone ?? '#1C1C1E', fontSize: 12.5, fontWeight: 600 }}>{value}</span>
+      <span className="flex-shrink-0" style={{ color: 'var(--ink-2)', fontSize: 12.5 }}>{label}</span>
+      <span className="text-right" style={{ color: tone ?? 'var(--ink)', fontSize: 12.5, fontWeight: 600 }}>{value}</span>
     </div>
   );
 }
@@ -2067,7 +2067,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
         return {
           id,
           name: source?.name || t('src.noSource'),
-          color: source?.brand || '#C7C7CC',
+          color: source?.brand || 'var(--ghost)',
           source,
           value,
         };
@@ -2108,22 +2108,22 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
       // pb-32 that clears the nav bar, so a full-viewport child overflows by
       // exactly that chrome and the page scrolls onto nothing. Undershoot
       // instead and let justify-center place the card.
-      <div className="flex flex-col" style={{ backgroundColor: '#F6F5F2', minHeight: 'calc(100dvh - 200px)' }}>
+      <div className="flex flex-col" style={{ backgroundColor: 'var(--bg-page)', minHeight: 'calc(100dvh - 200px)' }}>
         <div className="px-6 pt-1">
-          <p style={{ color: '#8E8E93', fontSize: '14px', marginBottom: '2px' }}>{greeting}</p>
-          <h1 style={{ color: '#1C1C1E', fontSize: '30px', fontWeight: '800', letterSpacing: '-1px' }}>
+          <p style={{ color: 'var(--ink-2)', fontSize: '14px', marginBottom: '2px' }}>{greeting}</p>
+          <h1 style={{ color: 'var(--ink)', fontSize: '30px', fontWeight: '800', letterSpacing: '-1px' }}>
             {t('tab.dashboard')}
           </h1>
         </div>
         <div className="flex-1 flex flex-col justify-center px-6 pt-4 pb-4">
-          <div className="rounded-2xl px-6 py-8 text-center" style={{ background: '#FFFFFF', boxShadow: '0 8px 24px rgba(0,0,0,0.06)', border: '1px solid #EEEEF1' }}>
-            <div className="mx-auto mb-4 flex items-center justify-center" style={{ width: 56, height: 56, borderRadius: 999, background: '#EFF6FF' }}>
+          <div className="rounded-2xl px-6 py-8 text-center" style={{ background: 'var(--bg-card)', boxShadow: '0 8px 24px rgba(0,0,0,0.06)', border: '1px solid var(--line-2)' }}>
+            <div className="mx-auto mb-4 flex items-center justify-center" style={{ width: 56, height: 56, borderRadius: 999, background: 'var(--wash-accent2)' }}>
               <Plus className="w-7 h-7" style={{ color: '#4F74F3' }} strokeWidth={2.5} />
             </div>
-            <h2 style={{ color: '#1C1C1E', fontSize: 20, fontWeight: 700, letterSpacing: '-0.02em', marginBottom: 8 }}>
+            <h2 style={{ color: 'var(--ink)', fontSize: 20, fontWeight: 700, letterSpacing: '-0.02em', marginBottom: 8 }}>
               {t('dash.empty.title')}
             </h2>
-            <p style={{ color: '#8E8E93', fontSize: 15, lineHeight: 1.45, marginBottom: 20 }}>
+            <p style={{ color: 'var(--ink-2)', fontSize: 15, lineHeight: 1.45, marginBottom: 20 }}>
               {t('dash.empty.body')}
             </p>
             {onAddFirstExpense && (
@@ -2136,7 +2136,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
               </button>
             )}
             {onLoadDemoData && (
-              <button onClick={onLoadDemoData} className="w-full py-3 mt-1 text-[14px] font-medium" style={{ color: '#8E8E93' }}>
+              <button onClick={onLoadDemoData} className="w-full py-3 mt-1 text-[14px] font-medium" style={{ color: 'var(--ink-2)' }}>
                 {t('dash.empty.demo')}
               </button>
             )}
@@ -2147,7 +2147,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
   }
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: '#F6F5F2' }}>
+    <div className="min-h-screen" style={{ backgroundColor: 'var(--bg-page)' }}>
       {view === 'overview' ? (
         <div className="px-6 pt-1 pb-3">
           {/* Personalized greeting — sits at the very top, visible for 2s on
@@ -2160,12 +2160,12 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
               transition: 'opacity 0.3s ease-out, max-height 0.4s ease-out 0.1s'
             }}
           >
-            <p style={{ color: '#8E8E93', fontSize: '14px', marginBottom: '2px' }}>{greeting}</p>
+            <p style={{ color: 'var(--ink-2)', fontSize: '14px', marginBottom: '2px' }}>{greeting}</p>
           </div>
 
           {/* Title row: tab title on the left, period selector on the right */}
           <div className="flex items-center justify-between gap-3">
-            <h1 style={{ color: '#1C1C1E', fontSize: '30px', fontWeight: '800', letterSpacing: '-1px' }}>
+            <h1 style={{ color: 'var(--ink)', fontSize: '30px', fontWeight: '800', letterSpacing: '-1px' }}>
               {t('tab.dashboard')}
             </h1>
 
@@ -2221,7 +2221,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                     userSelect: 'none',
                     WebkitUserSelect: 'none',
                     touchAction: 'manipulation',
-                    backgroundColor: '#FFFFFF',
+                    backgroundColor: 'var(--bg-card)',
                     // Chevron drawn as the select's own background so it always
                     // paints (an overlay element gets hidden by the native
                     // control's compositing layer)
@@ -2243,14 +2243,14 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
       ) : (
         <div className="px-6 pt-1 pb-3 flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <h1 style={{ color: '#1C1C1E', fontSize: '30px', fontWeight: '800', letterSpacing: '-1px' }}>
+            <h1 style={{ color: 'var(--ink)', fontSize: '30px', fontWeight: '800', letterSpacing: '-1px' }}>
               {t('tab.trend')}
             </h1>
-            <div className="mt-0.5" style={{ fontSize: 13, color: '#8E8E93' }}>
+            <div className="mt-0.5" style={{ fontSize: 13, color: 'var(--ink-2)' }}>
               {trendYoY.kind === 'delta' ? (
                 <>
                   <span style={{
-                    color: trendYoY.good === null ? '#8E8E93' : trendYoY.good ? '#1F7A43' : '#B44A40',
+                    color: trendYoY.good === null ? 'var(--ink-2)' : trendYoY.good ? '#1F7A43' : '#B44A40',
                     fontWeight: 600,
                   }}>
                     {t(trendYoY.pct === 0 ? 'trend.yoySame' : trendYoY.pct < 0 ? 'trend.yoyBelow' : 'trend.yoyAbove',
@@ -2282,7 +2282,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                 WebkitTapHighlightColor: 'rgba(255, 255, 255, 0)',
                 WebkitAppearance: 'none', appearance: 'none',
                 userSelect: 'none', WebkitUserSelect: 'none',
-                touchAction: 'manipulation', backgroundColor: '#FFFFFF',
+                touchAction: 'manipulation', backgroundColor: 'var(--bg-card)',
                 backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%238E8E93' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E\")",
                 backgroundRepeat: 'no-repeat', backgroundPosition: 'right 8px center',
                 transform: 'translateZ(0)',
@@ -2473,12 +2473,12 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                 filled half used to read as a washed-out error banner. The
                 active label keeps its meaning-colour, so which side you are on
                 is still legible at a glance. */}
-            <div className="relative flex p-1 rounded-full" style={{ backgroundColor: '#ECEAE4' }}>
+            <div className="relative flex p-1 rounded-full" style={{ backgroundColor: 'var(--bg-track)' }}>
               <div
                 className="absolute rounded-full"
                 style={{
                   top: 4, bottom: 4, left: 4, width: 'calc(50% - 4px)',
-                  backgroundColor: '#FFFFFF',
+                  backgroundColor: 'var(--bg-card)',
                   boxShadow: switchGlow(transactionType === 'income' ? 'income' : 'expense'),
                   transform: transactionType === 'income' ? 'translateX(100%)' : 'translateX(0)',
                   transition: 'transform 220ms cubic-bezier(0.32, 0.72, 0, 1)',
@@ -2488,14 +2488,14 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
               <button
                 onClick={() => setTransactionType('expense')}
                 className="relative flex-1 py-1.5 text-sm font-medium transition-colors"
-                style={{ color: transactionType === 'expense' ? '#C2352B' : '#8E8E93' }}
+                style={{ color: transactionType === 'expense' ? '#C2352B' : 'var(--ink-2)' }}
               >
                 {t('seg.expenses')}
               </button>
               <button
                 onClick={() => setTransactionType('income')}
                 className="relative flex-1 py-1.5 text-sm font-medium transition-colors"
-                style={{ color: transactionType === 'income' ? '#1F7A43' : '#8E8E93' }}
+                style={{ color: transactionType === 'income' ? '#1F7A43' : 'var(--ink-2)' }}
               >
                 {t('seg.income')}
               </button>
@@ -2515,15 +2515,15 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                   setReviewPointerGone(true);
                 }}
                 className="w-full flex items-center gap-2.5 rounded-2xl px-4 py-3 transition-all active:scale-[0.99]"
-                style={{ backgroundColor: '#EEF1FE', boxShadow: '0 1px 4px rgba(79,116,243,0.10)' }}
+                style={{ backgroundColor: 'var(--wash-accent)', boxShadow: '0 1px 4px rgba(79,116,243,0.10)' }}
               >
                 <span
                   className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0"
-                  style={{ backgroundColor: '#FFFFFF' }}
+                  style={{ backgroundColor: 'var(--bg-card)' }}
                 >
                   <Sparkles className="w-3.5 h-3.5" style={{ color: '#4F74F3' }} strokeWidth={2.2} />
                 </span>
-                <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: 14, fontWeight: 600 }}>
+                <span className="flex-1 text-left" style={{ color: 'var(--ink)', fontSize: 14, fontWeight: 600 }}>
                   {t('review.pointer', { period: previousPeriodName })}
                 </span>
                 <ChevronRight className="w-4 h-4 flex-shrink-0" style={{ color: '#4F74F3' }} />
@@ -2560,7 +2560,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
             <div className="px-6 mb-4">
               <div
                 className="rounded-2xl overflow-hidden"
-                style={{ backgroundColor: '#FFFFFF', boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)' }}
+                style={{ backgroundColor: 'var(--bg-card)', boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)' }}
               >
                 <div style={{ padding: '13px 16px 12px', background: 'linear-gradient(135deg, #EEF1FE 0%, #FFFFFF 70%)' }}>
                   <div className="flex items-start justify-between gap-2">
@@ -2576,7 +2576,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                       onClick={() => setConfirmHideInsights(true)}
                       aria-label={t('review.hideAria')}
                       className="-m-1 p-1 rounded-full flex-shrink-0 transition-colors active:bg-black/5"
-                      style={{ color: '#B0B0B5' }}
+                      style={{ color: 'var(--faint)' }}
                     >
                       <X className="w-4 h-4" strokeWidth={2.5} />
                     </button>
@@ -2591,7 +2591,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                         letterSpacing: '-0.4px',
                         // The budget bar's tones: amber over, green under,
                         // ink when it is neither. Not the alarm reds.
-                        color: periodReview.vsUsual > 5 ? '#96631A' : periodReview.vsUsual < -5 ? '#2C7A54' : '#1C1C1E',
+                        color: periodReview.vsUsual > 5 ? '#96631A' : periodReview.vsUsual < -5 ? '#2C7A54' : 'var(--ink)',
                       }}
                     >
                       {Math.abs(periodReview.vsUsual) <= 5
@@ -2604,12 +2604,12 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                   {/* The sentences that used to sit in the hero. They are the
                       WHY behind the headline, so they belong under it. */}
                   {periodSummary && (
-                    <div className="mt-1.5" style={{ color: '#6B6B75' }}>
+                    <div className="mt-1.5" style={{ color: 'var(--ink-3)' }}>
                       <div style={{ fontSize: 12.5, lineHeight: 1.45 }}>
                         <InsightLine text={periodSummary.line1} />
                       </div>
                       {periodSummary.line2 && (
-                        <div className="mt-0.5" style={{ fontSize: 12.5, lineHeight: 1.45, color: '#8E8E93' }}>
+                        <div className="mt-0.5" style={{ fontSize: 12.5, lineHeight: 1.45, color: 'var(--ink-2)' }}>
                           <InsightLine text={periodSummary.line2} />
                         </div>
                       )}
@@ -2683,7 +2683,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
           {/* Expense Type Table Card */}
           <div className="px-6 mb-4">
             <div className="rounded-2xl overflow-hidden" style={{ 
-              backgroundColor: '#FFFFFF',
+              backgroundColor: 'var(--bg-card)',
               boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)'
             }}>
               <div className="px-4 py-4">
@@ -2695,15 +2695,15 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                   <div className="flex items-center gap-2.5 min-w-0">
                     {/* Explicit size: a bare h2 inherits 20px from theme.css, which made
                         this the one card title on the page not on the shared scale. */}
-                    <h2 style={{ color: '#1C1C1E', fontWeight: '600', fontSize: 14 }}>{t('cat.title')}</h2>
+                    <h2 style={{ color: 'var(--ink)', fontWeight: '600', fontSize: 14 }}>{t('cat.title')}</h2>
                     <button
                       onClick={() => setCategorySortBy(categorySortBy === 'alphabetical' ? 'amount' : 'alphabetical')}
                       className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition-colors flex-shrink-0"
-                      style={{ backgroundColor: '#F2F1ED' }}
+                      style={{ backgroundColor: 'var(--bg-inset)' }}
                       aria-label="Toggle sort order"
                     >
-                      <ArrowUpDown className="w-3.5 h-3.5" style={{ color: '#8E8E93' }} />
-                      <span className="text-xs" style={{ color: '#8E8E93' }}>
+                      <ArrowUpDown className="w-3.5 h-3.5" style={{ color: 'var(--ink-2)' }} />
+                      <span className="text-xs" style={{ color: 'var(--ink-2)' }}>
                         {categorySortBy === 'alphabetical' ? 'A-Z' : '€'}
                       </span>
                     </button>
@@ -2717,7 +2717,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                       return (
                         <span
                           className="text-[10px] whitespace-nowrap text-right flex-shrink-0"
-                          style={{ color: '#A0A0A8' }}
+                          style={{ color: 'var(--faint-2)' }}
                         >
                           {comparisonLabel()}
                         </span>
@@ -2731,11 +2731,11 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                       <div className="relative flex items-center gap-0.5 flex-shrink-0">
                         <span
                           className="text-[10px] whitespace-nowrap text-right"
-                          style={{ color: '#A0A0A8' }}
+                          style={{ color: 'var(--faint-2)' }}
                         >
                           {comparisonLabel()}
                         </span>
-                        <ChevronDown className="w-2.5 h-2.5" style={{ color: '#C7C7CC' }} strokeWidth={2.5} />
+                        <ChevronDown className="w-2.5 h-2.5" style={{ color: 'var(--ghost)' }} strokeWidth={2.5} />
                         <select
                           aria-label="Compare against"
                           value={value}
@@ -2840,12 +2840,12 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                                   <TrendingDown className="w-3.5 h-3.5" style={{ color: transactionType === 'expense' ? '#1F7A43' : '#B44A40', strokeWidth: 2.5 }} />
                                 )}
                                 {trend === 'neutral' && (
-                                  <Minus className="w-3.5 h-3.5" style={{ color: '#8E8E93', strokeWidth: 2.5 }} />
+                                  <Minus className="w-3.5 h-3.5" style={{ color: 'var(--ink-2)', strokeWidth: 2.5 }} />
                                 )}
                                 {/* A word rather than another arrow: nothing went up or
                                     down, there simply is no earlier figure. */}
                                 {trend === 'new' && (
-                                  <span className="text-[9px] font-semibold" style={{ color: '#6B6B75' }}>{t('cat.new')}</span>
+                                  <span className="text-[9px] font-semibold" style={{ color: 'var(--ink-3)' }}>{t('cat.new')}</span>
                                 )}
                               </div>
                             </div>
@@ -2898,10 +2898,10 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                                           <TrendingDown className="w-3 h-3" style={{ color: transactionType === 'expense' ? '#1F7A43' : '#B44A40', strokeWidth: 2.5 }} />
                                         )}
                                         {subTrend === 'neutral' && (
-                                          <Minus className="w-3 h-3" style={{ color: '#8E8E93', strokeWidth: 2.5 }} />
+                                          <Minus className="w-3 h-3" style={{ color: 'var(--ink-2)', strokeWidth: 2.5 }} />
                                         )}
                                         {subTrend === 'new' && (
-                                          <span className="text-[8px] font-semibold" style={{ color: '#6B6B75' }}>{t('cat.new')}</span>
+                                          <span className="text-[8px] font-semibold" style={{ color: 'var(--ink-3)' }}>{t('cat.new')}</span>
                                         )}
                                       </div>
                                     </div>
@@ -3118,11 +3118,11 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
             return (
               <div className="px-6 mb-4">
                 <div className="rounded-2xl overflow-hidden" style={{ 
-                  backgroundColor: '#FFFFFF',
+                  backgroundColor: 'var(--bg-card)',
                   boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)'
                 }}>
                   <div className="px-6 py-4">
-                    <h3 className="text-sm mb-3" style={{ color: '#1C1C1E', fontWeight: '600' }}>
+                    <h3 className="text-sm mb-3" style={{ color: 'var(--ink)', fontWeight: '600' }}>
                       {t('chart.cumulative')}
                     </h3>
                     <div
@@ -3236,7 +3236,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                                 key={`grid-${i}`}
                                 x1={marginLeft} y1={yOf(t.value)}
                                 x2={svgW - marginRight} y2={yOf(t.value)}
-                                stroke="#F2F1ED" strokeWidth={1} strokeDasharray="3 3"
+                                stroke="var(--bg-inset)" strokeWidth={1} strokeDasharray="3 3"
                               />
                             ))}
 
@@ -3244,7 +3244,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                             <line
                               x1={marginLeft} y1={marginTop + plotH}
                               x2={svgW - marginRight} y2={marginTop + plotH}
-                              stroke="#E5E5EA" strokeWidth={1}
+                              stroke="var(--line)" strokeWidth={1}
                             />
 
                             {/* Area fill */}
@@ -3253,7 +3253,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                               <path
                                 d={usualD}
                                 fill="none"
-                                stroke="#C7C7CC"
+                                stroke="var(--ghost)"
                                 strokeWidth={1.5}
                                 strokeDasharray="4 4"
                                 strokeLinecap="round"
@@ -3283,7 +3283,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                                 y={yOf(t.value) + 4}
                                 textAnchor="end"
                                 fontSize={10}
-                                fill="#8E8E93"
+                                fill="var(--ink-2)"
                               >
                                 {formatAxisTick(t.value, axisMax)}
                               </text>
@@ -3299,7 +3299,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                                   y={marginTop + plotH + 16}
                                   textAnchor="middle"
                                   fontSize={11}
-                                  fill="#8E8E93"
+                                  fill="var(--ink-2)"
                                 >
                                   {timePeriodType === 'year' ? d.label.charAt(0) : d.label}
                                 </text>
@@ -3336,12 +3336,12 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                         const Row = ({ color, label, amount }: { color: string; label: string; amount: number }) => (
                           <div className="flex items-center gap-1.5" style={{ whiteSpace: 'nowrap' }}>
                             <span style={{ width: 6, height: 6, borderRadius: 999, backgroundColor: color, flexShrink: 0 }} />
-                            <span style={{ color: '#8E8E93', fontSize: 11 }}>{label}</span>
+                            <span style={{ color: 'var(--ink-2)', fontSize: 11 }}>{label}</span>
                             <AmountText
                               amount={amount}
                               currency={currency}
                               decimals={0}
-                              style={{ color: '#1C1C1E', fontSize: 12, fontWeight: 600, marginLeft: 'auto' }}
+                              style={{ color: 'var(--ink)', fontSize: 12, fontWeight: 600, marginLeft: 'auto' }}
                             />
                           </div>
                         );
@@ -3356,7 +3356,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                                 top: `${geom.marginTop}px`,
                                 height: `${geom.plotH}px`,
                                 width: '1px',
-                                backgroundColor: '#E5E5EA',
+                                backgroundColor: 'var(--line)',
                                 pointerEvents: 'none',
                                 zIndex: 8,
                               }}
@@ -3375,8 +3375,8 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                                   width: '7px',
                                   height: '7px',
                                   borderRadius: '50%',
-                                  backgroundColor: '#FFFFFF',
-                                  border: '2px solid #C7C7CC',
+                                  backgroundColor: 'var(--bg-card)',
+                                  border: '2px solid var(--ghost)',
                                   pointerEvents: 'none',
                                   zIndex: 9,
                                 }}
@@ -3392,7 +3392,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                                   width: '8px',
                                   height: '8px',
                                   borderRadius: '50%',
-                                  backgroundColor: '#FFFFFF',
+                                  backgroundColor: 'var(--bg-card)',
                                   border: '2px solid #4F74F3',
                                   pointerEvents: 'none',
                                   zIndex: 10,
@@ -3407,8 +3407,8 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                                 left: `${tooltipData.x}px`,
                                 top: `${tooltipY}px`,
                                 transform: `translate(${transformX}, -50%)`,
-                                backgroundColor: '#FFFFFF',
-                                border: '1px solid #E5E5EA',
+                                backgroundColor: 'var(--bg-card)',
+                                border: '1px solid var(--line)',
                                 borderRadius: '8px',
                                 padding: '6px 8px',
                                 boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
@@ -3417,14 +3417,14 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                                 width: `${tooltipWidth}px`,
                               }}
                             >
-                              <p style={{ color: '#8E8E93', fontSize: '11px', margin: 0, marginBottom: 3, whiteSpace: 'nowrap' }}>
+                              <p style={{ color: 'var(--ink-2)', fontSize: '11px', margin: 0, marginBottom: 3, whiteSpace: 'nowrap' }}>
                                 {tooltipData.label}
                               </p>
                               {tooltipData.value !== null && (
                                 <Row color="#4F74F3" label={periodWord} amount={tooltipData.value} />
                               )}
                               {tooltipData.usual !== null && (
-                                <Row color="#C7C7CC" label={benchmarkLabel} amount={tooltipData.usual} />
+                                <Row color="var(--ghost)" label={benchmarkLabel} amount={tooltipData.usual} />
                               )}
                             </div>
                           </>
@@ -3440,17 +3440,17 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                       <div className="flex items-center justify-center gap-4 mt-1.5">
                         <span className="flex items-center gap-1.5">
                           <span style={{ width: 7, height: 7, borderRadius: 999, backgroundColor: '#4F74F3' }} />
-                          <span style={{ color: '#8E8E93', fontSize: 11 }}>{periodWord}</span>
+                          <span style={{ color: 'var(--ink-2)', fontSize: 11 }}>{periodWord}</span>
                         </span>
                         <span className="relative flex items-center gap-1.5">
-                          <span style={{ width: 7, height: 7, borderRadius: 999, backgroundColor: '#C7C7CC' }} />
-                          <span style={{ color: '#8E8E93', fontSize: 11 }}>{benchmarkLabel}</span>
+                          <span style={{ width: 7, height: 7, borderRadius: 999, backgroundColor: 'var(--ghost)' }} />
+                          <span style={{ color: 'var(--ink-2)', fontSize: 11 }}>{benchmarkLabel}</span>
                           {/* The dotted line can be the median or the same
                               period last year; when both exist the label is a
                               picker, in the same quiet grammar as "vs. Jul". */}
                           {benchmarkChoices && (
                             <>
-                              <ChevronDown className="w-2.5 h-2.5" style={{ color: '#C7C7CC' }} strokeWidth={2.5} />
+                              <ChevronDown className="w-2.5 h-2.5" style={{ color: 'var(--ghost)' }} strokeWidth={2.5} />
                               <select
                                 aria-label="Benchmark line"
                                 value={benchmarkMode}
@@ -3535,7 +3535,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
               return (
                 <div className="px-6 mb-4">
                   <div className="rounded-2xl px-6 py-4 bg-white" style={{ boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)' }}>
-                    <h3 className="text-sm mb-1.5" style={{ color: '#1C1C1E', fontWeight: '600' }}>
+                    <h3 className="text-sm mb-1.5" style={{ color: 'var(--ink)', fontWeight: '600' }}>
                       {t('rec.title')}
                     </h3>
                     <div className="flex items-center gap-2">
@@ -3544,7 +3544,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                         style={{ backgroundColor: only.color }}
                         aria-hidden="true"
                       />
-                      <span style={{ color: '#8E8E93', fontSize: 13 }}>
+                      <span style={{ color: 'var(--ink-2)', fontSize: 13 }}>
                         {t('rec.allPre')}{' '}
                         <AmountText
                           amount={only.value}
@@ -3564,13 +3564,13 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
             return (
               <div className="px-6 mb-4">
                 <div className="rounded-2xl overflow-hidden" style={{ 
-                  backgroundColor: '#FFFFFF',
+                  backgroundColor: 'var(--bg-card)',
                   boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)'
                 }}>
                   <div className="px-6 py-4">
                     {/* Title and Back button */}
                     <div className="flex items-center justify-between mb-2">
-                      <h3 className="text-sm" style={{ color: '#1C1C1E', fontWeight: '600' }}>
+                      <h3 className="text-sm" style={{ color: 'var(--ink)', fontWeight: '600' }}>
                         {t('rec.title')}
                       </h3>
                       {/* The donut used to carry the total in its hole. */}
@@ -3580,7 +3580,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                         decimals={0}
                         abbreviate={abbrevRec}
                         className="tabular-nums"
-                        style={{ color: '#8E8E93', fontSize: '12px' }}
+                        style={{ color: 'var(--ink-2)', fontSize: '12px' }}
                       />
                     </div>
                     
@@ -3591,7 +3591,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                         tapping Recurring still opens the breakdown. */}
                     <div
                       className="flex gap-0.5 h-2.5 rounded-full overflow-hidden mb-1"
-                      style={{ backgroundColor: '#F2F1ED' }}
+                      style={{ backgroundColor: 'var(--bg-inset)' }}
                     >
                       {dataWithColors.map((item, index) => (
                         <button
@@ -3629,7 +3629,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                             borderRight: 'none',
                             borderBottomWidth: index < dataWithColors.length - 1 ? '1px' : '0',
                             borderBottomStyle: 'solid',
-                            borderBottomColor: '#F6F5F2',
+                            borderBottomColor: 'var(--bg-page)',
                             background: 'transparent',
                             cursor: 'pointer',
                           }}
@@ -3645,7 +3645,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                               }}
                             />
                             <span style={{ 
-                              color: '#1C1C1E', 
+                              color: 'var(--ink)', 
                               fontSize: '13px',
                               fontWeight: '500'
                             }}>
@@ -3655,7 +3655,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                           </div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                             <span style={{ 
-                              color: '#8E8E93', 
+                              color: 'var(--ink-2)', 
                               fontSize: '12px'
                             }}>
                               {item.percentage.toFixed(0)}%
@@ -3666,7 +3666,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                               decimals={0}
                               abbreviate={abbrevRec}
                               style={{
-                                color: '#1C1C1E',
+                                color: 'var(--ink)',
                                 fontSize: '13px',
                                 fontWeight: '600',
                                 minWidth: '70px',
@@ -3703,9 +3703,9 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                       const farLabel = (d: string) =>
                         parseLocalDate(d).toLocaleDateString(dateLocale(), { day: 'numeric', month: 'short' });
                       return (
-                        <div className="mt-3 pt-3" style={{ borderTop: '1px solid #F2F1ED' }}>
+                        <div className="mt-3 pt-3" style={{ borderTop: '1px solid var(--bg-inset)' }}>
                           <div className="flex items-baseline justify-between mb-1">
-                            <span style={{ color: '#8E8E93', fontSize: 11.5, fontWeight: 600, letterSpacing: 0.2 }}>
+                            <span style={{ color: 'var(--ink-2)', fontSize: 11.5, fontWeight: 600, letterSpacing: 0.2 }}>
                               {t('rec.comingUp')}
                             </span>
                             <button
@@ -3719,10 +3719,10 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                             // Nothing inside the week: one line keeps the card
                             // honest about what exists without listing it all.
                             <div className="flex items-baseline justify-between py-0.5">
-                              <span style={{ color: '#8E8E93', fontSize: 12.5 }}>
+                              <span style={{ color: 'var(--ink-2)', fontSize: 12.5 }}>
                                 {t('rec.nextUp')} {ups[0].rule.template.description} · {farLabel(ups[0].next)}
                               </span>
-                              <span style={{ color: '#1C1C1E', fontSize: 12.5, fontWeight: 600 }} className="tabular-nums">
+                              <span style={{ color: 'var(--ink)', fontSize: 12.5, fontWeight: 600 }} className="tabular-nums">
                                 -<AmountText amount={ups[0].rule.template.amount} currency={currency} decimals={ups[0].rule.template.amount % 1 ? 2 : 0} />
                               </span>
                             </div>
@@ -3730,19 +3730,19 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                             <>
                               {shown.map((u) => (
                                 <div key={u.rule.id} className="flex items-baseline gap-2 py-1">
-                                  <span className="flex-shrink-0" style={{ color: '#8E8E93', fontSize: 12.5, minWidth: 52 }}>
+                                  <span className="flex-shrink-0" style={{ color: 'var(--ink-2)', fontSize: 12.5, minWidth: 52 }}>
                                     {dayLabel(u.next)}
                                   </span>
-                                  <span className="flex-1 truncate" style={{ color: '#1C1C1E', fontSize: 13, fontWeight: 500 }}>
+                                  <span className="flex-1 truncate" style={{ color: 'var(--ink)', fontSize: 13, fontWeight: 500 }}>
                                     {u.rule.template.description}
                                   </span>
-                                  <span style={{ color: '#1C1C1E', fontSize: 13, fontWeight: 600 }} className="tabular-nums">
+                                  <span style={{ color: 'var(--ink)', fontSize: 13, fontWeight: 600 }} className="tabular-nums">
                                     -<AmountText amount={u.rule.template.amount} currency={currency} decimals={u.rule.template.amount % 1 ? 2 : 0} />
                                   </span>
                                 </div>
                               ))}
                               {extra > 0 && (
-                                <div style={{ color: '#8E8E93', fontSize: 11.5, paddingTop: 2 }}>
+                                <div style={{ color: 'var(--ink-2)', fontSize: 11.5, paddingTop: 2 }}>
                                   {t('rec.moreThisWeek', { n: extra })}
                                 </div>
                               )}
@@ -3794,10 +3794,10 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
 
             return (
               <div className="px-6 mb-4">
-                <div className="rounded-2xl overflow-hidden" style={{ backgroundColor: '#FFFFFF', boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)' }}>
+                <div className="rounded-2xl overflow-hidden" style={{ backgroundColor: 'var(--bg-card)', boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)' }}>
                   <div className="px-6 py-4">
                     <div className="flex items-center justify-between mb-2">
-                      <h3 className="text-sm" style={{ color: '#1C1C1E', fontWeight: '600' }}>
+                      <h3 className="text-sm" style={{ color: 'var(--ink)', fontWeight: '600' }}>
                         {transactionType === 'income' ? t('src.incomeTitle') : t('src.spendingTitle')}
                       </h3>
                     </div>
@@ -3826,8 +3826,8 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                           ))}
                         </svg>
                         <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', textAlign: 'center', pointerEvents: 'none' }}>
-                          <p style={{ color: '#8E8E93', fontSize: '10px', margin: 0, marginBottom: '2px' }}>{t('src.total')}</p>
-                          <p style={{ color: '#1C1C1E', fontSize: '13px', fontWeight: '600', margin: 0 }}>
+                          <p style={{ color: 'var(--ink-2)', fontSize: '10px', margin: 0, marginBottom: '2px' }}>{t('src.total')}</p>
+                          <p style={{ color: 'var(--ink)', fontSize: '13px', fontWeight: '600', margin: 0 }}>
                             <AmountText amount={totalValue} currency={currency} decimals={0} abbreviate={abbrevSrc} />
                           </p>
                         </div>
@@ -3846,7 +3846,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                             padding: '8px 0',
                             borderBottomWidth: index < withPct.length - 1 ? '1px' : '0',
                             borderBottomStyle: 'solid',
-                            borderBottomColor: '#F6F5F2',
+                            borderBottomColor: 'var(--bg-page)',
                           }}
                         >
                           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -3855,16 +3855,16 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                             ) : (
                               <div style={{ width: '12px', height: '12px', borderRadius: '3px', backgroundColor: item.color }} />
                             )}
-                            <span style={{ color: '#1C1C1E', fontSize: '13px', fontWeight: '500' }}>{item.name}</span>
+                            <span style={{ color: 'var(--ink)', fontSize: '13px', fontWeight: '500' }}>{item.name}</span>
                           </div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                            <span style={{ color: '#8E8E93', fontSize: '12px' }}>{item.percentage.toFixed(0)}%</span>
+                            <span style={{ color: 'var(--ink-2)', fontSize: '12px' }}>{item.percentage.toFixed(0)}%</span>
                             <AmountText
                               amount={item.value}
                               currency={currency}
                               decimals={0}
                               abbreviate={abbrevSrc}
-                              style={{ color: '#1C1C1E', fontSize: '13px', fontWeight: '600', minWidth: '70px', textAlign: 'right' }}
+                              style={{ color: 'var(--ink)', fontSize: '13px', fontWeight: '600', minWidth: '70px', textAlign: 'right' }}
                             />
                           </div>
                         </div>
@@ -4077,12 +4077,12 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                     an inset track and a thumb that slides to the chosen third.
                     Savings keeps a neutral label - it is a result, not a
                     direction, so it has no meaning-colour of its own. */}
-                <div className="relative flex p-1 rounded-full flex-1 min-w-0" style={{ backgroundColor: '#ECEAE4' }}>
+                <div className="relative flex p-1 rounded-full flex-1 min-w-0" style={{ backgroundColor: 'var(--bg-track)' }}>
                   <div
                     className="absolute rounded-full"
                     style={{
                       top: 4, bottom: 4, left: 4, width: 'calc((100% - 8px) / 3)',
-                      backgroundColor: '#FFFFFF',
+                      backgroundColor: 'var(--bg-card)',
                       boxShadow: switchGlow(transactionType),
                       transform:
                         transactionType === 'income' ? 'translateX(100%)'
@@ -4095,7 +4095,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                   {([
                     { key: 'expense', label: t('seg.expenses'), color: '#C2352B' },
                     { key: 'income', label: t('seg.income'), color: '#1F7A43' },
-                    { key: 'savings', label: t('seg.savings'), color: '#1C1C1E' },
+                    { key: 'savings', label: t('seg.savings'), color: 'var(--ink)' },
                   ] as const).map(({ key, label, color }) => (
                     <button
                       key={key}
@@ -4105,7 +4105,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                         setSelectedSubcategory('All');
                       }}
                       className="relative flex-1 min-w-0 py-1.5 text-[13px] font-medium transition-colors"
-                      style={{ color: transactionType === key ? color : '#8E8E93' }}
+                      style={{ color: transactionType === key ? color : 'var(--ink-2)' }}
                     >
                       {label}
                     </button>
@@ -4366,9 +4366,9 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                         </defs>
                         <g transform="translate(0, 4)">
                           {/* Grid lines - minimized prominence */}
-                          <line x1="0" y1="0" x2="320" y2="0" stroke="#F1F1F1" strokeWidth="0.5" />
-                          <line x1="0" y1="44" x2="320" y2="44" stroke="#F1F1F1" strokeWidth="0.5" />
-                          <line x1="0" y1="88" x2="320" y2="88" stroke="#F1F1F1" strokeWidth="0.5" />
+                          <line x1="0" y1="0" x2="320" y2="0" stroke="var(--line-2)" strokeWidth="0.5" />
+                          <line x1="0" y1="44" x2="320" y2="44" stroke="var(--line-2)" strokeWidth="0.5" />
+                          <line x1="0" y1="88" x2="320" y2="88" stroke="var(--line-2)" strokeWidth="0.5" />
                           
                           {/* Average line (dashed, discreet) */}
                           {avgAmount > 0 && yRange > 0 && (() => {
@@ -4406,7 +4406,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                                 }, '');
                               })()}
                               fill="none"
-                              stroke="#C7C7CC"
+                              stroke="var(--ghost)"
                               strokeWidth="1.5"
                               strokeDasharray="4 4"
                               strokeLinecap="round"
@@ -4526,11 +4526,11 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                     <div className="flex items-center justify-center gap-4 mt-3">
                       <span className="flex items-center gap-1.5">
                         <span style={{ width: 7, height: 7, borderRadius: 999, backgroundColor: '#4F74F3' }} />
-                        <span style={{ color: '#8E8E93', fontSize: 11 }}>{trendYearFilter}</span>
+                        <span style={{ color: 'var(--ink-2)', fontSize: 11 }}>{trendYearFilter}</span>
                       </span>
                       <span className="flex items-center gap-1.5">
-                        <span style={{ width: 7, height: 7, borderRadius: 999, backgroundColor: '#C7C7CC' }} />
-                        <span style={{ color: '#8E8E93', fontSize: 11 }}>{trendYearFilter - 1}</span>
+                        <span style={{ width: 7, height: 7, borderRadius: 999, backgroundColor: 'var(--ghost)' }} />
+                        <span style={{ color: 'var(--ink-2)', fontSize: 11 }}>{trendYearFilter - 1}</span>
                       </span>
                     </div>
                   )}
@@ -4616,7 +4616,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                   </h3>
                   {transactionType === 'expense' && (
                     <>
-                      <ChevronDown className="w-2.5 h-2.5" style={{ color: '#C7C7CC' }} strokeWidth={2.5} />
+                      <ChevronDown className="w-2.5 h-2.5" style={{ color: 'var(--ghost)' }} strokeWidth={2.5} />
                       <select
                         aria-label="Breakdown view"
                         value={showDow ? 'dow' : 'monthly'}
@@ -4640,7 +4640,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                     it once. Expenses only - the budget is a spending limit,
                     and a MONTHLY one, so it has no place on a weekday row. */}
                 {!showDow && transactionType === 'expense' && selectedCategory === 'All' && !!monthlyBudget && monthlyBudget > 0 && (
-                  <span className="flex items-baseline gap-1.5 text-[10px]" style={{ color: '#A0A0A8' }}>
+                  <span className="flex items-baseline gap-1.5 text-[10px]" style={{ color: 'var(--faint-2)' }}>
                     <span className="self-center w-0.5 h-2.5 rounded-full" style={{ backgroundColor: 'rgba(28,28,30,0.35)' }} />
                     {t('trend.budgetMark')} <AmountText amount={monthlyBudget} currency={currency} decimals={0} />
                   </span>
@@ -4663,7 +4663,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                         WebkitAppearance: 'none',
                         appearance: 'none',
                         touchAction: 'manipulation',
-                        backgroundColor: '#FAFAFA',
+                        backgroundColor: 'var(--bg-field)',
                         backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%238E8E93' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E\")",
                         backgroundRepeat: 'no-repeat',
                         backgroundPosition: 'right 8px center',
@@ -4685,8 +4685,8 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                             fontSize: 11,
                             paddingTop: 6,
                             paddingBottom: 6,
-                            backgroundColor: trendDowOneOffs === v ? '#1C1C1E' : '#FAFAFA',
-                            color: trendDowOneOffs === v ? '#FFFFFF' : '#8E8E93',
+                            backgroundColor: trendDowOneOffs === v ? 'var(--chip-ink)' : 'var(--bg-field)',
+                            color: trendDowOneOffs === v ? '#FFFFFF' : 'var(--ink-2)',
                             fontWeight: trendDowOneOffs === v ? 600 : 500,
                             transition: 'background-color 0.15s ease',
                             WebkitTapHighlightColor: 'rgba(255, 255, 255, 0)',
@@ -4735,14 +4735,14 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                         ))}
                       </div>
                       {dowLine && (
-                        <p className="mt-2 text-[11px]" style={{ color: '#8E8E93' }}>{dowLine}</p>
+                        <p className="mt-2 text-[11px]" style={{ color: 'var(--ink-2)' }}>{dowLine}</p>
                       )}
                       {/* What the toggle actually did, in euros. Without this
                           it can look dead: recurring spending spread across
                           the week lowers every bar in proportion, and bars
                           are relative, so the picture barely moves. */}
                       {trendDowOneOffs && (
-                        <p className="mt-1 text-[11px]" style={{ color: '#B0B0B5' }}>
+                        <p className="mt-1 text-[11px]" style={{ color: 'var(--faint)' }}>
                           {dowExcludedCount > 0 ? (
                             <>
                               {t(dowExcludedCount === 1 ? 'dow.leavingOut.one' : 'dow.leavingOut.other', { n: dowExcludedCount })}{' '}
@@ -4760,7 +4760,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                         {t('dow.noSpending')}{trendDowOneOffs && dowExcludedCount > 0 ? t('dow.outsideRecurring') : ''}.
                       </p>
                       {trendDowOneOffs && dowExcludedCount > 0 && (
-                        <p className="mt-1 text-[11px]" style={{ color: '#B0B0B5' }}>
+                        <p className="mt-1 text-[11px]" style={{ color: 'var(--faint)' }}>
                           {t(dowExcludedCount === 1 ? 'dow.leavingOut.one' : 'dow.leavingOut.other', { n: dowExcludedCount })}{' '}
                           (<AmountText amount={dowExcludedTotal} currency={currency} decimals={0} />).
                         </p>
@@ -4939,9 +4939,9 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                           style={{
                             // Grey, not red, when the rate yields to the dash
                             // (deeper than -100%: almost no income that month).
-                            color: monthlySavingRate < -100 ? '#8E8E93'
+                            color: monthlySavingRate < -100 ? 'var(--ink-2)'
                               : monthlySavingRate < 0 ? '#B44A40'
-                              : monthlySavingRate > 0 ? '#1F7A43' : '#8E8E93',
+                              : monthlySavingRate > 0 ? '#1F7A43' : 'var(--ink-2)',
                           }}
                         >
                           {monthlySavingRate !== 0 ? formatSavingRate(monthlySavingRate) : '-'}
@@ -5127,11 +5127,11 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                     // the grey pill. This was the one sort control drawn
                     // differently - Clock icon, uppercase, darker pill.
                     className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition-colors"
-                    style={{ backgroundColor: '#F2F1ED' }}
+                    style={{ backgroundColor: 'var(--bg-inset)' }}
                     aria-label="Toggle sort order"
                   >
-                    <ArrowUpDown className="w-3.5 h-3.5" style={{ color: '#8E8E93' }} />
-                    <span className="text-xs" style={{ color: '#8E8E93' }}>
+                    <ArrowUpDown className="w-3.5 h-3.5" style={{ color: 'var(--ink-2)' }} />
+                    <span className="text-xs" style={{ color: 'var(--ink-2)' }}>
                       {drilldownSortBy === 'time' ? t('trend.sortTime') : CURRENCIES[currency]?.symbol || '€'}
                     </span>
                   </button>

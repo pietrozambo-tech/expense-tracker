@@ -67,7 +67,7 @@ const TEXT_HEX: Record<string, string> = {
   'text-stone-500': '#78716C', 'text-stone-600': '#57534E',
 };
 
-export const categoryHex = (colorClass?: string): string => TEXT_HEX[colorClass ?? ''] ?? '#8E8E93';
+export const categoryHex = (colorClass?: string): string => TEXT_HEX[colorClass ?? ''] ?? 'var(--ink-2)';
 
 /**
  * The category's solid, softened - paint, never a class name.

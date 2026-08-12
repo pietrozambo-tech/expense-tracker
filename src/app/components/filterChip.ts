@@ -7,7 +7,7 @@
 // needs an "on" state cannot invent a fourth.
 export const FILTER_ACTIVE = {
   /** Chip fill. */
-  bg: '#EEF1FE',
+  bg: 'var(--wash-accent)',
   /** Transparent, so a filled chip is exactly as tall as a bordered one. */
   border: 'transparent',
   /** Label, and any icon that carries meaning. */
@@ -18,8 +18,8 @@ export const FILTER_ACTIVE = {
 
 /** The resting state of the same control. */
 export const FILTER_IDLE = {
-  bg: '#FFFFFF',
-  border: '#E5E5EA',
-  text: '#525252',
-  icon: '#A3A3A3',
+  bg: 'var(--bg-card)',
+  border: 'var(--line)',
+  text: 'var(--chip-text)',
+  icon: 'var(--chip-icon)',
 } as const;
