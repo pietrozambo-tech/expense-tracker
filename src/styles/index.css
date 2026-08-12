@@ -132,6 +132,9 @@ html[data-theme="dark"] {
   & .bg-neutral-100, & .hover\:bg-neutral-100:hover, & .active\:bg-neutral-100:active { background-color: #313139; }
   & .bg-neutral-200, & .hover\:bg-neutral-200:hover, & .active\:bg-neutral-200:active { background-color: #3E3E47; }
   & .bg-neutral-200\/60 { background-color: rgba(62, 62, 71, 0.6); }
+  & .bg-neutral-50\/50, & .hover\:bg-neutral-50\/50:hover { background-color: rgba(44, 44, 52, 0.5); }
+  & .bg-gray-100 { background-color: #313139; }
+  & .divide-neutral-50 > :not([hidden]) ~ :not([hidden]) { border-color: #2C2C34; }
   & .border-neutral-100 { border-color: #34343C; }
   & .border-neutral-200 { border-color: #41414B; }
   & .text-neutral-900 { color: var(--ink); }
