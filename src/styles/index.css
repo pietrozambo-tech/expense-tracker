@@ -94,12 +94,12 @@
 html[data-theme="dark"] {
   color-scheme: dark;
   /* The legacy theme.css tokens body still paints through. */
-  --background: #121214;
+  --background: #0E0E10;
   --foreground: #F2F2F4;
-  --chip-ink: #3A3A40;
+  --chip-ink: #41414B;
   --chip-text: #C2C2CA;
   --chip-icon: #8A8A92;
-  --day-head: rgba(30, 30, 34, 0.5);
+  --day-head: rgba(35, 35, 41, 0.6);
   --ink: #F2F2F4;
   --ink-2: #98989F;
   --ink-3: #A8A8B0;
@@ -108,14 +108,14 @@ html[data-theme="dark"] {
   --disabled: #6C6C74;
   --ghost: #62626A;
   --ghost-2: #55555D;
-  --line: #38383E;
-  --line-2: #2E2E34;
-  --bg-page: #121214;
-  --bg-card: #1E1E22;
-  --bg-inset: #2A2A2F;
-  --bg-field: #2A2A2F;
-  --bg-track: #26262B;
-  --bg-off: #3A3A40;
+  --line: #3E3E47;
+  --line-2: #34343C;
+  --bg-page: #0E0E10;
+  --bg-card: #232329;
+  --bg-inset: #313139;
+  --bg-field: #313139;
+  --bg-track: #2C2C34;
+  --bg-off: #41414B;
   --wash-accent: #262C42;
   --wash-accent2: #24293C;
   --wash-accent3: #223046;
@@ -128,12 +128,12 @@ html[data-theme="dark"] {
  * nothing is generated - so light mode never routes through this block. */
 html[data-theme="dark"] {
   & .bg-white { background-color: var(--bg-card); }
-  & .bg-neutral-50, & .hover\:bg-neutral-50:hover, & .active\:bg-neutral-50:active { background-color: #26262B; }
-  & .bg-neutral-100, & .hover\:bg-neutral-100:hover, & .active\:bg-neutral-100:active { background-color: #2A2A2F; }
-  & .bg-neutral-200, & .hover\:bg-neutral-200:hover, & .active\:bg-neutral-200:active { background-color: #38383E; }
-  & .bg-neutral-200\/60 { background-color: rgba(56, 56, 62, 0.6); }
-  & .border-neutral-100 { border-color: #2E2E34; }
-  & .border-neutral-200 { border-color: #3A3A40; }
+  & .bg-neutral-50, & .hover\:bg-neutral-50:hover, & .active\:bg-neutral-50:active { background-color: #2C2C34; }
+  & .bg-neutral-100, & .hover\:bg-neutral-100:hover, & .active\:bg-neutral-100:active { background-color: #313139; }
+  & .bg-neutral-200, & .hover\:bg-neutral-200:hover, & .active\:bg-neutral-200:active { background-color: #3E3E47; }
+  & .bg-neutral-200\/60 { background-color: rgba(62, 62, 71, 0.6); }
+  & .border-neutral-100 { border-color: #34343C; }
+  & .border-neutral-200 { border-color: #41414B; }
   & .text-neutral-900 { color: var(--ink); }
   & .text-neutral-800 { color: #E4E4E8; }
   & .text-neutral-700 { color: #CFCFD6; }
@@ -145,7 +145,7 @@ html[data-theme="dark"] {
   & .bg-neutral-900 { background-color: #E8E8EC; }
   /* The two arbitrary-value page backgrounds in App.tsx. */
   & .bg-\[\#F6F5F2\] { background-color: var(--bg-page); }
-  @media (min-width: 768px) { & .md\:bg-\[\#ECEAE6\] { background-color: #0C0C0E; } }
+  @media (min-width: 768px) { & .md\:bg-\[\#ECEAE6\] { background-color: #09090B; } }
 
   /* Category tiles: the stored data says bg-<hue>-100 / text-<hue>-600, which
    * are pastel-on-white classes. In dark the same tile becomes a translucent
