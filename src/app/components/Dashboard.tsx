@@ -4068,8 +4068,13 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
         
         const selectedCat = selectedCategory !== 'All' ? trendSortedCategories.find(c => c.name === selectedCategory) : null;
         
+        // The wrapper below is the PAGE, so it uses the page colour. It said
+        // bg-neutral-50, which is the app's RAISED-surface grey: in light that
+        // is #FAFAFA against a #F6F5F2 page and the mismatch is invisible, but
+        // in dark it painted the whole tab on a lifted slab that stopped where
+        // the content did, leaving a black band beneath the last card.
         return (
-          <div className="bg-neutral-50">
+          <div style={{ backgroundColor: 'var(--bg-page)' }}>
             {/* Transaction Type Selector */}
             <div className="px-6 pt-2 pb-3 bg-white border-b border-neutral-100">
               <div className="flex items-center gap-3 justify-between">
