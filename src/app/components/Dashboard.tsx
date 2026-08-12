@@ -4076,7 +4076,13 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
         return (
           <div style={{ backgroundColor: 'var(--bg-page)' }}>
             {/* Transaction Type Selector */}
-            <div className="px-6 pt-2 pb-3 bg-white border-b border-neutral-100">
+            {/* Header chrome, so it takes the PAGE colour, not a card's.
+                As bg-white it became card-grey in dark and read as a stripe
+                across the top of the tab - two stripes, with the filter row
+                below it. Activity's filter header already sits on the page;
+                this makes Trend match. No divider between the two rows: they
+                are one header unit, and only its bottom edge needs a line. */}
+            <div className="px-6 pt-2 pb-3" style={{ backgroundColor: 'var(--bg-page)' }}>
               <div className="flex items-center gap-3 justify-between">
                 {/* The same control as the Dashboard's, one segment wider:
                     an inset track and a thumb that slides to the chosen third.
@@ -4155,7 +4161,11 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
               const chip = (on: boolean) => (on ? FILTER_ACTIVE : FILTER_IDLE);
 
               return (
-                <div className="sticky top-0 z-10 bg-white border-b border-neutral-100 px-6 py-2">
+                <div
+                  className="sticky top-0 z-10 border-b border-neutral-100 px-6 py-2"
+                  // Opaque on purpose: rows scroll underneath it.
+                  style={{ backgroundColor: 'var(--bg-page)' }}
+                >
                   <div className="flex items-center gap-1.5">
                     {/* Category Filter Button */}
                     <button
