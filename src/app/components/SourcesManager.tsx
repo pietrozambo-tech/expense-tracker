@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { SUBPAGE_STYLE, DOCK_CLEARANCE } from './subpageLayout';
 import { t } from '../i18n';
 import { getLanguage } from '../i18n/store';
 import { ChevronLeft, Plus, Pencil, Trash2, ChevronRight } from 'lucide-react';
@@ -46,10 +47,10 @@ export function SourcesManager({
   };
 
   return (
-    // Same bound as the other Settings sub-screens: the tab wrapper already
-    // contributes the top inset and the nav-clearing bottom padding, so a
-    // full-viewport child overflows by exactly that (see SUBPAGE_HEIGHT).
-    <div className="flex flex-col overflow-hidden" style={{ height: 'calc(100dvh - 136px)', backgroundColor: '#F6F5F2' }}>
+    // Same geometry as every other Settings sub-screen - imported rather than
+    // written out, because the copy that used to live here was the one place
+    // the fix would have been missed.
+    <div className="flex flex-col overflow-hidden" style={SUBPAGE_STYLE}>
       {/* Header */}
       <div className="flex-shrink-0" style={{ backgroundColor: '#F6F5F2' }}>
         <div className="px-6 pb-4 pt-0">
@@ -65,7 +66,7 @@ export function SourcesManager({
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto pb-24">
+      <div className="flex-1 overflow-y-auto" style={{ paddingBottom: DOCK_CLEARANCE }}>
         <div className="px-6 pb-5">
           <p style={{ color: '#8E8E93', fontSize: '13px' }}>
             {getLanguage() === 'it'

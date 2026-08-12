@@ -7,13 +7,8 @@ import { switchGlow } from './categoryColors';
 const SUPPORT_EMAIL = 'support@tracklylab.com';
 const isValidEmail = (e: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e.trim());
 
-// Settings sub-screens fill the tab area and scroll inside themselves. They
-// cannot be 100dvh: the tab wrapper in App.tsx already contributes the 8px top
-// inset and the 128px of bottom padding that clears the nav bar, so a
-// full-viewport child overflowed by exactly that and every sub-screen could be
-// dragged down onto 136px of empty background.
-const SUBPAGE_HEIGHT = 'calc(100dvh - 136px)';
 import { useEffect, useRef, useState } from 'react';
+import { SUBPAGE_STYLE, DOCK_CLEARANCE } from './subpageLayout';
 import { toast } from 'sonner';
 import { Categories } from './Categories';
 import { ScheduledManager, type ScheduleDraft } from './ScheduledManager';
@@ -427,7 +422,7 @@ export function Settings({
   // choose from, not a control sitting open on the root menu.
   if (showLanguage) {
     return (
-      <div className="flex flex-col" style={{ height: SUBPAGE_HEIGHT, backgroundColor: '#F6F5F2' }}>
+      <div className="flex flex-col" style={SUBPAGE_STYLE}>
         <div style={{ backgroundColor: '#F6F5F2' }}>
           <div className="px-6 pb-4 pt-0">
             <div className="flex items-center justify-center relative">
@@ -442,7 +437,7 @@ export function Settings({
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto pb-24">
+        <div className="flex-1 overflow-y-auto" style={{ paddingBottom: DOCK_CLEARANCE }}>
           <div className="px-6 pb-6">
             <p style={{ color: '#8E8E93', fontSize: '13px' }}>{t('set.languageHint')}</p>
           </div>
@@ -500,7 +495,7 @@ export function Settings({
   // Show Currency Selector
   if (showCurrencySelector) {
     return (
-      <div className="flex flex-col" style={{ height: SUBPAGE_HEIGHT, backgroundColor: '#F6F5F2' }}>
+      <div className="flex flex-col" style={SUBPAGE_STYLE}>
         {/* Fixed Header Section */}
         <div style={{ backgroundColor: '#F6F5F2' }}>
           {/* Header with back button and title */}
@@ -521,7 +516,7 @@ export function Settings({
         </div>
 
         {/* Scrollable Content Section */}
-        <div className="flex-1 overflow-y-auto pb-24">
+        <div className="flex-1 overflow-y-auto" style={{ paddingBottom: DOCK_CLEARANCE }}>
           <div className="px-6 pb-6">
             <p style={{ color: '#8E8E93', fontSize: '13px' }}>
               {t('set.currencyHint')}
@@ -607,7 +602,7 @@ export function Settings({
   // Show Name Editor
   if (showNameEditor) {
     return (
-      <div className="flex flex-col" style={{ height: SUBPAGE_HEIGHT, backgroundColor: '#F6F5F2' }}>
+      <div className="flex flex-col" style={SUBPAGE_STYLE}>
         {/* Header */}
         <div style={{ backgroundColor: '#F6F5F2' }}>
           <div className="px-6 pb-3 pt-0">
@@ -639,7 +634,7 @@ export function Settings({
             hint under every field was competing with the field above it.
             Grouping them puts the labels IN the rows, where they cost nothing,
             and leaves one explanatory line for the whole card. */}
-        <div className="flex-1 overflow-y-auto px-6" style={{ paddingBottom: 28 }}>
+        <div className="flex-1 overflow-y-auto px-6" style={{ paddingBottom: DOCK_CLEARANCE }}>
           <div
             className="rounded-2xl overflow-hidden"
             style={{ backgroundColor: '#FFFFFF', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}
@@ -761,7 +756,7 @@ export function Settings({
   // Show Categories subpage
   if (showCategories) {
     return (
-      <div className="flex flex-col overflow-hidden" style={{ height: SUBPAGE_HEIGHT, backgroundColor: '#F6F5F2' }}>
+      <div className="flex flex-col overflow-hidden" style={SUBPAGE_STYLE}>
         {/* Fixed Header Section */}
         <div className="flex-shrink-0" style={{ backgroundColor: '#F6F5F2' }}>
           {/* Header with back button and title */}
@@ -817,7 +812,7 @@ export function Settings({
         </div>
         
         {/* Scrollable Categories Section */}
-        <div className="flex-1 overflow-y-auto" style={{ paddingBottom: '96px' }}>
+        <div className="flex-1 overflow-y-auto" style={{ paddingBottom: DOCK_CLEARANCE }}>
           <Categories
             categories={categoryType === 'expense' ? categories : incomeCategories}
             onAddCategory={categoryType === 'expense' ? onAddCategory : onAddIncomeCategory}
@@ -843,7 +838,7 @@ export function Settings({
   // Show About subpage
   if (showAbout) {
     return (
-      <div className="flex flex-col" style={{ height: SUBPAGE_HEIGHT, backgroundColor: '#F6F5F2' }}>
+      <div className="flex flex-col" style={SUBPAGE_STYLE}>
         <div style={{ backgroundColor: '#F6F5F2' }}>
           <div className="px-6 pb-4 pt-0">
             <div className="flex items-center justify-center relative">
@@ -858,7 +853,7 @@ export function Settings({
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto pb-24">
+        <div className="flex-1 overflow-y-auto" style={{ paddingBottom: DOCK_CLEARANCE }}>
           {/* Brand */}
           <div className="flex flex-col items-center text-center px-6 pt-6 pb-8">
             <TracklyLogo size={80} className="mb-4" />
@@ -1120,7 +1115,7 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
     );
 
     return (
-      <div className="flex flex-col" style={{ height: SUBPAGE_HEIGHT, backgroundColor: '#F6F5F2' }}>
+      <div className="flex flex-col" style={SUBPAGE_STYLE}>
         <div style={{ backgroundColor: '#F6F5F2' }}>
           <div className="px-6 pb-4 pt-0">
             <div className="flex items-center justify-center relative">
@@ -1135,7 +1130,7 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-6 pb-28">
+        <div className="flex-1 overflow-y-auto px-6" style={{ paddingBottom: DOCK_CLEARANCE }}>
           {/* Intro */}
           <div className="pt-2 pb-4">
             <h2 style={{ color: '#1C1C1E', fontSize: 22, fontWeight: 700, letterSpacing: '-0.02em' }}>
@@ -1270,7 +1265,7 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
 
   if (showScheduled) {
     return (
-      <div className="flex flex-col overflow-hidden" style={{ height: SUBPAGE_HEIGHT, backgroundColor: '#F6F5F2' }}>
+      <div className="flex flex-col overflow-hidden" style={SUBPAGE_STYLE}>
         <div className="flex-shrink-0" style={{ backgroundColor: '#F6F5F2' }}>
           <div className="px-6 pb-4 pt-0">
             <div className="flex items-center justify-center relative">
@@ -1286,7 +1281,7 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
             </div>
           </div>
         </div>
-        <div className="flex-1 overflow-y-auto" style={{ paddingBottom: '96px' }}>
+        <div className="flex-1 overflow-y-auto" style={{ paddingBottom: DOCK_CLEARANCE }}>
           <ScheduledManager
             rules={recurringRules}
             transactions={transactions}
@@ -1309,7 +1304,7 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
   // Show Contacts subpage — a form that sends a message straight from the app.
   if (showSupport) {
     return (
-      <div className="flex flex-col" style={{ height: SUBPAGE_HEIGHT, backgroundColor: '#F6F5F2' }}>
+      <div className="flex flex-col" style={SUBPAGE_STYLE}>
         <div style={{ backgroundColor: '#F6F5F2' }}>
           <div className="px-6 pb-4 pt-0">
             <div className="flex items-center justify-center relative">
@@ -1347,7 +1342,7 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
             </button>
           </div>
         ) : (
-          <div className="flex-1 overflow-y-auto px-6 pb-28">
+          <div className="flex-1 overflow-y-auto px-6" style={{ paddingBottom: DOCK_CLEARANCE }}>
             <div className="pt-2 pb-5">
               <h2 style={{ color: '#1C1C1E', fontSize: 22, fontWeight: 700, letterSpacing: '-0.02em' }}>
                 {t('set.supportTitle')}

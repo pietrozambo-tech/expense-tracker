@@ -257,7 +257,10 @@ export function Categories({
           </div>
 
           {/* Add Category Button */}
-          <div className="px-6 py-4" style={{ paddingBottom: '120px' }}>
+          {/* No dock padding of its own: the Settings sub-page this renders
+              inside already reserves it (DOCK_CLEARANCE). Adding a second
+              helping only pushed the button further up the empty space. */}
+          <div className="px-6 py-4">
             <button
               onClick={() => {
                 setShowAddCategory(true);
