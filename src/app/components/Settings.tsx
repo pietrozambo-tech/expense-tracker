@@ -7,6 +7,27 @@ import { switchGlow } from './categoryColors';
 const SUPPORT_EMAIL = 'support@tracklylab.com';
 const isValidEmail = (e: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e.trim());
 
+import { useEffect, useRef, useState } from 'react';
+import { SUBPAGE_STYLE, DOCK_CLEARANCE } from './subpageLayout';
+import { toast } from 'sonner';
+import { Categories } from './Categories';
+import { ScheduledManager, type ScheduleDraft } from './ScheduledManager';
+import { upcomingSchedules } from '../lib/recurrence';
+import type { RecurringRule } from '../types';
+import { SourcesManager } from './SourcesManager';
+import { TracklyLogo } from './TracklyLogo';
+import { ConfirmDialog } from './ConfirmDialog';
+import { CURRENCIES, MAIN_CURRENCY_CODES } from '../utils/currency';
+import { CurrencySearchList } from './CurrencySearchList';
+import { LegalScreen } from './LegalScreen';
+import { PRIVACY_POLICY, TERMS_OF_SERVICE, type LegalDoc } from '../lib/legalContent';
+import type { Source } from '../types';
+import type { ImportPayload } from '../lib/importData';
+import { t, type Language as AppLanguage } from '../i18n';
+import { CATCHALL_RE } from '../lib/categoryOps';
+import { dateLocale, daysShort, getLanguage } from '../i18n/store';
+import { isBackupFile } from '../lib/backup';
+
 // One row of the Profile card with an iOS-style switch. Budget and insights
 // share it, so the two toggles cannot drift apart visually.
 function SwitchRow({ label, on, divider, onToggle }: {
@@ -39,26 +60,6 @@ function SwitchRow({ label, on, divider, onToggle }: {
   );
 }
 
-import { useEffect, useRef, useState } from 'react';
-import { SUBPAGE_STYLE, DOCK_CLEARANCE } from './subpageLayout';
-import { toast } from 'sonner';
-import { Categories } from './Categories';
-import { ScheduledManager, type ScheduleDraft } from './ScheduledManager';
-import { upcomingSchedules } from '../lib/recurrence';
-import type { RecurringRule } from '../types';
-import { SourcesManager } from './SourcesManager';
-import { TracklyLogo } from './TracklyLogo';
-import { ConfirmDialog } from './ConfirmDialog';
-import { CURRENCIES, MAIN_CURRENCY_CODES } from '../utils/currency';
-import { CurrencySearchList } from './CurrencySearchList';
-import { LegalScreen } from './LegalScreen';
-import { PRIVACY_POLICY, TERMS_OF_SERVICE, type LegalDoc } from '../lib/legalContent';
-import type { Source } from '../types';
-import type { ImportPayload } from '../lib/importData';
-import { t, type Language as AppLanguage } from '../i18n';
-import { CATCHALL_RE } from '../lib/categoryOps';
-import { dateLocale, daysShort, getLanguage } from '../i18n/store';
-import { isBackupFile } from '../lib/backup';
 
 // The languages the app ships in. The row leads with the ENDONYM - someone
 // looking for their language scans for its own name, not its English one - and
@@ -361,16 +362,17 @@ export function Settings({
     const nameMoved = name !== userName;
     const budgetMoved = budget !== monthlyBudget;
     onUserNameChange(name);
-    onMonthlyBudgetChange?.(budget);
+    // Only a real move reaches the app: the handler up there also decides the
+    // Dashboard's budget nudge, and a name-only save must not touch a flag
+    // that is persisted and synced.
+    if (budgetMoved) onMonthlyBudgetChange?.(budget);
     // Say what actually changed. This screen saves two fields and sits beside
     // two more that apply on the spot, so a fixed "Name updated" was wrong
     // more often than right - it fired for a budget edit, and for a Save
     // pressed after only flipping the insights switch.
     if (nameMoved && budgetMoved) toast.success(t('toast.profileUpdated'), { duration: 1400 });
     else if (nameMoved) toast.success(t('toast.nameUpdated'), { duration: 1400 });
-    else if (budgetMoved) {
-      toast.success(t(budget === undefined ? 'toast.budgetRemoved' : 'toast.budgetUpdated'), { duration: 1400 });
-    }
+    else if (budgetMoved) toast.success(t('toast.budgetUpdated'), { duration: 1400 });
     setShowNameEditor(false);
   };
 
@@ -705,11 +707,28 @@ export function Settings({
               label={t('set.monthlyBudget')}
               on={budgetOn}
               divider
-              onToggle={() => setBudgetOn(!budgetOn)}
+              onToggle={() => {
+                // Switches commit on the spot, exactly like insights below -
+                // two identical controls in one card must not differ on
+                // whether flipping them means anything. OFF needs no further
+                // input, so it removes the budget right here; ON only opens
+                // the amount row, and the budget exists once Save accepts a
+                // number. Leaving without saving keeps it off, which is what
+                // the reopened card will honestly show.
+                if (budgetOn) {
+                  setBudgetOn(false);
+                  if (monthlyBudget !== undefined) {
+                    onMonthlyBudgetChange?.(undefined);
+                    toast.success(t('toast.budgetRemoved'), { duration: 1400 });
+                  }
+                } else {
+                  setBudgetOn(true);
+                }
+              }}
             />
             {budgetOn && (
               <div className="flex items-center gap-3 px-4" style={{ height: 52, borderBottom: '1px solid #F2F1ED' }}>
-                <span className="flex-shrink-0" style={{ color: '#8E8E93', fontSize: 15 }}>{t('sched.amount')}</span>
+                <span className="flex-shrink-0" style={{ color: '#8E8E93', fontSize: 15 }}>{t('set.amount')}</span>
                 <div className="flex-1 min-w-0 flex items-center justify-end gap-1">
                   <span style={{ color: '#8E8E93', fontSize: 15 }}>{CURRENCIES[userCurrency]?.symbol ?? ''}</span>
                   <input
@@ -723,7 +742,7 @@ export function Settings({
                     // The field starts focused when the toggle opens it empty:
                     // the switch said yes, the number is the one thing missing.
                     autoFocus={!editedBudget}
-                    placeholder="0"
+                    placeholder="—"
                     className="w-24 text-right bg-transparent outline-none tabular-nums"
                     style={{ fontSize: 16, color: '#1C1C1E', fontWeight: 500 }}
                   />
