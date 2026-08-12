@@ -154,14 +154,14 @@ export function ScheduleEditor({
             <button
               onClick={() => switchType('expense')}
               className="relative flex-1 py-1.5 text-sm font-medium transition-colors"
-              style={{ color: type === 'expense' ? '#C2352B' : 'var(--ink-2)' }}
+              style={{ color: type === 'expense' ? 'var(--tone-expense)' : 'var(--ink-2)' }}
             >
               {t('seg.expenses')}
             </button>
             <button
               onClick={() => switchType('income')}
               className="relative flex-1 py-1.5 text-sm font-medium transition-colors"
-              style={{ color: type === 'income' ? '#1F7A43' : 'var(--ink-2)' }}
+              style={{ color: type === 'income' ? 'var(--tone-income)' : 'var(--ink-2)' }}
             >
               {t('seg.income')}
             </button>

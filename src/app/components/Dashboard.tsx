@@ -2250,7 +2250,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
               {trendYoY.kind === 'delta' ? (
                 <>
                   <span style={{
-                    color: trendYoY.good === null ? 'var(--ink-2)' : trendYoY.good ? '#1F7A43' : '#B44A40',
+                    color: trendYoY.good === null ? 'var(--ink-2)' : trendYoY.good ? 'var(--tone-income)' : 'var(--tone-over)',
                     fontWeight: 600,
                   }}>
                     {t(trendYoY.pct === 0 ? 'trend.yoySame' : trendYoY.pct < 0 ? 'trend.yoyBelow' : 'trend.yoyAbove',
@@ -2488,14 +2488,14 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
               <button
                 onClick={() => setTransactionType('expense')}
                 className="relative flex-1 py-1.5 text-sm font-medium transition-colors"
-                style={{ color: transactionType === 'expense' ? '#C2352B' : 'var(--ink-2)' }}
+                style={{ color: transactionType === 'expense' ? 'var(--tone-expense)' : 'var(--ink-2)' }}
               >
                 {t('seg.expenses')}
               </button>
               <button
                 onClick={() => setTransactionType('income')}
                 className="relative flex-1 py-1.5 text-sm font-medium transition-colors"
-                style={{ color: transactionType === 'income' ? '#1F7A43' : 'var(--ink-2)' }}
+                style={{ color: transactionType === 'income' ? 'var(--tone-income)' : 'var(--ink-2)' }}
               >
                 {t('seg.income')}
               </button>
@@ -2562,9 +2562,9 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                 className="rounded-2xl overflow-hidden"
                 style={{ backgroundColor: 'var(--bg-card)', boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)' }}
               >
-                <div style={{ padding: '13px 16px 12px', background: 'linear-gradient(135deg, #EEF1FE 0%, #FFFFFF 70%)' }}>
+                <div style={{ padding: '13px 16px 12px', background: 'linear-gradient(135deg, var(--wash-accent) 0%, var(--bg-card) 70%)' }}>
                   <div className="flex items-start justify-between gap-2">
-                    <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', color: '#4F74F3' }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.06em', color: 'var(--accent-text)' }}>
                       {t('review.eyebrow')}
                     </div>
                     {/* Quiet, and it asks before it acts: the card is the only
@@ -2591,7 +2591,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                         letterSpacing: '-0.4px',
                         // The budget bar's tones: amber over, green under,
                         // ink when it is neither. Not the alarm reds.
-                        color: periodReview.vsUsual > 5 ? '#96631A' : periodReview.vsUsual < -5 ? '#2C7A54' : 'var(--ink)',
+                        color: periodReview.vsUsual > 5 ? 'var(--tone-warn)' : periodReview.vsUsual < -5 ? 'var(--tone-good)' : 'var(--ink)',
                       }}
                     >
                       {Math.abs(periodReview.vsUsual) <= 5
@@ -2652,7 +2652,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                           ? t('review.aboveShort', { pct: periodReview.without.pct })
                           : t('review.belowShort', { pct: Math.abs(periodReview.without.pct) })
                       }
-                      tone={periodReview.without.pct < 0 ? '#2C7A54' : '#96631A'}
+                      tone={periodReview.without.pct < 0 ? 'var(--tone-good)' : 'var(--tone-warn)'}
                       last
                     />
                   )}
@@ -2834,10 +2834,10 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                               {/* Trend Indicator */}
                               <div className="w-8 flex items-center justify-center ml-1.5">
                                 {trend === 'up' && (
-                                  <TrendingUp className="w-3.5 h-3.5" style={{ color: transactionType === 'expense' ? '#B44A40' : '#1F7A43', strokeWidth: 2.5 }} />
+                                  <TrendingUp className="w-3.5 h-3.5" style={{ color: transactionType === 'expense' ? 'var(--tone-over)' : 'var(--tone-income)', strokeWidth: 2.5 }} />
                                 )}
                                 {trend === 'down' && (
-                                  <TrendingDown className="w-3.5 h-3.5" style={{ color: transactionType === 'expense' ? '#1F7A43' : '#B44A40', strokeWidth: 2.5 }} />
+                                  <TrendingDown className="w-3.5 h-3.5" style={{ color: transactionType === 'expense' ? 'var(--tone-income)' : 'var(--tone-over)', strokeWidth: 2.5 }} />
                                 )}
                                 {trend === 'neutral' && (
                                   <Minus className="w-3.5 h-3.5" style={{ color: 'var(--ink-2)', strokeWidth: 2.5 }} />
@@ -2892,10 +2892,10 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                                       {/* Trend Indicator */}
                                       <div className="w-8 flex items-center justify-center ml-1.5">
                                         {subTrend === 'up' && (
-                                          <TrendingUp className="w-3 h-3" style={{ color: transactionType === 'expense' ? '#B44A40' : '#1F7A43', strokeWidth: 2.5 }} />
+                                          <TrendingUp className="w-3 h-3" style={{ color: transactionType === 'expense' ? 'var(--tone-over)' : 'var(--tone-income)', strokeWidth: 2.5 }} />
                                         )}
                                         {subTrend === 'down' && (
-                                          <TrendingDown className="w-3 h-3" style={{ color: transactionType === 'expense' ? '#1F7A43' : '#B44A40', strokeWidth: 2.5 }} />
+                                          <TrendingDown className="w-3 h-3" style={{ color: transactionType === 'expense' ? 'var(--tone-income)' : 'var(--tone-over)', strokeWidth: 2.5 }} />
                                         )}
                                         {subTrend === 'neutral' && (
                                           <Minus className="w-3 h-3" style={{ color: 'var(--ink-2)', strokeWidth: 2.5 }} />
@@ -4093,8 +4093,8 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                     aria-hidden="true"
                   />
                   {([
-                    { key: 'expense', label: t('seg.expenses'), color: '#C2352B' },
-                    { key: 'income', label: t('seg.income'), color: '#1F7A43' },
+                    { key: 'expense', label: t('seg.expenses'), color: 'var(--tone-expense)' },
+                    { key: 'income', label: t('seg.income'), color: 'var(--tone-income)' },
                     { key: 'savings', label: t('seg.savings'), color: 'var(--ink)' },
                   ] as const).map(({ key, label, color }) => (
                     <button
@@ -4940,8 +4940,8 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                             // Grey, not red, when the rate yields to the dash
                             // (deeper than -100%: almost no income that month).
                             color: monthlySavingRate < -100 ? 'var(--ink-2)'
-                              : monthlySavingRate < 0 ? '#B44A40'
-                              : monthlySavingRate > 0 ? '#1F7A43' : 'var(--ink-2)',
+                              : monthlySavingRate < 0 ? 'var(--tone-over)'
+                              : monthlySavingRate > 0 ? 'var(--tone-income)' : 'var(--ink-2)',
                           }}
                         >
                           {monthlySavingRate !== 0 ? formatSavingRate(monthlySavingRate) : '-'}

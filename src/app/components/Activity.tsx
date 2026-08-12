@@ -357,12 +357,12 @@ export function Activity({
     ) : activityType === 'income' ? (
       // Green here too: every row below it is income, and the segment thumb
       // has already glowed green to say so.
-      <span style={{ color: '#1F7A43', fontWeight: 600 }}>
+      <span style={{ color: 'var(--tone-income)', fontWeight: 600 }}>
         <AmountText sign="+" amount={netTotal} currency={currency} decimals={0} abbreviate="fit" />
       </span>
     ) : (
       <>
-        <span style={{ color: '#1F7A43', fontWeight: 600 }}>
+        <span style={{ color: 'var(--tone-income)', fontWeight: 600 }}>
           <AmountText amount={inTotal} currency={currency} decimals={0} abbreviate="fit" />
         </span>
         <span> {t('act.in')} · </span>
@@ -437,8 +437,8 @@ export function Activity({
   // All is a scope rather than a direction, so it glows neutral.
   const typeOptions: Array<{ value: ActivityTypeFilter; label: string; activeColor: string }> = [
     { value: 'all', label: t('act.all'), activeColor: 'var(--ink)' },
-    { value: 'expense', label: t('act.expenses'), activeColor: '#C2352B' },
-    { value: 'income', label: t('act.income'), activeColor: '#1F7A43' }
+    { value: 'expense', label: t('act.expenses'), activeColor: 'var(--tone-expense)' },
+    { value: 'income', label: t('act.income'), activeColor: 'var(--tone-income)' }
   ];
 
   return (

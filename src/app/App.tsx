@@ -2416,14 +2416,14 @@ export default function App() {
                   <button
                     onClick={() => handleTransactionTypeChange('expense')}
                     className="relative px-5 py-1.5 text-sm font-medium transition-colors"
-                    style={{ color: transactionType === 'expense' ? '#C2352B' : 'var(--ink-2)', minWidth: 96 }}
+                    style={{ color: transactionType === 'expense' ? 'var(--tone-expense)' : 'var(--ink-2)', minWidth: 96 }}
                   >
                     {t('add.expense')}
                   </button>
                   <button
                     onClick={() => handleTransactionTypeChange('income')}
                     className="relative px-5 py-1.5 text-sm font-medium transition-colors"
-                    style={{ color: transactionType === 'income' ? '#1F7A43' : 'var(--ink-2)', minWidth: 96 }}
+                    style={{ color: transactionType === 'income' ? 'var(--tone-income)' : 'var(--ink-2)', minWidth: 96 }}
                   >
                     {t('add.income')}
                   </button>

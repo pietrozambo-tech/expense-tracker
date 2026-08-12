@@ -53,7 +53,7 @@ export function ExpenseItem({ expense, onTap, onDelete, currency, showDate = fal
   const sign = isCredit ? '+' : '-';
   // The muted green the app uses for money-meaning on white surfaces (the
 // vivid iOS pair is reserved for the dark hero and destructive actions).
-const creditStyle = isCredit ? { color: '#1F7A43' } : undefined;
+const creditStyle = isCredit ? { color: 'var(--tone-income)' } : undefined;
 
   return (
     <>
@@ -67,7 +67,7 @@ const creditStyle = isCredit ? { color: '#1F7A43' } : undefined;
           aria-label="Delete expense"
           tabIndex={isOpen ? 0 : -1}
           className="absolute right-0 top-0 bottom-0 w-20 flex items-center justify-center active:bg-red-600"
-          style={{ backgroundColor: '#EF4444' }}
+          style={{ backgroundColor: 'var(--tone-danger)' }}
         >
           <Trash2 size={20} className="text-white" />
         </button>

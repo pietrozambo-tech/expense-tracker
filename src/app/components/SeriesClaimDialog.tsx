@@ -68,7 +68,7 @@ export function SeriesClaimDialog({
                     width: 22,
                     height: 22,
                     borderRadius: 7,
-                    backgroundColor: on ? '#4F74F3' : '#FFFFFF',
+                    backgroundColor: on ? '#4F74F3' : 'var(--bg-card)',
                     border: on ? '1px solid #4F74F3' : '1.5px solid var(--ghost-2)',
                   }}
                 >
@@ -102,7 +102,7 @@ export function SeriesClaimDialog({
             className="w-full py-3.5 rounded-xl font-medium text-[15px] transition-all active:scale-[0.98]"
             style={{
               backgroundColor: total === 0 ? 'var(--line)' : '#4F74F3',
-              color: total === 0 ? '#9CA3AF' : '#FFFFFF',
+              color: total === 0 ? 'var(--disabled)' : '#FFFFFF',
             }}
           >
             {total === 0 ? t('series.nothing') : t(total === 1 ? 'series.mark.one' : 'series.mark.other', { n: total })}

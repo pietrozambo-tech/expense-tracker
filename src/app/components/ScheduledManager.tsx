@@ -146,7 +146,7 @@ export function ScheduledManager({
                     decimals={rule.template.amount % 1 ? 2 : 0}
                     abbreviate={abbrev}
                     sign={income ? '+' : '-'}
-                    style={{ color: income ? '#1F7A43' : 'var(--ink)', fontSize: 15, fontWeight: 600 }}
+                    style={{ color: income ? 'var(--tone-income)' : 'var(--ink)', fontSize: 15, fontWeight: 600 }}
                   />
                 </div>
                 <div className="flex items-center gap-1 mt-2.5 pt-2.5" style={{ borderTop: '1px solid var(--bg-page)' }}>

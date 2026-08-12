@@ -102,7 +102,7 @@ export function SignIn() {
             </div>
 
             {authError && (
-              <div className="mb-4 px-4 py-3 rounded-xl" style={{ backgroundColor: '#FFF0EF', border: '1px solid #FFD5D2' }}>
+              <div className="mb-4 px-4 py-3 rounded-xl" style={{ backgroundColor: 'var(--wash-over)', border: '1px solid #FFD5D2' }}>
                 <p style={{ color: '#C4271C', fontSize: 13, lineHeight: 1.4 }}>
                   <span style={{ fontWeight: 600 }}>{getLanguage() === 'it' ? "L'accesso non è andato a buon fine." : "Sign-in didn't complete."}</span> {authError}
                 </p>
@@ -145,9 +145,9 @@ export function SignIn() {
               <>
                 {/* Divider */}
                 <div className="flex items-center gap-3 my-4">
-                  <div className="flex-1 h-px" style={{ background: '#E3E3E8' }} />
+                  <div className="flex-1 h-px" style={{ background: 'var(--hairline)' }} />
                   <span style={{ color: 'var(--disabled)', fontSize: 12, fontWeight: 500 }}>OR</span>
-                  <div className="flex-1 h-px" style={{ background: '#E3E3E8' }} />
+                  <div className="flex-1 h-px" style={{ background: 'var(--hairline)' }} />
                 </div>
 
                 {/* Email input */}

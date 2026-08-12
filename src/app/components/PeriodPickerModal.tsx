@@ -55,7 +55,7 @@ function Cell({ label, sub, selected, disabled, hasData, onClick }: {
       className="rounded-xl flex flex-col items-center justify-center disabled:opacity-30"
       style={{
         height: sub ? '58px' : '52px',
-        backgroundColor: selected ? 'var(--wash-accent2)' : '#F7F7F8',
+        backgroundColor: selected ? 'var(--wash-accent2)' : 'var(--bg-inset)',
         boxShadow: selected ? 'inset 0 0 0 2px #4F74F3' : 'none',
         transition: 'background-color 0.15s ease',
         WebkitTapHighlightColor: 'rgba(255, 255, 255, 0)',

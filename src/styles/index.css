@@ -89,6 +89,17 @@
   --chip-text: #525252;
   --chip-icon: #A3A3A3;
   --day-head: rgba(250, 250, 250, 0.5);
+  --wash-warn: #FAF0DC;
+  --wash-over: #FAE7E4;
+  --tone-good: #2C7A54;
+  --tone-warn: #96631A;
+  --tone-over: #B44A40;
+  --tail-grey: #DEDCD6;
+  --hairline: #E3E3E8;
+  --tone-expense: #C2352B;
+  --tone-income: #1F7A43;
+  --tone-danger: #EF4444;
+  --accent-text: #4F74F3;
 }
 
 html[data-theme="dark"] {
@@ -100,11 +111,26 @@ html[data-theme="dark"] {
   --chip-text: #C2C2CA;
   --chip-icon: #8A8A92;
   --day-head: rgba(35, 35, 41, 0.6);
+  /* Washes go deep and desaturated; the inks that sit ON them go light, or
+   * a colour picked for contrast against cream fails against charcoal. */
+  --wash-warn: #3A3020;
+  --wash-over: #3A2523;
+  --tone-good: #5FD39A;
+  --tone-warn: #E0A94A;
+  --tone-over: #F0857A;
+  --tail-grey: #4A4A52;
+  --hairline: #3E3E47;
+  /* Reds, greens and the accent were picked against cream. On charcoal the
+   * same values fall to 2.5-3.8:1, so each gets a lighter sibling. */
+  --tone-expense: #FF7A6E;
+  --tone-income: #4ADE80;
+  --tone-danger: #FF6B6B;
+  --accent-text: #8AA4FF;
   --ink: #F2F2F4;
-  --ink-2: #98989F;
+  --ink-2: #A6A6AE;
   --ink-3: #A8A8B0;
-  --faint: #707078;
-  --faint-2: #7A7A82;
+  --faint: #8A8A93;
+  --faint-2: #92929B;
   --disabled: #6C6C74;
   --ghost: #62626A;
   --ghost-2: #55555D;
@@ -141,8 +167,8 @@ html[data-theme="dark"] {
   & .text-neutral-800 { color: #E4E4E8; }
   & .text-neutral-700 { color: #CFCFD6; }
   & .text-neutral-600 { color: #B4B4BC; }
-  & .text-neutral-500 { color: #98989F; }
-  & .text-neutral-400 { color: #7A7A82; }
+  & .text-neutral-500 { color: #A6A6AE; }
+  & .text-neutral-400 { color: #92929B; }
   & .text-neutral-300 { color: #5C5C64; }
   & .bg-blue-50 { background-color: var(--wash-accent2); }
   & .bg-neutral-900 { background-color: #E8E8EC; }

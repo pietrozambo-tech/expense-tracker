@@ -86,7 +86,7 @@ export function ActivityDayGroup({
           currency={currency}
           decimals={2}
           className="text-[10px] font-medium tabular-nums pr-4"
-          style={{ minWidth: '80px', textAlign: 'right', color: ahead ? '#1F7A43' : '#A3A3A3' }}
+          style={{ minWidth: '80px', textAlign: 'right', color: ahead ? 'var(--tone-income)' : '#A3A3A3' }}
         />
       </div>
 

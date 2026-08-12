@@ -8,7 +8,7 @@ import { t } from '../i18n';
 
 // The colour of "everything else": the composition bar's tail segment, and the
 // dot on every row folded into it.
-const TAIL_GREY = '#DEDCD6';
+const TAIL_GREY = 'var(--tail-grey)';
 
 interface TrendCategoryBreakdownProps {
   // Only the transactions inside the months monthCount counts. Every figure

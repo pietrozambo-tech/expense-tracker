@@ -86,7 +86,7 @@ export function Onboarding({ onComplete, initialName = '' }: OnboardingProps) {
                   onClick={() => setLanguage(option.code)}
                   className="flex items-center gap-3 p-4 rounded-xl text-left outline-none transition-all"
                   style={{
-                    backgroundColor: isSelected ? 'var(--bg-inset)' : '#FFFFFF',
+                    backgroundColor: isSelected ? 'var(--bg-inset)' : 'var(--bg-card)',
                     border: isSelected ? '2px solid #4F74F3' : '1px solid var(--line)',
                     boxShadow: isSelected
                       ? '0 0 0 3px rgba(0, 122, 255, 0.08)'
@@ -158,7 +158,7 @@ export function Onboarding({ onComplete, initialName = '' }: OnboardingProps) {
                   onClick={() => setCurrency(option.code)}
                   className="flex items-center gap-3 p-4 rounded-xl text-left outline-none transition-all"
                   style={{
-                    backgroundColor: isSelected ? 'var(--bg-inset)' : '#FFFFFF',
+                    backgroundColor: isSelected ? 'var(--bg-inset)' : 'var(--bg-card)',
                     border: isSelected ? '2px solid #4F74F3' : '1px solid var(--line)',
                     boxShadow: isSelected
                       ? '0 0 0 3px rgba(0, 122, 255, 0.08)'
@@ -188,7 +188,7 @@ export function Onboarding({ onComplete, initialName = '' }: OnboardingProps) {
             onClick={() => setShowAllCurrencies(true)}
             className="w-full flex items-center gap-3 p-4 mt-3 rounded-xl text-left outline-none transition-all"
             style={{
-              backgroundColor: nonMainPick ? 'var(--bg-inset)' : '#FFFFFF',
+              backgroundColor: nonMainPick ? 'var(--bg-inset)' : 'var(--bg-card)',
               border: nonMainPick ? '2px solid #4F74F3' : '1px solid var(--line)',
               boxShadow: nonMainPick
                 ? '0 0 0 3px rgba(0, 122, 255, 0.08)'

@@ -135,7 +135,7 @@ export function Categories({
               onModalOpenChange(true);
             }}
             className="px-6 py-3 rounded-xl font-medium transition-colors"
-            style={{ backgroundColor: 'var(--ink)', color: '#FFFFFF' }}
+            style={{ backgroundColor: 'var(--chip-ink)', color: '#FFFFFF' }}
           >
             {t('mgmt.addFirstCategory')}
           </button>

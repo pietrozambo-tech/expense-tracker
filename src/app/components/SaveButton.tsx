@@ -25,7 +25,7 @@ export function SaveButton({ onClick, disabled, isEditing = false, transactionTy
           className="w-full py-4 rounded-2xl font-medium text-center transition-all active:scale-[0.98]"
           style={{
             backgroundColor: disabled ? 'var(--line)' : '#4F74F3',
-            color: disabled ? '#9CA3AF' : '#FFFFFF',
+            color: disabled ? 'var(--disabled)' : '#FFFFFF',
             boxShadow: disabled ? 'none' : '0 10px 25px rgba(59, 130, 246, 0.2)',
             cursor: disabled ? 'not-allowed' : 'pointer'
           }}

@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react';
-import { ChevronRight, ChevronLeft, UserCircle, Wallet, HelpCircle, ShieldCheck, ScrollText, Layers, FlaskConical, Trash2, Landmark, Cloud, LogOut, Upload, Copy, Download, FileSpreadsheet, Palmtree, UserX, Mail, LifeBuoy, CheckCircle2, Globe, CalendarClock, Sparkles } from 'lucide-react';
+import { ChevronRight, ChevronLeft, UserCircle, Wallet, HelpCircle, ShieldCheck, ScrollText, Layers, FlaskConical, Trash2, Landmark, Cloud, LogOut, Upload, Copy, Download, FileSpreadsheet, Palmtree, UserX, Mail, LifeBuoy, CheckCircle2, Globe, CalendarClock, Sparkles, Palette, Sun, Moon, SunMoon } from 'lucide-react';
 import { sendSupportMessage, supportLimitReached } from '../lib/support';
 import { switchGlow } from './categoryColors';
 
@@ -95,6 +95,7 @@ const TILE = {
   csv:      { bg: '#ECFDF5', fg: '#059669' },
   demo:     { bg: '#F5F0FE', fg: '#7C3AED' },
   danger:   { bg: '#FEECEC', fg: '#DC2626' },
+  appearance:{ bg: '#EDEBFF', fg: '#5B54D6' },
   neutral:  { bg: '#EFEFF4', fg: '#6B7280' },
 } as const;
 
@@ -245,6 +246,7 @@ export function Settings({
   const [categoryType, setCategoryType] = useState<'expense' | 'income'>('expense');
   const [showCurrencySelector, setShowCurrencySelector] = useState(false);
   const [showLanguage, setShowLanguage] = useState(false);
+  const [showAppearance, setShowAppearance] = useState(false);
   const [showAllCurrencies, setShowAllCurrencies] = useState(false);
   const [showNameEditor, setShowNameEditor] = useState(false);
   const [showSupport, setShowSupport] = useState(false);
@@ -467,6 +469,79 @@ export function Settings({
         : syncStatus === 'error'
           ? { label: "Sync issue - retrying automatically", color: '#FF3B30' }
           : { label: lastSyncedAt ? `Synced · ${relTime(lastSyncedAt)}` : 'Synced', color: '#30D158' };
+
+  // Appearance lives beside Language and Currency, not inside Profile: those
+  // three are all "how the app presents itself", where Profile is who you are
+  // and what your money rules are. Every OS and every app of this shape puts
+  // the theme switch on that shelf, which is where people look for it.
+  if (showAppearance) {
+    const OPTIONS = [
+      { mode: 'system' as const, icon: SunMoon, label: t('theme.system'), hint: t('theme.systemHint') },
+      { mode: 'light' as const,  icon: Sun,     label: t('theme.light'),  hint: t('theme.lightHint') },
+      { mode: 'dark' as const,   icon: Moon,    label: t('theme.dark'),   hint: t('theme.darkHint') },
+    ];
+    return (
+      <div className="flex flex-col" style={SUBPAGE_STYLE}>
+        <div style={{ backgroundColor: 'var(--bg-page)' }}>
+          <div className="px-6 pb-4 pt-0">
+            <div className="flex items-center justify-center relative">
+              <button
+                onClick={() => setShowAppearance(false)}
+                className="absolute left-0 -ml-2 px-2 py-1 rounded-lg active:bg-neutral-200 transition-colors"
+              >
+                <ChevronLeft size={24} style={{ color: '#4F74F3' }} />
+              </button>
+              <h1 style={{ color: 'var(--ink)', fontSize: '20px', fontWeight: '600', letterSpacing: '-0.3px' }}>{t('set.theme')}</h1>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto" style={{ paddingBottom: DOCK_CLEARANCE }}>
+          <div className="px-6 pb-6">
+            <p style={{ color: 'var(--ink-2)', fontSize: '13px' }}>{t('set.themeHint')}</p>
+          </div>
+          <div className="px-6">
+            <div className="rounded-2xl shadow-sm overflow-hidden" style={{ backgroundColor: 'var(--bg-card)' }}>
+              {OPTIONS.map(({ mode, icon: Icon, label, hint }, index) => {
+                const on = themeMode === mode;
+                return (
+                  <button
+                    key={mode}
+                    onClick={() => { setThemeMode(mode); setThemeModeState(mode); }}
+                    className="w-full flex items-center justify-between px-4 py-3 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
+                    style={{ borderBottom: index < OPTIONS.length - 1 ? '1px solid var(--bg-inset)' : 'none' }}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div
+                        className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
+                        style={{ backgroundColor: on ? 'var(--wash-accent3)' : 'var(--bg-inset)' }}
+                      >
+                        <Icon className="w-4.5 h-4.5" style={{ color: on ? '#4F74F3' : 'var(--ink-2)' }} strokeWidth={2.2} />
+                      </div>
+                      <div className="flex flex-col items-start text-left">
+                        <span className="font-medium" style={{ color: on ? '#4F74F3' : 'var(--ink)', fontSize: '15px' }}>{label}</span>
+                        <span style={{ color: 'var(--ink-2)', fontSize: 13 }}>{hint}</span>
+                      </div>
+                    </div>
+                    {on && (
+                      <div className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#4F74F3' }}>
+                        <svg width="10" height="8" viewBox="0 0 12 10" fill="none">
+                          <path d="M1 5L4.5 8.5L11 1.5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      </div>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="px-1 mt-4" style={{ color: 'var(--faint)', fontSize: 12, lineHeight: 1.45 }}>
+              {t('set.themeNote')}
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // Show Language subpage — same shape as the currency picker: a list you
   // choose from, not a control sitting open on the root menu.
@@ -702,7 +777,14 @@ export function Settings({
               />
             </div>
 
-            {/* Monthly budget: opt-in, exactly like insights below. The
+            {/* Monthly insights */}
+            <SwitchRow
+              label={t('set.insights')}
+              on={insightsEnabled}
+              divider
+              onToggle={() => onSetInsightsEnabled?.(!insightsEnabled)}
+            />
+            {/* Monthly budget: opt-in, exactly like insights above. The
                 toggle answers "do I want one at all"; only a yes opens the
                 amount row. The old contract - delete the number to turn the
                 bar off - was invisible: nothing said an empty field meant no. */}
@@ -755,7 +837,7 @@ export function Settings({
 
             {/* Week start. Applies immediately, unlike the two fields above:
                 it is a preference, not a value being typed. */}
-            <div className="px-4 py-2.5" style={{ borderBottom: '1px solid var(--bg-inset)' }}>
+            <div className="px-4 py-2.5">
               <div className="flex items-center gap-3">
                 <span className="flex-shrink-0" style={{ color: 'var(--ink)', fontSize: 15 }}>{t('set.weekStartsOn')}</span>
                 <div className="flex-1 flex p-0.5 rounded-lg" style={{ backgroundColor: 'var(--bg-inset)' }}>
@@ -779,38 +861,6 @@ export function Settings({
               </div>
             </div>
 
-            {/* Appearance. The same three-way pill as week-start; applies
-                on the spot. 'Auto' follows the phone. */}
-            <div className="px-4 py-2.5" style={{ borderBottom: '1px solid var(--bg-inset)' }}>
-              <div className="flex items-center gap-3">
-                <span className="flex-shrink-0" style={{ color: 'var(--ink)', fontSize: 15 }}>{t('set.theme')}</span>
-                <div className="flex-1 flex p-0.5 rounded-lg" style={{ backgroundColor: 'var(--bg-inset)' }}>
-                  {(['system', 'light', 'dark'] as const).map((m) => (
-                    <button
-                      key={m}
-                      onClick={() => { setThemeMode(m); setThemeModeState(m); }}
-                      className="flex-1 py-1.5 rounded-md text-[13px] transition-colors"
-                      style={{
-                        backgroundColor: themeMode === m ? 'var(--bg-card)' : 'transparent',
-                        color: themeMode === m ? 'var(--ink)' : 'var(--ink-2)',
-                        fontWeight: themeMode === m ? 600 : 500,
-                        boxShadow: themeMode === m ? '0 1px 3px rgba(0,0,0,0.10)' : 'none',
-                        WebkitTapHighlightColor: 'rgba(255, 255, 255, 0)',
-                      }}
-                    >
-                      {t(m === 'system' ? 'theme.system' : m === 'light' ? 'theme.light' : 'theme.dark')}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* Monthly insights */}
-            <SwitchRow
-              label={t('set.insights')}
-              on={insightsEnabled}
-              onToggle={() => onSetInsightsEnabled?.(!insightsEnabled)}
-            />
           </div>
 
           {/* One line for the card, instead of one under every field. */}
@@ -883,14 +933,14 @@ export function Settings({
               <button
                 onClick={() => setCategoryType('expense')}
                 className="relative flex-1 py-1.5 text-sm font-medium transition-colors"
-                style={{ color: categoryType === 'expense' ? '#C2352B' : 'var(--ink-2)' }}
+                style={{ color: categoryType === 'expense' ? 'var(--tone-expense)' : 'var(--ink-2)' }}
               >
                 {t('seg.expenses')}
               </button>
               <button
                 onClick={() => setCategoryType('income')}
                 className="relative flex-1 py-1.5 text-sm font-medium transition-colors"
-                style={{ color: categoryType === 'income' ? '#1F7A43' : 'var(--ink-2)' }}
+                style={{ color: categoryType === 'income' ? 'var(--tone-income)' : 'var(--ink-2)' }}
               >
                 {t('seg.income')}
               </button>
@@ -1286,7 +1336,7 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
               <span style={{ color: '#fff', fontSize: 12, fontWeight: 600 }}>{t('set.copy')}</span>
             </button>
           </div>
-          <div style={{ backgroundColor: 'var(--ink)', borderRadius: 14, padding: 14, maxHeight: 240, overflowY: 'auto' }}>
+          <div style={{ backgroundColor: 'var(--chip-ink)', borderRadius: 14, padding: 14, maxHeight: 240, overflowY: 'auto' }}>
             <pre
               style={{
                 color: 'var(--line)',
@@ -1319,7 +1369,7 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
           <button
             onClick={() => importInputRef.current?.click()}
             className="w-full mt-7 py-4 rounded-2xl font-medium text-base flex items-center justify-center gap-2 active:scale-[0.98] transition-transform"
-            style={{ backgroundColor: 'var(--ink)', color: '#fff', boxShadow: '0 6px 18px rgba(28,28,30,0.20)' }}
+            style={{ backgroundColor: 'var(--chip-ink)', color: '#fff', boxShadow: '0 6px 18px rgba(28,28,30,0.20)' }}
           >
             <Upload className="w-5 h-5" strokeWidth={2} />
             {t('set.chooseFile')}
@@ -1563,7 +1613,7 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
               // list's rhythm instead of being the single circle among squares.
               <div
                 className="w-8 h-8 rounded-[10px] flex items-center justify-center flex-shrink-0"
-                style={{ backgroundColor: 'var(--ink)' }}
+                style={{ backgroundColor: 'var(--chip-ink)' }}
               >
                 <span style={{ color: '#FFFFFF', fontSize: '13px', fontWeight: 600 }}>
                   {userName.trim().charAt(0).toUpperCase()}
@@ -1607,6 +1657,19 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
             <span className="flex-1 text-left" style={{ color: 'var(--ink)', fontSize: '15px' }}>{t('set.currency')}</span>
             <span style={{ color: 'var(--ink-2)', fontSize: '14px' }}>
               {CURRENCIES[userCurrency]?.flag} {userCurrency}
+            </span>
+            <ChevronRight className="w-4 h-4" style={{ color: 'var(--ghost)' }} />
+          </button>
+
+          <button
+            onClick={() => setShowAppearance(true)}
+            className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
+            style={{ borderBottom: '1px solid var(--bg-inset)' }}
+          >
+            <RowIcon icon={Palette} tone={TILE.appearance} />
+            <span className="flex-1 text-left" style={{ color: 'var(--ink)', fontSize: '15px' }}>{t('set.theme')}</span>
+            <span style={{ color: 'var(--ink-2)', fontSize: '14px' }}>
+              {t(themeMode === 'system' ? 'theme.system' : themeMode === 'light' ? 'theme.light' : 'theme.dark')}
             </span>
             <ChevronRight className="w-4 h-4" style={{ color: 'var(--ghost)' }} />
           </button>
@@ -1735,9 +1798,9 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
             className="w-full flex items-start gap-3 px-4 py-2.5 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
             style={onDeleteAccount && !isGuest ? { borderBottom: '1px solid var(--bg-inset)' } : undefined}
           >
-            <Trash2 className="w-5 h-5 flex-shrink-0 mt-0.5" style={{ color: '#EF4444' }} strokeWidth={2} />
+            <Trash2 className="w-5 h-5 flex-shrink-0 mt-0.5" style={{ color: 'var(--tone-danger)' }} strokeWidth={2} />
             <div className="flex-1 text-left">
-              <div style={{ color: '#EF4444', fontSize: '15px' }}>{t('set.eraseAll')}</div>
+              <div style={{ color: 'var(--tone-danger)', fontSize: '15px' }}>{t('set.eraseAll')}</div>
               <div style={{ color: 'var(--ink-2)', fontSize: '13px', marginTop: 2 }}>
                 {getLanguage() === 'it'
                   ? (isGuest ? 'Elimina transazioni e impostazioni' : 'Riparte da zero. Il tuo account resta')
@@ -1754,9 +1817,9 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
               disabled={deletingAccount}
               className="w-full flex items-start gap-3 px-4 py-2.5 hover:bg-neutral-50 active:bg-neutral-100 transition-colors disabled:opacity-50"
             >
-              <UserX className="w-5 h-5 flex-shrink-0 mt-0.5" style={{ color: '#EF4444' }} strokeWidth={2} />
+              <UserX className="w-5 h-5 flex-shrink-0 mt-0.5" style={{ color: 'var(--tone-danger)' }} strokeWidth={2} />
               <div className="flex-1 text-left">
-                <div style={{ color: '#EF4444', fontSize: '15px' }}>{t('set.deleteAccount')}</div>
+                <div style={{ color: 'var(--tone-danger)', fontSize: '15px' }}>{t('set.deleteAccount')}</div>
                 <div style={{ color: 'var(--ink-2)', fontSize: '13px', marginTop: 2 }}>
                   {t('set.deleteAccountSub')}
                 </div>

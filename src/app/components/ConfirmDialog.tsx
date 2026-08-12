@@ -60,7 +60,7 @@ export function ConfirmDialog({
           <button
             onClick={onConfirm}
             className="flex-1 py-3 rounded-xl font-medium text-base text-white transition-colors active:scale-[0.98]"
-            style={{ backgroundColor: isDanger ? '#EF4444' : '#4F74F3' }}
+            style={{ backgroundColor: isDanger ? 'var(--tone-danger)' : '#4F74F3' }}
           >
             {confirmLabel}
           </button>

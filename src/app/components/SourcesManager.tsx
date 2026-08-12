@@ -254,7 +254,7 @@ function SourceFormModal({
               placeholder={t('mgmt.sourcePlaceholder')}
               autoFocus
               className="flex-1 px-4 py-3 rounded-xl text-base outline-none"
-              style={{ backgroundColor: '#F2F2F5', color: 'var(--ink)' }}
+              style={{ backgroundColor: 'var(--bg-inset)', color: 'var(--ink)' }}
             />
           </div>
 

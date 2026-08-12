@@ -33,7 +33,7 @@ export function ExportScopeModal({ filteredCount, totalCount, filters, onSelect,
       onClick={onClick}
       className="w-full flex items-center gap-3 p-4 rounded-xl text-left active:scale-[0.99]"
       style={{
-        backgroundColor: '#F7F7F8',
+        backgroundColor: 'var(--bg-inset)',
         transition: 'background-color 0.15s ease',
         WebkitTapHighlightColor: 'rgba(255, 255, 255, 0)',
       }}

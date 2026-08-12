@@ -11,9 +11,9 @@ import { FitText } from './FitText';
 // deeper, darker text tone - which also gets the 12px status line to ~5:1 on
 // white, where the vivid colours sat at 2:1 and were genuinely hard to read.
 const TONES = {
-  good: { fill: '#5FC08C', text: '#2C7A54' },
-  warn: { fill: '#EFB264', text: '#96631A' },
-  over: { fill: '#E8837A', text: '#B44A40' },
+  good: { fill: '#5FC08C', text: 'var(--tone-good)' },
+  warn: { fill: '#EFB264', text: 'var(--tone-warn)' },
+  over: { fill: '#E8837A', text: 'var(--tone-over)' },
 };
 
 interface BudgetBarProps {
@@ -153,7 +153,7 @@ export function BudgetBar({ spent, budget, currency, daysLeft, monthProgress, us
               className="truncate"
               style={{
                 color: tone.text,
-                backgroundColor: tone === TONES.good ? 'var(--wash-green)' : tone === TONES.warn ? '#FAF0DC' : '#FAE7E4',
+                backgroundColor: tone === TONES.good ? 'var(--wash-green)' : tone === TONES.warn ? 'var(--wash-warn)' : 'var(--wash-over)',
                 fontSize: 11,
                 fontWeight: 600,
                 padding: '2px 8px',

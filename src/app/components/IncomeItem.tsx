@@ -14,8 +14,8 @@ import { parseLocalDate } from '../lib/dates';
 // whole distinction on the busiest list in the app. Expenses stay near-black
 // rather than turning red: most rows are expenses, and a page of red reads as
 // an error state instead of an ordinary month.
-const INCOME_AMOUNT: React.CSSProperties = { color: '#1F7A43' };
-const INCOME_SECONDARY: React.CSSProperties = { color: '#1F7A43', opacity: 0.65 };
+const INCOME_AMOUNT: React.CSSProperties = { color: 'var(--tone-income)' };
+const INCOME_SECONDARY: React.CSSProperties = { color: 'var(--tone-income)', opacity: 0.65 };
 
 interface IncomeItemProps {
   income: {
@@ -69,7 +69,7 @@ export function IncomeItem({ income, onTap, onDelete, currency, showDate = false
           aria-label="Delete income"
           tabIndex={isOpen ? 0 : -1}
           className="absolute right-0 top-0 bottom-0 w-20 flex items-center justify-center active:bg-red-600"
-          style={{ backgroundColor: '#EF4444' }}
+          style={{ backgroundColor: 'var(--tone-danger)' }}
         >
           <Trash2 size={20} className="text-white" />
         </button>

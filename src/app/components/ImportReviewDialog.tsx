@@ -66,7 +66,7 @@ export function ImportReviewDialog({
                     width: 22,
                     height: 22,
                     borderRadius: 7,
-                    backgroundColor: on ? '#4F74F3' : '#FFFFFF',
+                    backgroundColor: on ? '#4F74F3' : 'var(--bg-card)',
                     border: on ? '1px solid #4F74F3' : '1.5px solid var(--ghost-2)',
                   }}
                 >
