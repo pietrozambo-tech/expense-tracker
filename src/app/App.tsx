@@ -2141,7 +2141,15 @@ export default function App() {
                 userCurrency={userCurrency}
                 onCurrencyChange={handleCurrencyChange}
                 monthlyBudget={monthlyBudget}
-                onMonthlyBudgetChange={setMonthlyBudget}
+                onMonthlyBudgetChange={(b) => {
+                  setMonthlyBudget(b);
+                  // Switching the budget OFF is an answer, and the Dashboard's
+                  // "set a monthly budget" nudge asks the same question - so
+                  // it must not pop up the moment the user says no. Setting
+                  // one re-arms it for the day the budget is removed by an
+                  // erase/restore rather than by choice.
+                  setBudgetNudgeDismissed(b === undefined);
+                }}
                 userName={userName}
                 onUserNameChange={handleUserNameChange}
                 onLoadDemoData={handleLoadDemoData}

@@ -7,6 +7,38 @@ import { switchGlow } from './categoryColors';
 const SUPPORT_EMAIL = 'support@tracklylab.com';
 const isValidEmail = (e: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e.trim());
 
+// One row of the Profile card with an iOS-style switch. Budget and insights
+// share it, so the two toggles cannot drift apart visually.
+function SwitchRow({ label, on, divider, onToggle }: {
+  label: string; on: boolean; divider?: boolean; onToggle: () => void;
+}) {
+  return (
+    <button
+      onClick={onToggle}
+      role="switch"
+      aria-checked={on}
+      className="w-full flex items-center gap-3 px-4"
+      style={{ height: 52, borderBottom: divider ? '1px solid #F2F1ED' : 'none' }}
+    >
+      <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: 15 }}>{label}</span>
+      <span
+        className="relative flex-shrink-0 rounded-full transition-colors"
+        style={{ width: 46, height: 28, backgroundColor: on ? '#4F74F3' : '#E3E2DD' }}
+      >
+        <span
+          className="absolute rounded-full"
+          style={{
+            top: 3, left: 3, width: 22, height: 22, backgroundColor: '#FFFFFF',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+            transform: on ? 'translateX(18px)' : 'translateX(0)',
+            transition: 'transform 200ms cubic-bezier(0.32, 0.72, 0, 1)',
+          }}
+        />
+      </span>
+    </button>
+  );
+}
+
 import { useEffect, useRef, useState } from 'react';
 import { SUBPAGE_STYLE, DOCK_CLEARANCE } from './subpageLayout';
 import { toast } from 'sonner';
@@ -220,6 +252,10 @@ export function Settings({
   const [supportSent, setSupportSent] = useState(false);
   const [editedName, setEditedName] = useState(userName);
   const [editedBudget, setEditedBudget] = useState(monthlyBudget ? String(monthlyBudget) : '');
+  // The budget is opt-in, like insights: the toggle says whether one exists at
+  // all, and only then does an amount field appear. "Delete the number to turn
+  // it off" was the old contract, and nothing on the screen said so.
+  const [budgetOn, setBudgetOn] = useState(!!monthlyBudget);
   const [confirmAction, setConfirmAction] = useState<'demo' | 'erase' | 'erase-demo' | 'restore' | 'delete-account' | null>(null);
   const [pendingBackup, setPendingBackup] = useState<ImportPayload | null>(null);
 
@@ -308,13 +344,20 @@ export function Settings({
     setShowAllCurrencies(false);
   };
 
-  const handleNameSave = () => {
-    if (!editedName.trim()) return;
-    const name = editedName.trim();
-    // An empty budget field means "no budget" and hides the Dashboard bar.
+  // The amount only matters while the toggle is on - and then it must be a
+  // real number, or Save stays disabled. Without that, "on with an empty
+  // field" would save as no budget while the switch said otherwise.
+  const parsedBudget = (() => {
     const raw = editedBudget.trim().replace(',', '.');
-    const parsed = raw === '' ? undefined : Math.max(0, parseFloat(raw));
-    const budget = parsed && isFinite(parsed) && parsed > 0 ? parsed : undefined;
+    const n = raw === '' ? NaN : parseFloat(raw);
+    return isFinite(n) && n > 0 ? n : undefined;
+  })();
+  const profileSaveable = !!editedName.trim() && (!budgetOn || parsedBudget !== undefined);
+
+  const handleNameSave = () => {
+    if (!profileSaveable) return;
+    const name = editedName.trim();
+    const budget = budgetOn ? parsedBudget : undefined;
     const nameMoved = name !== userName;
     const budgetMoved = budget !== monthlyBudget;
     onUserNameChange(name);
@@ -325,7 +368,9 @@ export function Settings({
     // pressed after only flipping the insights switch.
     if (nameMoved && budgetMoved) toast.success(t('toast.profileUpdated'), { duration: 1400 });
     else if (nameMoved) toast.success(t('toast.nameUpdated'), { duration: 1400 });
-    else if (budgetMoved) toast.success(t('toast.budgetUpdated'), { duration: 1400 });
+    else if (budgetMoved) {
+      toast.success(t(budget === undefined ? 'toast.budgetRemoved' : 'toast.budgetUpdated'), { duration: 1400 });
+    }
     setShowNameEditor(false);
   };
 
@@ -652,25 +697,39 @@ export function Settings({
               />
             </div>
 
-            {/* Monthly budget */}
-            <div className="flex items-center gap-3 px-4" style={{ height: 52, borderBottom: '1px solid #F2F1ED' }}>
-              <span className="flex-shrink-0" style={{ color: '#1C1C1E', fontSize: 15 }}>{t('set.monthlyBudget')}</span>
-              <div className="flex-1 min-w-0 flex items-center justify-end gap-1">
-                <span style={{ color: '#8E8E93', fontSize: 15 }}>{CURRENCIES[userCurrency]?.symbol ?? ''}</span>
-                <input
-                  type="text"
-                  inputMode="decimal"
-                  value={editedBudget}
-                  onChange={(e) => {
-                    const v = e.target.value.replace(',', '.');
-                    if (v === '' || /^\d*\.?\d{0,2}$/.test(v)) setEditedBudget(v);
-                  }}
-                  placeholder="—"
-                  className="w-24 text-right bg-transparent outline-none tabular-nums"
-                  style={{ fontSize: 16, color: '#1C1C1E', fontWeight: 500 }}
-                />
+            {/* Monthly budget: opt-in, exactly like insights below. The
+                toggle answers "do I want one at all"; only a yes opens the
+                amount row. The old contract - delete the number to turn the
+                bar off - was invisible: nothing said an empty field meant no. */}
+            <SwitchRow
+              label={t('set.monthlyBudget')}
+              on={budgetOn}
+              divider
+              onToggle={() => setBudgetOn(!budgetOn)}
+            />
+            {budgetOn && (
+              <div className="flex items-center gap-3 px-4" style={{ height: 52, borderBottom: '1px solid #F2F1ED' }}>
+                <span className="flex-shrink-0" style={{ color: '#8E8E93', fontSize: 15 }}>{t('sched.amount')}</span>
+                <div className="flex-1 min-w-0 flex items-center justify-end gap-1">
+                  <span style={{ color: '#8E8E93', fontSize: 15 }}>{CURRENCIES[userCurrency]?.symbol ?? ''}</span>
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    value={editedBudget}
+                    onChange={(e) => {
+                      const v = e.target.value.replace(',', '.');
+                      if (v === '' || /^\d*\.?\d{0,2}$/.test(v)) setEditedBudget(v);
+                    }}
+                    // The field starts focused when the toggle opens it empty:
+                    // the switch said yes, the number is the one thing missing.
+                    autoFocus={!editedBudget}
+                    placeholder="0"
+                    className="w-24 text-right bg-transparent outline-none tabular-nums"
+                    style={{ fontSize: 16, color: '#1C1C1E', fontWeight: 500 }}
+                  />
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Week start. Applies immediately, unlike the two fields above:
                 it is a preference, not a value being typed. */}
@@ -699,31 +758,11 @@ export function Settings({
             </div>
 
             {/* Monthly insights */}
-            <button
-              onClick={() => onSetInsightsEnabled?.(!insightsEnabled)}
-              role="switch"
-              aria-checked={insightsEnabled}
-              className="w-full flex items-center gap-3 px-4"
-              style={{ height: 52 }}
-            >
-              <span className="flex-1 text-left" style={{ color: '#1C1C1E', fontSize: 15 }}>
-                {t('set.insights')}
-              </span>
-              <span
-                className="relative flex-shrink-0 rounded-full transition-colors"
-                style={{ width: 46, height: 28, backgroundColor: insightsEnabled ? '#4F74F3' : '#E3E2DD' }}
-              >
-                <span
-                  className="absolute rounded-full"
-                  style={{
-                    top: 3, left: 3, width: 22, height: 22, backgroundColor: '#FFFFFF',
-                    boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
-                    transform: insightsEnabled ? 'translateX(18px)' : 'translateX(0)',
-                    transition: 'transform 200ms cubic-bezier(0.32, 0.72, 0, 1)',
-                  }}
-                />
-              </span>
-            </button>
+            <SwitchRow
+              label={t('set.insights')}
+              on={insightsEnabled}
+              onToggle={() => onSetInsightsEnabled?.(!insightsEnabled)}
+            />
           </div>
 
           {/* One line for the card, instead of one under every field. */}
@@ -737,13 +776,13 @@ export function Settings({
               the padding below keeps it clear of the fold if it ever does. */}
           <button
             onClick={handleNameSave}
-            disabled={!editedName.trim()}
+            disabled={!profileSaveable}
             className="w-full mt-5 py-3.5 rounded-xl font-medium text-base transition-all active:scale-[0.98]"
             style={{
-              backgroundColor: !editedName.trim() ? '#E5E5EA' : '#4F74F3',
+              backgroundColor: !profileSaveable ? '#E5E5EA' : '#4F74F3',
               color: '#FFFFFF',
-              boxShadow: !editedName.trim() ? 'none' : '0 2px 8px rgba(0, 122, 255, 0.25)',
-              cursor: !editedName.trim() ? 'not-allowed' : 'pointer'
+              boxShadow: !profileSaveable ? 'none' : '0 2px 8px rgba(0, 122, 255, 0.25)',
+              cursor: !profileSaveable ? 'not-allowed' : 'pointer'
             }}
           >
             {t('common.save')}
@@ -1455,6 +1494,7 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
             onClick={() => {
               setEditedName(userName);
               setEditedBudget(monthlyBudget ? String(monthlyBudget) : '');
+              setBudgetOn(!!monthlyBudget);
               setShowNameEditor(true);
             }}
             className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
