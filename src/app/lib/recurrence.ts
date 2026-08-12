@@ -704,6 +704,90 @@ export function nextDueDate(rule: RecurringRule, today: Date = new Date()): stri
  * that this screen never announced. A rule with nothing left projects to null
  * and falls out here on its own.
  */
+// Sub-3% moves stay quiet everywhere. A streaming service oscillating between
+// 44, 44.90 and 44.99 is rounding wobble, and announcing it would teach the
+// user to ignore the chip - and asking about it would be worse.
+const MOVED = 0.03;
+
+/**
+ * Every recorded charge belonging to a bill, oldest first.
+ *
+ * Matched on wording, category, direction and currency rather than rule id,
+ * because a real price history crosses chain successions - editing a schedule
+ * ends one rule and starts another - and picks up imported history tagged onto
+ * the same bill. One definition, so the chip and the editor's question can
+ * never disagree about what counts.
+ */
+export function chargeHistory(
+  template: RecurringRule['template'],
+  transactions: Transaction[],
+): Transaction[] {
+  return transactions
+    .filter(
+      (t) =>
+        norm(t.description ?? '') === norm(template.description ?? '') &&
+        t.category?.id === template.category?.id &&
+        (t.type ?? 'expense') === (template.type ?? 'expense') &&
+        (t.currency || 'EUR') === (template.currency || 'EUR') &&
+        t.amount > 0,
+    )
+    .sort((a, b) => a.date.localeCompare(b.date));
+}
+
+/**
+ * What a bill normally charges: the most frequent amount, ties going to the
+ * more recent. Noisy history has no single "previous amount" but it does have
+ * a usual one - a real Amex read 60,62,62,60,62 before settling at 67.
+ */
+export function usualAmount(list: Transaction[]): number {
+  if (!list.length) return 0;
+  const counts = new Map<number, { n: number; last: number }>();
+  list.forEach((t, i) => {
+    const c = counts.get(t.amount) ?? { n: 0, last: -1 };
+    counts.set(t.amount, { n: c.n + 1, last: i });
+  });
+  let best = { amount: list[list.length - 1].amount, n: 0, last: -1 };
+  for (const [amount, c] of counts) {
+    if (c.n > best.n || (c.n === best.n && c.last > best.last)) best = { amount, n: c.n, last: c.last };
+  }
+  return best.amount;
+}
+
+/**
+ * Whether changing a schedule's amount to `next` is ambiguous enough to be
+ * worth asking about, and what a correction would cost.
+ *
+ * Editing an amount means one of two different things - the price moved, or
+ * the old figure was wrong - and they want opposite outcomes. A price change
+ * applies forward and leaves the ledger alone. A wrong figure means every
+ * occurrence this rule already generated is wrong too, and suppressing the
+ * chip while leaving those rows in place would be the worst of both.
+ *
+ * Most edits are not ambiguous and must never raise the question:
+ *
+ *   - nothing charged yet - there is nothing to correct, which is the typo
+ *     caught seconds after creating the rule;
+ *   - the new amount already matches what is being charged - the schedule is
+ *     being brought in line with reality, a correction with no rows to fix;
+ *   - the move is under the noise floor.
+ *
+ * `count` is how many recorded rows still carry the usual amount, and so how
+ * many a correction would rewrite. Rows edited by hand no longer match it and
+ * are deliberately left alone.
+ */
+export function repriceCandidate(
+  template: RecurringRule['template'],
+  transactions: Transaction[],
+  next: number,
+): { usual: number; count: number } | null {
+  const rows = chargeHistory(template, transactions);
+  if (!rows.length) return null;
+  const usual = usualAmount(rows);
+  if (usual <= 0 || next <= 0) return null;
+  if (Math.abs(next - usual) / usual < MOVED) return null;
+  return { usual, count: rows.filter((r) => r.amount === usual).length };
+}
+
 /**
  * The last price change worth mentioning for a schedule, or null.
  *
@@ -735,41 +819,11 @@ export function priceChange(
   today: Date = new Date(),
 ): { from: number; to: number; at: string | null } | null {
   const tpl = rule.template;
-  const rows = transactions
-    .filter(
-      (t) =>
-        norm(t.description ?? '') === norm(tpl.description ?? '') &&
-        t.category?.id === tpl.category?.id &&
-        (t.type ?? 'expense') === (tpl.type ?? 'expense') &&
-        (t.currency || 'EUR') === (tpl.currency || 'EUR') &&
-        t.amount > 0,
-    )
-    .sort((a, b) => a.date.localeCompare(b.date));
+  const rows = chargeHistory(tpl, transactions);
   if (rows.length < 2) return null;
 
-  // Sub-3% moves stay quiet in both paths. A streaming service oscillating
-  // between 44, 44.90 and 44.99 is rounding wobble, and announcing it would
-  // teach the user to ignore the chip.
-  const MOVED = 0.03;
-
-  // What this bill normally charges: the most frequent amount, ties going to
-  // the more recent. Noisy history has no single "previous amount" but it does
-  // have a usual one - a real Amex read 60,62,62,60,62 before settling at 67.
-  const usualOf = (list: Transaction[]) => {
-    const counts = new Map<number, { n: number; last: number }>();
-    list.forEach((t, i) => {
-      const c = counts.get(t.amount) ?? { n: 0, last: -1 };
-      counts.set(t.amount, { n: c.n + 1, last: i });
-    });
-    let best = { amount: list[list.length - 1].amount, n: 0, last: -1 };
-    for (const [amount, c] of counts) {
-      if (c.n > best.n || (c.n === best.n && c.last > best.last)) best = { amount, n: c.n, last: c.last };
-    }
-    return best.amount;
-  };
-
   // --- Declared ------------------------------------------------------------
-  const settled = usualOf(rows);
+  const settled = usualAmount(rows);
   const current = tpl.amount;
   if (settled > 0 && current > 0 && Math.abs(current - settled) / settled >= MOVED) {
     return { from: settled, to: current, at: null };
@@ -785,7 +839,7 @@ export function priceChange(
   const prior = rows.slice(0, i);
   if (prior.length < 2) return null;
 
-  const from = usualOf(prior);
+  const from = usualAmount(prior);
   const to = rows[rows.length - 1].amount;
   if (from <= 0 || Math.abs(to - from) / from < MOVED) return null;
 

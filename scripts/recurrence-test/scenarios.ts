@@ -11,6 +11,7 @@
 import {
   processRecurrence,
   priceChange,
+  repriceCandidate,
   applyFutureEdit,
   occurrenceDueDate,
   buildRuleTemplate,
@@ -208,6 +209,7 @@ scenarioDeleteOnFutureEndedChain();
 scenarioNothingHidden();
 scenarioSkipPurge();
 scenarioPriceChange();
+scenarioReprice();
 console.log('\n================================================================');
 console.log(` Recurring transactions   [${OLD ? 'BEFORE the fix' : 'AFTER the fix'}]`);
 console.log(' (running the real src/app/lib/recurrence.ts)');
@@ -926,4 +928,73 @@ function scenarioPriceChange() {
   ];
   const spotify = priceChange(mkRule('Spotify', 9.99), fx, NOW);
   expect('another currency is another history', spotify ? 'announced' : 'silent', 'silent');
+}
+
+// 17. "Did the price change, or was the amount wrong?"
+//
+// The editor asks this when an amount is edited, because the two answers want
+// opposite outcomes: forward-only, or a repair of rows already recorded. The
+// question earns its place only by staying quiet in every case we can already
+// read, so most of this scenario is about silence.
+function scenarioReprice() {
+  heading('17. Reprice question: asked only when genuinely ambiguous');
+  const tpl = (desc: string, amount: number) => ({
+    description: desc, amount, currency: 'EUR', category: cat, type: 'expense' as const,
+  });
+  const history = (desc: string, amounts: number[]): Transaction[] =>
+    amounts.map((amount, i) => ({
+      id: `t-${desc}-${i}`, description: desc, amount, currency: 'EUR',
+      category: cat, type: 'expense' as const, date: `2026-0${(i % 8) + 1}-05`,
+    }));
+  const ask = (t: ReturnType<typeof tpl>, rows: Transaction[], next: number) => {
+    const c = repriceCandidate(t, rows, next);
+    return c ? `ask (${c.count} x ${c.usual})` : 'silent';
+  };
+
+  // The case it exists for: six charges at 44.99, schedule edited to 24.20.
+  expect('a real move on real history asks',
+    ask(tpl('DAZN', 44.99), history('DAZN', [44.99, 44.99, 44.99, 44.99, 44.99, 44.99]), 24.2),
+    'ask (6 x 44.99)');
+
+  // Nothing charged yet - the typo caught seconds after creating the rule.
+  expect('a rule with no charges never asks', ask(tpl('New', 10), [], 25), 'silent');
+
+  // Bringing the schedule in line with what is actually charged is a
+  // correction with nothing left to correct.
+  expect('matching the charges asks nothing',
+    ask(tpl('DAZN', 44.9), history('DAZN', [44.99, 44.99, 44.99, 44.99]), 44.99), 'silent');
+
+  // Under the noise floor both paths already ignore.
+  expect('a sub-3% nudge stays silent',
+    ask(tpl('Netflix', 12.9), history('Netflix', [12.9, 12.9, 12.9]), 12.99), 'silent');
+
+  // Rises are treated exactly like falls - the asymmetry was the old bug.
+  expect('a rise asks the same question',
+    ask(tpl('Gym', 45), history('Gym', [45, 45, 45]), 60), 'ask (3 x 45)');
+
+  // Only rows at the USUAL amount would be rewritten. The two hand-edited
+  // charges here are somebody's deliberate correction and must survive.
+  expect('hand-edited rows are not counted for repair',
+    ask(tpl('Amex', 62), history('Amex', [62, 62, 62, 62, 60, 67]), 80), 'ask (4 x 62)');
+
+  // A bill that already changed price once: only the current price is at
+  // stake, the older run is history and stays put.
+  expect('an earlier price is not up for correction',
+    ask(tpl('Vodafone', 9.99), history('Vodafone', [15, 15, 9.99, 9.99, 9.99]), 20),
+    'ask (3 x 9.99)');
+
+  // The matcher is the chip's, so the same boundaries hold.
+  const otherCat = { ...cat, id: 'c2', name: 'Work' };
+  const mixed = [
+    ...history('Lunch', [12, 12, 12]),
+    ...history('Lunch', [30, 30]).map((t) => ({ ...t, id: t.id + '-w', category: otherCat })),
+  ];
+  expect("another category's rows are another bill", ask(tpl('Lunch', 12), mixed, 20), 'ask (3 x 12)');
+
+  // Guard the arithmetic the editor relies on: what it offers to repair is
+  // exactly what the ledger would change.
+  const rows = history('DAZN', [44.99, 44.99, 44.99, 44.9]);
+  const c = repriceCandidate(tpl('DAZN', 44.99), rows, 24.2)!;
+  const repaired = rows.filter((r) => r.amount === c.usual).length;
+  expect('the count offered is the count repaired', String(repaired), String(c.count));
 }

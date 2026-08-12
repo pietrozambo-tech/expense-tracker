@@ -1,12 +1,13 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { X, ChevronDown } from 'lucide-react';
 import { t } from '../i18n';
-import { translateRecurrence } from '../i18n/store';
+import { translateRecurrence, numberLocale } from '../i18n/store';
 import { getCategoryIcon } from './categoryIcons';
 import { SourceLogo } from './SourceLogo';
 import { switchGlow } from './categoryColors';
-import { toDateStr, nextDueDate } from '../lib/recurrence';
-import type { Category, RecurringRule, Source, TransactionType } from '../types';
+import { CURRENCIES } from '../utils/currency';
+import { toDateStr, nextDueDate, repriceCandidate } from '../lib/recurrence';
+import type { Category, RecurringRule, Source, Transaction, TransactionType } from '../types';
 import type { ScheduleDraft } from './ScheduledManager';
 
 // The same cadences the Add screen offers, minus "Never repeat" - a schedule
@@ -38,6 +39,7 @@ const FIELD_STYLE: React.CSSProperties = { backgroundColor: '#F4F4F5', color: '#
  */
 export function ScheduleEditor({
   rule,
+  transactions = [],
   categories,
   incomeCategories,
   sources,
@@ -48,6 +50,8 @@ export function ScheduleEditor({
   onCancel,
 }: {
   rule: RecurringRule | null;
+  /** The ledger, read-only: what this bill has actually been charged. */
+  transactions?: Transaction[];
   categories: Category[];
   incomeCategories: Category[];
   sources: Source[];
@@ -78,10 +82,32 @@ export function ScheduleEditor({
     rule?.template.sourceId ?? (type === 'income' ? defaultSourceIncome : defaultSourceExpense) ?? '',
   );
 
+  // What an amount edit MEANS. Only ever read when the question below is on
+  // screen, and it defaults to the common answer so the fast path stays a
+  // single tap on Save.
+  const [means, setMeans] = useState<'change' | 'correction'>('change');
+
   const list = type === 'income' ? incomeCategories : categories;
   const category = list.find((c) => c.id === categoryId) ?? list[0];
   const amountValue = parseFloat(amount.replace(',', '.'));
   const valid = description.trim().length > 0 && amountValue > 0 && !!category && start >= today;
+
+  // Ask only when the amount is the thing being changed. Opening the editor to
+  // move a date must not raise the question just because the bill's charges
+  // have drifted away from the schedule on their own - that is the chip's job,
+  // and there is no intent here to interpret.
+  const reprice = useMemo(
+    () =>
+      rule && amountValue > 0 && amountValue !== rule.template.amount
+        ? repriceCandidate(rule.template, transactions, amountValue)
+        : null,
+    [rule, transactions, amountValue],
+  );
+  const money = (n: number) =>
+    `${n.toLocaleString(numberLocale(), {
+      minimumFractionDigits: n % 1 ? 2 : 0,
+      maximumFractionDigits: n % 1 ? 2 : 0,
+    })}${CURRENCIES[rule?.template.currency || currency]?.symbol ?? ''}`;
 
   const switchType = (next: TransactionType) => {
     setType(next);
@@ -177,6 +203,62 @@ export function ScheduleEditor({
             </div>
           </div>
 
+          {/* Changing an amount means one of two things, and they want
+              opposite outcomes - forward-only, or a repair of rows already
+              recorded. Guessing gets one of them wrong, so this asks, but
+              only in the case that is genuinely ambiguous. See
+              repriceCandidate for the three cases it stays quiet for. */}
+          {reprice && (
+            <div>
+              <div style={LABEL} className="mb-1.5">{t('sched.repriceTitle')}</div>
+              <div className="space-y-2">
+                {(['change', 'correction'] as const).map((k) => {
+                  const on = means === k;
+                  return (
+                    <button
+                      key={k}
+                      onClick={() => setMeans(k)}
+                      role="radio"
+                      aria-checked={on}
+                      className="w-full flex items-start gap-2.5 px-3.5 py-3 rounded-xl text-left transition-colors"
+                      style={{ backgroundColor: on ? '#EEF1FE' : '#F4F4F5' }}
+                    >
+                      <span
+                        className="w-4 h-4 rounded-full flex-shrink-0 flex items-center justify-center"
+                        style={{
+                          marginTop: 2,
+                          border: `1.5px solid ${on ? '#4F74F3' : '#C7C7CC'}`,
+                          backgroundColor: on ? '#4F74F3' : 'transparent',
+                        }}
+                      >
+                        {on && <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: '#FFFFFF' }} />}
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span
+                          className="block text-[14px]"
+                          style={{ color: on ? '#4F74F3' : '#1C1C1E', fontWeight: on ? 600 : 500 }}
+                        >
+                          {t(k === 'change' ? 'sched.repriceChange' : 'sched.repriceWrong')}
+                        </span>
+                        <span
+                          className="block text-[12px] mt-0.5"
+                          style={{ color: '#8E8E93', lineHeight: 1.4 }}
+                        >
+                          {k === 'change'
+                            ? t('sched.repriceChangeNote', { amount: money(reprice.usual) })
+                            : t('sched.repriceWrongNote', {
+                                n: String(reprice.count),
+                                amount: money(reprice.usual),
+                              })}
+                        </span>
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           <div>
             <div style={LABEL} className="mb-1.5">{t('add.recurrence')}</div>
             <div className={`${FIELD} relative flex items-center`} style={FIELD_STYLE}>
@@ -250,7 +332,14 @@ export function ScheduleEditor({
           {/* Says plainly what saving does, because "edit" on a schedule is
               ambiguous until you know it cannot touch what already happened. */}
           <p style={{ color: '#8E8E93', fontSize: 12, lineHeight: 1.45 }}>
-            {rule ? t('sched.editNote') : t('sched.addNote')}
+            {/* The standing note promises the past is never rewritten, which
+                is true of every edit except the one the user has just asked
+                for. Saying it anyway would contradict the choice above. */}
+            {!rule
+              ? t('sched.addNote')
+              : reprice && means === 'correction'
+                ? t('sched.editNoteFixing')
+                : t('sched.editNote')}
           </p>
 
           <button
@@ -266,6 +355,9 @@ export function ScheduleEditor({
                 type,
                 rule: cadence,
                 start,
+                ...(reprice && means === 'correction'
+                  ? { correctRecordedAmount: reprice.usual }
+                  : {}),
               })
             }
             className="w-full py-3.5 rounded-xl font-medium transition-all active:scale-[0.98]"

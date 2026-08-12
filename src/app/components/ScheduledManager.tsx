@@ -53,6 +53,13 @@ export interface ScheduleDraft {
   rule: string;
   /** First date the schedule should fire. */
   start: string;
+  /**
+   * Set only when the user answers that the OLD amount was wrong rather than
+   * that the price changed: the recorded charges still carrying this amount
+   * are rewritten to the new one. Absent means "from the next charge on",
+   * which is the default and leaves the ledger untouched.
+   */
+  correctRecordedAmount?: number;
 }
 
 // "Tue 2 Sep" - enough to plan against, short enough for a chip. Deliberately
@@ -263,6 +270,7 @@ export function ScheduledManager({
       {(adding || editing) && (
         <ScheduleEditor
           rule={editing}
+          transactions={transactions}
           categories={categories}
           incomeCategories={incomeCategories}
           sources={sources}

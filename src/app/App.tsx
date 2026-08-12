@@ -45,7 +45,7 @@ import { SaveButton } from './components/SaveButton';
 import { DescriptionInput } from './components/DescriptionInput';
 import { Onboarding } from './components/Onboarding';
 import { useAuth } from './auth/AuthProvider';
-import { processRecurrence, buildRuleTemplate, newRuleId, occurrenceDueDate, isActiveRule, generatesOn, applyFutureEdit, findPastSeriesMatches, findUnclaimedSeriesRows, findGeneratedDuplicates, tagPastSeries, anchorForStart, toDateStr, type SeriesClaim } from './lib/recurrence';
+import { processRecurrence, buildRuleTemplate, newRuleId, occurrenceDueDate, isActiveRule, generatesOn, applyFutureEdit, findPastSeriesMatches, findUnclaimedSeriesRows, findGeneratedDuplicates, tagPastSeries, anchorForStart, toDateStr, chargeHistory, type SeriesClaim } from './lib/recurrence';
 import { SeriesClaimDialog } from './components/SeriesClaimDialog';
 import type { ScheduleDraft } from './components/ScheduledManager';
 import { RecurringScopeDialog } from './components/RecurringScopeDialog';
@@ -1415,6 +1415,35 @@ export default function App() {
   };
 
   const handleUpdateSchedule = (ruleId: string, draft: ScheduleDraft) => {
+    // A schedule may never rewrite the past on its own - but the user can say
+    // the past is wrong, and then leaving it alone is the bug. This runs only
+    // when they answered "the amount was wrong" to the editor's question, and
+    // it is a repair of the ledger, not a reprice.
+    //
+    // Only rows still carrying the amount the rule generated are touched, so
+    // anything edited by hand no longer matches and survives untouched. The
+    // stamp is what lets another device merge the correction rather than
+    // resurrect the old figures.
+    let corrected = 0;
+    if (draft.correctRecordedAmount != null) {
+      const old = recurringRules.find((r) => r.id === ruleId);
+      if (old) {
+        const target = draft.correctRecordedAmount;
+        const stamp = new Date().toISOString();
+        const hit = new Set(
+          chargeHistory(old.template, expenses)
+            .filter((t) => t.amount === target)
+            .map((t) => t.id),
+        );
+        corrected = hit.size;
+        if (corrected) {
+          setExpenses((prev) =>
+            prev.map((t) => (hit.has(t.id) ? { ...t, amount: draft.amount, updatedAt: stamp } : t)),
+          );
+        }
+      }
+    }
+
     // Exactly what "this and all future ones" does on the Add screen: end the
     // old chain and start a new one from the chosen date. Occurrences already
     // recorded keep the amount they were recorded at, and any occurrence the
@@ -1455,7 +1484,10 @@ export default function App() {
       ];
     });
     setRefreshKey((prev) => prev + 1);
-    toast.success(t('sched.toastUpdated'), { duration: 1600 });
+    toast.success(
+      corrected ? t('sched.toastCorrected', { n: String(corrected) }) : t('sched.toastUpdated'),
+      { duration: corrected ? 2400 : 1600 },
+    );
   };
 
   const handleStopSchedule = (ruleId: string) => {
