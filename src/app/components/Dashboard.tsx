@@ -4160,12 +4160,19 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
               const subOn = selectedSubcategory !== 'All';
               const chip = (on: boolean) => (on ? FILTER_ACTIVE : FILTER_IDLE);
 
+              // No divider, and deliberately not sticky.
+              //
+              // It carried `sticky top-0` and a hairline for a long time, and
+              // neither did anything: the tab wrapper is overflow-y-auto but
+              // grows to fit its content (scrollHeight === clientHeight), so it
+              // is a scrollport that never scrolls - and a non-scrolling
+              // overflow ancestor is what a sticky child sticks to. The WINDOW
+              // scrolls this tab, so the bar simply travelled away with the
+              // page. The line under it was therefore separating the header
+              // from content sitting plainly below it, which the gap between
+              // the cards already does.
               return (
-                <div
-                  className="sticky top-0 z-10 border-b border-neutral-100 px-6 py-2"
-                  // Opaque on purpose: rows scroll underneath it.
-                  style={{ backgroundColor: 'var(--bg-page)' }}
-                >
+                <div className="px-6 py-2" style={{ backgroundColor: 'var(--bg-page)' }}>
                   <div className="flex items-center gap-1.5">
                     {/* Category Filter Button */}
                     <button
