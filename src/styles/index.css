@@ -135,7 +135,17 @@ html[data-theme="dark"] {
   --tone-income: #4ADE80;
   --tone-danger: #FF6B6B;
   --accent-text: #8AA4FF;
-  --bg-chrome: var(--bg-page);
+  /* A bar, not the page and not a card. The page (#0E0E10) left the toggle
+   * floating with nothing behind it; the CARD colour (#232329) was the
+   * original fault - two of those stacked read as grey stripes. This sits
+   * between them, so the header is clearly a surface while staying far enough
+   * from card grey that it never competes with the content below.
+   *
+   * --line-chrome stays transparent here on purpose: with both header rows on
+   * one bar colour and no rule between them, they read as a SINGLE bar rather
+   * than the two bands that started this. The bar's own bottom edge against
+   * the page is the separation. */
+  --bg-chrome: #1A1A1F;
   --line-chrome: transparent;
   --ink: #F2F2F4;
   --ink-2: #A6A6AE;
