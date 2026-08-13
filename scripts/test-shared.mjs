@@ -164,6 +164,7 @@ const ledger = [
 ];
 const p1 = planSync(ledger, [], ME, HID, CATS);
 eq('push: only my shared expenses', p1.push.map((r) => r.id), ['a']);
+eq('push: a brand new row is an insert, not a correction', p1.patch.length, 0);
 eq('push: author_share is my half', p1.push[0].author_share, 42);
 eq('push: stamped with who changed it', p1.push[0].updated_by, ME);
 eq('push: carries the language-independent key', p1.push[0].category_key, 'groceries');
@@ -176,20 +177,20 @@ eq('her item becomes a replica', !!rep, true);
 eq('replica: full amount kept', rep.amount, 60);
 eq('replica: my share is what she did not cover', rep.split.mine, 30);
 eq('replica: id derives from the shared id', rep.id, replicaId('x1'));
-eq('settled state pushes nothing', p2.push.length, 0);
+eq('settled state pushes nothing', p2.push.length + p2.patch.length, 0);
 eq('she authored it, so it is flagged incoming', p2.incoming.map((c) => c.kind), ['new']);
 
 // THE property: running it again changes nothing and sends nothing.
 const p3 = planSync(p2.transactions, [mineEchoed, row({ id: 'x1' })], ME, HID, CATS);
 eq('idempotent: no local change', p3.changed, false);
-eq('idempotent: no pushes', p3.push.length, 0);
+eq('idempotent: no pushes', p3.push.length + p3.patch.length, 0);
 eq('idempotent: same count', p3.transactions.length, p2.transactions.length);
 
 // Postgres returns "+00:00", the client writes "Z". Compared as strings these
 // sort against each other and every row looks stale forever.
 const pgStamp = row({ id: 'x1', updated_at: '2026-08-03T09:00:00+00:00' });
 const p4 = planSync(p2.transactions, [mineEchoed, pgStamp], ME, HID, CATS);
-eq('timestamp formats compare as instants', p4.push.length, 0);
+eq('timestamp formats compare as instants', p4.push.length + p4.patch.length, 0);
 eq('timestamp formats do not churn state', p4.changed, false);
 
 // SHE corrects MY expense. My device must take her version, not overwrite it.
@@ -198,15 +199,19 @@ const p5 = planSync(p2.transactions, [myItemHerEdit, row({ id: 'x1' })], ME, HID
 const mineNow = p5.transactions.find((t) => t.id === 'a');
 eq('her correction to my expense is accepted', mineNow.amount, 90);
 eq('my share follows her correction', mineNow.split.mine, 45);
-eq('and my stale copy is NOT re-pushed over it', p5.push.some((r) => r.id === 'a'), false);
+eq('and my stale copy is NOT re-pushed over it', [...p5.push, ...p5.patch].some((r) => r.id === 'a'), false);
 eq('her correction is reported', p5.incoming.some((c) => c.kind === 'edited'), true);
 
 // I correct HER expense: it must go up, keeping her as the author.
 const editedReplica = p2.transactions.map((t) =>
   t.fromShared === 'x1' ? { ...t, amount: 70, split: { mine: 35 }, updatedAt: '2026-08-06T09:00:00Z' } : t);
 const p6 = planSync(editedReplica, [mineEchoed, row({ id: 'x1' })], ME, HID, CATS);
-const pushedBack = p6.push.find((r) => r.id === 'x1');
+const pushedBack = p6.patch.find((r) => r.id === 'x1');
 eq('my correction to her expense is pushed', !!pushedBack, true);
+// As an UPDATE. Sent as an upsert, RLS refuses it: the insert policy demands
+// author_id = auth.uid() and this row is hers. That is the whole "edits do not
+// sync" bug, and it is a property of WHICH list the row lands in.
+eq('a correction is never sent as an insert', p6.push.length, 0);
 eq('authorship does not move', pushedBack.author_id, HER);
 eq('her half is recomputed, not swapped', pushedBack.author_share, 35);
 eq('and it is stamped as mine', pushedBack.updated_by, ME);
@@ -219,7 +224,16 @@ eq('deletion is reported', p7.incoming.some((c) => c.kind === 'removed'), true);
 // Absence is NEVER a deletion: a fresh device pulls, it does not wipe.
 const fresh = planSync([], [mineEchoed, row({ id: 'x1' })], ME, HID, CATS);
 eq('fresh device adopts both rows', fresh.transactions.length, 2);
-eq('fresh device tombstones nothing', fresh.push.length, 0);
+eq('fresh device tombstones nothing', fresh.push.length + fresh.patch.length, 0);
+
+// A replica whose remote row has vanished must not be republished as mine:
+// toRow has no prior to read the author from and would sign it with my name.
+const orphan = planSync(
+  [txn({ id: 'shared-gone', fromShared: 'gone', date: '2026-08-05', amount: 20, split: { mine: 10 }, updatedAt: '2026-08-05T09:00:00Z' })],
+  [], ME, HID, CATS,
+);
+eq('an orphaned replica is not republished as mine', orphan.push.length + orphan.patch.length, 0);
+eq('and it is not silently dropped either', orphan.transactions.length, 1);
 
 // A category I re-filed stays re-filed.
 const refiled = p2.transactions.map((t) => (t.fromShared === 'x1' ? { ...t, category: CATS[1] } : t));
@@ -232,7 +246,7 @@ eq('her edit does not undo my re-filing', p8.transactions.find((t) => t.fromShar
 const myEdit = p2.transactions.map((t) => (t.id === 'a' ? { ...t, amount: 100, updatedAt: '2026-08-08T09:00:00Z' } : t));
 const p9 = planSync(myEdit, [mineEchoed, row({ id: 'x1' })], ME, HID, CATS);
 eq('my own edit is not reported to me', p9.incoming.length, 0);
-eq('my own edit still goes up', p9.push.map((r) => r.id), ['a']);
+eq('my own edit still goes up', p9.patch.map((r) => r.id), ['a']);
 
 // The app was closed for a day: she added two and corrected one. All three are
 // reported in the one pass that runs on opening.

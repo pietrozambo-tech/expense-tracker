@@ -50,6 +50,7 @@ import {
   fetchSettlements,
   fetchSharedItems,
   leaveRemoteHousehold,
+  patchSharedItems,
   pushSettlement,
   pushSharedItems,
   redeemInviteCode,
@@ -1153,6 +1154,7 @@ export default function App() {
       const rows = await fetchSharedItems(hid);
       const plan = planSync(expenses, rows, uid, hid, categories);
       if (plan.push.length) await pushSharedItems(plan.push);
+      if (plan.patch.length) await patchSharedItems(plan.patch);
       if (plan.changed) setExpenses(plan.transactions);
 
       // Say what they changed - including everything that happened while the

@@ -151,12 +151,32 @@ export async function fetchSharedItems(householdId: string): Promise<SharedItemR
   return (data ?? []) as SharedItemRow[];
 }
 
-/** Upsert my authored rows. Ids match my local transaction ids, so an edit is
- *  the same call as a create. */
+/** Publish rows the server has never seen. Ids match my local transaction ids,
+ *  so a retry of a create is harmless. */
 export async function pushSharedItems(rows: SharedItemRow[]): Promise<void> {
   if (rows.length === 0) return;
   const { error } = await supabase.from('shared_items').upsert(rows, { onConflict: 'id' });
   if (error) fail(error);
+}
+
+/**
+ * Correct a row that already exists - an UPDATE, not an upsert.
+ *
+ * The distinction is not stylistic. `.upsert()` is INSERT ... ON CONFLICT DO
+ * UPDATE, and Postgres checks the INSERT policy even when only the update
+ * runs; that policy requires `author_id = auth.uid()`. So editing the other
+ * member's expense was refused by RLS while adding and deleting worked, which
+ * is precisely the "add and delete sync, edits do not" this fixes.
+ *
+ * Identity is left out of the payload rather than merely unchanged: authorship
+ * and the household cannot move through this call at all.
+ */
+export async function patchSharedItems(rows: SharedItemRow[]): Promise<void> {
+  for (const row of rows) {
+    const { id, household_id: _h, author_id: _a, payer_id: _p, ...fields } = row;
+    const { error } = await supabase.from('shared_items').update(fields).eq('id', id);
+    if (error) fail(error);
+  }
 }
 
 /** Tombstone rather than delete: her device has a replica to drop, and it may

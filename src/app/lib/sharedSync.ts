@@ -137,8 +137,21 @@ export interface IncomingChange {
 export interface SyncPlan {
   /** The ledger after folding in whatever the server knows. */
   transactions: Transaction[];
-  /** Rows to upsert: only where MY copy is the newer statement. */
+  /** Rows the server has never seen: an INSERT, authored by me. */
   push: SharedItemRow[];
+  /**
+   * Rows that already exist and whose local copy is the newer statement: an
+   * UPDATE, kept separate from `push` on purpose.
+   *
+   * They cannot be one call. supabase-js `.upsert()` compiles to INSERT ...
+   * ON CONFLICT DO UPDATE, and Postgres requires the INSERT policy's WITH
+   * CHECK to pass even when the row conflicts and only the UPDATE runs. That
+   * policy says `author_id = auth.uid()`, so correcting the OTHER member's
+   * expense was rejected by RLS - while adding and deleting, which are a plain
+   * insert and a plain update, both worked. An edit is an update; sending it
+   * as one is both correct and what the policies already allow.
+   */
+  patch: SharedItemRow[];
   /** True when `transactions` differs from what went in. */
   changed: boolean;
   /** What the other member did since we last looked, for the nudge. */
@@ -209,6 +222,7 @@ export function planSync(
   const byId = new Map(remote.map((r) => [r.id, r]));
   const seen = new Set<string>();
   const push: SharedItemRow[] = [];
+  const patch: SharedItemRow[] = [];
   const incoming: IncomingChange[] = [];
   const out: Transaction[] = [];
   let changed = false;
@@ -234,8 +248,14 @@ export function planSync(
 
     const localStamp = at(t.updatedAt);
     if (!r) {
-      push.push(toRow(t, householdId, myUserId, undefined, stamp));
-      out.push(t);
+      // A replica whose original is not there is NOT mine to publish. Pushing
+      // it would re-insert her expense under my name (toRow has no prior to
+      // read the author from), which is worse than leaving it alone.
+      if (t.fromShared) out.push(t);
+      else {
+        push.push(toRow(t, householdId, myUserId, undefined, stamp));
+        out.push(t);
+      }
     } else if (at(r.updated_at) > localStamp) {
       // The server holds the newer statement: take it.
       const next = toTransaction(r, myUserId, categories, t);
@@ -247,7 +267,7 @@ export function planSync(
       }
       out.push(next);
     } else if (localStamp > at(r.updated_at)) {
-      push.push(toRow(t, householdId, myUserId, r, stamp));
+      patch.push(toRow(t, householdId, myUserId, r, stamp));
       out.push(t);
     } else {
       out.push(t);
@@ -266,7 +286,7 @@ export function planSync(
 
   // Newest first, matching the order the cloud merge already keeps.
   out.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
-  return { transactions: out, push, changed, incoming };
+  return { transactions: out, push, patch, changed, incoming };
 }
 
 /**

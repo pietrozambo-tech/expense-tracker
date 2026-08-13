@@ -51,6 +51,34 @@ select case when amount=950 then 'PASS' else 'FAIL' end || '  partner CAN correc
   from public.shared_items where id='tx-a';
 select case when updated_by = :'G' and author_id = :'P' then 'PASS' else 'FAIL' end
   || '  authorship stays his, updated_by becomes hers' as r from public.shared_items where id='tx-a';
+-- The same correction, the way the CLIENT sends it. This is the gap that let
+-- "edits do not sync" ship: supabase-js `.upsert()` is INSERT ... ON CONFLICT
+-- DO UPDATE, and Postgres checks the INSERT policy's WITH CHECK even when only
+-- the update runs. That policy says author_id = auth.uid(), so correcting the
+-- OTHER member's expense was refused - the bare UPDATE above passed while the
+-- real call did not, and nothing here tested the real call.
+--
+-- The upsert must STILL be refused: that is the policy doing its job. The fix
+-- belongs on the client, which now sends an update for a row it did not author.
+do $$ begin
+  begin
+    insert into public.shared_items (id,household_id,author_id,payer_id,date,description,amount,currency,category_key,author_share,updated_by)
+      select id, household_id, author_id, payer_id, date, description, 975, currency, category_key, 487.5, auth.uid()
+        from public.shared_items where id='tx-a'
+      on conflict (id) do update set amount = excluded.amount;
+    raise notice 'FAIL  an upsert on his row was allowed - the insert policy is too loose';
+  exception when others then raise notice 'PASS  upsert on his row still refused (%)', sqlerrm; end;
+end $$;
+-- What the client actually sends now: an UPDATE, with identity left out of the
+-- payload entirely, so authorship cannot move through this call.
+do $$ begin
+  begin
+    update public.shared_items set amount = 975, author_share = 487.5, updated_by = auth.uid() where id='tx-a';
+    raise notice 'PASS  partner corrects his item the way the client sends it';
+  exception when others then raise notice 'FAIL  the client update was rejected (%)', sqlerrm; end;
+end $$;
+select case when amount=975 then 'PASS' else 'FAIL' end || '  and the correction landed' as r
+  from public.shared_items where id='tx-a';
 -- The client deletes by tombstoning, so her device can drop its copy.
 update public.shared_items set deleted_at = now() where id='tx-a';
 select case when deleted_at is not null then 'PASS' else 'FAIL' end || '  partner CAN retire his item' as r
@@ -64,7 +92,7 @@ select case when count(*)=2 then 'PASS' else 'FAIL' end || '  both items visible
 set request.jwt.claim.sub = :'E';
 update public.shared_items set amount = 1 where id='tx-a';
 set request.jwt.claim.sub = :'P';
-select case when amount=950 then 'PASS' else 'FAIL' end || '  outsider still cannot edit' as r
+select case when amount=975 then 'PASS' else 'FAIL' end || '  outsider still cannot edit' as r
   from public.shared_items where id='tx-a';
 set request.jwt.claim.sub = :'E';
 delete from public.shared_items where id='tx-a';

@@ -4,6 +4,7 @@ import { t } from '../i18n';
 import { monthsFull } from '../i18n/store';
 import { AmountText } from './AmountText';
 import { ConfirmDialog } from './ConfirmDialog';
+import { SharedDrilldown } from './SharedDrilldown';
 import { getCategoryIcon } from './categoryIcons';
 import { homeAmount, formatAmountListView } from '../utils/currency';
 import { isShared, runningBalance } from '../lib/shared';
@@ -61,6 +62,12 @@ export function SharedView({
   onPickPeriod,
 }: SharedViewProps) {
   const [confirmSettle, setConfirmSettle] = useState(false);
+  // Which category is showing its subcategories, and which slice is open as a
+  // list of transactions. Same two-step as the personal Dashboard.
+  const [expanded, setExpanded] = useState<string | null>(null);
+  const [drilldown, setDrilldown] = useState<
+    { title: string; subtitle?: string; items: Transaction[] } | null
+  >(null);
   const { type: periodType, year, month, quarter } = period;
 
   // The same period without repeating the year the hero already shows.
@@ -90,18 +97,49 @@ export function SharedView({
   const youPaid = together;
   const partnerPaid = 0;
 
+  // Grouped the way the personal Dashboard groups: category, then the
+  // subcategories inside it, and the transactions themselves one tap further.
+  // Keyed by name because that is what the row displays and what the two
+  // accounts can disagree on the id of.
   const byCategory = useMemo(() => {
-    const totals = new Map<string, { total: number; category: Transaction['category'] }>();
+    const totals = new Map<
+      string,
+      { total: number; category: Transaction['category']; items: Transaction[] }
+    >();
     for (const txn of periodShared) {
       const key = txn.category?.name ?? '?';
       const entry = totals.get(key);
       const value = homeAmount(txn, currency);
-      if (entry) entry.total += value;
-      else totals.set(key, { total: value, category: txn.category });
+      if (entry) {
+        entry.total += value;
+        entry.items.push(txn);
+      } else {
+        totals.set(key, { total: value, category: txn.category, items: [txn] });
+      }
     }
     return [...totals.values()].sort((a, b) => b.total - a.total);
   }, [periodShared, currency]);
   const maxCategory = byCategory[0]?.total ?? 0;
+
+  // Subcategories of one category, biggest first. `null` is the bucket for
+  // items filed under no subcategory at all.
+  const subsOf = (items: Transaction[]) => {
+    const totals = new Map<string | null, { total: number; items: Transaction[] }>();
+    for (const txn of items) {
+      const key = txn.subcategory ?? null;
+      const entry = totals.get(key);
+      const value = homeAmount(txn, currency);
+      if (entry) {
+        entry.total += value;
+        entry.items.push(txn);
+      } else {
+        totals.set(key, { total: value, items: [txn] });
+      }
+    }
+    return [...totals.entries()]
+      .map(([name, v]) => ({ name, ...v }))
+      .sort((a, b) => b.total - a.total);
+  };
 
   const balance = runningBalance(transactions, settlements, currency);
   const owed = Math.round(balance * 100) / 100;
@@ -251,54 +289,133 @@ export function SharedView({
       >
         <div className="flex items-baseline justify-between mb-1">
           <span style={{ color: 'var(--ink)', fontSize: 17, fontWeight: 700 }}>{t('shared.whatWeSpend')}</span>
-          {/* Suppressed when it would only repeat the hero directly above it,
-              which is exactly what the year lens does. */}
-          {periodShort !== periodLabel && (
-            <span style={{ color: 'var(--ink-2)', fontSize: 12 }}>{periodShort}</span>
+          {/* The count is the way to the whole list. Until this existed there
+              was nowhere at all to read the shared transactions themselves -
+              only totals, with no way to check what was in them. */}
+          {periodShared.length > 0 && (
+            <button
+              onClick={() =>
+                setDrilldown({ title: t('shared.allShared'), subtitle: periodLabel, items: periodShared })
+              }
+              className="active:opacity-60 transition-opacity"
+              style={{ color: '#4F74F3', fontSize: 12, fontWeight: 600 }}
+            >
+              {t(periodShared.length === 1 ? 'shared.drill.count.one' : 'shared.drill.count.other', { n: periodShared.length })}
+            </button>
           )}
         </div>
-        <div style={{ color: 'var(--ink-2)', fontSize: 11.5, marginBottom: 6 }}>{t('shared.fullAmounts')}</div>
+        <div style={{ color: 'var(--ink-2)', fontSize: 11.5, marginBottom: 6 }}>
+          {t('shared.fullAmounts')}
+          {periodShort !== periodLabel ? ` · ${periodShort}` : ''}
+        </div>
         {byCategory.length === 0 && (
           <div className="py-6 text-center" style={{ color: 'var(--ink-2)', fontSize: 13.5 }}>
             {t('shared.emptyPeriod')}
           </div>
         )}
-        {byCategory.map(({ total, category }, i) => {
+        {byCategory.map(({ total, category, items }, i) => {
           const Icon = getCategoryIcon(category?.icon ?? 'MoreHorizontal');
+          const name = category?.name ?? '?';
+          const subs = subsOf(items);
+          // One subcategory (or none at all) has nothing to expand INTO, so
+          // the row goes straight to the transactions rather than opening a
+          // list of one that says the same as the row above it.
+          const expandable = subs.length > 1;
+          const open = expanded === name;
           return (
-            <div
-              key={category?.id ?? i}
-              className="flex items-center gap-3 py-3"
-              style={i > 0 ? { borderTop: '1px solid var(--line-2)' } : undefined}
-            >
-              <div
-                className={`w-[34px] h-[34px] rounded-[10px] ${category?.bgColor ?? 'bg-neutral-100'} flex items-center justify-center flex-shrink-0`}
+            <div key={category?.id ?? i} style={i > 0 ? { borderTop: '1px solid var(--line-2)' } : undefined}>
+              <button
+                onClick={() =>
+                  expandable
+                    ? setExpanded(open ? null : name)
+                    : setDrilldown({ title: name, subtitle: periodLabel, items })
+                }
+                className="w-full flex items-center gap-3 py-3 text-left active:opacity-60 transition-opacity"
+                style={{ WebkitTapHighlightColor: 'transparent' }}
               >
-                <Icon className={`w-4 h-4 ${category?.color ?? 'text-neutral-500'}`} strokeWidth={2} />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div style={{ color: 'var(--ink)', fontSize: 14.5, fontWeight: 500 }}>{category?.name}</div>
                 <div
-                  className="mt-1.5 rounded-full overflow-hidden"
-                  style={{ height: 4, background: 'var(--bg-track)' }}
+                  className={`w-[34px] h-[34px] rounded-[10px] ${category?.bgColor ?? 'bg-neutral-100'} flex items-center justify-center flex-shrink-0`}
                 >
-                  <div
-                    className={`h-full rounded-full ${category?.color ?? 'text-neutral-500'}`}
-                    style={{
-                      width: `${maxCategory ? Math.max(4, (total / maxCategory) * 100) : 0}%`,
-                      background: 'currentColor',
-                      opacity: 0.55,
-                    }}
-                  />
+                  <Icon className={`w-4 h-4 ${category?.color ?? 'text-neutral-500'}`} strokeWidth={2} />
                 </div>
-              </div>
-              <div className="tabular-nums" style={{ color: 'var(--ink)', fontSize: 15, fontWeight: 700 }}>
-                <AmountText amount={total} currency={currency} decimals={total % 1 ? 2 : 0} />
-              </div>
+                <div className="flex-1 min-w-0">
+                  <div style={{ color: 'var(--ink)', fontSize: 14.5, fontWeight: 500 }}>{name}</div>
+                  <div
+                    className="mt-1.5 rounded-full overflow-hidden"
+                    style={{ height: 4, background: 'var(--bg-track)' }}
+                  >
+                    <div
+                      className={`h-full rounded-full ${category?.color ?? 'text-neutral-500'}`}
+                      style={{
+                        width: `${maxCategory ? Math.max(4, (total / maxCategory) * 100) : 0}%`,
+                        background: 'currentColor',
+                        opacity: 0.55,
+                      }}
+                    />
+                  </div>
+                </div>
+                <div className="tabular-nums" style={{ color: 'var(--ink)', fontSize: 15, fontWeight: 700 }}>
+                  <AmountText amount={total} currency={currency} decimals={total % 1 ? 2 : 0} />
+                </div>
+                {expandable ? (
+                  <ChevronDown
+                    className="w-3.5 h-3.5 flex-shrink-0 transition-transform"
+                    style={{ color: 'var(--ghost)', transform: open ? 'rotate(180deg)' : undefined }}
+                    strokeWidth={2.5}
+                  />
+                ) : (
+                  <ChevronRight className="w-3.5 h-3.5 flex-shrink-0" style={{ color: 'var(--ghost)' }} strokeWidth={2.5} />
+                )}
+              </button>
+
+              {open &&
+                subs.map((sub) => (
+                  <button
+                    key={sub.name ?? '__none__'}
+                    onClick={() =>
+                      setDrilldown({
+                        title: sub.name ?? t('trend.other'),
+                        subtitle: `${name} · ${periodLabel}`,
+                        items: sub.items,
+                      })
+                    }
+                    className="w-full flex items-center gap-3 py-2.5 pl-[46px] text-left active:opacity-60 transition-opacity"
+                    style={{ WebkitTapHighlightColor: 'transparent' }}
+                  >
+                    <span className="flex-1 min-w-0 truncate" style={{ color: 'var(--ink-2)', fontSize: 13.5 }}>
+                      {sub.name ?? t('trend.other')}
+                    </span>
+                    <span className="tabular-nums" style={{ color: 'var(--ink-2)', fontSize: 13.5, fontWeight: 600 }}>
+                      <AmountText amount={sub.total} currency={currency} decimals={sub.total % 1 ? 2 : 0} />
+                    </span>
+                    <ChevronRight className="w-3.5 h-3.5 flex-shrink-0" style={{ color: 'var(--ghost)' }} strokeWidth={2.5} />
+                  </button>
+                ))}
+              {open && (
+                <button
+                  onClick={() => setDrilldown({ title: name, subtitle: periodLabel, items })}
+                  className="w-full py-2.5 pl-[46px] text-left active:opacity-60 transition-opacity"
+                  style={{ color: '#4F74F3', fontSize: 13, fontWeight: 600, WebkitTapHighlightColor: 'transparent' }}
+                >
+                  {t('shared.drill.allOf', { name })}
+                </button>
+              )}
             </div>
           );
         })}
       </div>
+
+      {drilldown && (
+        <SharedDrilldown
+          title={drilldown.title}
+          subtitle={drilldown.subtitle}
+          transactions={drilldown.items}
+          currency={currency}
+          partner={partner}
+          userName={userName}
+          onClose={() => setDrilldown(null)}
+        />
+      )}
 
       {confirmSettle && (
         <ConfirmDialog
