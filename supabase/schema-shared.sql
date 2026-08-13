@@ -140,9 +140,14 @@ drop policy if exists "households_insert_creator" on public.households;
 drop policy if exists "households_update_member"  on public.households;
 drop policy if exists "households_delete_creator" on public.households;
 
+-- The creator is included explicitly, and not as a nicety: at the instant a
+-- household is created its founder is not yet a member (membership is the
+-- very next insert), so `insert ... returning id` - which is how the client
+-- learns the id - would be rejected by a members-only policy. The same clause
+-- is what lets the membership insert below see the household it references.
 create policy "households_select_member"
   on public.households for select
-  using (public.is_household_member(id));
+  using (public.is_household_member(id) or created_by = auth.uid());
 
 create policy "households_insert_creator"
   on public.households for insert
