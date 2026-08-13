@@ -2279,6 +2279,35 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
     );
   }
 
+  // Jump straight to a period, from either hero's period title. Built once
+  // and rendered by both branches: the two subjects share the cursor, so they
+  // must share the sheet that sets it - a second copy would drift.
+  //
+  // Mounted only while open so it always starts on the year on screen.
+  const periodPicker = isPeriodPickerOpen ? (
+    <PeriodPickerModal
+      type={timePeriodType}
+      year={selectedYear}
+      month={selectedMonth}
+      quarter={selectedQuarter}
+      years={selectableYears}
+      activeMonths={activeMonths}
+      onSelect={(choice) => {
+        setTimePeriodType(choice.type);
+        setSelectedYear(choice.year);
+        setSelectedMonth(choice.month);
+        setSelectedQuarter(choice.quarter);
+        // Same housekeeping as the arrows: a drilldown belongs to the period
+        // it was opened from, and a pinned comparison index is counted in the
+        // old unit.
+        setExpandedCategory(null);
+        if (choice.type !== timePeriodType) setComparisonBaseline('previous');
+        setIsPeriodPickerOpen(false);
+      }}
+      onClose={() => setIsPeriodPickerOpen(false)}
+    />
+  ) : null;
+
   // The household lens. Same tab, same dock highlight - a change of subject,
   // not a change of place. Same header furniture too, in the same order: the
   // period pill, then the switcher in the corner. The lens is the Dashboard's,
@@ -2317,8 +2346,10 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
           atLatest={isAtCurrentPeriod()}
           onPrevPeriod={navigatePrevious}
           onNextPeriod={navigateNext}
+          onPickPeriod={() => setIsPeriodPickerOpen(true)}
         />
         <div className="h-6" />
+        {periodPicker}
       </div>
     );
   }
@@ -5135,31 +5166,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
         );
       })()}
 
-      {/* Jump straight to a period, from the period title on the hero card.
-          Mounted only while open so it always starts on the year on screen. */}
-      {isPeriodPickerOpen && (
-        <PeriodPickerModal
-          type={timePeriodType}
-          year={selectedYear}
-          month={selectedMonth}
-          quarter={selectedQuarter}
-          years={selectableYears}
-          activeMonths={activeMonths}
-          onSelect={(choice) => {
-            setTimePeriodType(choice.type);
-            setSelectedYear(choice.year);
-            setSelectedMonth(choice.month);
-            setSelectedQuarter(choice.quarter);
-            // Same housekeeping as the arrows: a drilldown belongs to the
-            // period it was opened from, and a pinned comparison index is
-            // counted in the old unit.
-            setExpandedCategory(null);
-            if (choice.type !== timePeriodType) setComparisonBaseline('previous');
-            setIsPeriodPickerOpen(false);
-          }}
-          onClose={() => setIsPeriodPickerOpen(false)}
-        />
-      )}
+      {periodPicker}
 
       {/* Category Filter Modal for Trend View */}
       <CategoryFilterModal

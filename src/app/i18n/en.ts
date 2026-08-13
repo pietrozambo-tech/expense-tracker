@@ -546,6 +546,7 @@ export const en = {
   'shared.switchToPersonal': 'Show your expenses',
   'shared.prevPeriod': 'Previous period',
   'shared.nextPeriod': 'Next period',
+  'shared.choosePeriod': 'Choose a period',
   'shared.weSpent': 'We spent together',
   'shared.youPaid': 'You paid',
   'shared.theyPaid': '{name} paid',

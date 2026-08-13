@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import { t } from '../i18n';
 import { monthsFull } from '../i18n/store';
 import { AmountText } from './AmountText';
@@ -40,6 +40,9 @@ export interface SharedViewProps {
   atLatest: boolean;
   onPrevPeriod: () => void;
   onNextPeriod: () => void;
+  /** Open the period picker - the same sheet the personal hero's title opens,
+   *  owned by the parent because it writes the parent's cursor. */
+  onPickPeriod: () => void;
 }
 
 export function SharedView({
@@ -55,6 +58,7 @@ export function SharedView({
   atLatest,
   onPrevPeriod,
   onNextPeriod,
+  onPickPeriod,
 }: SharedViewProps) {
   const [confirmSettle, setConfirmSettle] = useState(false);
   const { type: periodType, year, month, quarter } = period;
@@ -143,7 +147,19 @@ export function SharedView({
           >
             <ChevronLeft className="w-5 h-5" style={{ color: 'rgba(255,255,255,0.55)' }} />
           </button>
-          <span style={{ color: '#FFFFFF', fontSize: 17, fontWeight: 700 }}>{periodLabel}</span>
+          {/* The label is the way in to any other period, exactly as on the
+              personal hero: stepping the chevrons back to October 2025 was
+              eleven taps. Same sheet, same choice - it sets the one cursor
+              both subjects read. */}
+          <button
+            onClick={onPickPeriod}
+            aria-label={t('shared.choosePeriod')}
+            className="flex items-center gap-1.5 px-2 -mx-2 py-1 rounded-lg active:opacity-60 transition-opacity"
+            style={{ WebkitTapHighlightColor: 'rgba(255, 255, 255, 0)' }}
+          >
+            <span style={{ color: '#FFFFFF', fontSize: 17, fontWeight: 700 }}>{periodLabel}</span>
+            <ChevronDown className="w-3 h-3 flex-shrink-0" style={{ color: 'rgba(255,255,255,0.55)' }} strokeWidth={3} />
+          </button>
           {/* Dimmed and inert at the newest period rather than hidden: a
               chevron that disappears makes the row jump and re-centres the
               label mid-tap. */}
