@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react';
-import { ChevronRight, ChevronLeft, UserCircle, Wallet, HelpCircle, ShieldCheck, ScrollText, Layers, FlaskConical, Trash2, Landmark, Cloud, LogOut, Upload, Copy, Download, FileSpreadsheet, Palmtree, UserX, Mail, LifeBuoy, CheckCircle2, Globe, CalendarClock, Sparkles, Palette, Sun, Moon, SunMoon } from 'lucide-react';
+import { ChevronRight, ChevronLeft, UserCircle, Wallet, HelpCircle, ShieldCheck, ScrollText, Layers, FlaskConical, Trash2, Landmark, Cloud, LogOut, Upload, Copy, Download, FileSpreadsheet, Palmtree, UserX, Mail, LifeBuoy, CheckCircle2, Globe, CalendarClock, Sparkles, Palette, Sun, Moon, SunMoon, Split } from 'lucide-react';
 import { sendSupportMessage, supportLimitReached } from '../lib/support';
 import { switchGlow } from './categoryColors';
 
@@ -96,6 +96,7 @@ const TILE = {
   demo:     { bg: '#F5F0FE', fg: '#7C3AED' },
   danger:   { bg: '#FEECEC', fg: '#DC2626' },
   appearance:{ bg: '#EDEBFF', fg: '#5B54D6' },
+  shared:   { bg: '#EEF1FE', fg: '#4F74F3' },
   neutral:  { bg: '#EFEFF4', fg: '#6B7280' },
 } as const;
 
@@ -123,6 +124,13 @@ interface SettingsProps {
   recurringRules: RecurringRule[];
   /** The ledger, for the price-change chips on the Recurring screen. */
   transactions: any[];
+  // Shared expenses. household === null means off, and turning it off must
+  // leave every other screen exactly as it was.
+  household?: import('../types').Household | null;
+  partner?: import('../types').Person | null;
+  onEnableShared?: (name: string) => void;
+  onUpdateHousehold?: (patch: Partial<import('../types').Household>) => void;
+  onDisableShared?: () => void;
   onCreateSchedule: (draft: ScheduleDraft) => void;
   onUpdateSchedule: (ruleId: string, draft: ScheduleDraft) => void;
   onStopSchedule: (ruleId: string) => void;
@@ -184,6 +192,11 @@ export function Settings({
   onSetLanguage,
   recurringRules,
   transactions,
+  household = null,
+  partner = null,
+  onEnableShared,
+  onUpdateHousehold,
+  onDisableShared,
   onCreateSchedule,
   onUpdateSchedule,
   onStopSchedule,
@@ -247,6 +260,9 @@ export function Settings({
   const [showCurrencySelector, setShowCurrencySelector] = useState(false);
   const [showLanguage, setShowLanguage] = useState(false);
   const [showAppearance, setShowAppearance] = useState(false);
+  const [showShared, setShowShared] = useState(false);
+  const [sharedName, setSharedName] = useState('');
+  const [confirmDisableShared, setConfirmDisableShared] = useState(false);
   const [showAllCurrencies, setShowAllCurrencies] = useState(false);
   const [showNameEditor, setShowNameEditor] = useState(false);
   const [showSupport, setShowSupport] = useState(false);
@@ -469,6 +485,163 @@ export function Settings({
         : syncStatus === 'error'
           ? { label: "Sync issue - retrying automatically", color: '#FF3B30' }
           : { label: lastSyncedAt ? `Synced · ${relTime(lastSyncedAt)}` : 'Synced', color: '#30D158' };
+
+  // Shared expenses setup. Setup ONLY - the balance and the household view
+  // live on the Dashboard behind the avatar switcher; this screen holds what
+  // you configure once: who, the default split, which categories always
+  // share, whether a balance is kept, and the way out.
+  if (showShared) {
+    const sharedCats: string[] = household?.sharedCategoryIds ?? [];
+    const toggleCat = (id: string) => {
+      if (!household || !onUpdateHousehold) return;
+      onUpdateHousehold({
+        sharedCategoryIds: sharedCats.includes(id)
+          ? sharedCats.filter((c) => c !== id)
+          : [...sharedCats, id],
+      });
+    };
+    return (
+      <div className="flex flex-col" style={SUBPAGE_STYLE}>
+        <div style={{ backgroundColor: 'var(--bg-page)' }}>
+          <div className="px-6 pb-4 pt-0">
+            <div className="flex items-center justify-center relative">
+              <button
+                onClick={() => setShowShared(false)}
+                className="absolute left-0 -ml-2 px-2 py-1 rounded-lg active:bg-neutral-200 transition-colors"
+              >
+                <ChevronLeft size={24} style={{ color: '#4F74F3' }} />
+              </button>
+              <h1 style={{ color: 'var(--ink)', fontSize: '20px', fontWeight: '600', letterSpacing: '-0.3px' }}>{t('set.shared')}</h1>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto" style={{ paddingBottom: DOCK_CLEARANCE }}>
+          {!household ? (
+            <div className="px-6">
+              <div className="rounded-2xl shadow-sm px-5 py-5" style={{ backgroundColor: 'var(--bg-card)' }}>
+                <h2 style={{ color: 'var(--ink)', fontSize: 17, fontWeight: 700, marginBottom: 6 }}>
+                  {t('shared.set.introTitle')}
+                </h2>
+                <p style={{ color: 'var(--ink-2)', fontSize: 13.5, lineHeight: 1.5, marginBottom: 18 }}>
+                  {t('shared.set.introBody')}
+                </p>
+                <label className="block" style={{ color: 'var(--ink-2)', fontSize: 13, marginBottom: 6 }}>
+                  {t('shared.set.nameLabel')}
+                </label>
+                <input
+                  type="text"
+                  value={sharedName}
+                  onChange={(e) => setSharedName(e.target.value)}
+                  placeholder={t('shared.set.namePlaceholder')}
+                  className="w-full rounded-xl px-4 py-3 outline-none"
+                  style={{ backgroundColor: 'var(--bg-field)', color: 'var(--ink)', fontSize: 16 }}
+                />
+                <button
+                  onClick={() => {
+                    if (!sharedName.trim()) return;
+                    onEnableShared?.(sharedName);
+                    setSharedName('');
+                  }}
+                  disabled={!sharedName.trim()}
+                  className="w-full mt-4 py-3.5 rounded-xl font-medium active:scale-[0.98] transition-transform"
+                  style={{
+                    backgroundColor: sharedName.trim() ? '#4F74F3' : 'var(--bg-inset)',
+                    color: sharedName.trim() ? '#FFFFFF' : 'var(--ink-2)',
+                    fontSize: 15,
+                  }}
+                >
+                  {t('shared.set.enable')}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div className="px-6">
+                <div className="rounded-2xl shadow-sm overflow-hidden" style={{ backgroundColor: 'var(--bg-card)' }}>
+                  <div className="flex items-center gap-3 px-4" style={{ height: 52, borderBottom: '1px solid var(--bg-inset)' }}>
+                    <span className="flex-1" style={{ color: 'var(--ink)', fontSize: 15 }}>{t('shared.set.partner')}</span>
+                    <span className="flex items-center gap-2" style={{ color: 'var(--ink-2)', fontSize: 14 }}>
+                      <span
+                        aria-hidden="true"
+                        style={{
+                          width: 22, height: 22, borderRadius: 999, background: partner?.color ?? '#7C5CFF',
+                          color: '#FFFFFF', fontSize: 10, fontWeight: 700,
+                          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                        }}
+                      >
+                        {(partner?.name?.[0] ?? '?').toUpperCase()}
+                      </span>
+                      {partner?.name}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3 px-4" style={{ height: 52, borderBottom: '1px solid var(--bg-inset)' }}>
+                    <span className="flex-1" style={{ color: 'var(--ink)', fontSize: 15 }}>{t('shared.set.split')}</span>
+                    <span style={{ color: 'var(--ink-2)', fontSize: 14 }}>{t('shared.set.splitValue')}</span>
+                  </div>
+                  <SwitchRow
+                    label={t('shared.set.trackBalance')}
+                    on={household.trackBalance}
+                    onToggle={() => onUpdateHousehold?.({ trackBalance: !household.trackBalance })}
+                  />
+                </div>
+                <p className="px-1 mt-2" style={{ color: 'var(--faint)', fontSize: 12, lineHeight: 1.45 }}>
+                  {t('shared.set.trackBalanceDesc')}
+                </p>
+              </div>
+
+              <div className="px-6 mt-5">
+                <p className="px-1 mb-2" style={{ color: 'var(--ink-2)', fontSize: 13, fontWeight: 600 }}>
+                  {t('shared.set.always')}
+                </p>
+                <div className="rounded-2xl shadow-sm overflow-hidden" style={{ backgroundColor: 'var(--bg-card)' }}>
+                  {categories.map((cat: any, i: number) => (
+                    <SwitchRow
+                      key={cat.id}
+                      label={cat.name}
+                      on={sharedCats.includes(cat.id)}
+                      divider={i < categories.length - 1}
+                      onToggle={() => toggleCat(cat.id)}
+                    />
+                  ))}
+                </div>
+                <p className="px-1 mt-2" style={{ color: 'var(--faint)', fontSize: 12, lineHeight: 1.45 }}>
+                  {t('shared.set.alwaysDesc')}
+                </p>
+              </div>
+
+              <div className="px-6 mt-5">
+                <div className="rounded-2xl shadow-sm overflow-hidden" style={{ backgroundColor: 'var(--bg-card)' }}>
+                  <button
+                    onClick={() => setConfirmDisableShared(true)}
+                    className="w-full flex items-center gap-3 px-4 py-3.5 active:bg-neutral-100 transition-colors"
+                  >
+                    <span className="flex-1 text-left" style={{ color: 'var(--tone-danger)', fontSize: 15, fontWeight: 500 }}>
+                      {t('shared.set.disconnect')}
+                    </span>
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+
+        {confirmDisableShared && (
+          <ConfirmDialog
+            title={t('shared.set.disconnectTitle')}
+            message={t('shared.set.disconnectBody')}
+            confirmLabel={t('shared.set.disconnectConfirm')}
+            onCancel={() => setConfirmDisableShared(false)}
+            onConfirm={() => {
+              onDisableShared?.();
+              setConfirmDisableShared(false);
+              setShowShared(false);
+            }}
+          />
+        )}
+      </div>
+    );
+  }
 
   // Appearance lives beside Language and Currency, not inside Profile: those
   // three are all "how the app presents itself", where Profile is who you are
@@ -1704,6 +1877,19 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
             <RowIcon icon={CalendarClock} tone={TILE.recurring} />
             <span className="flex-1 text-left" style={{ color: 'var(--ink)', fontSize: '15px' }}>{t('set.scheduled')}</span>
             <span style={{ color: 'var(--ink-2)', fontSize: '14px' }}>{upcomingSchedules(recurringRules).length}</span>
+            <ChevronRight className="w-4 h-4" style={{ color: 'var(--ghost)' }} />
+          </button>
+
+          <button
+            onClick={() => setShowShared(true)}
+            className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
+            style={{ borderBottom: '1px solid var(--bg-inset)' }}
+          >
+            <RowIcon icon={Split} tone={TILE.shared} />
+            <span className="flex-1 text-left" style={{ color: 'var(--ink)', fontSize: '15px' }}>{t('set.shared')}</span>
+            <span style={{ color: 'var(--ink-2)', fontSize: '14px' }}>
+              {household && partner ? partner.name : t('set.shared.off')}
+            </span>
             <ChevronRight className="w-4 h-4" style={{ color: 'var(--ghost)' }} />
           </button>
 

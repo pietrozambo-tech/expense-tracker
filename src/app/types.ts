@@ -53,6 +53,56 @@ export interface RecurringRule {
   };
 }
 
+// ---------------------------------------------------------------------------
+// Shared expenses (design: docs/shared-expenses/README.md). All fields below
+// are optional and absent for anyone without a household - the app reads
+// identically to before they existed.
+
+/** How a shared amount divides. Reusable: the household's default, and later a
+ *  source's or recurring rule's override, are all this one shape. */
+export interface SplitRule {
+  mode: 'equal' | 'percent';
+  ways?: number; // 'equal': heads including you
+  percent?: number; // 'percent': your share, 0-100
+}
+
+/** Someone you share costs with. Local-only until account pairing exists. */
+export interface Person {
+  id: string;
+  name: string;
+  color: string; // avatar background (hex)
+  updatedAt?: string;
+}
+
+/** The one household this account shares costs with. Its absence IS the
+ *  feature toggle: no household means no switcher, no chip, no shared view -
+ *  the app is exactly what it was before the feature shipped. */
+export interface Household {
+  id: string;
+  memberIds: string[]; // Person ids, not including you
+  defaultSplit: SplitRule;
+  /** Category ids whose expenses share by default ("always shared"). */
+  sharedCategoryIds: string[];
+  /** false = split amounts correctly but keep no balance (joint account you
+   *  both fund). Defaults true - without a balance the feature is close to
+   *  pointless, you may as well type your share. */
+  trackBalance: boolean;
+  updatedAt?: string;
+}
+
+/** Money received from (or paid to) the household member, retiring part of the
+ *  balance. Not a Transaction: it is neither spending nor income and never
+ *  enters a category. */
+export interface Settlement {
+  id: string;
+  personId: string;
+  date: string; // YYYY-MM-DD local, like Transaction.date
+  /** Positive: they paid you. Negative: you paid them. In the home currency
+   *  at the time it was recorded. */
+  amount: number;
+  updatedAt?: string;
+}
+
 export interface Transaction {
   id: string;
   description: string;
@@ -79,6 +129,15 @@ export interface Transaction {
   // Absent on data from before the field existed; the merge then falls back
   // to comparing against the last-agreed base.
   updatedAt?: string;
+  // Present only on shared transactions: `amount` stays what left the account,
+  // `split.mine` is the part that is actually yours, in the transaction's OWN
+  // currency. Resolved at save time from whichever rule fired, so no reader
+  // ever does lookups and changing a household default never rewrites history.
+  split?: {
+    mine: number;
+    /** Person ids the rest belongs to. */
+    withIds?: string[];
+  };
 }
 
 export interface UserSettings {

@@ -1,4 +1,4 @@
-import type { Category, RecurringRule, Source, Transaction, UserSettings } from '../types';
+import type { Category, Household, Person, RecurringRule, Settlement, Source, Transaction, UserSettings } from '../types';
 import {
   categories as defaultCategories,
   incomeCategories as defaultIncomeCategories,
@@ -38,6 +38,11 @@ const KEYS = {
   // offer is not repeated on every launch. Device-local: a nudge preference,
   // not data - at worst another device asks the same question once.
   backTagDismissed: key('backtag-dismissed'),
+  // Shared expenses: the household config, the people in it, and settlements
+  // against the running balance. Synced and backed up like everything else.
+  household: key('household'),
+  people: key('people'),
+  settlements: key('settlements'),
 };
 
 /**
@@ -94,6 +99,23 @@ export const loadIncomeCategories = () =>
   read<Category[]>(KEYS.incomeCategories, defaultIncomeCategories);
 export const saveIncomeCategories = (categories: Category[]) =>
   write(KEYS.incomeCategories, categories);
+
+// ── Shared expenses ─────────────────────────────────────────────────────────
+//
+// null household = the feature is off, and every shared surface (the header
+// switcher, the add-sheet chip, the shared view) simply does not exist.
+
+export const loadHousehold = () => read<Household | null>(KEYS.household, null);
+export const saveHousehold = (h: Household | null) => {
+  if (h === null) removeItem(KEYS.household);
+  else write(KEYS.household, h);
+};
+
+export const loadPeople = () => read<Person[]>(KEYS.people, []);
+export const savePeople = (people: Person[]) => write(KEYS.people, people);
+
+export const loadSettlements = () => read<Settlement[]>(KEYS.settlements, []);
+export const saveSettlements = (s: Settlement[]) => write(KEYS.settlements, s);
 
 // ── Guest mode ──────────────────────────────────────────────────────────────
 

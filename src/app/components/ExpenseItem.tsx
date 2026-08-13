@@ -1,4 +1,4 @@
-import { Trash2, Repeat } from 'lucide-react';
+import { Trash2, Repeat, Split } from 'lucide-react';
 import { t } from '../i18n';
 import { homeAmount } from '../utils/currency';
 import { dateLocale } from '../i18n/store';
@@ -24,6 +24,7 @@ interface ExpenseItemProps {
     date: string;
     currency?: string;
     recurrence?: string;
+    split?: { mine: number };
   };
   onTap: (id: string) => void;
   onDelete: (id: string) => void;
@@ -47,6 +48,10 @@ export function ExpenseItem({ expense, onTap, onDelete, currency, showDate = fal
   const showConversion = transactionCurrency !== currency;
   const convertedAmount = showConversion ? homeAmount(expense, currency) : null;
   const isRecurrent = expense.recurrence && expense.recurrence !== 'Never repeat';
+  // Shared row: the big figure is YOUR share - the number every total on
+  // every screen counts - and what actually left the account drops to the
+  // grey line, exactly the slot foreign-currency rows already use.
+  const isSplit = !!expense.split && isFinite(expense.split.mine) && expense.split.mine < expense.amount;
   // A negative expense is a refund / credit: show it as a green "+" inflow
   // instead of a broken double-minus.
   const isCredit = expense.amount < 0;
@@ -111,8 +116,19 @@ const creditStyle = isCredit ? { color: 'var(--tone-income)' } : undefined;
               eye runs down this list to compare. */}
           <div className="flex-shrink-0 flex items-center gap-1.5 text-right pr-4">
             {isRecurrent && <Repeat size={14} className="text-neutral-400 flex-shrink-0" strokeWidth={2} />}
+            {isSplit && <Split size={14} className="text-neutral-400 flex-shrink-0" strokeWidth={2} />}
             <div>
-              {showConversion && convertedAmount !== null ? (
+              {isSplit ? (
+                <>
+                  <p className="text-neutral-900 font-bold tabular-nums text-sm" style={creditStyle}>
+                    <AmountText sign={sign} amount={Math.abs(expense.split!.mine)} currency={transactionCurrency} decimals={2} />
+                  </p>
+                  <p className="text-neutral-500 text-[10px] tabular-nums mt-0.5 font-medium">
+                    {t('shared.of')}{' '}
+                    <AmountText amount={Math.abs(expense.amount)} currency={transactionCurrency} decimals={2} />
+                  </p>
+                </>
+              ) : showConversion && convertedAmount !== null ? (
                 <>
                   <p className="text-neutral-900 font-bold tabular-nums text-sm" style={creditStyle}>
                     <AmountText sign={sign} amount={Math.abs(convertedAmount)} currency={currency} decimals={2} />

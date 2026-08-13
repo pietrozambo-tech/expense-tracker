@@ -1,4 +1,4 @@
-import { homeAmount } from '../utils/currency';
+import { mineAmount } from '../utils/currency';
 import { parseLocalDate } from './dates';
 
 // Deliberately structural rather than the full Transaction: the Dashboard's
@@ -9,6 +9,7 @@ export interface UsualRow {
   amount: number;
   currency?: string;
   baseAmount?: number;
+  split?: { mine: number };
 }
 
 // "What this period usually looks like", as one curve the whole Dashboard
@@ -41,7 +42,7 @@ function cumulativeForPeriod(
 ): number[] {
   const inPeriod = expenses
     .filter((e) => e.type !== 'income')
-    .map((e) => ({ at: parseLocalDate(e.date), amount: homeAmount(e as never, currency) }))
+    .map((e) => ({ at: parseLocalDate(e.date), amount: mineAmount(e as never, currency) }))
     .filter((e) => e.at >= start && e.at <= stepEnds[stepEnds.length - 1])
     .sort((a, b) => a.at.getTime() - b.at.getTime());
 

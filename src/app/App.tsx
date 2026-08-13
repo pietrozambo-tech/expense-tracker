@@ -2,10 +2,10 @@ import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type
 import { toast } from 'sonner';
 import { Toaster } from './components/ui/sonner';
 import { createPortal } from 'react-dom';
-import { BarChart3, Plus, List, X, Settings as SettingsIcon, TrendingUp, ChevronDown, Repeat } from 'lucide-react';
+import { BarChart3, Plus, List, X, Settings as SettingsIcon, TrendingUp, ChevronDown, Repeat, Split, Undo2 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
-import { CURRENCIES, convertAmount, BASE_CURRENCY } from './utils/currency';
-import type { Transaction, Source, RecurringRule, Category } from './types';
+import { CURRENCIES, convertAmount, BASE_CURRENCY, formatAmountListView } from './utils/currency';
+import type { Transaction, Source, RecurringRule, Category, Household, Person, Settlement } from './types';
 import {
   clearAllData,
   loadCategories,
@@ -14,6 +14,12 @@ import {
   loadSources,
   loadTransactions,
   loadRecurringRules,
+  loadHousehold,
+  loadPeople,
+  loadSettlements,
+  saveHousehold,
+  savePeople,
+  saveSettlements,
   saveRecurringRules,
   saveCategories,
   saveIncomeCategories,
@@ -31,6 +37,7 @@ import { DEFAULT_SOURCES, DEFAULT_SOURCE_EXPENSE, DEFAULT_SOURCE_INCOME } from '
 import { SourceLogo } from './components/SourceLogo';
 import { SourceSelectorModal } from './components/SourceSelectorModal';
 import { getDemoTransactions } from './lib/demoData';
+import { myShareOf, newHousehold } from './lib/shared';
 import { buildImport, applyImportDecision, type ImportPayload, type ImportResult } from './lib/importData';
 import { ImportSummaryDialog } from './components/ImportSummaryDialog';
 import { ImportReviewDialog } from './components/ImportReviewDialog';
@@ -253,6 +260,24 @@ export default function App() {
   const [refreshKey, setRefreshKey] = useState(0);
   const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null);
   const [recurringRules, setRecurringRules] = useState<RecurringRule[]>(() => loadRecurringRules());
+  // Shared expenses. household === null means the feature is OFF and no shared
+  // surface exists anywhere - the app renders exactly as it did before.
+  const [household, setHousehold] = useState<Household | null>(() => loadHousehold());
+  const [people, setPeople] = useState<Person[]>(() => loadPeople());
+  const [settlements, setSettlements] = useState<Settlement[]>(() => loadSettlements());
+  // Per-entry override on the Add screen: 'auto' follows the category default,
+  // the other two are this entry's explicit choice. Reset when the sheet closes.
+  const [shareChoice, setShareChoice] = useState<'auto' | 'on' | 'off'>('auto');
+  // The household member. One person in v1; resolved here once so no child
+  // component ever digs through `people`.
+  const partner = household ? (people.find((p) => household.memberIds.includes(p.id)) ?? null) : null;
+  // What the Add screen's chip states. 'auto' means the category default
+  // decides; an explicit choice is this entry's own. Income never splits (v1).
+  const categoryIsShared =
+    !!household && !!selectedCategory && household.sharedCategoryIds.includes(selectedCategory);
+  const entryShared =
+    !!household && !!partner && transactionType === 'expense' &&
+    (shareChoice === 'on' || (shareChoice === 'auto' && categoryIsShared));
   // Pending scope choices for edits/deletes of transactions in a recurring
   // chain ("only this one" vs "this and future ones").
   const [pendingRecurringEdit, setPendingRecurringEdit] = useState<{ id: string; values: Partial<Transaction> } | null>(null);
@@ -352,6 +377,7 @@ export default function App() {
     currency: string;
     recurrence: string;
     sourceId: string | null;
+    shared: boolean;
   } | null>(null);
 
   // Persist app data whenever it changes
@@ -370,6 +396,15 @@ export default function App() {
   useEffect(() => {
     saveRecurringRules(recurringRules);
   }, [recurringRules]);
+  useEffect(() => {
+    saveHousehold(household);
+  }, [household]);
+  useEffect(() => {
+    savePeople(people);
+  }, [people]);
+  useEffect(() => {
+    saveSettlements(settlements);
+  }, [settlements]);
   // Start each tab from the top when switching in the nav bar, rather than
   // inheriting the previous tab's scroll position. Reset both the shared
   // scroll container and the window (whichever actually scrolls).
@@ -476,6 +511,9 @@ export default function App() {
     categories,
     incomeCategories,
     sources,
+    household,
+    people,
+    settlements,
     settings: {
       onboarded: hasCompletedOnboarding,
       userName,
@@ -499,6 +537,9 @@ export default function App() {
     setCategories(p.categories ?? initialCategories);
     setIncomeCategories(p.incomeCategories ?? initialIncomeCategories);
     setSources(p.sources?.length ? p.sources : DEFAULT_SOURCES);
+    setHousehold(p.household ?? null);
+    setPeople(p.people ?? []);
+    setSettlements(p.settlements ?? []);
     const s = p.settings ?? ({} as SyncPayload['settings']);
     setHasCompletedOnboarding(!!s.onboarded);
     setUserName(s.userName ?? '');
@@ -879,6 +920,9 @@ export default function App() {
     setSelectedTransactionCurrency(expense.currency || userCurrency); // Set currency for current transaction
     setRecurrence(expense.recurrence || 'Never repeat');
     setSelectedSourceId(expense.sourceId || defaultSourceFor(expense.type || 'expense'));
+    // An explicit state either way: reopening an old unshared entry in a
+    // now-shared category must not silently share it on save.
+    setShareChoice(expense.split ? 'on' : 'off');
 
     // Store original values for change detection
     setOriginalValues({
@@ -890,7 +934,8 @@ export default function App() {
       type: expense.type || 'expense',
       currency: expense.currency || userCurrency,
       recurrence: expense.recurrence || 'Never repeat',
-      sourceId: expense.sourceId || null
+      sourceId: expense.sourceId || null,
+      shared: !!expense.split
     });
     
     // Set editing mode and open modal
@@ -917,8 +962,56 @@ export default function App() {
     });
     setEditingExpenseId(null);
     setOriginalValues(null);
+    setShareChoice('auto');
     setCurrentTab(returnToTab); // Return to the tab that was active before editing
     setIsModalOpen(false);
+  };
+
+  // ---- Shared expenses ----
+
+  const handleEnableShared = (name: string) => {
+    const stamp = new Date().toISOString();
+    const person: Person = {
+      id: `person-${Date.now().toString(36)}`,
+      name: name.trim(),
+      color: '#7C5CFF',
+      updatedAt: stamp,
+    };
+    setPeople((prev) => [...prev, person]);
+    setHousehold(newHousehold(person.id));
+    track('shared_enabled');
+    toast.success(t('toast.sharedOn', { name: person.name }), { duration: 1600 });
+  };
+
+  const handleUpdateHousehold = (patch: Partial<Household>) => {
+    setHousehold((prev) => (prev ? { ...prev, ...patch, updatedAt: new Date().toISOString() } : prev));
+  };
+
+  // Splits already stored on transactions stay - they are historical fact.
+  // Settlements stay too, so re-enabling later does not resurrect an already
+  // settled balance. Only the config goes.
+  const handleDisableShared = () => {
+    setHousehold(null);
+    track('shared_disabled');
+    toast.success(t('toast.sharedOff'), { duration: 1400 });
+  };
+
+  const handleSettle = (amount: number) => {
+    if (!partner) return;
+    const today = new Date();
+    const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    setSettlements((prev) => [
+      ...prev,
+      {
+        id: `settle-${Date.now().toString(36)}`,
+        personId: partner.id,
+        date: dateStr,
+        amount: Math.round(amount * 100) / 100,
+        updatedAt: new Date().toISOString(),
+      },
+    ]);
+    track('shared_settled');
+    toast.success(t('shared.settled'), { duration: 1600 });
   };
 
   const handleSave = () => {
@@ -956,6 +1049,12 @@ export default function App() {
         baseAmount: convertAmount(parseFloat(amount), selectedTransactionCurrency, BASE_CURRENCY), // lock FX value
         recurrence: recurrence,
         sourceId: selectedSourceId || undefined,
+        // Present when shared, and explicitly undefined when not: the edit
+        // spread ({ ...expense, ...values }) must be able to REMOVE a split
+        // the user just turned off.
+        split: entryShared && household
+          ? { mine: myShareOf(parseFloat(amount), household.defaultSplit), withIds: household.memberIds }
+          : undefined,
         updatedAt: new Date().toISOString()
       };
       const current = expenses.find((e) => e.id === editingExpenseId);
@@ -1019,6 +1118,9 @@ export default function App() {
         baseAmount: convertAmount(parseFloat(amount), selectedTransactionCurrency, BASE_CURRENCY), // lock FX value
         recurrence: recurrence, // Add recurrence
         sourceId: selectedSourceId || undefined,
+        ...(entryShared && household
+          ? { split: { mine: myShareOf(parseFloat(amount), household.defaultSplit), withIds: household.memberIds } }
+          : {}),
         updatedAt: new Date().toISOString()
       };
 
@@ -1085,6 +1187,7 @@ export default function App() {
       });
       setEditingExpenseId(null);
       setOriginalValues(null);
+      setShareChoice('auto');
       setIsSaving(false); // Reset saving state
     }, 500);
   };
@@ -1295,7 +1398,8 @@ export default function App() {
       selectedSubcategory !== originalValues.subcategory ||
       selectedTransactionCurrency !== originalValues.currency ||
       recurrence !== originalValues.recurrence ||
-      (selectedSourceId || null) !== (originalValues.sourceId || null)
+      (selectedSourceId || null) !== (originalValues.sourceId || null) ||
+      entryShared !== originalValues.shared
     : true;
   
   const canSave = amount && parseFloat(amount) > 0 && selectedCategory && hasChanges;
@@ -1597,6 +1701,9 @@ export default function App() {
           sources,
           transactions: expenses,
           recurringRules,
+          household,
+          people,
+          settlements,
         })
       );
       track('data_exported', { count: expenses.length });
@@ -1665,6 +1772,10 @@ export default function App() {
     if (Array.isArray(b.incomeCategories))
       setIncomeCategories(b.incomeCategories.map((c: Category) => ({ ...c, updatedAt: restoredAt })));
     if (Array.isArray(b.sources)) setSources(b.sources);
+    // Absent in older backups = the feature was off when it was written.
+    setHousehold(b.household && typeof b.household === 'object' ? { ...b.household, updatedAt: restoredAt } : null);
+    setPeople(Array.isArray(b.people) ? b.people : []);
+    setSettlements(Array.isArray(b.settlements) ? b.settlements : []);
     if (b.settings) {
       if (typeof b.settings.currency === 'string') setUserCurrency(b.settings.currency);
       setMonthlyBudget(typeof b.settings.monthlyBudget === 'number' ? b.settings.monthlyBudget : undefined);
@@ -2108,6 +2219,10 @@ export default function App() {
                   setCurrentTab('settings');
                   setOpenRecurringOnSettings(true);
                 }}
+                household={household}
+                partner={partner}
+                settlements={settlements}
+                onSettle={handleSettle}
               />
             )}
             {currentTab === 'trend' && (
@@ -2143,6 +2258,11 @@ export default function App() {
                 language={language}
                 onSetLanguage={adoptLanguage}
                 recurringRules={recurringRules}
+                household={household}
+                partner={partner}
+                onEnableShared={handleEnableShared}
+                onUpdateHousehold={handleUpdateHousehold}
+                onDisableShared={handleDisableShared}
                 onCreateSchedule={handleCreateSchedule}
                 onUpdateSchedule={handleUpdateSchedule}
                 onStopSchedule={handleStopSchedule}
@@ -2450,8 +2570,62 @@ export default function App() {
                 }
               />
               
-              <DescriptionInput 
-                value={description} 
+              {/* Sharing is a readout, not a form: the chip states what the
+                  defaults decided about the number above it, and one tap
+                  overrides this entry only. It sits under the amount because
+                  it qualifies the amount ("84, of which 42 is yours").
+                  Absent entirely without a household - this screen is then
+                  byte-identical to the app before the feature. */}
+              {household && partner && transactionType === 'expense' && (
+                <div className="px-6 -mt-3 pb-5">
+                  {entryShared ? (
+                    <button
+                      type="button"
+                      onClick={() => setShareChoice('off')}
+                      aria-label={t('shared.chip.aria')}
+                      className="inline-flex items-center gap-1.5 rounded-full active:scale-95 transition-transform"
+                      style={{ padding: '5px 9px 5px 10px', backgroundColor: 'var(--bg-inset)', color: 'var(--ink-2)', fontSize: 12.5, fontWeight: 500, WebkitTapHighlightColor: 'transparent' }}
+                    >
+                      <Split className="w-3.5 h-3.5" strokeWidth={2} />
+                      <span>
+                        {t('shared.chip.on', {
+                          amt: formatAmountListView(
+                            amount && parseFloat(amount) > 0 ? myShareOf(parseFloat(amount), household.defaultSplit) : 0,
+                            selectedTransactionCurrency,
+                            2,
+                          ),
+                        })}
+                      </span>
+                      <X className="w-3 h-3" style={{ opacity: 0.55 }} strokeWidth={2.5} />
+                    </button>
+                  ) : categoryIsShared ? (
+                    <button
+                      type="button"
+                      onClick={() => setShareChoice('auto')}
+                      aria-label={t('shared.chip.aria')}
+                      className="inline-flex items-center gap-1.5 rounded-full active:scale-95 transition-transform"
+                      style={{ padding: '5px 11px 5px 10px', background: 'transparent', border: '1.5px solid var(--line)', color: 'var(--ink-2)', fontSize: 12.5, fontWeight: 500, WebkitTapHighlightColor: 'transparent' }}
+                    >
+                      <Undo2 className="w-3.5 h-3.5" strokeWidth={2.5} />
+                      <span>{t('shared.chip.off')}</span>
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setShareChoice('on')}
+                      aria-label={t('shared.chip.aria')}
+                      className="inline-flex items-center gap-1.5 rounded-full active:scale-95 transition-transform"
+                      style={{ padding: '5px 12px 5px 10px', background: 'transparent', border: '1.5px dashed var(--line)', color: 'var(--ink-2)', fontSize: 12.5, fontWeight: 500, WebkitTapHighlightColor: 'transparent' }}
+                    >
+                      <Split className="w-3.5 h-3.5" strokeWidth={2} />
+                      <span>{t('shared.chip.invite', { name: partner.name })}</span>
+                    </button>
+                  )}
+                </div>
+              )}
+
+              <DescriptionInput
+                value={description}
                 onChange={setDescription}
                 transactionType={transactionType}
                 suggestions={descriptionSuggestions}

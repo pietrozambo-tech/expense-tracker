@@ -1,4 +1,4 @@
-import { homeAmount } from '../utils/currency';
+import { mineAmount } from '../utils/currency';
 import { getLanguage, daysFull, numberLocale } from '../i18n/store';
 import { parseLocalDate } from './dates';
 
@@ -95,7 +95,7 @@ export function dayOfWeekBreakdown(
       if (oneOffsOnly && isRecurringRow(row)) continue;
       const at = parseLocalDate(row.date);
       if (at < start || at > end) continue;
-      totals[at.getDay()] += homeAmount(row as never, currency);
+      totals[at.getDay()] += mineAmount(row as never, currency);
       counts[at.getDay()]++;
     }
   }

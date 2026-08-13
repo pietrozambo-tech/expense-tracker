@@ -8,7 +8,7 @@ import { SubcategoryFilterModal } from './SubcategoryFilterModal';
 import { SourceFilterModal } from './SourceFilterModal';
 import { SearchModal } from './SearchModal';
 import { ExportScopeModal } from './ExportScopeModal';
-import { CURRENCIES, homeAmount } from '../utils/currency';
+import { CURRENCIES, mineAmount } from '../utils/currency';
 import { AmountText } from './AmountText';
 import { switchGlow } from './categoryColors';
 import { t } from '../i18n';
@@ -271,7 +271,7 @@ export function Activity({
   // All tab the biggest thing that happened to you could be either direction
   // with no way to tell from position.
   const signedAmount = (t: Transaction) =>
-    (t.type === 'income' ? 1 : -1) * homeAmount(t, currency);
+    (t.type === 'income' ? 1 : -1) * mineAmount(t, currency);
   // Biggest first, in the direction the tab is about: Income counts down from
   // the largest sum received; Expenses and All count up from the largest spend,
   // so All runs from the heaviest expense through to the largest income.
@@ -294,7 +294,7 @@ export function Activity({
   // Header total: net for All (signed), spending total for Expenses, +total for Income
   const totalCount = filteredTransactions.length;
   const netTotal = filteredTransactions.reduce((sum, t) => {
-    const converted = homeAmount(t, currency);
+    const converted = mineAmount(t, currency);
     return t.type === 'income' ? sum + converted : sum - converted;
   }, 0);
   // On All, one signed net hid the two figures people actually came for, and
@@ -303,9 +303,9 @@ export function Activity({
   // the export button, and it has to survive "1,234.56€ in · 987.65€ out"
   // without wrapping - the cents live on every row below.
   const inTotal = filteredTransactions.reduce(
-    (sum, t) => (t.type === 'income' ? sum + homeAmount(t, currency) : sum), 0);
+    (sum, t) => (t.type === 'income' ? sum + mineAmount(t, currency) : sum), 0);
   const outTotal = filteredTransactions.reduce(
-    (sum, t) => (t.type === 'income' ? sum : sum + homeAmount(t, currency)), 0);
+    (sum, t) => (t.type === 'income' ? sum : sum + mineAmount(t, currency)), 0);
   // This week's dots. Built from ALL transactions, not the filtered list: the
   // strip answers "have I been logging", and a category filter must not make
   // a logged day look empty.

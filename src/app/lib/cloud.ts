@@ -1,4 +1,4 @@
-import type { Category, RecurringRule, Source, Transaction } from '../types';
+import type { Category, Household, Person, RecurringRule, Settlement, Source, Transaction } from '../types';
 import { supabase } from './supabase';
 
 // The whole app dataset for one user. Stored as a single JSON record per user
@@ -11,6 +11,10 @@ export interface SyncPayload {
   categories: Category[];
   incomeCategories: Category[];
   sources: Source[];
+  // Shared expenses - all optional, absent for accounts without a household.
+  household?: Household | null;
+  people?: Person[];
+  settlements?: Settlement[];
   settings: {
     onboarded: boolean;
     userName: string;
@@ -430,6 +434,27 @@ export function mergePayloads(
   const byDateDesc = <T extends { date: string }>(list: T[]): T[] =>
     [...list].sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
 
+  // The household is a singleton, so mergeList's shape does not fit, but its
+  // three-way logic still does: a side that differs from base has spoken (a
+  // disconnect included - that arrives as null), and when both spoke the
+  // newer stamp wins. Comparing through JSON like mergeList's `changed`.
+  const mergeHousehold = (): Household | null | undefined => {
+    const b = base?.household ?? null;
+    const l = local.household ?? null;
+    const r = remote.household ?? null;
+    const same = (a: Household | null, c: Household | null) =>
+      JSON.stringify(a) === JSON.stringify(c);
+    if (same(l, r)) return l;
+    const localSpoke = !same(l, b);
+    const remoteSpoke = !same(r, b);
+    if (localSpoke && !remoteSpoke) return l;
+    if (remoteSpoke && !localSpoke) return r;
+    // Both changed it. A disconnect (null) is the more deliberate act and a
+    // stale copy must not resurrect it; otherwise believe the newer stamp.
+    if (l === null || r === null) return null;
+    return (l.updatedAt ?? '') >= (r.updatedAt ?? '') ? l : r;
+  };
+
   return {
     transactions: byDateDesc(mergeList(base?.transactions, local.transactions, remote.transactions)),
     recurringRules: mergeRules(base?.recurringRules, local.recurringRules, remote.recurringRules),
@@ -437,6 +462,20 @@ export function mergePayloads(
     incomeCategories: mergeCategoryList(base?.incomeCategories, local.incomeCategories, remote.incomeCategories),
     sources: mergeList(base?.sources, local.sources, remote.sources),
     settings: localCopyMissing && remote.settings ? remote.settings : mergeSettings(),
+    // Present only when they carry something: a merge of two pre-feature
+    // payloads must stay byte-identical to the local one, or every poll would
+    // read as a remote change and re-render the app for nothing. Absent and
+    // null mean the same thing everywhere (feature off), so omitting is safe.
+    ...(() => {
+      const household = mergeHousehold();
+      const people = mergeList(base?.people, local.people, remote.people);
+      const settlements = mergeList(base?.settlements, local.settlements, remote.settlements);
+      return {
+        ...(household ? { household } : {}),
+        ...(people.length ? { people } : {}),
+        ...(settlements.length ? { settlements } : {}),
+      };
+    })(),
   };
 }
 

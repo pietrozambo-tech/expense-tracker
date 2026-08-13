@@ -51,6 +51,32 @@ export function homeAmount(
   return fxConvert(txn.amount, from, homeCurrency);
 }
 
+// What a transaction actually cost YOU, in the home currency - the number
+// every budget, chart, average and total must read. For anything without a
+// split this IS homeAmount, exactly; for a shared transaction it is your
+// share of it.
+//
+// The share is applied as a RATIO (mine / amount) rather than converting
+// split.mine directly: a ratio is currency-free, so it rides the existing
+// baseAmount FX lock instead of needing a second locked value that could
+// drift from the first.
+//
+// homeAmount stays the answer for cash truth - what left the account, source
+// balances, the CSV's paid column, and the row's printed figure.
+export function mineAmount(
+  txn: {
+    amount: number;
+    currency?: string;
+    baseAmount?: number;
+    split?: { mine: number };
+  },
+  homeCurrency: string
+): number {
+  const paid = homeAmount(txn, homeCurrency);
+  if (!txn.split || !txn.amount || !isFinite(txn.split.mine)) return paid;
+  return paid * (txn.split.mine / txn.amount);
+}
+
 // Amounts are typeset by <AmountText> now (quiet symbol + cents), not by a
 // string formatter, so the three helpers that used to live here -
 // formatAmount, formatCompactAmount and formatSummaryAmount - are gone.

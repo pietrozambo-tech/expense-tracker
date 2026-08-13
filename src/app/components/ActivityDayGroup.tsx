@@ -1,6 +1,6 @@
 import { ExpenseItem } from './ExpenseItem';
 import { IncomeItem } from './IncomeItem';
-import { homeAmount } from '../utils/currency';
+import { mineAmount } from '../utils/currency';
 import { AmountText } from './AmountText';
 import { t } from '../i18n';
 import { dateLocale } from '../i18n/store';
@@ -59,7 +59,7 @@ export function ActivityDayGroup({
   // income green; an ordinary spending day stays grey rather than turning red,
   // because almost every day is one and a page of red reads as an error state.
   const netTotal = transactions.reduce((sum, t) => {
-    const converted = homeAmount(t, currency);
+    const converted = mineAmount(t, currency);
     return t.type === 'income' ? sum + converted : sum - converted;
   }, 0);
   const totalSign = netTotal >= 0 ? '+' : '-';

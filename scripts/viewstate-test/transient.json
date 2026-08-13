@@ -8,7 +8,8 @@
     "tooltipData": "a chart tooltip belongs to a touch that has ended",
     "showGreeting": "governed by a module-level once-per-launch flag, not by the tab",
     "reviewPointerGone": "waving away the pointer to last month's review loses nothing - the review lives on that month permanently, so it need not survive a remount, and the first days of a month may reasonably offer it again",
-    "confirmHideInsights": "a confirmation dialog is never mid-open across a remount; the answer it collects is a persisted setting, which is what survives"
+    "confirmHideInsights": "a confirmation dialog is never mid-open across a remount; the answer it collects is a persisted setting, which is what survives",
+    "sharedMode": "the household lens is a place you visit; every launch and every remount opens on the personal view deliberately"
   },
   "Activity.tsx": {
     "isCategoryModalOpen": "a modal is never mid-open across a remount",

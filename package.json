@@ -21,7 +21,8 @@
     "test:viewstate": "node scripts/test-viewstate.mjs",
     "test:demo-i18n": "node scripts/test-demo-i18n.mjs",
     "test:inputs": "node scripts/test-inputs.mjs",
-    "test:colors": "node scripts/test-colors.mjs"
+    "test:colors": "node scripts/test-colors.mjs",
+    "test:shared": "node scripts/test-shared.mjs"
   },
   "dependencies": {
     "@capacitor/app": "^8.1.1",

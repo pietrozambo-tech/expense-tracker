@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { ChevronRight, ArrowUpDown, TrendingUp, TrendingDown, Minus, Plus, Receipt, ChevronLeft, ChevronDown, X, Wallet, Gauge, Sparkles } from 'lucide-react';
 import { TrendCategoryBreakdown } from './TrendCategoryBreakdown';
 import React from 'react';
-import { formatAmountListView, formatAbbreviatedAmount, abbreviateNumber, needsAbbreviation, formatSavingRate, CURRENCIES, homeAmount } from '../utils/currency';
+import { formatAmountListView, formatAbbreviatedAmount, abbreviateNumber, needsAbbreviation, formatSavingRate, CURRENCIES, mineAmount } from '../utils/currency';
 import { monthsShort, monthsFull, daysFull, daysShort, numberLocale, getLanguage, dateLocale, GROUPED } from '../i18n/store';
 import { t, useLanguage } from '../i18n';
 import { translateRecurrence } from '../i18n/store';
@@ -17,6 +17,7 @@ import { FitText } from './FitText';
 import { AmountText, AmountFromText } from './AmountText';
 import { parseLocalDate } from '../lib/dates';
 import { CategoryFilterModal } from './CategoryFilterModal';
+import { SharedView } from './SharedView';
 import { SubcategoryFilterModal } from './SubcategoryFilterModal';
 import { PeriodPickerModal } from './PeriodPickerModal';
 import { ConfirmDialog } from './ConfirmDialog';
@@ -176,6 +177,41 @@ interface DashboardProps {
   recurringRules?: import('../types').RecurringRule[];
   /** Opens Settings > Recurring - the strip's "Manage" link. */
   onManageRecurring?: () => void;
+  // Shared expenses. All absent when the feature is off, in which case NOTHING
+  // on this screen changes - no switcher, no shared mode, byte-identical
+  // header. See docs/shared-expenses/README.md.
+  household?: import('../types').Household | null;
+  /** The household member (resolved by App - Dashboard never digs in people). */
+  partner?: import('../types').Person | null;
+  settlements?: import('../types').Settlement[];
+  onSettle?: (amount: number) => void;
+}
+
+// The header's way between the personal and household lenses. One avatar -
+// the view you are ON - so the personal header carries your face and the
+// shared one carries theirs; tapping crosses over. Deliberately not both
+// faces at once: a lone avatar is quieter, and the title beside it says
+// which subject you are reading.
+function ViewSwitcher({ label, name, color, onClick }: { label: string; name: string; color: string; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      aria-label={label}
+      className="flex items-center gap-1 rounded-full p-[3px] pr-1.5 active:scale-95 transition-transform flex-shrink-0"
+      style={{ backgroundColor: 'var(--bg-card)', boxShadow: '0 1px 3px rgba(0,0,0,0.07)', WebkitTapHighlightColor: 'transparent' }}
+    >
+      <span
+        aria-hidden="true"
+        style={{
+          width: 30, height: 30, borderRadius: 999, background: color, color: '#FFFFFF',
+          fontSize: 13, fontWeight: 700, display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+        }}
+      >
+        {(name[0] ?? '?').toUpperCase()}
+      </span>
+      <ChevronDown className="w-3.5 h-3.5" style={{ color: 'var(--ink-2)' }} strokeWidth={2.5} />
+    </button>
+  );
 }
 
 // Sentinel drilldown target: only the transactions with no subcategory
@@ -310,7 +346,7 @@ function StatChip({ label, value, tone }: { label: React.ReactNode; value: strin
 // starting from it means the first render already draws at the right scale.
 let lastChartWidth = 0;
 
-export function Dashboard({ expenses, categories, incomeCategories, sources = [], userName, currency, onEditExpense, onDeleteExpense, view = 'overview', onShowOverview, initialPeriod, viewStateRef, trendStateRef, monthlyBudget, budgetNudgeDismissed, insightsEnabled = true, onDisableInsights, onModalOpenChange, onSetMonthlyBudget, onDismissBudgetNudge, onAddFirstExpense, onLoadDemoData, weekStartsOn = 1, recurringRules = [], onManageRecurring }: DashboardProps) {
+export function Dashboard({ expenses, categories, incomeCategories, sources = [], userName, currency, onEditExpense, onDeleteExpense, view = 'overview', onShowOverview, initialPeriod, viewStateRef, trendStateRef, monthlyBudget, budgetNudgeDismissed, insightsEnabled = true, onDisableInsights, onModalOpenChange, onSetMonthlyBudget, onDismissBudgetNudge, onAddFirstExpense, onLoadDemoData, weekStartsOn = 1, recurringRules = [], onManageRecurring, household = null, partner = null, settlements = [], onSettle }: DashboardProps) {
   // Restore the previous view (period + drilldown) unless a Trend->Overview
   // link supplied an explicit period - that must win and start clean.
   // Subscribing here does two jobs: it re-renders the Dashboard the instant the
@@ -324,6 +360,11 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
   const savedTrend = view === 'trend' ? trendStateRef?.current ?? null : null;
   const viewType: ViewType = view === 'trend' ? 'trend' : 'current-month';
   const [timePeriodType, setTimePeriodType] = useState<TimePeriodType>(savedView?.timePeriodType ?? 'month');
+  // Which subject the Dashboard is answering: your money, or the household's.
+  // Only reachable when a household exists; opens on the personal view every
+  // launch, deliberately - the shared view is a place you visit.
+  const [sharedMode, setSharedMode] = useState(false);
+  const sharedAvailable = !!household && !!partner;
   // Measure the cumulative chart's real pixel width so its SVG renders 1:1
   // (no aspect-ratio stretching that would deform the line dot / axis text).
   //
@@ -525,8 +566,8 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
 
     if (drilldownSortBy === 'amount') {
       const items = [...drilldownTransactions].sort((a, b) => {
-        const amountA = homeAmount(a, currency);
-        const amountB = homeAmount(b, currency);
+        const amountA = mineAmount(a, currency);
+        const amountB = mineAmount(b, currency);
         return amountB - amountA;
       });
       return { mode: 'amount', items };
@@ -927,11 +968,11 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
   const periodExpenses = currentMonthExpenses.filter(e => e.type !== 'income');
   const periodIncome = currentMonthExpenses.filter(e => e.type === 'income');
   const totalSpending = periodExpenses.reduce((sum, e) => {
-    const convertedAmount = homeAmount(e, currency);
+    const convertedAmount = mineAmount(e, currency);
     return sum + convertedAmount;
   }, 0);
   const totalIncome = periodIncome.reduce((sum, e) => {
-    const convertedAmount = homeAmount(e, currency);
+    const convertedAmount = mineAmount(e, currency);
     return sum + convertedAmount;
   }, 0);
   const savings = totalIncome - totalSpending;
@@ -1002,9 +1043,9 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
 
     const expensesOnly = (list: Expense[]) => list.filter((e) => e.type !== 'income');
     const inPeriod = (back: number) => expensesOnly(inRange(periodRange(back)));
-    const totalOf = (back: number) => inPeriod(back).reduce((sum, e) => sum + homeAmount(e, currency), 0);
+    const totalOf = (back: number) => inPeriod(back).reduce((sum, e) => sum + mineAmount(e, currency), 0);
     const catOf = (back: number, name: string) =>
-      inPeriod(back).filter((e) => e.category.name === name).reduce((sum, e) => sum + homeAmount(e, currency), 0);
+      inPeriod(back).filter((e) => e.category.name === name).reduce((sum, e) => sum + mineAmount(e, currency), 0);
 
     // Up to six earlier periods that actually hold data. Fewer than three and
     // "your usual" is a claim the data cannot support.
@@ -1032,7 +1073,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
     if (priors.length === 0) {
       const totals = new Map<string, number>();
       for (const e of inPeriod(0)) {
-        totals.set(e.category.name, (totals.get(e.category.name) ?? 0) + homeAmount(e, currency));
+        totals.set(e.category.name, (totals.get(e.category.name) ?? 0) + mineAmount(e, currency));
       }
       const top = [...totals.entries()].sort((a, b) => b[1] - a[1])[0];
       return {
@@ -1302,7 +1343,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
     ? periodIncome
     : currentMonthExpenses;
   const filteredTotal = filteredTransactions.reduce((sum, e) => {
-    const convertedAmount = homeAmount(e, currency);
+    const convertedAmount = mineAmount(e, currency);
     return sum + convertedAmount;
   }, 0);
 
@@ -1312,7 +1353,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
   // Group expenses by category for current month
   const categoryTotals = filteredTransactions.reduce((acc, expense) => {
     const categoryName = expense.category.name;
-    const convertedAmount = homeAmount(expense, currency);
+    const convertedAmount = mineAmount(expense, currency);
     acc[categoryName] = (acc[categoryName] || 0) + convertedAmount;
     return acc;
   }, {} as Record<string, number>);
@@ -1363,7 +1404,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
     
     categoryExpenses.forEach(expense => {
       if (expense.subcategory) {
-        const convertedAmount = homeAmount(expense, currency);
+        const convertedAmount = mineAmount(expense, currency);
         subcategoryTotals[expense.subcategory] = (subcategoryTotals[expense.subcategory] || 0) + convertedAmount;
       }
     });
@@ -1384,7 +1425,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
     const all = filteredTransactions.filter(e => e.category.name === categoryName);
     const generic = all.filter(e => !e.subcategory);
     const amount = generic.reduce(
-      (sum, e) => sum + homeAmount(e, currency),
+      (sum, e) => sum + mineAmount(e, currency),
       0
     );
     return {
@@ -1417,7 +1458,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
         e.category.name === categoryName &&
         (subcategoryName === undefined || e.subcategory === subcategoryName)
       )
-      .reduce((sum, e) => sum + homeAmount(e, currency), 0);
+      .reduce((sum, e) => sum + mineAmount(e, currency), 0);
   };
 
   // The number the trend column measures against, per the chosen baseline.
@@ -1449,7 +1490,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
       currentAmount = filteredTransactions
         .filter(e => e.category.name === categoryName && e.subcategory === subcategoryName)
         .reduce((sum, e) => {
-          const convertedAmount = homeAmount(e, currency);
+          const convertedAmount = mineAmount(e, currency);
           return sum + convertedAmount;
         }, 0);
     } else {
@@ -1457,7 +1498,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
       currentAmount = filteredTransactions
         .filter(e => e.category.name === categoryName)
         .reduce((sum, e) => {
-          const convertedAmount = homeAmount(e, currency);
+          const convertedAmount = mineAmount(e, currency);
           return sum + convertedAmount;
         }, 0);
     }
@@ -1556,11 +1597,11 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
         });
         
         const monthIncome = monthExpenses.filter(e => e.type === 'income').reduce((sum, e) => {
-          const convertedAmount = homeAmount(e, currency);
+          const convertedAmount = mineAmount(e, currency);
           return sum + convertedAmount;
         }, 0);
         const monthSpending = monthExpenses.filter(e => e.type !== 'income').reduce((sum, e) => {
-          const convertedAmount = homeAmount(e, currency);
+          const convertedAmount = mineAmount(e, currency);
           return sum + convertedAmount;
         }, 0);
         const savingsAmount = monthIncome - monthSpending;
@@ -1639,7 +1680,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
       });
       
       const monthTotal = monthExpenses.reduce((sum, e) => {
-        const convertedAmount = homeAmount(e, currency);
+        const convertedAmount = mineAmount(e, currency);
         return sum + convertedAmount;
       }, 0);
       
@@ -1658,14 +1699,14 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
         if (isSubcategory && subcategoryName) {
           const filtered = monthExpenses.filter(e => e.category.name === categoryName && e.subcategory === subcategoryName);
           amount = filtered.reduce((sum, e) => {
-            const convertedAmount = homeAmount(e, currency);
+            const convertedAmount = mineAmount(e, currency);
             return sum + convertedAmount;
           }, 0);
           filteredCount = filtered.length;
         } else {
           const filtered = monthExpenses.filter(e => e.category.name === categoryName);
           amount = filtered.reduce((sum, e) => {
-            const convertedAmount = homeAmount(e, currency);
+            const convertedAmount = mineAmount(e, currency);
             return sum + convertedAmount;
           }, 0);
           filteredCount = filtered.length;
@@ -1766,7 +1807,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
     const expensesOnly = (list: Expense[]) => list.filter((e) => e.type !== 'income');
     const inPeriod = (back: number) => expensesOnly(inRange(periodRange(back)));
     const rows = inPeriod(0);
-    const spent = rows.reduce((sum, e) => sum + homeAmount(e, currency), 0);
+    const spent = rows.reduce((sum, e) => sum + mineAmount(e, currency), 0);
     if (spent === 0) return null;
 
     // The same rule the hero lines use: under three comparable periods there
@@ -1774,15 +1815,15 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
     const priors: number[] = [];
     for (let back = 1; back <= 12 && priors.length < 6; back++) {
       const p = inPeriod(back);
-      if (p.length > 0) priors.push(p.reduce((sum, e) => sum + homeAmount(e, currency), 0));
+      if (p.length > 0) priors.push(p.reduce((sum, e) => sum + mineAmount(e, currency), 0));
     }
     const usual = priors.length >= 3 ? priors.reduce((a, b) => a + b, 0) / priors.length : null;
     const vsUsual = usual && usual > 0 ? Math.round((spent / usual - 1) * 100) : null;
 
     const byCat = new Map<string, number>();
-    for (const e of rows) byCat.set(e.category.name, (byCat.get(e.category.name) ?? 0) + homeAmount(e, currency));
+    for (const e of rows) byCat.set(e.category.name, (byCat.get(e.category.name) ?? 0) + mineAmount(e, currency));
     const top = [...byCat.entries()].sort((a, b) => b[1] - a[1])[0] ?? null;
-    const biggest = [...rows].sort((a, b) => homeAmount(b, currency) - homeAmount(a, currency))[0] ?? null;
+    const biggest = [...rows].sort((a, b) => mineAmount(b, currency) - mineAmount(a, currency))[0] ?? null;
 
     // The counterfactual, and the reason this card is worth a screen: a month
     // can be 30% over on one holiday and otherwise ordinary, which is a
@@ -1791,9 +1832,9 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
     // otherwise it is arithmetic looking for an excuse.
     let without: { label: string; pct: number } | null = null;
     if (biggest && usual && usual > 0 && vsUsual !== null && vsUsual > 0) {
-      const rest = spent - homeAmount(biggest, currency);
+      const rest = spent - mineAmount(biggest, currency);
       const restPct = Math.round((rest / usual - 1) * 100);
-      if (homeAmount(biggest, currency) / spent >= 0.1 && restPct < vsUsual - 5) {
+      if (mineAmount(biggest, currency) / spent >= 0.1 && restPct < vsUsual - 5) {
         without = { label: biggest.description, pct: restPct };
       }
     }
@@ -1802,7 +1843,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
       spent,
       vsUsual,
       top: top ? { name: top[0], amount: top[1], share: Math.round((top[1] / spent) * 100) } : null,
-      biggest: biggest ? { name: biggest.description, amount: homeAmount(biggest, currency) } : null,
+      biggest: biggest ? { name: biggest.description, amount: mineAmount(biggest, currency) } : null,
       without,
       count: rows.length,
     };
@@ -1894,7 +1935,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
             const expenseDate = parseLocalDate(e.date);
             return expenseDate >= periodStart && expenseDate <= dayEnd;
           })
-          .reduce((sum, e) => sum + homeAmount(e, currency), 0);
+          .reduce((sum, e) => sum + mineAmount(e, currency), 0);
         
         data.push({
           label: day.toString(),
@@ -1930,7 +1971,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
             const expenseDate = parseLocalDate(e.date);
             return expenseDate >= periodStart && expenseDate <= actualWeekEnd;
           })
-          .reduce((sum, e) => sum + homeAmount(e, currency), 0);
+          .reduce((sum, e) => sum + mineAmount(e, currency), 0);
         
         data.push({
           label: `W${weekNumber}`,
@@ -1959,7 +2000,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
             const expenseDate = parseLocalDate(e.date);
             return expenseDate >= yearStart && expenseDate <= monthEnd;
           })
-          .reduce((sum, e) => sum + homeAmount(e, currency), 0);
+          .reduce((sum, e) => sum + mineAmount(e, currency), 0);
         
         data.push({
           label: monthNames[month],
@@ -2010,7 +2051,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
     const recurrenceMap: Record<string, number> = {};
     periodTransactions.forEach(transaction => {
       const recurrence = transaction.recurrence || 'Never repeat';
-      const convertedAmount = homeAmount(transaction, currency);
+      const convertedAmount = mineAmount(transaction, currency);
       recurrenceMap[recurrence] = (recurrenceMap[recurrence] || 0) + convertedAmount;
     });
     
@@ -2058,7 +2099,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
     const totals: Record<string, number> = {};
     periodTransactions.forEach((t) => {
       const key = t.sourceId || '__none__';
-      totals[key] = (totals[key] || 0) + homeAmount(t, currency);
+      totals[key] = (totals[key] || 0) + mineAmount(t, currency);
     });
 
     return Object.entries(totals)
@@ -2146,6 +2187,39 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
     );
   }
 
+  // The household lens. Same tab, same dock highlight - a change of subject,
+  // not a change of place. Renders its own header (no period pill: the shared
+  // view is monthly by construction, its hero carries the month).
+  if (view === 'overview' && sharedMode && sharedAvailable) {
+    return (
+      <div className="min-h-screen" style={{ backgroundColor: 'var(--bg-page)' }}>
+        <div className="px-6 pt-1 pb-3">
+          <div className="flex items-center justify-between gap-3">
+            <h1 style={{ color: 'var(--ink)', fontSize: '30px', fontWeight: '800', letterSpacing: '-1px' }}>
+              {t('shared.title')}
+            </h1>
+            <ViewSwitcher
+              label={t('shared.switchToPersonal')}
+              name={partner!.name}
+              color={partner!.color}
+              onClick={() => setSharedMode(false)}
+            />
+          </div>
+        </div>
+        <SharedView
+          transactions={expenses as unknown as import('../types').Transaction[]}
+          settlements={settlements}
+          household={household!}
+          partner={partner!}
+          currency={currency}
+          userName={userName ?? ''}
+          onSettle={(amount) => onSettle?.(amount)}
+        />
+        <div className="h-6" />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen" style={{ backgroundColor: 'var(--bg-page)' }}>
       {view === 'overview' ? (
@@ -2168,6 +2242,20 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
             <h1 style={{ color: 'var(--ink)', fontSize: '30px', fontWeight: '800', letterSpacing: '-1px' }}>
               {t('tab.dashboard')}
             </h1>
+
+            <div className="flex items-center gap-2 flex-shrink-0">
+            {/* The way into the household lens. Exists only when a household
+                does - with the feature off this header is byte-identical to
+                the app before it. One avatar, the view you are on; tapping
+                shows the other one's. */}
+            {sharedAvailable && (
+              <ViewSwitcher
+                label={t('shared.switchToShared')}
+                name={userName || 'P'}
+                color="#0B0B0D"
+                onClick={() => setSharedMode(true)}
+              />
+            )}
 
             {/* Period selector — a native <select> styled like the Activity tab
                 filters, with a label and a chevron hint. Kept on the light
@@ -2237,6 +2325,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                   <option value="year">{t('dash.periodType.year')}</option>
                 </select>
               </div>
+            </div>
             </div>
           </div>
         </div>
@@ -3898,7 +3987,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
         // Filter trend categories to only show those with data
         const trendCategoryTotals = trendFilteredTransactions.reduce((acc, expense) => {
           const categoryName = expense.category.name;
-          acc[categoryName] = (acc[categoryName] || 0) + homeAmount(expense, currency);
+          acc[categoryName] = (acc[categoryName] || 0) + mineAmount(expense, currency);
           return acc;
         }, {} as Record<string, number>);
         
@@ -4242,8 +4331,8 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                     return expenseDate >= monthStart && expenseDate <= monthEnd;
                   });
                   
-                  const monthIncome = monthExpenses.filter(e => e.type === 'income').reduce((sum, e) => sum + homeAmount(e, currency), 0);
-                  const monthSpending = monthExpenses.filter(e => e.type !== 'income').reduce((sum, e) => sum + homeAmount(e, currency), 0);
+                  const monthIncome = monthExpenses.filter(e => e.type === 'income').reduce((sum, e) => sum + mineAmount(e, currency), 0);
+                  const monthSpending = monthExpenses.filter(e => e.type !== 'income').reduce((sum, e) => sum + mineAmount(e, currency), 0);
 
                   periodIncome += monthIncome;
                   periodSpending += monthSpending;
@@ -4855,8 +4944,8 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                       return expenseDate >= monthStart && expenseDate <= monthEnd;
                     });
                     
-                    const monthIncome = monthExpenses.filter(e => e.type === 'income').reduce((sum, e) => sum + homeAmount(e, currency), 0);
-                    const monthSpending = monthExpenses.filter(e => e.type !== 'income').reduce((sum, e) => sum + homeAmount(e, currency), 0);
+                    const monthIncome = monthExpenses.filter(e => e.type === 'income').reduce((sum, e) => sum + mineAmount(e, currency), 0);
+                    const monthSpending = monthExpenses.filter(e => e.type !== 'income').reduce((sum, e) => sum + mineAmount(e, currency), 0);
                     
                     if (monthIncome > 0) {
                       monthlySavingRate = ((monthIncome - monthSpending) / monthIncome) * 100;
@@ -5130,12 +5219,12 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                     <span className="text-neutral-500">{getPeriodDisplayName()}</span>
                     <span className="text-neutral-300">·</span>
                     <AmountText
-                      amount={drilldownTransactions.reduce((sum, txn) => sum + homeAmount(txn, currency), 0)}
+                      amount={drilldownTransactions.reduce((sum, txn) => sum + mineAmount(txn, currency), 0)}
                       currency={currency}
                       decimals={0}
                       abbreviate={
                         needsAbbreviation(
-                          [drilldownTransactions.reduce((sum, txn) => sum + homeAmount(txn, currency), 0)],
+                          [drilldownTransactions.reduce((sum, txn) => sum + mineAmount(txn, currency), 0)],
                           currency,
                         ) ? 'fit' : undefined
                       }

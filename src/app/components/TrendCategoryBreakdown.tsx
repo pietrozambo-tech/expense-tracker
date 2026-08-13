@@ -1,7 +1,7 @@
 import { ChevronRight, ArrowUpDown } from 'lucide-react';
 import { getCategoryIcon } from './categoryIcons';
 import { useState } from 'react';
-import { CURRENCIES, homeAmount } from '../utils/currency';
+import { CURRENCIES, mineAmount } from '../utils/currency';
 import { categoryHex } from './categoryColors';
 import { AmountText } from './AmountText';
 import { t } from '../i18n';
@@ -47,7 +47,7 @@ export function TrendCategoryBreakdown({
   const categoryBreakdown = trendSortedCategories.map(item => {
     const categoryTransactions = trendFilteredTransactions.filter(t => t.category.name === item.name);
     const totalAmount = categoryTransactions.reduce((sum, t) => {
-      const convertedAmount = homeAmount(t, currency);
+      const convertedAmount = mineAmount(t, currency);
       return sum + convertedAmount;
     }, 0);
     
@@ -58,7 +58,7 @@ export function TrendCategoryBreakdown({
     // to more than the headline card they sit under.
     const monthlyAvg = monthCount > 0 ? totalAmount / monthCount : 0;
     const totalSpending = trendFilteredTransactions.reduce((sum, t) => {
-      const convertedAmount = homeAmount(t, currency);
+      const convertedAmount = mineAmount(t, currency);
       return sum + convertedAmount;
     }, 0);
     const weightPercentage = totalSpending > 0 ? (totalAmount / totalSpending) * 100 : 0;
@@ -66,7 +66,7 @@ export function TrendCategoryBreakdown({
     // Get subcategories for this category
     const subcategoryTotals = categoryTransactions.reduce((acc, t) => {
       if (t.subcategory) {
-        const convertedAmount = homeAmount(t, currency);
+        const convertedAmount = mineAmount(t, currency);
         acc[t.subcategory] = (acc[t.subcategory] ?? 0) + convertedAmount;
       }
       return acc;
