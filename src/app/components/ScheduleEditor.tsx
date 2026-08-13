@@ -222,9 +222,13 @@ export function ScheduleEditor({
               reason: the rent is the clearest case for sharing there is, and a
               schedule is where the rent actually lives. Without this the chip
               applied to the first month and every month the engine wrote after
-              it came out as wholly yours. */}
+              it came out as wholly yours.
+
+              items-stretch, like the Add screen: the payer chip carries an
+              avatar and is the taller of the two, and inline boxes would line
+              them up on the text baseline instead. */}
           {household && partner && type === 'expense' && (
-            <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex items-stretch gap-2 flex-wrap">
               {shared ? (
                 <button
                   type="button"

@@ -2984,9 +2984,15 @@ export default function App() {
                   overrides this entry only. It sits under the amount because
                   it qualifies the amount ("84, of which 42 is yours").
                   Absent entirely without a household - this screen is then
-                  byte-identical to the app before the feature. */}
+                  byte-identical to the app before the feature.
+
+                  A flex row, not two inline-level chips: inline boxes line up
+                  on the TEXT BASELINE, so the payer chip - taller, because it
+                  carries an avatar rather than an icon - sat lower than the one
+                  beside it. items-stretch also keeps the two the same height
+                  without either hard-coding a number the other has to match. */}
               {household && partner && transactionType === 'expense' && (
-                <div className="px-6 -mt-3 pb-5">
+                <div className="px-6 -mt-3 pb-5 flex items-stretch gap-2 flex-wrap">
                   {entryShared ? (
                     <button
                       type="button"
@@ -3042,7 +3048,7 @@ export default function App() {
                       type="button"
                       onClick={() => setPaidByPartnerChoice((v) => !v)}
                       aria-label={t('shared.payer.aria')}
-                      className="inline-flex items-center gap-1.5 rounded-full active:scale-95 transition-transform ml-2"
+                      className="inline-flex items-center gap-1.5 rounded-full active:scale-95 transition-transform"
                       style={{ padding: '5px 11px 5px 5px', backgroundColor: 'var(--bg-inset)', color: 'var(--ink-2)', fontSize: 12.5, fontWeight: 500, WebkitTapHighlightColor: 'transparent' }}
                     >
                       <span
