@@ -587,4 +587,9 @@ export const it: Record<keyof typeof en, string> = {
   'shared.set.disconnectConfirm': 'Disattiva',
   'toast.sharedOn': 'Condividi con {name}',
   'toast.sharedOff': 'Condivisione disattivata',
+  'shared.gate.title': 'Accesso anticipato',
+  'shared.gate.body': 'Le spese condivise non sono ancora disponibili per tutti. Inserisci il codice di accesso per provarle su questo dispositivo.',
+  'shared.gate.placeholder': 'Codice di accesso',
+  'shared.gate.cta': 'Sblocca',
+  'shared.gate.wrong': 'Codice non valido',
 };

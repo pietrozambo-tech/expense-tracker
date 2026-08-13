@@ -43,6 +43,11 @@ const KEYS = {
   household: key('household'),
   people: key('people'),
   settlements: key('settlements'),
+  // Whether THIS DEVICE may enable shared expenses (the early-access code was
+  // entered here once). An access gate, not data: never synced, never in a
+  // backup - each device earns its own unlock. Cleared by an erase, which is
+  // fine; the code can be re-entered.
+  sharedUnlock: key('shared-unlock'),
 };
 
 /**
@@ -116,6 +121,9 @@ export const savePeople = (people: Person[]) => write(KEYS.people, people);
 
 export const loadSettlements = () => read<Settlement[]>(KEYS.settlements, []);
 export const saveSettlements = (s: Settlement[]) => write(KEYS.settlements, s);
+
+export const loadSharedUnlock = () => getItem(KEYS.sharedUnlock) === 'true';
+export const saveSharedUnlock = () => setItem(KEYS.sharedUnlock, 'true');
 
 // ── Guest mode ──────────────────────────────────────────────────────────────
 

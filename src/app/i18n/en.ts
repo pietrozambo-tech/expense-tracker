@@ -586,4 +586,9 @@ export const en = {
   'shared.set.disconnectConfirm': 'Turn off',
   'toast.sharedOn': 'Sharing with {name}',
   'toast.sharedOff': 'Sharing turned off',
+  'shared.gate.title': 'Early access',
+  'shared.gate.body': 'Shared expenses isn’t generally available yet. Enter the access code to try it on this device.',
+  'shared.gate.placeholder': 'Access code',
+  'shared.gate.cta': 'Unlock',
+  'shared.gate.wrong': 'That code isn’t right',
 } as const;
