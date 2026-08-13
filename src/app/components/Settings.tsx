@@ -163,6 +163,8 @@ interface SettingsProps {
   /** Create the household on the server (if needed) and mint a join code. */
   onCreateInvite?: () => Promise<string>;
   onJoinWithCode?: (code: string) => Promise<void>;
+  /** Re-check the server for the pairing, while a code is waiting to be used. */
+  onRefreshPairing?: () => Promise<void>;
   onCreateSchedule: (draft: ScheduleDraft) => void;
   onUpdateSchedule: (ruleId: string, draft: ScheduleDraft) => void;
   onStopSchedule: (ruleId: string) => void;
@@ -232,6 +234,7 @@ export function Settings({
   onDisableShared,
   onCreateInvite,
   onJoinWithCode,
+  onRefreshPairing,
   onCreateSchedule,
   onUpdateSchedule,
   onStopSchedule,
@@ -316,6 +319,22 @@ export function Settings({
   const [connectBusy, setConnectBusy] = useState(false);
   const [connectError, setConnectError] = useState<string | null>(null);
   const paired = !!household?.remoteId && !!partner?.userId;
+
+  // While a code is on screen and nobody has joined yet, ask the server every
+  // few seconds. Without this the inviter's device has no reason to look
+  // again, and the pairing only surfaced when some unrelated render happened
+  // to refresh it - which is exactly how it felt: connected on her phone,
+  // stubbornly not on his.
+  useEffect(() => {
+    if (!showConnect || paired || !connectCode || !onRefreshPairing) return;
+    const id = setInterval(() => { void onRefreshPairing(); }, 3000);
+    return () => clearInterval(id);
+  }, [showConnect, paired, connectCode, onRefreshPairing]);
+
+  // Once it lands, the code has done its job.
+  useEffect(() => {
+    if (paired && connectCode) setConnectCode(null);
+  }, [paired, connectCode]);
   // A failure here is nearly always one of three things, and guessing wrong
   // wastes the user's time - so each says exactly what to do next.
   const connectMessage = (e: unknown): string => {
@@ -1064,6 +1083,23 @@ export function Settings({
                       <div style={{ color: 'var(--ink-2)', fontSize: 11.5, marginTop: 8, lineHeight: 1.4 }}>
                         {t('shared.connect.codeHint', { name: partner?.name ?? '' })}
                       </div>
+                      {/* The inviter's device has nothing else to show while
+                          it waits, and silence reads as "it didn't work". */}
+                      <div
+                        className="flex items-center justify-center gap-2 mt-3 pt-3"
+                        style={{ borderTop: '1px solid var(--line-2)', color: 'var(--ink-2)', fontSize: 12 }}
+                      >
+                        <span
+                          aria-hidden="true"
+                          className="rounded-full"
+                          style={{
+                            width: 7, height: 7, background: '#4F74F3',
+                            animation: 'mk-pulse 1.4s ease-in-out infinite',
+                          }}
+                        />
+                        {t('shared.connect.waiting')}
+                      </div>
+                      <style>{'@keyframes mk-pulse{0%,100%{opacity:.25}50%{opacity:1}}'}</style>
                     </div>
                   ) : (
                     <button

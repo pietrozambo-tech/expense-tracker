@@ -1035,6 +1035,10 @@ export default function App() {
   // test:shared); this only carries the decisions to the server and back.
 
   const syncingRef = useRef(false);
+  // Whether we have already seen the other account join, so the "connected"
+  // toast fires once - on the INVITER's device, which otherwise has no moment
+  // where anything visibly happens.
+  const pairedRef = useRef(false);
 
   const syncShared = useCallback(async () => {
     const hid = household?.remoteId;
@@ -1051,6 +1055,10 @@ export default function App() {
         return;
       }
       const other = remote.members.find((m) => m.userId !== uid);
+      if (other && !pairedRef.current) {
+        pairedRef.current = true;
+        toast.success(t('toast.paired', { name: other.displayName || '' }), { duration: 2400 });
+      }
       if (other) {
         setPeople((prev) =>
           prev.map((p) =>
@@ -1110,12 +1118,41 @@ export default function App() {
     return () => clearTimeout(timer);
   }, [household?.remoteId, userId, expenses, syncShared]);
 
+  // Coming back to the app, and a slow heartbeat while it is open.
+  //
+  // `focus` alone was not enough: an installed PWA switching between tabs
+  // never fires it, so the only thing refreshing a paired household was an
+  // incidental re-render. visibilitychange is what actually fires when a
+  // phone comes back from the lock screen or another app.
   useEffect(() => {
     if (!household?.remoteId) return;
-    const onFocus = () => { void syncShared(); };
-    window.addEventListener('focus', onFocus);
-    return () => window.removeEventListener('focus', onFocus);
+    const wake = () => { void syncShared(); };
+    const onVisible = () => { if (!document.hidden) wake(); };
+    window.addEventListener('focus', wake);
+    document.addEventListener('visibilitychange', onVisible);
+    const beat = setInterval(wake, 45000);
+    return () => {
+      window.removeEventListener('focus', wake);
+      document.removeEventListener('visibilitychange', onVisible);
+      clearInterval(beat);
+    };
   }, [household?.remoteId, syncShared]);
+
+  // Switching tabs is a cheap, deliberate moment to refresh - and it is what
+  // people instinctively do when they are waiting for something to arrive.
+  useEffect(() => {
+    if (!household?.remoteId) return;
+    void syncShared();
+    // syncShared deliberately omitted: this fires on the tab change, not on
+    // every ledger edit that rebuilds the callback.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentTab, household?.remoteId]);
+
+  // Forget the pairing toast when the pairing itself goes away, so
+  // reconnecting later announces itself again.
+  useEffect(() => {
+    if (!household?.remoteId) pairedRef.current = false;
+  }, [household?.remoteId]);
 
   /** Create the household on the server and mint a code for her. */
   const handleCreateInvite = async (): Promise<string> => {
@@ -2438,6 +2475,7 @@ export default function App() {
                 onDisableShared={handleDisableShared}
                 onCreateInvite={handleCreateInvite}
                 onJoinWithCode={handleJoinWithCode}
+                onRefreshPairing={syncShared}
                 onCreateSchedule={handleCreateSchedule}
                 onUpdateSchedule={handleUpdateSchedule}
                 onStopSchedule={handleStopSchedule}

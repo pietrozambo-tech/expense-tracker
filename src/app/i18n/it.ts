@@ -622,4 +622,6 @@ export const it: Record<keyof typeof en, string> = {
   'shared.connect.errCode': 'Il codice non ha funzionato. Potrebbe essere sbagliato, già usato o più vecchio di 30 minuti.',
   'shared.connect.errGeneric': 'Collegamento non riuscito. Controlla la connessione e riprova.',
   'shared.theirEntry': 'Questa spesa è di {name}: solo lei può modificarla',
+  'shared.connect.waiting': 'In attesa che entri…',
+  'toast.paired': 'Collegato con {name}',
 };
