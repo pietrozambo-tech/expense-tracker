@@ -320,13 +320,17 @@ export function Settings({
   const [connectError, setConnectError] = useState<string | null>(null);
   const paired = !!household?.remoteId && !!partner?.userId;
 
-  // While a code is on screen and nobody has joined yet, ask the server every
-  // few seconds. Without this the inviter's device has no reason to look
-  // again, and the pairing only surfaced when some unrelated render happened
-  // to refresh it - which is exactly how it felt: connected on her phone,
-  // stubbornly not on his.
+  // While this sheet is open, ask the server every few seconds. Without it the
+  // device has no reason to look again, and the state only surfaced when some
+  // unrelated render happened to refresh it - which is exactly how it felt:
+  // connected on her phone, stubbornly not on his.
+  //
+  // It runs in both directions. Waiting on a code is the obvious one; the
+  // other is the screen that says "Connected with Giulia" after Giulia has
+  // turned sharing off, which is the same lie the other way round.
   useEffect(() => {
-    if (!showConnect || paired || !connectCode || !onRefreshPairing) return;
+    if (!showConnect || !onRefreshPairing) return;
+    if (!paired && !connectCode) return;
     const id = setInterval(() => { void onRefreshPairing(); }, 3000);
     return () => clearInterval(id);
   }, [showConnect, paired, connectCode, onRefreshPairing]);

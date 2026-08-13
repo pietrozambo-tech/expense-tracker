@@ -50,7 +50,7 @@ const SCENARIOS = `
 import { homeAmount, mineAmount } from './utils/currency';
 import { myShareOf, runningBalance, shareFraction } from './lib/shared';
 import { mergePayloads } from './lib/cloud';
-import { planSync, mapCategory, replicaId, sharedIdOf } from './lib/sharedSync';
+import { planSync, mapCategory, pairingChange, replicaId, sharedIdOf } from './lib/sharedSync';
 import { buildTransactionsCsv } from './lib/csv';
 
 let failed = 0;
@@ -244,6 +244,24 @@ const paired = [
 eq('two-sided balance nets both directions', runningBalance(paired, [], 'EUR'), 420);
 eq('settlement retires the net', runningBalance(paired, [{ id: 's', personId: 'p', date: '2026-08-10', amount: 420 }], 'EUR'), 0);
 eq('replica counts as my spending', mineAmount(paired[1], 'EUR'), 30);
+
+// ── Reading a departure off the membership list ─────────────────────────────
+// Nobody announces leaving: the row is just gone. One member therefore means
+// two opposite things, and only the memory of having had a partner separates
+// them.
+const meSeat = { userId: ME };
+const herSeat = { userId: HER };
+eq('pairing: alone and never paired = still waiting', pairingChange([meSeat], ME, false), 'unchanged');
+eq('pairing: she appears = joined', pairingChange([meSeat, herSeat], ME, false), 'joined');
+eq('pairing: she is still there = nothing to say', pairingChange([meSeat, herSeat], ME, true), 'unchanged');
+eq('pairing: her seat is empty = she left', pairingChange([meSeat], ME, true), 'left');
+// The trap that made this worth extracting: an empty list (a household read
+// back before any membership row lands) must not be read as a departure by a
+// device that was never paired.
+eq('pairing: empty list, never paired', pairingChange([], ME, false), 'unchanged');
+eq('pairing: empty list after pairing = left', pairingChange([], ME, true), 'left');
+// A blank id is not a person.
+eq('pairing: a blank member id is nobody', pairingChange([meSeat, { userId: '' }], ME, true), 'left');
 
 // ── The spreadsheet export carries the shared facts ─────────────────────────
 // A row must say what it cost YOU (so a plain SUM is still spending), what it

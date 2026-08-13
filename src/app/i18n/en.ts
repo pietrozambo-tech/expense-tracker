@@ -627,4 +627,5 @@ export const en = {
   'shared.nudge.many': '{name} made {n} changes to your shared expenses',
   'shared.connect.waiting': 'Waiting for them to join…',
   'toast.paired': 'Connected with {name}',
+  'toast.unpaired': '{name} turned off sharing — your own splits are unchanged',
 } as const;

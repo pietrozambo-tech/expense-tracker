@@ -628,4 +628,5 @@ export const it: Record<keyof typeof en, string> = {
   'shared.nudge.many': '{name} ha fatto {n} modifiche alle spese condivise',
   'shared.connect.waiting': 'In attesa che entri…',
   'toast.paired': 'Collegato con {name}',
+  'toast.unpaired': '{name} ha disattivato la condivisione — le tue quote restano invariate',
 };

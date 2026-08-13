@@ -38,7 +38,7 @@ import { SourceLogo } from './components/SourceLogo';
 import { SourceSelectorModal } from './components/SourceSelectorModal';
 import { getDemoTransactions } from './lib/demoData';
 import { myShareOf, newHousehold } from './lib/shared';
-import { planSync, sharedIdOf } from './lib/sharedSync';
+import { pairingChange, planSync, sharedIdOf } from './lib/sharedSync';
 import {
   SCHEMA_MISSING,
   createInviteCode,
@@ -1035,24 +1035,61 @@ export default function App() {
   // the pairing is FIRST learned and never again.
   const partnerUserIdRef = useRef<string | undefined>(undefined);
   partnerUserIdRef.current = partner?.userId;
+  // Her name at the moment the sync runs, so the "she disconnected" toast can
+  // still say who - by the time it shows, the pairing has been cleared.
+  const partnerNameRef = useRef<string | undefined>(undefined);
+  partnerNameRef.current = partner?.name;
 
   const syncShared = useCallback(async () => {
     const hid = household?.remoteId;
     const uid = userIdRef.current;
     if (!hid || !uid || syncingRef.current) return;
     syncingRef.current = true;
+    // Back to a local-only household: my own splits and our settlements stay,
+    // because both are historical fact, but her replicas go - they are hers,
+    // and here they would be a permanent record of a ledger I can no longer
+    // see. The household itself survives, so I can invite somebody else
+    // without the app pretending she is still here.
+    const endPairing = () => {
+      const stamp = new Date().toISOString();
+      setExpenses((prev) => prev.filter((e) => !e.fromShared));
+      setPeople((prev) =>
+        prev.map((p) => (household!.memberIds.includes(p.id) ? { ...p, userId: undefined, updatedAt: stamp } : p)),
+      );
+      setHousehold((prev) => (prev ? { ...prev, remoteId: undefined, updatedAt: stamp } : prev));
+    };
+
     try {
       // Shared settings and who is in the household.
       const remote = await fetchRemoteHousehold(hid);
       if (!remote) {
-        // She disbanded it, or we were removed. Keep the local household and
-        // its splits; only the pairing is gone.
-        setHousehold((prev) => (prev ? { ...prev, remoteId: undefined } : prev));
+        // Disbanded, or I was removed - either way it is gone from under me,
+        // which is the same ending as her leaving and deserves the same
+        // cleanup. Announced only if I knew there was somebody to lose.
+        if (partnerUserIdRef.current) {
+          toast(t('toast.unpaired', { name: partnerNameRef.current || '' }), { duration: 2800 });
+        }
+        endPairing();
         return;
       }
       const other = remote.members.find((m) => m.userId !== uid);
-      if (other && !partnerUserIdRef.current) {
-        toast.success(t('toast.paired', { name: other.displayName || '' }), { duration: 2400 });
+      const change = pairingChange(remote.members, uid, !!partnerUserIdRef.current);
+      if (change === 'joined') {
+        toast.success(t('toast.paired', { name: other?.displayName || '' }), { duration: 2400 });
+      }
+      // She turned sharing off - see pairingChange for why an empty seat is
+      // the only signal there is.
+      //
+      // Her rows stay on the server, hers to keep; this is only my side of it.
+      //
+      // Leaving matters as much as forgetting: staying a member would keep
+      // pulling her rows back in, and dropping the replicas would undo itself
+      // on the next sync.
+      if (change === 'left') {
+        void leaveRemoteHousehold(hid).catch(() => {});
+        endPairing();
+        toast(t('toast.unpaired', { name: partnerNameRef.current || '' }), { duration: 2800 });
+        return;
       }
       if (other) {
         setPeople((prev) =>

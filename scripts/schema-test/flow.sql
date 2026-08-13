@@ -93,3 +93,28 @@ delete from public.household_members where user_id = auth.uid();
 set request.jwt.claim.sub = :'P';
 select case when count(*)=1 then 'PASS' else 'FAIL' end || '  leaving removes only the leaver' as r
   from public.household_members;
+
+-- 7. What the one who STAYS can see afterwards. Nothing announces a
+--    departure, so the client reads it off exactly these facts: the household
+--    is still there, and there is nobody else in it. Both must hold, or the
+--    remaining device goes on claiming "Connected with Giulia" forever.
+select case when count(*)=1 then 'PASS' else 'FAIL' end || '  the stayer still sees the household' as r
+  from public.households where id = :'hid';
+select case when count(*)=0 then 'PASS' else 'FAIL' end || '  and sees no partner in it' as r
+  from public.household_members where household_id = :'hid' and user_id <> auth.uid();
+-- Her rows are not destroyed by her leaving - the stayer drops the local
+-- replicas, which is a client decision, not a server one.
+select case when count(*)>0 then 'PASS' else 'FAIL' end || '  her items survive her departure' as r
+  from public.shared_items where author_id = :'G';
+-- And the leaver is out: no household, no items.
+set request.jwt.claim.sub = :'G';
+select case when count(*)=0 then 'PASS' else 'FAIL' end || '  the leaver sees no household' as r
+  from public.households;
+select case when count(*)=0 then 'PASS' else 'FAIL' end || '  the leaver sees no items' as r
+  from public.shared_items;
+-- Room for somebody new: the cap counts members, and there is one.
+set request.jwt.claim.sub = :'P';
+select public.create_household_invite(:'hid') as code2 \gset
+set request.jwt.claim.sub = :'E';
+select case when public.redeem_household_invite(:'code2','Eve','#f00') = :'hid'
+            then 'PASS' else 'FAIL' end || '  a new partner can take the free seat' as r;

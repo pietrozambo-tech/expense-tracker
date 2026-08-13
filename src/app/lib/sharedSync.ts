@@ -294,3 +294,32 @@ export function balanceFrom(
   const settled = settlements.reduce((sum, s) => sum + s.amount, 0);
   return Math.round((fronted - settled) * 100) / 100;
 }
+
+/**
+ * What a household's membership list says about the pairing.
+ *
+ * The server never announces a departure: turning sharing off deletes the
+ * leaver's own membership row and nothing else. So "who is in here" is the
+ * only signal either device gets, and reading it correctly is the whole
+ * mechanism - which is why it lives here, with the rest of the decisions,
+ * rather than inline in a network callback.
+ *
+ * The trap is that ONE member means two opposite things. Before anyone
+ * redeems your code you are alone in your own household, and that is not a
+ * departure; it only becomes one if you previously knew who the partner was.
+ * `knewPartner` is that memory, and it must be persisted state rather than a
+ * session flag - a device that forgets on every launch would announce the
+ * pairing again each morning.
+ */
+export type PairingChange = 'unchanged' | 'joined' | 'left';
+
+export function pairingChange(
+  members: { userId: string }[],
+  myUserId: string,
+  knewPartner: boolean,
+): PairingChange {
+  const hasOther = members.some((m) => m.userId && m.userId !== myUserId);
+  if (hasOther && !knewPartner) return 'joined';
+  if (!hasOther && knewPartner) return 'left';
+  return 'unchanged';
+}
