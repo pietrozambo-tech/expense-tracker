@@ -38,7 +38,7 @@ import { SourceLogo } from './components/SourceLogo';
 import { SourceSelectorModal } from './components/SourceSelectorModal';
 import { getDemoTransactions } from './lib/demoData';
 import { myShareOf, newHousehold } from './lib/shared';
-import { planPush, planTombstones, reconcileReplicas } from './lib/sharedSync';
+import { planSync, sharedIdOf } from './lib/sharedSync';
 import {
   SCHEMA_MISSING,
   createInviteCode,
@@ -923,12 +923,6 @@ export default function App() {
   const handleEditExpense = (expenseId: string) => {
     const expense = expenses.find(e => e.id === expenseId);
     if (!expense) return;
-    // Her entry. The amount, date and split belong to whoever authored it -
-    // the rule RLS enforces server-side, said here before the write fails.
-    if (expense.fromShared) {
-      toast(t('shared.theirEntry', { name: partner?.name ?? '' }), { duration: 2200 });
-      return;
-    }
 
     // Store which tab we're coming from so we can return to it
     setReturnToTab(currentTab);
@@ -1035,10 +1029,12 @@ export default function App() {
   // test:shared); this only carries the decisions to the server and back.
 
   const syncingRef = useRef(false);
-  // Whether we have already seen the other account join, so the "connected"
-  // toast fires once - on the INVITER's device, which otherwise has no moment
-  // where anything visibly happens.
-  const pairedRef = useRef(false);
+  // Whether this device already knew who the partner is. Persisted state, not
+  // a session flag: a ref alone re-armed on every launch, so the "connected"
+  // toast fired every single time the app opened. Now it announces the moment
+  // the pairing is FIRST learned and never again.
+  const partnerUserIdRef = useRef<string | undefined>(undefined);
+  partnerUserIdRef.current = partner?.userId;
 
   const syncShared = useCallback(async () => {
     const hid = household?.remoteId;
@@ -1055,8 +1051,7 @@ export default function App() {
         return;
       }
       const other = remote.members.find((m) => m.userId !== uid);
-      if (other && !pairedRef.current) {
-        pairedRef.current = true;
+      if (other && !partnerUserIdRef.current) {
         toast.success(t('toast.paired', { name: other.displayName || '' }), { duration: 2400 });
       }
       if (other) {
@@ -1075,20 +1070,33 @@ export default function App() {
           : prev,
       );
 
-      // Publish mine, retire what I stopped sharing, then take hers.
-      const before = await fetchSharedItems(hid);
-      await pushSharedItems(planPush(expenses, hid, uid));
-      await tombstoneSharedItems(planTombstones(expenses, before, uid));
-      const after = await fetchSharedItems(hid);
-
-      const result = reconcileReplicas(expenses, after, uid, categories);
-      // reconcileReplicas is idempotent, so "nothing moved" is a reliable
-      // signal - without this guard, setting state here would re-trigger the
+      // One reconciliation, both directions: my newer rows go up, theirs come
+      // down. planSync is idempotent, so "nothing changed" is a reliable
+      // signal - without that guard, setting state here would re-trigger the
       // effect that called us and spin forever.
-      if (result.added || result.updated || result.removed) setExpenses(result.transactions);
+      const rows = await fetchSharedItems(hid);
+      const plan = planSync(expenses, rows, uid, hid, categories);
+      if (plan.push.length) await pushSharedItems(plan.push);
+      if (plan.changed) setExpenses(plan.transactions);
 
-      const rows = await fetchSettlements(hid);
-      const pulled = rows.map((r) => ({
+      // Say what they changed. Silence would be worse than a nudge: the
+      // numbers on your own screen would simply be different than before.
+      const theirs = plan.incoming.filter((c) => c.kind !== 'new' || rows.length > 0);
+      if (theirs.length && other) {
+        const name = other.displayName || '';
+        toast(
+          theirs.length === 1
+            ? t(
+                theirs[0].kind === 'removed' ? 'shared.nudge.removed' : theirs[0].kind === 'edited' ? 'shared.nudge.edited' : 'shared.nudge.added',
+                { name, what: theirs[0].description },
+              )
+            : t('shared.nudge.many', { name, n: theirs.length }),
+          { duration: 2600 },
+        );
+      }
+
+      const settleRows = await fetchSettlements(hid);
+      const pulled = settleRows.map((r) => ({
         id: r.id,
         personId: other?.userId ?? '',
         date: r.date,
@@ -1147,12 +1155,6 @@ export default function App() {
     // every ledger edit that rebuilds the callback.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentTab, household?.remoteId]);
-
-  // Forget the pairing toast when the pairing itself goes away, so
-  // reconnecting later announces itself again.
-  useEffect(() => {
-    if (!household?.remoteId) pairedRef.current = false;
-  }, [household?.remoteId]);
 
   /** Create the household on the server and mint a code for her. */
   const handleCreateInvite = async (): Promise<string> => {
@@ -1261,6 +1263,13 @@ export default function App() {
           : undefined,
         updatedAt: new Date().toISOString()
       };
+      // Un-shared during this edit: the server copy has to go, and absence
+      // is never inferred as a deletion, so say it explicitly.
+      const wasShared = expenses.find((e) => e.id === editingExpenseId)?.split;
+      if (wasShared && !values.split && household?.remoteId) {
+        const gone = expenses.find((e) => e.id === editingExpenseId);
+        if (gone) void tombstoneSharedItems([sharedIdOf(gone)]).catch(() => {});
+      }
       const current = expenses.find((e) => e.id === editingExpenseId);
       const chainRule = current?.recurrenceOf
         ? recurringRules.find((r) => r.id === current.recurrenceOf && isActiveRule(r))
@@ -1551,10 +1560,11 @@ export default function App() {
 
   const handleDeleteExpense = (id: string) => {
     const txn = expenses.find((e) => e.id === id);
-    // Deleting her row locally would only bring it back on the next sync.
-    if (txn?.fromShared) {
-      toast(t('shared.theirEntry', { name: partner?.name ?? '' }), { duration: 2200 });
-      return;
+    // A shared expense exists on the server too, so deleting it here has to
+    // say so out loud. Absence is never read as a deletion by the sync (that
+    // would wipe the ledger on a fresh device), so this is the only signal.
+    if (txn?.split && household?.remoteId) {
+      void tombstoneSharedItems([sharedIdOf(txn)]).catch(() => {});
     }
     // generatesOn, NOT isActiveRule. isActiveRule means "no endedAt at all", so
     // an occurrence belonging to a chain that ends in the FUTURE failed this

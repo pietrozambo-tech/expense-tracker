@@ -620,7 +620,10 @@ export const en = {
   'shared.connect.errSignIn': 'Sign in first — connecting two accounts needs both of you signed in.',
   'shared.connect.errCode': 'That code didn’t work. It may be mistyped, already used, or older than 30 minutes.',
   'shared.connect.errGeneric': 'Couldn’t connect. Check your connection and try again.',
-  'shared.theirEntry': 'This is {name}’s entry — only they can change it',
+  'shared.nudge.added': '{name} added “{what}”',
+  'shared.nudge.edited': '{name} changed “{what}”',
+  'shared.nudge.removed': '{name} removed “{what}”',
+  'shared.nudge.many': '{name} made {n} changes to your shared expenses',
   'shared.connect.waiting': 'Waiting for them to join…',
   'toast.paired': 'Connected with {name}',
 } as const;

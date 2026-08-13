@@ -28,6 +28,7 @@ export interface SharedItemRow {
   category_icon: string | null;
   subcategory: string | null;
   author_share: number;
+  updated_by?: string | null;
   updated_at: string;
   deleted_at: string | null;
 }
@@ -47,56 +48,64 @@ export interface SettlementRow {
  *  and are recognisable in a stored ledger without consulting the server. */
 export const replicaId = (sharedId: string) => `shared-${sharedId}`;
 
-/**
- * Which of MY transactions belong on the server, as rows ready to upsert.
- *
- * Only my own shared expenses: a replica of hers is hers to publish, and
- * pushing it back would make each device echo the other forever.
- */
-export function planPush(
-  transactions: Transaction[],
-  householdId: string,
-  myUserId: string,
-): SharedItemRow[] {
-  return transactions
-    .filter((t) => !!t.split && !t.fromShared && t.type !== 'income')
-    .map((t) => ({
-      id: t.id,
-      household_id: householdId,
-      author_id: myUserId,
-      payer_id: myUserId,
-      date: t.date,
-      description: t.description,
-      amount: t.amount,
-      currency: t.currency || 'EUR',
-      base_amount: typeof t.baseAmount === 'number' ? t.baseAmount : null,
-      // The seed id is language-independent ('groceries' is 'Spesa' in an
-      // Italian app), which is what makes mapping free on the other side.
-      category_key: t.category?.id ?? null,
-      category_name: t.category?.name ?? null,
-      category_icon: t.category?.icon ?? null,
-      subcategory: t.subcategory ?? null,
-      author_share: t.split!.mine,
-      updated_at: t.updatedAt ?? new Date().toISOString(),
-      deleted_at: null,
-    }));
-}
+// Stamps must be compared as INSTANTS, never as strings. Postgres hands back
+// "2026-08-13T10:00:00+00:00" where the client writes "2026-08-13T10:00:00.000Z";
+// the two describe the same moment but sort against each other by character,
+// which would have made every row look permanently out of date and re-pushed
+// it forever - while a genuinely newer remote edit could be ignored.
+const at = (s: string | undefined | null): number => (s ? Date.parse(s) || 0 : 0);
+
+/** The same instant, in the one format the rest of the app writes - so the
+ *  per-user cloud merge, which does compare stamps as strings, stays sane. */
+const iso = (s: string): string => {
+  const ms = Date.parse(s);
+  return Number.isFinite(ms) ? new Date(ms).toISOString() : s;
+};
+
+/** The shared id a local transaction maps to: its own for one I entered, the
+ *  mirrored id for a copy of theirs. */
+export const sharedIdOf = (t: Transaction): string => t.fromShared ?? t.id;
 
 /**
- * Ids I previously published that no longer exist locally (or stopped being
- * shared): they need a tombstone so her device drops its replica.
+ * One local transaction as a server row.
+ *
+ * `author_share` is always the AUTHOR's half, whichever device is pushing:
+ * on the author's own copy that is `split.mine`, and on the other member's
+ * copy it is whatever is left after their own share. That symmetry is what
+ * lets either side edit without the halves swapping over.
  */
-export function planTombstones(
-  transactions: Transaction[],
-  remote: SharedItemRow[],
+function toRow(
+  t: Transaction,
+  householdId: string,
   myUserId: string,
-): string[] {
-  const stillShared = new Set(
-    transactions.filter((t) => !!t.split && !t.fromShared).map((t) => t.id),
-  );
-  return remote
-    .filter((r) => r.author_id === myUserId && !r.deleted_at && !stillShared.has(r.id))
-    .map((r) => r.id);
+  prior: SharedItemRow | undefined,
+  stamp: string,
+): SharedItemRow {
+  const mine = t.split?.mine ?? 0;
+  const authorIsMe = !t.fromShared;
+  return {
+    id: sharedIdOf(t),
+    household_id: householdId,
+    // Authorship never moves: correcting someone's expense does not make it
+    // yours, and who PAID is what the balance is computed from.
+    author_id: prior?.author_id ?? myUserId,
+    payer_id: prior?.payer_id ?? myUserId,
+    date: t.date,
+    description: t.description,
+    amount: t.amount,
+    currency: t.currency || 'EUR',
+    base_amount: typeof t.baseAmount === 'number' ? t.baseAmount : null,
+    // The seed id is language-independent ('groceries' is 'Spesa' in an
+    // Italian app), which is what makes mapping free on the other side.
+    category_key: t.category?.id ?? null,
+    category_name: t.category?.name ?? null,
+    category_icon: t.category?.icon ?? null,
+    subcategory: t.subcategory ?? null,
+    author_share: Math.round((authorIsMe ? mine : t.amount - mine) * 100) / 100,
+    updated_by: myUserId,
+    updated_at: t.updatedAt ?? stamp,
+    deleted_at: null,
+  };
 }
 
 /**
@@ -119,75 +128,145 @@ export function mapCategory(row: SharedItemRow, categories: Category[]): Categor
   return categories.find((c) => c.id === 'others') ?? categories[0] ?? null;
 }
 
-export interface ReconcileResult {
-  /** The ledger with her replicas added, refreshed and removed. */
+export interface IncomingChange {
+  id: string;
+  description: string;
+  kind: 'new' | 'edited' | 'removed';
+}
+
+export interface SyncPlan {
+  /** The ledger after folding in whatever the server knows. */
   transactions: Transaction[];
-  added: number;
-  updated: number;
-  removed: number;
+  /** Rows to upsert: only where MY copy is the newer statement. */
+  push: SharedItemRow[];
+  /** True when `transactions` differs from what went in. */
+  changed: boolean;
+  /** What the other member did since we last looked, for the nudge. */
+  incoming: IncomingChange[];
+}
+
+/** One server row as a local transaction. */
+function toTransaction(
+  row: SharedItemRow,
+  myUserId: string,
+  categories: Category[],
+  prior: Transaction | undefined,
+): Transaction {
+  const authorIsMe = row.author_id === myUserId;
+  // Two people: whatever is not the author's half is the other's. Clamped, so
+  // a malformed row can never produce a negative expense on either side.
+  const mine = authorIsMe
+    ? row.author_share
+    : Math.max(0, Math.round((row.amount - row.author_share) * 100) / 100);
+  return {
+    id: authorIsMe ? row.id : replicaId(row.id),
+    description: row.description,
+    amount: Number(row.amount),
+    // A category I already chose for this row is mine to keep: re-mapping on
+    // every pull would undo a deliberate re-filing on the next sync.
+    category: (prior?.category ?? mapCategory(row, categories)) as Category,
+    subcategory: row.subcategory ?? undefined,
+    date: row.date,
+    type: 'expense',
+    currency: row.currency,
+    baseAmount: row.base_amount ?? undefined,
+    sourceId: prior?.sourceId,
+    recurrence: prior?.recurrence,
+    recurrenceOf: prior?.recurrenceOf,
+    updatedAt: iso(row.updated_at),
+    split: { mine },
+    ...(authorIsMe ? {} : { fromShared: row.id }),
+  };
 }
 
 /**
- * Fold the server's view of her expenses into my ledger.
+ * Reconcile my ledger with the household's, in BOTH directions.
  *
- * Idempotent by construction: replicas are addressed by their shared id and
+ * Either member may correct a shared expense, so this cannot be "push mine,
+ * pull theirs": the author's device must not re-publish its stale copy over
+ * the other member's correction. Every shared row is therefore resolved the
+ * same way, whoever wrote it - last write wins on `updated_at`, exactly as
+ * the per-user cloud merge already does for transactions.
+ *
+ * Idempotent by construction: rows are addressed by their shared id and
  * rewritten wholesale, so running this twice cannot double anyone's
- * groceries - the property the spec calls out as the one that must hold.
+ * groceries, and a settled state produces no pushes at all.
+ *
+ * Deletions are NOT inferred from absence. A row missing locally means "this
+ * device has not pulled it yet" far more often than "someone deleted it" -
+ * inferring would wipe the household's ledger the first time a device synced
+ * with an empty store. Deleting is an explicit act, tombstoned at the moment
+ * it happens (see handleDeleteExpense).
  */
-export function reconcileReplicas(
+export function planSync(
   transactions: Transaction[],
   remote: SharedItemRow[],
   myUserId: string,
+  householdId: string,
   categories: Category[],
-): ReconcileResult {
-  const theirs = remote.filter((r) => r.author_id !== myUserId);
-  const live = theirs.filter((r) => !r.deleted_at);
-  const liveIds = new Set(live.map((r) => replicaId(r.id)));
+): SyncPlan {
+  const stamp = new Date().toISOString();
+  const byId = new Map(remote.map((r) => [r.id, r]));
+  const seen = new Set<string>();
+  const push: SharedItemRow[] = [];
+  const incoming: IncomingChange[] = [];
+  const out: Transaction[] = [];
+  let changed = false;
 
-  const existing = new Map(
-    transactions.filter((t) => t.fromShared).map((t) => [t.id, t]),
-  );
+  for (const t of transactions) {
+    const isShared = !!t.split && t.type !== 'income';
+    if (!isShared) {
+      // Something that stopped being shared keeps its local life; the
+      // tombstone was written when the user un-shared it.
+      out.push(t);
+      continue;
+    }
+    const sid = sharedIdOf(t);
+    seen.add(sid);
+    const r = byId.get(sid);
 
-  let added = 0;
-  let updated = 0;
+    if (r?.deleted_at) {
+      // Removed by whoever deleted it - on both devices.
+      incoming.push({ id: sid, description: t.description, kind: 'removed' });
+      changed = true;
+      continue;
+    }
 
-  const replicas: Transaction[] = live.map((row) => {
-    const id = replicaId(row.id);
-    const prior = existing.get(id);
-    const category = mapCategory(row, categories);
-    // Two people: what is not her share is mine. Clamped so a malformed row
-    // can never produce a negative expense on my side.
-    const mine = Math.max(0, Math.round((row.amount - row.author_share) * 100) / 100);
-    const next: Transaction = {
-      id,
-      description: row.description,
-      amount: row.amount,
-      category: category as Category,
-      subcategory: row.subcategory ?? undefined,
-      date: row.date,
-      type: 'expense',
-      currency: row.currency,
-      baseAmount: row.base_amount ?? undefined,
-      sourceId: undefined,
-      updatedAt: row.updated_at,
-      split: { mine },
-      fromShared: row.id,
-    };
-    if (!prior) added++;
-    else if (JSON.stringify(prior) !== JSON.stringify(next)) updated++;
-    return next;
-  });
+    const localStamp = at(t.updatedAt);
+    if (!r) {
+      push.push(toRow(t, householdId, myUserId, undefined, stamp));
+      out.push(t);
+    } else if (at(r.updated_at) > localStamp) {
+      // The server holds the newer statement: take it.
+      const next = toTransaction(r, myUserId, categories, t);
+      if (JSON.stringify(next) !== JSON.stringify(t)) {
+        changed = true;
+        if (r.updated_by && r.updated_by !== myUserId) {
+          incoming.push({ id: sid, description: r.description, kind: 'edited' });
+        }
+      }
+      out.push(next);
+    } else if (localStamp > at(r.updated_at)) {
+      push.push(toRow(t, householdId, myUserId, r, stamp));
+      out.push(t);
+    } else {
+      out.push(t);
+    }
+  }
 
-  // Replicas of items she deleted, and orphans from a household we have left.
-  const removed = transactions.filter((t) => t.fromShared && !liveIds.has(t.id)).length;
+  // Rows this device has never seen.
+  for (const r of remote) {
+    if (seen.has(r.id) || r.deleted_at) continue;
+    out.push(toTransaction(r, myUserId, categories, undefined));
+    changed = true;
+    if (r.author_id !== myUserId) {
+      incoming.push({ id: r.id, description: r.description, kind: 'new' });
+    }
+  }
 
-  const mine = transactions.filter((t) => !t.fromShared);
-  // Date order, newest first, matching what the cloud merge already keeps.
-  const all = [...mine, ...replicas].sort((a, b) =>
-    a.date < b.date ? 1 : a.date > b.date ? -1 : 0,
-  );
-
-  return { transactions: all, added, updated, removed };
+  // Newest first, matching the order the cloud merge already keeps.
+  out.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
+  return { transactions: out, push, changed, incoming };
 }
 
 /**

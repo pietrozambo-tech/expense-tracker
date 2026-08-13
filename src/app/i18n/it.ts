@@ -621,7 +621,10 @@ export const it: Record<keyof typeof en, string> = {
   'shared.connect.errSignIn': 'Accedi prima: per collegare due account dovete essere entrambi connessi.',
   'shared.connect.errCode': 'Il codice non ha funzionato. Potrebbe essere sbagliato, già usato o più vecchio di 30 minuti.',
   'shared.connect.errGeneric': 'Collegamento non riuscito. Controlla la connessione e riprova.',
-  'shared.theirEntry': 'Questa spesa è di {name}: solo lei può modificarla',
+  'shared.nudge.added': '{name} ha aggiunto “{what}”',
+  'shared.nudge.edited': '{name} ha modificato “{what}”',
+  'shared.nudge.removed': '{name} ha rimosso “{what}”',
+  'shared.nudge.many': '{name} ha fatto {n} modifiche alle spese condivise',
   'shared.connect.waiting': 'In attesa che entri…',
   'toast.paired': 'Collegato con {name}',
 };

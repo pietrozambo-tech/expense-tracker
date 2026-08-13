@@ -80,6 +80,10 @@ create table if not exists public.shared_items (
   -- The AUTHOR's own share. The other member's share is amount - author_share
   -- while a household has two people.
   author_share  numeric(14,2) not null,
+  -- Who last touched it. Either member may correct a shared expense - one of
+  -- you holds the receipt - so this is what lets the other device say "she
+  -- changed this" instead of silently showing a different number.
+  updated_by    uuid references auth.users (id),
   updated_at    timestamptz not null default now(),
   -- Tombstone rather than a hard delete: the other device has a replica to
   -- remove, and it may not be online for days.
@@ -209,6 +213,10 @@ drop policy if exists "shared_items_select_member" on public.shared_items;
 drop policy if exists "shared_items_insert_author" on public.shared_items;
 drop policy if exists "shared_items_update_author" on public.shared_items;
 drop policy if exists "shared_items_delete_author" on public.shared_items;
+drop policy if exists "shared_items_update_member" on public.shared_items;
+drop policy if exists "shared_items_delete_member" on public.shared_items;
+-- Added after the first release, so an existing project picks it up on re-run.
+alter table public.shared_items add column if not exists updated_by uuid references auth.users (id);
 
 create policy "shared_items_select_member"
   on public.shared_items for select
@@ -218,16 +226,22 @@ create policy "shared_items_insert_author"
   on public.shared_items for insert
   with check (author_id = auth.uid() and public.is_household_member(household_id));
 
--- The author owns the amount, the date and the split. This is the rule the
--- UI states ("only she can change them") - enforced here so it is true.
-create policy "shared_items_update_author"
+-- A shared expense belongs to the household, not to whoever typed it first:
+-- either member may correct one, because either may be the one holding the
+-- receipt. author_id still records who entered it (and who paid); updated_by
+-- records who last changed it, which is what the other device reports.
+--
+-- Both devices resolve concurrent edits by updated_at, last write wins - see
+-- planSync in src/app/lib/sharedSync.ts, which also stops the author blindly
+-- re-pushing a stale copy over the other member's correction.
+create policy "shared_items_update_member"
   on public.shared_items for update
-  using (author_id = auth.uid())
-  with check (author_id = auth.uid());
+  using (public.is_household_member(household_id))
+  with check (public.is_household_member(household_id));
 
-create policy "shared_items_delete_author"
+create policy "shared_items_delete_member"
   on public.shared_items for delete
-  using (author_id = auth.uid());
+  using (public.is_household_member(household_id));
 
 -- settlements ---------------------------------------------------------------
 drop policy if exists "settlements_select_member" on public.settlements;

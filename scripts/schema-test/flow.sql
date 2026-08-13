@@ -39,22 +39,38 @@ do $$ declare c text; begin
   exception when others then raise notice 'PASS  used code rejected (%)', sqlerrm; end;
 end $$;
 
--- 4. Authorship: hers to write, his to read only.
+-- 4. A shared expense belongs to the household: either member may correct it,
+--    and updated_by records who did. Authorship still records who entered it.
 set request.jwt.claim.sub = :'P';
-insert into public.shared_items (id,household_id,author_id,payer_id,date,description,amount,currency,category_key,author_share)
-  values ('tx-a', :'hid', auth.uid(), auth.uid(), '2026-08-01','Rent',900,'EUR','housing',450);
+insert into public.shared_items (id,household_id,author_id,payer_id,date,description,amount,currency,category_key,author_share,updated_by)
+  values ('tx-a', :'hid', auth.uid(), auth.uid(), '2026-08-01','Rent',900,'EUR','housing',450, auth.uid());
 set request.jwt.claim.sub = :'G';
 select case when count(*)=1 then 'PASS' else 'FAIL' end || '  partner sees his item' as r from public.shared_items;
-update public.shared_items set amount = 5 where id='tx-a';
-select case when amount=900 then 'PASS' else 'FAIL' end || '  partner cannot edit his item' as r
+update public.shared_items set amount = 950, author_share = 475, updated_by = auth.uid() where id='tx-a';
+select case when amount=950 then 'PASS' else 'FAIL' end || '  partner CAN correct his item' as r
   from public.shared_items where id='tx-a';
-delete from public.shared_items where id='tx-a';
-select case when count(*)=1 then 'PASS' else 'FAIL' end || '  partner cannot delete his item' as r
+select case when updated_by = :'G' and author_id = :'P' then 'PASS' else 'FAIL' end
+  || '  authorship stays his, updated_by becomes hers' as r from public.shared_items where id='tx-a';
+-- The client deletes by tombstoning, so her device can drop its copy.
+update public.shared_items set deleted_at = now() where id='tx-a';
+select case when deleted_at is not null then 'PASS' else 'FAIL' end || '  partner CAN retire his item' as r
   from public.shared_items where id='tx-a';
-insert into public.shared_items (id,household_id,author_id,payer_id,date,description,amount,currency,category_key,author_share)
-  values ('tx-b', :'hid', auth.uid(), auth.uid(), '2026-08-03','Conad',60,'EUR','groceries',30);
+update public.shared_items set deleted_at = null where id='tx-a';
+insert into public.shared_items (id,household_id,author_id,payer_id,date,description,amount,currency,category_key,author_share,updated_by)
+  values ('tx-b', :'hid', auth.uid(), auth.uid(), '2026-08-03','Conad',60,'EUR','groceries',30, auth.uid());
 set request.jwt.claim.sub = :'P';
 select case when count(*)=2 then 'PASS' else 'FAIL' end || '  both items visible to both' as r from public.shared_items;
+-- The loosening is for MEMBERS only.
+set request.jwt.claim.sub = :'E';
+update public.shared_items set amount = 1 where id='tx-a';
+set request.jwt.claim.sub = :'P';
+select case when amount=950 then 'PASS' else 'FAIL' end || '  outsider still cannot edit' as r
+  from public.shared_items where id='tx-a';
+set request.jwt.claim.sub = :'E';
+delete from public.shared_items where id='tx-a';
+set request.jwt.claim.sub = :'P';
+select case when count(*)=1 then 'PASS' else 'FAIL' end || '  outsider still cannot delete' as r
+  from public.shared_items where id='tx-a';
 
 -- 5. Isolation: an outsider holding the household id gets nothing.
 set request.jwt.claim.sub = :'E';

@@ -50,7 +50,7 @@ const SCENARIOS = `
 import { homeAmount, mineAmount } from './utils/currency';
 import { myShareOf, runningBalance, shareFraction } from './lib/shared';
 import { mergePayloads } from './lib/cloud';
-import { planPush, planTombstones, reconcileReplicas, mapCategory, replicaId } from './lib/sharedSync';
+import { planSync, mapCategory, replicaId, sharedIdOf } from './lib/sharedSync';
 
 let failed = 0;
 const eq = (name, got, want) => {
@@ -148,73 +148,100 @@ const CATS = [
   { id: 'others', name: 'Others', icon: 'MoreHorizontal' },
 ];
 const txn = (o) => ({ currency: 'EUR', type: 'expense', category: CATS[0], ...o });
+const row = (o) => ({
+  household_id: HID, author_id: HER, payer_id: HER, date: '2026-08-03', description: 'Conad',
+  amount: 60, currency: 'EUR', base_amount: null, category_key: 'groceries', category_name: 'Spesa',
+  category_icon: 'ShoppingCart', subcategory: null, author_share: 30,
+  updated_by: HER, updated_at: '2026-08-03T09:00:00Z', deleted_at: null, ...o,
+});
 
-// My side publishes only what is mine and shared.
-const myLedger = [
+// Mine goes up; hers comes down; the unshared and the income never travel.
+const ledger = [
   txn({ id: 'a', date: '2026-08-01', description: 'Esselunga', amount: 84, split: { mine: 42 }, updatedAt: '2026-08-01T10:00:00Z' }),
   txn({ id: 'b', date: '2026-08-02', description: 'Coffee', amount: 3 }),
-  txn({ id: 'shared-x1', date: '2026-08-03', description: 'Conad', amount: 60, split: { mine: 30 }, fromShared: 'x1' }),
   txn({ id: 'c', date: '2026-08-04', description: 'Salary', amount: 3000, type: 'income', split: { mine: 1500 } }),
 ];
-const pushed = planPush(myLedger, HID, ME);
-eq('push: only my own shared expenses', pushed.map((r) => r.id), ['a']);
-eq('push: carries the language-independent key', pushed[0].category_key, 'groceries');
-eq('push: author_share is my half', pushed[0].author_share, 42);
-eq('push: never echoes a replica back', pushed.some((r) => r.id.startsWith('shared-')), false);
+const p1 = planSync(ledger, [], ME, HID, CATS);
+eq('push: only my shared expenses', p1.push.map((r) => r.id), ['a']);
+eq('push: author_share is my half', p1.push[0].author_share, 42);
+eq('push: stamped with who changed it', p1.push[0].updated_by, ME);
+eq('push: carries the language-independent key', p1.push[0].category_key, 'groceries');
 
-// Her rows arrive; mine come back unchanged.
-const herRow = {
-  id: 'x1', household_id: HID, author_id: HER, payer_id: HER,
-  date: '2026-08-03', description: 'Conad', amount: 60, currency: 'EUR',
-  base_amount: null, category_key: 'groceries', category_name: 'Spesa',
-  category_icon: 'ShoppingCart', subcategory: null, author_share: 30,
-  updated_at: '2026-08-03T09:00:00Z', deleted_at: null,
-};
-const mineEchoed = { ...pushed[0] };
-
-const noReplicas = myLedger.filter((t) => !t.fromShared);
-const r1 = reconcileReplicas(noReplicas, [mineEchoed, herRow], ME, CATS);
-eq('reconcile: her item becomes a replica', r1.added, 1);
-eq('reconcile: my own row is never replicated', r1.transactions.filter((t) => t.fromShared).length, 1);
-const rep = r1.transactions.find((t) => t.fromShared === 'x1');
+// Her row arrives; my own comes back unchanged and is not re-pushed.
+const mineEchoed = { ...p1.push[0] };
+const p2 = planSync(ledger, [mineEchoed, row({ id: 'x1' })], ME, HID, CATS);
+const rep = p2.transactions.find((t) => t.fromShared === 'x1');
+eq('her item becomes a replica', !!rep, true);
 eq('replica: full amount kept', rep.amount, 60);
 eq('replica: my share is what she did not cover', rep.split.mine, 30);
-eq('replica: id is derived from the shared id', rep.id, replicaId('x1'));
+eq('replica: id derives from the shared id', rep.id, replicaId('x1'));
+eq('settled state pushes nothing', p2.push.length, 0);
+eq('she authored it, so it is flagged incoming', p2.incoming.map((c) => c.kind), ['new']);
 
-// THE property the spec insists on: running it twice changes nothing.
-const r2 = reconcileReplicas(r1.transactions, [mineEchoed, herRow], ME, CATS);
-eq('reconcile is idempotent (no adds)', r2.added, 0);
-eq('reconcile is idempotent (no updates)', r2.updated, 0);
-eq('reconcile is idempotent (same count)', r2.transactions.length, r1.transactions.length);
+// THE property: running it again changes nothing and sends nothing.
+const p3 = planSync(p2.transactions, [mineEchoed, row({ id: 'x1' })], ME, HID, CATS);
+eq('idempotent: no local change', p3.changed, false);
+eq('idempotent: no pushes', p3.push.length, 0);
+eq('idempotent: same count', p3.transactions.length, p2.transactions.length);
 
-// Her edit lands without a prompt; her deletion removes the replica.
-const herEdited = { ...herRow, amount: 75, author_share: 37.5, updated_at: '2026-08-04T09:00:00Z' };
-const r3 = reconcileReplicas(r1.transactions, [mineEchoed, herEdited], ME, CATS);
-eq('her edit updates the replica', r3.updated, 1);
-eq('her edit moves my share', r3.transactions.find((t) => t.fromShared === 'x1').split.mine, 37.5);
-const r4 = reconcileReplicas(r1.transactions, [mineEchoed, { ...herRow, deleted_at: '2026-08-05T09:00:00Z' }], ME, CATS);
-eq('her deletion removes the replica', r4.transactions.some((t) => t.fromShared === 'x1'), false);
-eq('her deletion is counted', r4.removed, 1);
+// Postgres returns "+00:00", the client writes "Z". Compared as strings these
+// sort against each other and every row looks stale forever.
+const pgStamp = row({ id: 'x1', updated_at: '2026-08-03T09:00:00+00:00' });
+const p4 = planSync(p2.transactions, [mineEchoed, pgStamp], ME, HID, CATS);
+eq('timestamp formats compare as instants', p4.push.length, 0);
+eq('timestamp formats do not churn state', p4.changed, false);
+
+// SHE corrects MY expense. My device must take her version, not overwrite it.
+const myItemHerEdit = { ...mineEchoed, amount: 90, author_share: 45, description: 'Esselunga', updated_by: HER, updated_at: '2026-08-05T09:00:00Z' };
+const p5 = planSync(p2.transactions, [myItemHerEdit, row({ id: 'x1' })], ME, HID, CATS);
+const mineNow = p5.transactions.find((t) => t.id === 'a');
+eq('her correction to my expense is accepted', mineNow.amount, 90);
+eq('my share follows her correction', mineNow.split.mine, 45);
+eq('and my stale copy is NOT re-pushed over it', p5.push.some((r) => r.id === 'a'), false);
+eq('her correction is reported', p5.incoming.some((c) => c.kind === 'edited'), true);
+
+// I correct HER expense: it must go up, keeping her as the author.
+const editedReplica = p2.transactions.map((t) =>
+  t.fromShared === 'x1' ? { ...t, amount: 70, split: { mine: 35 }, updatedAt: '2026-08-06T09:00:00Z' } : t);
+const p6 = planSync(editedReplica, [mineEchoed, row({ id: 'x1' })], ME, HID, CATS);
+const pushedBack = p6.push.find((r) => r.id === 'x1');
+eq('my correction to her expense is pushed', !!pushedBack, true);
+eq('authorship does not move', pushedBack.author_id, HER);
+eq('her half is recomputed, not swapped', pushedBack.author_share, 35);
+eq('and it is stamped as mine', pushedBack.updated_by, ME);
+
+// A tombstone removes it on both sides.
+const p7 = planSync(p2.transactions, [mineEchoed, row({ id: 'x1', deleted_at: '2026-08-07T09:00:00Z' })], ME, HID, CATS);
+eq('deletion removes the replica', p7.transactions.some((t) => t.fromShared === 'x1'), false);
+eq('deletion is reported', p7.incoming.some((c) => c.kind === 'removed'), true);
+
+// Absence is NEVER a deletion: a fresh device pulls, it does not wipe.
+const fresh = planSync([], [mineEchoed, row({ id: 'x1' })], ME, HID, CATS);
+eq('fresh device adopts both rows', fresh.transactions.length, 2);
+eq('fresh device tombstones nothing', fresh.push.length, 0);
+
+// A category I re-filed stays re-filed.
+const refiled = p2.transactions.map((t) => (t.fromShared === 'x1' ? { ...t, category: CATS[1] } : t));
+const p8 = planSync(refiled, [mineEchoed, row({ id: 'x1', updated_at: '2026-08-09T09:00:00Z', amount: 66, author_share: 33 })], ME, HID, CATS);
+eq('her edit does not undo my re-filing', p8.transactions.find((t) => t.fromShared === 'x1').category.id, 'housing');
+
+eq('sharedIdOf: mine', sharedIdOf({ id: 'a' }), 'a');
+eq('sharedIdOf: replica', sharedIdOf({ id: 'shared-x1', fromShared: 'x1' }), 'x1');
 
 // Category mapping across languages and inventions.
-eq('map: seed id wins', mapCategory(herRow, CATS).id, 'groceries');
+eq('map: seed id wins', mapCategory(row({}), CATS).id, 'groceries');
 eq('map: unknown id falls back to the icon',
-  mapCategory({ ...herRow, category_key: 'category-1723480915', category_icon: 'Home' }, CATS).id, 'housing');
+  mapCategory(row({ category_key: 'category-1723480915', category_icon: 'Home' }), CATS).id, 'housing');
 eq('map: otherwise a catch-all, never dropped',
-  mapCategory({ ...herRow, category_key: 'category-x', category_icon: 'Rocket' }, CATS).id, 'others');
-
-// Tombstones for things I stopped sharing.
-eq('tombstone: un-shared row', planTombstones([txn({ id: 'a', date: '2026-08-01', amount: 84 })], [mineEchoed], ME), ['a']);
-eq('tombstone: never hers', planTombstones([], [herRow], ME), []);
+  mapCategory(row({ category_key: 'category-x', category_icon: 'Rocket' }), CATS).id, 'others');
 
 // The balance is two-sided once replicas exist.
 const paired = [
-  txn({ id: 'a', date: '2026-08-01', amount: 900, split: { mine: 450 } }),          // I fronted 450 for her
-  txn({ id: 'shared-x1', date: '2026-08-03', amount: 60, split: { mine: 30 }, fromShared: 'x1' }), // she fronted 30 for me
+  txn({ id: 'a', date: '2026-08-01', amount: 900, split: { mine: 450 } }),
+  txn({ id: 'shared-x1', date: '2026-08-03', amount: 60, split: { mine: 30 }, fromShared: 'x1' }),
 ];
 eq('two-sided balance nets both directions', runningBalance(paired, [], 'EUR'), 420);
 eq('settlement retires the net', runningBalance(paired, [{ id: 's', personId: 'p', date: '2026-08-10', amount: 420 }], 'EUR'), 0);
-// And her expenses still count as MY spending, at my share.
 eq('replica counts as my spending', mineAmount(paired[1], 'EUR'), 30);
 
 if (failed) { console.error(\`\${failed} scenario(s) failed\`); process.exit(1); }
