@@ -83,6 +83,10 @@ export interface Household {
   defaultSplit: SplitRule;
   /** Category ids whose expenses share by default ("always shared"). */
   sharedCategoryIds: string[];
+  /** Finer grain: single subcategories that share by default, keyed by
+   *  category id, for categories not wholly in sharedCategoryIds (a wholly
+   *  shared category needs no entry - all of it shares). */
+  sharedSubcategories?: Record<string, string[]>;
   /** false = split amounts correctly but keep no balance (joint account you
    *  both fund). Defaults true - without a balance the feature is close to
    *  pointless, you may as well type your share. */

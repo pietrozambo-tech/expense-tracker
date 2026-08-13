@@ -192,7 +192,13 @@ interface DashboardProps {
 // shared one carries theirs; tapping crosses over. Deliberately not both
 // faces at once: a lone avatar is quieter, and the title beside it says
 // which subject you are reading.
-function ViewSwitcher({ label, name, color, onClick }: { label: string; name: string; color: string; onClick: () => void }) {
+function ViewSwitcher({ label, faces, onClick }: {
+  label: string;
+  /** One face on the personal view (you); both on the shared view - the
+   *  household lens belongs to both of you, and the pair says so at a glance. */
+  faces: { name: string; color: string }[];
+  onClick: () => void;
+}) {
   return (
     <button
       onClick={onClick}
@@ -200,15 +206,20 @@ function ViewSwitcher({ label, name, color, onClick }: { label: string; name: st
       className="flex items-center gap-1 rounded-full p-[3px] pr-1.5 active:scale-95 transition-transform flex-shrink-0"
       style={{ backgroundColor: 'var(--bg-card)', boxShadow: '0 1px 3px rgba(0,0,0,0.07)', WebkitTapHighlightColor: 'transparent' }}
     >
-      <span
-        aria-hidden="true"
-        style={{
-          width: 30, height: 30, borderRadius: 999, background: color, color: '#FFFFFF',
-          fontSize: 13, fontWeight: 700, display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-        }}
-      >
-        {(name[0] ?? '?').toUpperCase()}
-      </span>
+      {faces.map((face, i) => (
+        <span
+          key={i}
+          aria-hidden="true"
+          style={{
+            width: 30, height: 30, borderRadius: 999, background: face.color, color: '#FFFFFF',
+            fontSize: 13, fontWeight: 700, display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+            marginLeft: i > 0 ? -9 : 0,
+            border: i > 0 ? '2px solid var(--bg-card)' : 'none',
+          }}
+        >
+          {(face.name[0] ?? '?').toUpperCase()}
+        </span>
+      ))}
       <ChevronDown className="w-3.5 h-3.5" style={{ color: 'var(--ink-2)' }} strokeWidth={2.5} />
     </button>
   );
@@ -2200,8 +2211,10 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
             </h1>
             <ViewSwitcher
               label={t('shared.switchToPersonal')}
-              name={partner!.name}
-              color={partner!.color}
+              faces={[
+                { name: userName || 'P', color: '#0B0B0D' },
+                { name: partner!.name, color: partner!.color },
+              ]}
               onClick={() => setSharedMode(false)}
             />
           </div>
@@ -2251,8 +2264,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
             {sharedAvailable && (
               <ViewSwitcher
                 label={t('shared.switchToShared')}
-                name={userName || 'P'}
-                color="#0B0B0D"
+                faces={[{ name: userName || 'P', color: '#0B0B0D' }]}
                 onClick={() => setSharedMode(true)}
               />
             )}

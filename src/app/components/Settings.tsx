@@ -1,6 +1,7 @@
 import type { LucideIcon } from 'lucide-react';
 import { ChevronRight, ChevronLeft, UserCircle, Wallet, HelpCircle, ShieldCheck, ScrollText, Layers, FlaskConical, Trash2, Landmark, Cloud, LogOut, Upload, Copy, Download, FileSpreadsheet, Palmtree, UserX, Mail, LifeBuoy, CheckCircle2, Globe, CalendarClock, Sparkles, Palette, Sun, Moon, SunMoon, Split, Lock } from 'lucide-react';
 import { loadSharedUnlock, saveSharedUnlock } from '../lib/storage';
+import { getCategoryIcon } from './categoryIcons';
 import { sendSupportMessage, supportLimitReached } from '../lib/support';
 import { switchGlow } from './categoryColors';
 
@@ -101,6 +102,32 @@ const TILE = {
   neutral:  { bg: '#EFEFF4', fg: '#6B7280' },
 } as const;
 
+// The tick square the always-shared picker uses. 'some' is the half-state of
+// a category with only certain subcategories ticked.
+function CheckMark({ state }: { state: 'on' | 'some' | 'off' }) {
+  const active = state !== 'off';
+  return (
+    <span
+      aria-hidden="true"
+      className="flex items-center justify-center flex-shrink-0 rounded-md"
+      style={{
+        width: 22,
+        height: 22,
+        backgroundColor: active ? '#4F74F3' : 'transparent',
+        border: active ? '1.5px solid #4F74F3' : '1.5px solid var(--bg-off)',
+        transition: 'background-color 120ms, border-color 120ms',
+      }}
+    >
+      {state === 'on' && (
+        <svg width="12" height="10" viewBox="0 0 12 10" fill="none">
+          <path d="M1 5L4.5 8.5L11 1.5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      )}
+      {state === 'some' && <span style={{ width: 10, height: 2, borderRadius: 1, background: '#FFFFFF' }} />}
+    </span>
+  );
+}
+
 function RowIcon({ icon: Icon, tone }: { icon: LucideIcon; tone: { bg: string; fg: string } }) {
   return (
     <span
@@ -131,6 +158,7 @@ interface SettingsProps {
   partner?: import('../types').Person | null;
   onEnableShared?: (name: string) => void;
   onUpdateHousehold?: (patch: Partial<import('../types').Household>) => void;
+  onRenamePartner?: (name: string) => void;
   onDisableShared?: () => void;
   onCreateSchedule: (draft: ScheduleDraft) => void;
   onUpdateSchedule: (ruleId: string, draft: ScheduleDraft) => void;
@@ -197,6 +225,7 @@ export function Settings({
   partner = null,
   onEnableShared,
   onUpdateHousehold,
+  onRenamePartner,
   onDisableShared,
   onCreateSchedule,
   onUpdateSchedule,
@@ -270,6 +299,13 @@ export function Settings({
   const [sharedUnlocked, setSharedUnlocked] = useState(loadSharedUnlock);
   const [gateCode, setGateCode] = useState('');
   const [gateError, setGateError] = useState(false);
+  // Sheets on the Shared subpage. renameDraft doubles as the open flag.
+  const [renameDraft, setRenameDraft] = useState<string | null>(null);
+  const [showSplitEditor, setShowSplitEditor] = useState(false);
+  const [splitPercentDraft, setSplitPercentDraft] = useState('50');
+  const [showCatPicker, setShowCatPicker] = useState(false);
+  const [pickerExpanded, setPickerExpanded] = useState<string | null>(null);
+  const [showConnect, setShowConnect] = useState(false);
   const [showAllCurrencies, setShowAllCurrencies] = useState(false);
   const [showNameEditor, setShowNameEditor] = useState(false);
   const [showSupport, setShowSupport] = useState(false);
@@ -584,13 +620,45 @@ export function Settings({
 
   if (showShared) {
     const sharedCats: string[] = household?.sharedCategoryIds ?? [];
+    const subMap: Record<string, string[]> = household?.sharedSubcategories ?? {};
+    // Tri-state per category: wholly shared, partially (some subcategories), off.
+    const catState = (id: string): 'on' | 'some' | 'off' =>
+      sharedCats.includes(id) ? 'on' : (subMap[id]?.length ?? 0) > 0 ? 'some' : 'off';
     const toggleCat = (id: string) => {
       if (!household || !onUpdateHousehold) return;
+      const next = { ...subMap };
+      delete next[id];
       onUpdateHousehold({
         sharedCategoryIds: sharedCats.includes(id)
           ? sharedCats.filter((c) => c !== id)
           : [...sharedCats, id],
+        sharedSubcategories: next,
       });
+    };
+    const toggleSub = (cat: any, name: string) => {
+      if (!household || !onUpdateHousehold) return;
+      const all: string[] = cat.subcategories ?? [];
+      const next = { ...subMap };
+      let ids = sharedCats;
+      if (sharedCats.includes(cat.id)) {
+        // Unticking one subcategory of a wholly shared category demotes it to
+        // "all the others" - the tick the user just removed must stick.
+        ids = sharedCats.filter((c) => c !== cat.id);
+        next[cat.id] = all.filter((s) => s !== name);
+      } else {
+        const cur = next[cat.id] ?? [];
+        const updated = cur.includes(name) ? cur.filter((s) => s !== name) : [...cur, name];
+        if (all.length > 0 && updated.length === all.length) {
+          // Every subcategory ticked = the whole category; promote and clean.
+          ids = [...sharedCats, cat.id];
+          delete next[cat.id];
+        } else if (updated.length === 0) {
+          delete next[cat.id];
+        } else {
+          next[cat.id] = updated;
+        }
+      }
+      onUpdateHousehold({ sharedCategoryIds: ids, sharedSubcategories: next });
     };
     return (
       <div className="flex flex-col" style={SUBPAGE_STYLE}>
@@ -651,8 +719,12 @@ export function Settings({
             <>
               <div className="px-6">
                 <div className="rounded-2xl shadow-sm overflow-hidden" style={{ backgroundColor: 'var(--bg-card)' }}>
-                  <div className="flex items-center gap-3 px-4" style={{ height: 52, borderBottom: '1px solid var(--bg-inset)' }}>
-                    <span className="flex-1" style={{ color: 'var(--ink)', fontSize: 15 }}>{t('shared.set.partner')}</span>
+                  <button
+                    onClick={() => setRenameDraft(partner?.name ?? '')}
+                    className="w-full flex items-center gap-3 px-4 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
+                    style={{ height: 52, borderBottom: '1px solid var(--bg-inset)' }}
+                  >
+                    <span className="flex-1 text-left" style={{ color: 'var(--ink)', fontSize: 15 }}>{t('shared.set.partner')}</span>
                     <span className="flex items-center gap-2" style={{ color: 'var(--ink-2)', fontSize: 14 }}>
                       <span
                         aria-hidden="true"
@@ -666,11 +738,39 @@ export function Settings({
                       </span>
                       {partner?.name}
                     </span>
-                  </div>
-                  <div className="flex items-center gap-3 px-4" style={{ height: 52, borderBottom: '1px solid var(--bg-inset)' }}>
-                    <span className="flex-1" style={{ color: 'var(--ink)', fontSize: 15 }}>{t('shared.set.split')}</span>
-                    <span style={{ color: 'var(--ink-2)', fontSize: 14 }}>{t('shared.set.splitValue')}</span>
-                  </div>
+                    <ChevronRight className="w-4 h-4" style={{ color: 'var(--ghost)' }} />
+                  </button>
+                  <button
+                    onClick={() => {
+                      setSplitPercentDraft(String(household.defaultSplit.mode === 'percent' ? household.defaultSplit.percent ?? 50 : 50));
+                      setShowSplitEditor(true);
+                    }}
+                    className="w-full flex items-center gap-3 px-4 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
+                    style={{ height: 52, borderBottom: '1px solid var(--bg-inset)' }}
+                  >
+                    <span className="flex-1 text-left" style={{ color: 'var(--ink)', fontSize: 15 }}>{t('shared.set.split')}</span>
+                    <span style={{ color: 'var(--ink-2)', fontSize: 14 }}>
+                      {household.defaultSplit.mode === 'percent'
+                        ? `${household.defaultSplit.percent ?? 50}% / ${100 - (household.defaultSplit.percent ?? 50)}%`
+                        : '50 / 50'}
+                    </span>
+                    <ChevronRight className="w-4 h-4" style={{ color: 'var(--ghost)' }} />
+                  </button>
+                  <button
+                    onClick={() => setShowCatPicker(true)}
+                    className="w-full flex items-center gap-3 px-4 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
+                    style={{ height: 52, borderBottom: '1px solid var(--bg-inset)' }}
+                  >
+                    <span className="flex-1 text-left" style={{ color: 'var(--ink)', fontSize: 15 }}>{t('shared.set.always')}</span>
+                    <span style={{ color: 'var(--ink-2)', fontSize: 14 }}>
+                      {t('shared.set.catCount', {
+                        n: sharedCats.length + Object.keys(household.sharedSubcategories ?? {}).filter(
+                          (id) => !sharedCats.includes(id) && (household.sharedSubcategories?.[id]?.length ?? 0) > 0,
+                        ).length,
+                      })}
+                    </span>
+                    <ChevronRight className="w-4 h-4" style={{ color: 'var(--ghost)' }} />
+                  </button>
                   <SwitchRow
                     label={t('shared.set.trackBalance')}
                     on={household.trackBalance}
@@ -683,23 +783,18 @@ export function Settings({
               </div>
 
               <div className="px-6 mt-5">
-                <p className="px-1 mb-2" style={{ color: 'var(--ink-2)', fontSize: 13, fontWeight: 600 }}>
-                  {t('shared.set.always')}
-                </p>
                 <div className="rounded-2xl shadow-sm overflow-hidden" style={{ backgroundColor: 'var(--bg-card)' }}>
-                  {categories.map((cat: any, i: number) => (
-                    <SwitchRow
-                      key={cat.id}
-                      label={cat.name}
-                      on={sharedCats.includes(cat.id)}
-                      divider={i < categories.length - 1}
-                      onToggle={() => toggleCat(cat.id)}
-                    />
-                  ))}
+                  <button
+                    onClick={() => setShowConnect(true)}
+                    className="w-full flex items-center gap-3 px-4 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
+                    style={{ height: 52 }}
+                  >
+                    <RowIcon icon={Cloud} tone={TILE.shared} />
+                    <span className="flex-1 text-left" style={{ color: 'var(--ink)', fontSize: 15 }}>{t('shared.set.connect')}</span>
+                    <span style={{ color: 'var(--ink-2)', fontSize: 14 }}>{t('shared.set.connectSoon')}</span>
+                    <ChevronRight className="w-4 h-4" style={{ color: 'var(--ghost)' }} />
+                  </button>
                 </div>
-                <p className="px-1 mt-2" style={{ color: 'var(--faint)', fontSize: 12, lineHeight: 1.45 }}>
-                  {t('shared.set.alwaysDesc')}
-                </p>
               </div>
 
               <div className="px-6 mt-5">
@@ -717,6 +812,227 @@ export function Settings({
             </>
           )}
         </div>
+
+        {/* Rename the partner */}
+        {renameDraft !== null && (
+          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-6" onClick={() => setRenameDraft(null)}>
+            <div className="rounded-2xl p-6 max-w-sm w-full shadow-xl" style={{ backgroundColor: 'var(--bg-card)' }} onClick={(e) => e.stopPropagation()}>
+              <h3 style={{ color: 'var(--ink)', fontSize: 17, fontWeight: 600, marginBottom: 14 }}>{t('shared.set.renameTitle')}</h3>
+              <input
+                type="text"
+                value={renameDraft}
+                onChange={(e) => setRenameDraft(e.target.value)}
+                autoFocus
+                className="w-full rounded-xl px-4 py-3 outline-none"
+                style={{ backgroundColor: 'var(--bg-field)', color: 'var(--ink)', fontSize: 16 }}
+              />
+              <div className="flex gap-3 mt-5">
+                <button
+                  onClick={() => setRenameDraft(null)}
+                  className="flex-1 px-4 py-3 rounded-xl font-medium active:bg-neutral-200"
+                  style={{ backgroundColor: 'var(--bg-inset)', color: 'var(--ink)' }}
+                >
+                  {t('common.cancel')}
+                </button>
+                <button
+                  onClick={() => {
+                    if (renameDraft.trim()) onRenamePartner?.(renameDraft);
+                    setRenameDraft(null);
+                  }}
+                  disabled={!renameDraft.trim()}
+                  className="flex-1 px-4 py-3 rounded-xl font-medium text-white active:opacity-90"
+                  style={{ backgroundColor: renameDraft.trim() ? '#4F74F3' : 'var(--bg-inset)', color: renameDraft.trim() ? '#FFFFFF' : 'var(--ink-2)' }}
+                >
+                  {t('common.save')}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Default split editor */}
+        {showSplitEditor && household && (
+          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-6" onClick={() => setShowSplitEditor(false)}>
+            <div className="rounded-2xl p-6 max-w-sm w-full shadow-xl" style={{ backgroundColor: 'var(--bg-card)' }} onClick={(e) => e.stopPropagation()}>
+              <h3 style={{ color: 'var(--ink)', fontSize: 17, fontWeight: 600, marginBottom: 14 }}>{t('shared.set.splitTitle')}</h3>
+              <button
+                onClick={() => {
+                  onUpdateHousehold?.({ defaultSplit: { mode: 'equal', ways: 2 } });
+                  setShowSplitEditor(false);
+                }}
+                className="w-full flex items-center justify-between px-4 py-3 rounded-xl mb-2 active:bg-neutral-100"
+                style={{
+                  backgroundColor: household.defaultSplit.mode === 'equal' ? 'var(--wash-accent3)' : 'var(--bg-inset)',
+                  border: household.defaultSplit.mode === 'equal' ? '1.5px solid #4F74F3' : '1.5px solid transparent',
+                }}
+              >
+                <span style={{ color: 'var(--ink)', fontSize: 15, fontWeight: 500 }}>{t('shared.set.equally')}</span>
+                <span style={{ color: 'var(--ink-2)', fontSize: 13 }}>50 / 50</span>
+              </button>
+              <div
+                className="w-full rounded-xl px-4 py-3"
+                style={{
+                  backgroundColor: household.defaultSplit.mode === 'percent' ? 'var(--wash-accent3)' : 'var(--bg-inset)',
+                  border: household.defaultSplit.mode === 'percent' ? '1.5px solid #4F74F3' : '1.5px solid transparent',
+                }}
+              >
+                <div className="flex items-center justify-between">
+                  <span style={{ color: 'var(--ink)', fontSize: 15, fontWeight: 500 }}>{t('shared.set.percent')}</span>
+                  <span className="flex items-center gap-1.5">
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      value={splitPercentDraft}
+                      onChange={(e) => setSplitPercentDraft(e.target.value.replace(/\D/g, '').slice(0, 2))}
+                      className="rounded-lg px-2 py-1 outline-none text-center tabular-nums"
+                      style={{ width: 56, backgroundColor: 'var(--bg-card)', color: 'var(--ink)', fontSize: 16, border: '1px solid var(--bg-off)' }}
+                    />
+                    <span style={{ color: 'var(--ink-2)', fontSize: 14 }}>%</span>
+                  </span>
+                </div>
+                <p style={{ color: 'var(--ink-2)', fontSize: 12, marginTop: 6 }}>
+                  {t('shared.set.percentHint', { name: partner?.name ?? '', p: String(100 - (parseInt(splitPercentDraft, 10) || 0)) })}
+                </p>
+              </div>
+              <div className="flex gap-3 mt-5">
+                <button
+                  onClick={() => setShowSplitEditor(false)}
+                  className="flex-1 px-4 py-3 rounded-xl font-medium active:bg-neutral-200"
+                  style={{ backgroundColor: 'var(--bg-inset)', color: 'var(--ink)' }}
+                >
+                  {t('common.cancel')}
+                </button>
+                <button
+                  onClick={() => {
+                    const p = parseInt(splitPercentDraft, 10);
+                    if (!isFinite(p) || p < 1 || p > 99) return;
+                    onUpdateHousehold?.({ defaultSplit: { mode: 'percent', percent: p } });
+                    setShowSplitEditor(false);
+                  }}
+                  className="flex-1 px-4 py-3 rounded-xl font-medium active:opacity-90"
+                  style={{ backgroundColor: '#4F74F3', color: '#FFFFFF' }}
+                >
+                  {t('common.save')}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Always-shared picker: tick categories, or open one and tick single
+            subcategories. A bottom sheet, not a settings page - choosing is a
+            moment, not a place. */}
+        {showCatPicker && household && (
+          <div className="fixed inset-0 bg-black/50 z-50 flex items-end justify-center" onClick={() => { setShowCatPicker(false); setPickerExpanded(null); }}>
+            <div
+              className="w-full max-w-[430px] rounded-t-3xl flex flex-col"
+              style={{ backgroundColor: 'var(--bg-card)', maxHeight: '80dvh' }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="px-6 pt-5 pb-3 flex items-start justify-between gap-3">
+                <div>
+                  <h3 style={{ color: 'var(--ink)', fontSize: 18, fontWeight: 700 }}>{t('shared.set.pickTitle')}</h3>
+                  <p style={{ color: 'var(--ink-2)', fontSize: 12.5, marginTop: 3, lineHeight: 1.4 }}>{t('shared.set.pickHint')}</p>
+                </div>
+                <button
+                  onClick={() => { setShowCatPicker(false); setPickerExpanded(null); }}
+                  className="flex-shrink-0 font-semibold"
+                  style={{ color: '#4F74F3', fontSize: 15, paddingTop: 2 }}
+                >
+                  {t('common.done')}
+                </button>
+              </div>
+              <div className="flex-1 overflow-y-auto px-3 pb-8">
+                {categories.map((cat: any) => {
+                  const state = catState(cat.id);
+                  const subs: string[] = cat.subcategories ?? [];
+                  const expanded = pickerExpanded === cat.id;
+                  const Icon = getCategoryIcon(cat.icon ?? 'MoreHorizontal');
+                  return (
+                    <div key={cat.id}>
+                      <div className="flex items-center">
+                        <button
+                          onClick={() => toggleCat(cat.id)}
+                          className="flex-1 flex items-center gap-3 px-3 py-2.5 rounded-xl active:bg-neutral-100 transition-colors"
+                        >
+                          <CheckMark state={state} />
+                          <span className={`w-8 h-8 rounded-lg ${cat.bgColor ?? 'bg-neutral-100'} flex items-center justify-center flex-shrink-0`}>
+                            <Icon className={`w-4 h-4 ${cat.color ?? 'text-neutral-500'}`} strokeWidth={2} />
+                          </span>
+                          <span className="flex-1 text-left" style={{ color: 'var(--ink)', fontSize: 15 }}>{cat.name}</span>
+                        </button>
+                        {subs.length > 0 && (
+                          <button
+                            onClick={() => setPickerExpanded(expanded ? null : cat.id)}
+                            aria-label={cat.name}
+                            className="px-3 py-2.5 active:opacity-60"
+                          >
+                            <ChevronRight
+                              className="w-4 h-4 transition-transform"
+                              style={{ color: 'var(--ghost)', transform: expanded ? 'rotate(90deg)' : 'none' }}
+                            />
+                          </button>
+                        )}
+                      </div>
+                      {expanded &&
+                        subs.map((sub) => {
+                          const on = state === 'on' || (subMap[cat.id]?.includes(sub) ?? false);
+                          return (
+                            <button
+                              key={sub}
+                              onClick={() => toggleSub(cat, sub)}
+                              className="w-full flex items-center gap-3 py-2 rounded-xl active:bg-neutral-100 transition-colors"
+                              style={{ paddingLeft: 56, paddingRight: 12 }}
+                            >
+                              <CheckMark state={on ? 'on' : 'off'} />
+                              <span className="flex-1 text-left" style={{ color: 'var(--ink-2)', fontSize: 14 }}>{sub}</span>
+                            </button>
+                          );
+                        })}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Account pairing - the honest version: what it will do and what will
+            cross, stated now; the pairing itself is a later slice. */}
+        {showConnect && (
+          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-6" onClick={() => setShowConnect(false)}>
+            <div className="rounded-2xl p-6 max-w-sm w-full shadow-xl" style={{ backgroundColor: 'var(--bg-card)' }} onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-center gap-2.5 mb-4">
+                <span style={{ width: 40, height: 40, borderRadius: 999, background: '#0B0B0D', color: '#FFF', fontSize: 16, fontWeight: 700, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+                  {(userName?.[0] ?? 'P').toUpperCase()}
+                </span>
+                <Cloud className="w-5 h-5" style={{ color: '#4F74F3' }} strokeWidth={2.2} />
+                <span style={{ width: 40, height: 40, borderRadius: 999, background: partner?.color ?? '#7C5CFF', color: '#FFF', fontSize: 16, fontWeight: 700, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+                  {(partner?.name?.[0] ?? '?').toUpperCase()}
+                </span>
+              </div>
+              <h3 className="text-center" style={{ color: 'var(--ink)', fontSize: 17, fontWeight: 700, marginBottom: 8 }}>
+                {t('shared.connect.title')}
+              </h3>
+              <p style={{ color: 'var(--ink-2)', fontSize: 13.5, lineHeight: 1.5, marginBottom: 10 }}>
+                {t('shared.connect.body', { name: partner?.name ?? '' })}
+              </p>
+              <p style={{ color: 'var(--ink-2)', fontSize: 13.5, lineHeight: 1.5, marginBottom: 14 }}>
+                {t('shared.connect.sees')}
+              </p>
+              <div className="rounded-xl px-4 py-3 mb-5" style={{ backgroundColor: 'var(--bg-inset)' }}>
+                <p style={{ color: 'var(--ink-2)', fontSize: 12.5, lineHeight: 1.45 }}>{t('shared.connect.soonNote')}</p>
+              </div>
+              <button
+                onClick={() => setShowConnect(false)}
+                className="w-full px-4 py-3 rounded-xl font-medium active:bg-neutral-200"
+                style={{ backgroundColor: 'var(--bg-inset)', color: 'var(--ink)' }}
+              >
+                {t('common.close')}
+              </button>
+            </div>
+          </div>
+        )}
 
         {confirmDisableShared && (
           <ConfirmDialog

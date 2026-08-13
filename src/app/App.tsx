@@ -274,7 +274,10 @@ export default function App() {
   // What the Add screen's chip states. 'auto' means the category default
   // decides; an explicit choice is this entry's own. Income never splits (v1).
   const categoryIsShared =
-    !!household && !!selectedCategory && household.sharedCategoryIds.includes(selectedCategory);
+    !!household && !!selectedCategory &&
+    (household.sharedCategoryIds.includes(selectedCategory) ||
+      (!!selectedSubcategory &&
+        !!household.sharedSubcategories?.[selectedCategory]?.includes(selectedSubcategory)));
   const entryShared =
     !!household && !!partner && transactionType === 'expense' &&
     (shareChoice === 'on' || (shareChoice === 'auto' && categoryIsShared));
@@ -985,6 +988,12 @@ export default function App() {
 
   const handleUpdateHousehold = (patch: Partial<Household>) => {
     setHousehold((prev) => (prev ? { ...prev, ...patch, updatedAt: new Date().toISOString() } : prev));
+  };
+
+  const handleRenamePartner = (name: string) => {
+    if (!partner || !name.trim()) return;
+    const stamp = new Date().toISOString();
+    setPeople((prev) => prev.map((p) => (p.id === partner.id ? { ...p, name: name.trim(), updatedAt: stamp } : p)));
   };
 
   // Splits already stored on transactions stay - they are historical fact.
@@ -2262,6 +2271,7 @@ export default function App() {
                 partner={partner}
                 onEnableShared={handleEnableShared}
                 onUpdateHousehold={handleUpdateHousehold}
+                onRenamePartner={handleRenamePartner}
                 onDisableShared={handleDisableShared}
                 onCreateSchedule={handleCreateSchedule}
                 onUpdateSchedule={handleUpdateSchedule}
