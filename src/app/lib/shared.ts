@@ -30,20 +30,23 @@ export const isShared = (t: Transaction): boolean =>
  * The running balance, in the home currency: positive means they owe you.
  *
  * Two-sided once the accounts are paired - a replica of their expense moves
- * it the other way. The arithmetic lives in sharedSync.balanceFrom, next to
- * the reconciler that creates the replicas; this binds it to the app's
+ * it the other way. Scoped to `memberIds`, so a balance belongs to the
+ * household that ran it up. The arithmetic lives in sharedSync.balanceFrom,
+ * next to the reconciler that creates the replicas; this binds it to the app's
  * currency helpers.
  */
 export function runningBalance(
   transactions: Transaction[],
   settlements: Settlement[],
   homeCurrency: string,
+  memberIds: string[],
 ): number {
   return balanceFrom(
     transactions,
     settlements,
     (t) => homeAmount(t, homeCurrency),
     (t) => mineAmount(t, homeCurrency),
+    memberIds,
   );
 }
 

@@ -607,10 +607,12 @@ so nobody has to re-derive it by reading both.
 
 ### Known issues, not yet decided
 
-- **The balance survives a change of partner.** It is computed over every shared
-  transaction ever, minus every settlement ever. Turn sharing off, pair with
-  somebody new, and the old balance is still there. Needs a decision: zero it on
-  disconnect, or scope the balance to a household.
+- ~~**The balance survives a change of partner.**~~ **Fixed.** The balance is
+  scoped to the household's `memberIds`: splits carry `withIds`, settlements
+  carry `personId`, and each household mints a fresh Person. Rows written before
+  attribution existed are claimed for the household in hand by a one-time
+  backfill in `App.tsx`, so nothing changes for an existing pairing and a new one
+  starts at zero - which is what the disconnect dialog promised all along.
 - **`payer_id` is never set apart from `author_id`.** "She entered it but I paid"
   is expressible in the schema and not in the app. Who-paid is therefore read off
   `fromShared`, which is correct today and would stop being correct the moment

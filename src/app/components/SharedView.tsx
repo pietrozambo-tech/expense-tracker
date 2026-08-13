@@ -95,6 +95,7 @@ export function SharedView({
   const periodSettlements = useMemo(
     () =>
       settlements.filter((s) => {
+        if (!household.memberIds.includes(s.personId)) return false;
         const y = Number(s.date.slice(0, 4));
         const m = Number(s.date.slice(5, 7)) - 1;
         if (y !== year) return false;
@@ -102,7 +103,7 @@ export function SharedView({
         if (periodType === 'quarter') return Math.floor(m / 3) === quarter;
         return m === month;
       }),
-    [settlements, month, quarter, year, periodType],
+    [settlements, household, month, quarter, year, periodType],
   );
 
   const together = periodShared.reduce((sum, txn) => sum + homeAmount(txn, currency), 0);
@@ -155,7 +156,7 @@ export function SharedView({
       .sort((a, b) => b.total - a.total);
   };
 
-  const balance = runningBalance(transactions, settlements, currency);
+  const balance = runningBalance(transactions, settlements, currency, household.memberIds);
   const owed = Math.round(balance * 100) / 100;
 
   const avatar = (name: string, color: string, size = 26) => (

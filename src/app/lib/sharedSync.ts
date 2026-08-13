@@ -303,15 +303,33 @@ export function balanceFrom(
   settlements: Settlement[],
   homeValue: (t: Transaction) => number,
   shareValue: (t: Transaction) => number,
+  memberIds: string[],
 ): number {
+  // A debt is owed to a PERSON, not to whoever happens to be in the household
+  // slot today. Without this the balance was every shared expense ever minus
+  // every settlement ever, so ending one household and starting another handed
+  // the new person the old person's debt.
+  //
+  // Turning sharing off already promises this in so many words ("the balance
+  // and these settings are removed"), and each household mints a fresh Person,
+  // so the member ids are what separates one from the next.
+  //
+  // Unstamped rows are counted in: they predate per-household attribution, and
+  // the backfill in App.tsx claims them for the household in hand. This only
+  // covers the instant before that runs.
+  const ofThisHousehold = (t: Transaction) => {
+    const ids = t.split?.withIds;
+    if (!ids || ids.length === 0) return true;
+    return ids.some((id) => memberIds.includes(id));
+  };
   const fronted = transactions.reduce((sum, t) => {
-    if (!t.split || t.type === 'income') return sum;
+    if (!t.split || t.type === 'income' || !ofThisHousehold(t)) return sum;
     const owedOnIt = homeValue(t) - shareValue(t);
     // A replica is hers: what I did not owe on it is what SHE covered for me,
     // so it moves the balance the other way - by my own share.
     return t.fromShared ? sum - shareValue(t) : sum + owedOnIt;
   }, 0);
-  const settled = settlements.reduce((sum, s) => sum + s.amount, 0);
+  const settled = settlements.reduce((sum, s) => (memberIds.includes(s.personId) ? sum + s.amount : sum), 0);
   return Math.round((fronted - settled) * 100) / 100;
 }
 

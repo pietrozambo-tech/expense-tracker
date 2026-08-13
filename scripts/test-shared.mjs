@@ -95,8 +95,34 @@ const txns = [
   { id: 'c', amount: 500, currency: 'EUR', type: 'expense', date: '2026-08-03' },
   { id: 'd', amount: 3200, currency: 'EUR', type: 'income', date: '2026-08-01', split: { mine: 1600 } },
 ];
-eq('balance = fronted halves', runningBalance(txns, [], 'EUR'), 480);
-eq('settlement retires it', runningBalance(txns, [{ id: 's1', personId: 'p', date: '2026-08-10', amount: 200 }], 'EUR'), 280);
+const P1 = ['p1'];
+eq('balance = fronted halves', runningBalance(txns, [], 'EUR', P1), 480);
+eq('settlement retires it', runningBalance(txns, [{ id: 's1', personId: 'p1', date: '2026-08-10', amount: 200 }], 'EUR', P1), 280);
+
+// ── A balance belongs to the household that ran it up ───────────────────────
+// Turning sharing off and pairing with somebody new used to hand the new
+// person the old person's debt: the balance was every shared expense ever,
+// minus every settlement ever, with nothing saying who they were with.
+const withGiulia = [
+  { id: 'g1', amount: 900, currency: 'EUR', type: 'expense', date: '2026-08-01', split: { mine: 450, withIds: ['p-giulia'] } },
+  { id: 'shared-g2', amount: 60, currency: 'EUR', type: 'expense', date: '2026-08-02', split: { mine: 30, withIds: ['p-giulia'] }, fromShared: 'g2' },
+];
+const withMarco = [
+  { id: 'm1', amount: 100, currency: 'EUR', type: 'expense', date: '2026-10-01', split: { mine: 50, withIds: ['p-marco'] } },
+];
+const bothEras = [...withGiulia, ...withMarco];
+const oldSettle = [{ id: 's-old', personId: 'p-giulia', date: '2026-09-01', amount: 100 }];
+eq('the old household still reads its own balance',
+  runningBalance(bothEras, oldSettle, 'EUR', ['p-giulia']), 450 - 30 - 100);
+eq('a new partner starts from zero, not from her debt',
+  runningBalance(bothEras, oldSettle, 'EUR', ['p-marco']), 50);
+eq('and her settlement does not pay down his balance',
+  runningBalance(withMarco, oldSettle, 'EUR', ['p-marco']), 50);
+// Rows written before attribution existed are claimed by the household in
+// hand - App backfills them, and this is the instant before it does.
+eq('unstamped history counts, so nothing vanishes mid-migration',
+  runningBalance([{ id: 'old', amount: 80, currency: 'EUR', type: 'expense', date: '2026-01-01', split: { mine: 40 } }], [], 'EUR', ['p-anyone']),
+  40);
 
 // Household merge: singleton three-way. A side that differs from base spoke;
 // newer stamp wins when both did; a disconnect is never resurrected by a
@@ -280,8 +306,8 @@ const paired = [
   txn({ id: 'a', date: '2026-08-01', amount: 900, split: { mine: 450 } }),
   txn({ id: 'shared-x1', date: '2026-08-03', amount: 60, split: { mine: 30 }, fromShared: 'x1' }),
 ];
-eq('two-sided balance nets both directions', runningBalance(paired, [], 'EUR'), 420);
-eq('settlement retires the net', runningBalance(paired, [{ id: 's', personId: 'p', date: '2026-08-10', amount: 420 }], 'EUR'), 0);
+eq('two-sided balance nets both directions', runningBalance(paired, [], 'EUR', ['p']), 420);
+eq('settlement retires the net', runningBalance(paired, [{ id: 's', personId: 'p', date: '2026-08-10', amount: 420 }], 'EUR', ['p']), 0);
 eq('replica counts as my spending', mineAmount(paired[1], 'EUR'), 30);
 
 // ── Who was actually out of pocket ──────────────────────────────────────────
@@ -309,7 +335,7 @@ const heroTxns = [
 ];
 const heroPaid = paidBy(heroTxns, (t) => t.amount);
 eq('paid: columns sum to the household total', heroPaid.mine + heroPaid.theirs, 960);
-eq('paid: and agree with the balance', runningBalance(heroTxns, [], 'EUR'), 450 - 30);
+eq('paid: and agree with the balance', runningBalance(heroTxns, [], 'EUR', ['p1']), 450 - 30);
 
 // ── Reading a departure off the membership list ─────────────────────────────
 // Nobody announces leaving: the row is just gone. One member therefore means

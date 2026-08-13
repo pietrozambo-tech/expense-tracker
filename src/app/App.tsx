@@ -1005,6 +1005,32 @@ export default function App() {
     toast.success(t('toast.sharedOn', { name: person.name }), { duration: 1600 });
   };
 
+  // Claim every unattributed shared expense for the household in hand.
+  //
+  // Splits made before the balance was per-household carry no `withIds`, and
+  // replicas never carried any at all - the reconciler has no way to know the
+  // local Person id for the other member. Left ambiguous they would be counted
+  // into whatever household came next, which is the leak this whole change is
+  // about. Stamping them once, here, makes the ledger self-describing.
+  //
+  // Deliberately does NOT bump updatedAt: this is bookkeeping, not an edit, and
+  // bumping it would push every historical row back up as a change the other
+  // member would be told about. Each device runs it for itself; it is
+  // idempotent and settles after one pass.
+  useEffect(() => {
+    if (!household) return;
+    setExpenses((prev) => {
+      let touched = false;
+      const next = prev.map((t) => {
+        if (!t.split || t.type === 'income') return t;
+        if (t.split.withIds && t.split.withIds.length > 0) return t;
+        touched = true;
+        return { ...t, split: { ...t.split, withIds: household.memberIds } };
+      });
+      return touched ? next : prev;
+    });
+  }, [household, expenses]);
+
   const handleUpdateHousehold = (patch: Partial<Household>) => {
     setHousehold((prev) => (prev ? { ...prev, ...patch, updatedAt: new Date().toISOString() } : prev));
   };
@@ -2101,7 +2127,9 @@ export default function App() {
       downloadTransactionsCsv(
         buildTransactionsCsv(expenses, userCurrency, sources, {
           partnerName: partner?.name,
-          settlements: household ? settlements : [],
+          // This household's, not every settlement this device has ever held:
+          // the export should read like the app does.
+          settlements: household ? settlements.filter((s) => household.memberIds.includes(s.personId)) : [],
         }),
       );
       track('data_exported_csv', { count: expenses.length });
