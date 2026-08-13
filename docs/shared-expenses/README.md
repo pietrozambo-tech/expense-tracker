@@ -596,7 +596,7 @@ so nobody has to re-derive it by reading both.
 
 | Spec | What is missing | Cost of the gap |
 |---|---|---|
-| §5.2 | Only *this entry* and *the category* decide. The **recurring rule** and the **source** rungs of the priority ladder do not exist. | Case C (joint card overrides a personal category) cannot happen. |
+| §5.2 | *This entry*, *the recurring rule* and *the category* decide; the **source** rung does not exist. | Case C (joint card overrides a personal category) cannot happen. |
 | §5.5 | No joint-card Source with a paired-avatar tile. | Follows from the above; sharing is category- or entry-driven only. |
 | §4.2 step 2 | No saved mapping for her custom categories, and no "needs you" list. | Her invented categories land in the catch-all silently. |
 | §6.3 | Settlements are not checkpoints. A correction to an item from before a settlement moves the running balance with no adjustment line. | The *number* stays right; the *explanation* is missing. |

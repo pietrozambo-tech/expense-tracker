@@ -7,7 +7,10 @@ import { SourceLogo } from './SourceLogo';
 import { switchGlow } from './categoryColors';
 import { CURRENCIES } from '../utils/currency';
 import { toDateStr, nextDueDate, repriceCandidate } from '../lib/recurrence';
-import type { Category, RecurringRule, Source, Transaction, TransactionType } from '../types';
+import { Split, X as XIcon } from 'lucide-react';
+import { myShareOf } from '../lib/shared';
+import { formatAmountListView } from '../utils/currency';
+import type { Category, Household, Person, RecurringRule, Source, Transaction, TransactionType } from '../types';
 import type { ScheduleDraft } from './ScheduledManager';
 
 // The same cadences the Add screen offers, minus "Never repeat" - a schedule
@@ -46,6 +49,9 @@ export function ScheduleEditor({
   currency,
   defaultSourceExpense,
   defaultSourceIncome,
+  household,
+  partner,
+  userName,
   onSave,
   onCancel,
 }: {
@@ -58,6 +64,10 @@ export function ScheduleEditor({
   currency: string;
   defaultSourceExpense?: string;
   defaultSourceIncome?: string;
+  /** Absent when sharing is off, and then this sheet is exactly what it was. */
+  household?: Household | null;
+  partner?: Person | null;
+  userName?: string;
   onSave: (draft: ScheduleDraft) => void;
   onCancel: () => void;
 }) {
@@ -81,6 +91,11 @@ export function ScheduleEditor({
   const [sourceId, setSourceId] = useState(
     rule?.template.sourceId ?? (type === 'income' ? defaultSourceIncome : defaultSourceExpense) ?? '',
   );
+
+  // A bill the two of you split. Read off the rule when editing one, so an
+  // existing shared schedule opens showing that it is shared.
+  const [shared, setShared] = useState(!!rule?.template.split);
+  const [paidByThem, setPaidByThem] = useState(!!rule?.template.split?.paidByThem);
 
   // What an amount edit MEANS. Only ever read when the question below is on
   // screen, and it defaults to the common answer so the fast path stays a
@@ -202,6 +217,70 @@ export function ScheduleEditor({
               />
             </div>
           </div>
+
+          {/* The same chip the Add screen puts under the amount, for the same
+              reason: the rent is the clearest case for sharing there is, and a
+              schedule is where the rent actually lives. Without this the chip
+              applied to the first month and every month the engine wrote after
+              it came out as wholly yours. */}
+          {household && partner && type === 'expense' && (
+            <div className="flex items-center gap-2 flex-wrap">
+              {shared ? (
+                <button
+                  type="button"
+                  onClick={() => setShared(false)}
+                  aria-label={t('shared.chip.aria')}
+                  className="inline-flex items-center gap-1.5 rounded-full active:scale-95 transition-transform"
+                  style={{ padding: '5px 9px 5px 10px', backgroundColor: 'var(--bg-inset)', color: 'var(--ink-2)', fontSize: 12.5, fontWeight: 500, WebkitTapHighlightColor: 'transparent' }}
+                >
+                  <Split className="w-3.5 h-3.5" strokeWidth={2} />
+                  <span>
+                    {t('shared.chip.on', {
+                      amt: formatAmountListView(
+                        amountValue > 0 ? myShareOf(amountValue, household.defaultSplit) : 0,
+                        rule?.template.currency || currency,
+                        2,
+                      ),
+                    })}
+                  </span>
+                  <XIcon className="w-3 h-3" style={{ opacity: 0.55 }} strokeWidth={2.5} />
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setShared(true)}
+                  aria-label={t('shared.chip.aria')}
+                  className="inline-flex items-center gap-1.5 rounded-full active:scale-95 transition-transform"
+                  style={{ padding: '5px 12px 5px 10px', background: 'transparent', border: '1.5px dashed var(--line)', color: 'var(--ink-2)', fontSize: 12.5, fontWeight: 500, WebkitTapHighlightColor: 'transparent' }}
+                >
+                  <Split className="w-3.5 h-3.5" strokeWidth={2} />
+                  <span>{t('shared.chip.invite', { name: partner.name })}</span>
+                </button>
+              )}
+              {shared && (
+                <button
+                  type="button"
+                  onClick={() => setPaidByThem((v) => !v)}
+                  aria-label={t('shared.payer.aria')}
+                  className="inline-flex items-center gap-1.5 rounded-full active:scale-95 transition-transform"
+                  style={{ padding: '5px 11px 5px 5px', backgroundColor: 'var(--bg-inset)', color: 'var(--ink-2)', fontSize: 12.5, fontWeight: 500, WebkitTapHighlightColor: 'transparent' }}
+                >
+                  <span
+                    aria-hidden="true"
+                    style={{
+                      width: 20, height: 20, borderRadius: 999,
+                      background: paidByThem ? partner.color : '#3C3C46',
+                      color: '#FFFFFF', fontSize: 9, fontWeight: 700,
+                      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                    }}
+                  >
+                    {((paidByThem ? partner.name : userName || 'P')[0] ?? '?').toUpperCase()}
+                  </span>
+                  <span>{paidByThem ? t('shared.payer.them', { name: partner.name }) : t('shared.payer.me')}</span>
+                </button>
+              )}
+            </div>
+          )}
 
           {/* Changing an amount means one of two things, and they want
               opposite outcomes - forward-only, or a repair of rows already
@@ -355,6 +434,17 @@ export function ScheduleEditor({
                 type,
                 rule: cadence,
                 start,
+                // Computed here, at the rule's amount, so an occurrence can be
+                // stamped out without consulting the household.
+                ...(shared && household && type === 'expense'
+                  ? {
+                      split: {
+                        mine: myShareOf(amountValue, household.defaultSplit),
+                        withIds: household.memberIds,
+                        paidByThem,
+                      },
+                    }
+                  : {}),
                 ...(reprice && means === 'correction'
                   ? { correctRecordedAmount: reprice.usual }
                   : {}),

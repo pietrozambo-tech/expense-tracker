@@ -210,6 +210,44 @@ scenarioNothingHidden();
 scenarioSkipPurge();
 scenarioReprice();
 scenarioMonthEndStart();
+// ── A shared bill stays shared, month after month ───────────────────────────
+// The rent is the clearest case for splitting there is, and it was the one
+// thing sharing could not survive: the chip on the Add screen applied to the
+// month it was set up in, and every month the engine wrote afterwards came out
+// as wholly the user's. The rule carries the split now (README 5.2, the
+// "recurring rule" rung), and the materialiser stamps it onto every occurrence.
+{
+  const seed: Transaction = {
+    id: 'seed-rent', description: 'Rent', amount: 900, currency: 'EUR',
+    category: cat, date: '2026-03-01', type: 'expense',
+    split: { mine: 450, withIds: ['p1'], paidByThem: true },
+  };
+  const template = buildRuleTemplate(seed);
+  expect('the rule remembers the series is shared', String(template.split?.mine), '450');
+  expect('and who fronts it every month', String(template.split?.paidByThem), 'true');
+
+  const rule: RecurringRule = {
+    id: 'r-rent', rule: 'Every month', anchorDate: '2026-03-01',
+    template,
+  };
+  const res = processRecurrence([], [rule], new Date(2026, 5, 15));
+  const made = res.transactions.filter((t) => t.recurrenceOf === 'r-rent');
+  expect('three months were generated', String(made.length), '3');
+  expect('every one of them is shared',
+    String(made.filter((t) => t.split?.mine === 450).length), String(made.length));
+  expect('every one of them credits her with paying',
+    String(made.filter((t) => t.split?.paidByThem === true).length), String(made.length));
+
+  // And a schedule that is NOT shared stays that way - this must not leak.
+  const plain: RecurringRule = {
+    id: 'r-gym', rule: 'Every month', anchorDate: '2026-03-01',
+    template: buildRuleTemplate({ ...seed, id: 'seed-gym', description: 'Gym', split: undefined }),
+  };
+  const res2 = processRecurrence([], [plain], new Date(2026, 5, 15));
+  expect('an unshared schedule generates unshared rows',
+    String(res2.transactions.filter((t) => t.recurrenceOf === 'r-gym' && t.split).length), '0');
+}
+
 console.log('\n================================================================');
 console.log(` Recurring transactions   [${OLD ? 'BEFORE the fix' : 'AFTER the fix'}]`);
 console.log(' (running the real src/app/lib/recurrence.ts)');

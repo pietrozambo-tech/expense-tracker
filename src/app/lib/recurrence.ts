@@ -173,6 +173,10 @@ export function buildRuleTemplate(t: Transaction): RecurringRule['template'] {
     subcategory: t.subcategory,
     sourceId: t.sourceId,
     type: t.type,
+    // Carried, so a shared bill stays shared every month rather than only the
+    // month it was set up. Occurrences take it by the spread in the
+    // materialiser, like everything else on the template.
+    ...(t.split ? { split: t.split } : {}),
   };
 }
 

@@ -34,6 +34,11 @@ export interface ScheduledManagerProps {
   currency: string;
   defaultSourceExpense?: string;
   defaultSourceIncome?: string;
+  /** Passed straight to the editor, so a schedule can be split like any other
+   *  expense. Absent when sharing is off. */
+  household?: import('../types').Household | null;
+  partner?: import('../types').Person | null;
+  userName?: string;
   onCreate: (draft: ScheduleDraft) => void;
   onUpdate: (ruleId: string, draft: ScheduleDraft) => void;
   onStop: (ruleId: string) => void;
@@ -48,6 +53,8 @@ export interface ScheduleDraft {
   subcategory?: string;
   sourceId?: string;
   type: TransactionType;
+  /** Present when the series is shared; every occurrence inherits it. */
+  split?: { mine: number; withIds?: string[]; paidByThem?: boolean };
   rule: string;
   /** First date the schedule should fire. */
   start: string;
@@ -77,6 +84,9 @@ export function ScheduledManager({
   currency,
   defaultSourceExpense,
   defaultSourceIncome,
+  household,
+  partner,
+  userName,
   onCreate,
   onUpdate,
   onStop,
@@ -235,6 +245,9 @@ export function ScheduledManager({
           currency={currency}
           defaultSourceExpense={defaultSourceExpense}
           defaultSourceIncome={defaultSourceIncome}
+          household={household}
+          partner={partner}
+          userName={userName}
           onCancel={() => close(() => { setAdding(false); setEditing(null); })}
           onSave={(draft) => {
             if (editing) onUpdate(editing.id, draft);

@@ -1910,6 +1910,7 @@ export default function App() {
           subcategory: draft.subcategory,
           sourceId: draft.sourceId,
           type: draft.type,
+          ...(draft.split ? { split: draft.split } : {}),
         },
       },
     ]);
@@ -1994,6 +1995,7 @@ export default function App() {
             subcategory: draft.subcategory,
             sourceId: draft.sourceId,
             type: draft.type,
+            ...(draft.split ? { split: draft.split } : {}),
           },
         },
       ];

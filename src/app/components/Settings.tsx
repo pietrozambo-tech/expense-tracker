@@ -2180,6 +2180,9 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
         </div>
         <div className="flex-1 overflow-y-auto" style={{ paddingBottom: DOCK_CLEARANCE }}>
           <ScheduledManager
+            household={household}
+            partner={partner}
+            userName={userName}
             rules={recurringRules}
             transactions={transactions}
             categories={categories}

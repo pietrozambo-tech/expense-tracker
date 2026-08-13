@@ -50,6 +50,20 @@ export interface RecurringRule {
     subcategory?: string;
     sourceId?: string;
     type: TransactionType;
+    /**
+     * The series is shared, and every occurrence it generates is too.
+     *
+     * The rent is the clearest case there is for this feature and it was the
+     * one thing sharing could not survive: the chip on the Add screen applied
+     * to the first month only, and every month the engine wrote after that
+     * came out as wholly yours. This is the "recurring rule" rung of the
+     * priority ladder in docs/shared-expenses/README.md 5.2.
+     *
+     * Concrete, like every other field here: `mine` is computed from the
+     * household's default at the amount on the rule, so an occurrence needs no
+     * knowledge of the household to be stamped out.
+     */
+    split?: { mine: number; withIds?: string[]; paidByThem?: boolean };
   };
 }
 
