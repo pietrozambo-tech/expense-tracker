@@ -1,5 +1,6 @@
 import type { Household, SplitRule, Settlement, Transaction } from '../types';
 import { homeAmount, mineAmount } from '../utils/currency';
+import { balanceFrom } from './sharedSync';
 
 // Helpers for shared expenses. Small on purpose: the split is resolved once at
 // save time and stored on the transaction, so almost everything downstream is
@@ -26,24 +27,24 @@ export const isShared = (t: Transaction): boolean =>
   !!t.split && isFinite(t.split.mine);
 
 /**
- * The running balance, in the home currency: what the other member owes you
- * (positive) or you owe them (negative, once their entries can exist).
+ * The running balance, in the home currency: positive means they owe you.
  *
- * Every local transaction was paid by YOU, so each shared one adds what they
- * owe you back (paid minus yours); settlements retire it. Deliberately not
- * month-scoped - a debt does not reset on the 1st.
+ * Two-sided once the accounts are paired - a replica of their expense moves
+ * it the other way. The arithmetic lives in sharedSync.balanceFrom, next to
+ * the reconciler that creates the replicas; this binds it to the app's
+ * currency helpers.
  */
 export function runningBalance(
   transactions: Transaction[],
   settlements: Settlement[],
   homeCurrency: string,
 ): number {
-  const fronted = transactions.reduce((sum, t) => {
-    if (!isShared(t) || t.type === 'income') return sum;
-    return sum + (homeAmount(t, homeCurrency) - mineAmount(t, homeCurrency));
-  }, 0);
-  const settled = settlements.reduce((sum, s) => sum + s.amount, 0);
-  return fronted - settled;
+  return balanceFrom(
+    transactions,
+    settlements,
+    (t) => homeAmount(t, homeCurrency),
+    (t) => mineAmount(t, homeCurrency),
+  );
 }
 
 /** The default household shape created by Settings. */

@@ -71,6 +71,9 @@ export interface Person {
   id: string;
   name: string;
   color: string; // avatar background (hex)
+  /** Their auth user id, once the two accounts are paired. Absent while the
+   *  household is local-only (you tracking a split without them in the app). */
+  userId?: string;
   updatedAt?: string;
 }
 
@@ -91,6 +94,9 @@ export interface Household {
    *  both fund). Defaults true - without a balance the feature is close to
    *  pointless, you may as well type your share. */
   trackBalance: boolean;
+  /** The server-side household id, once paired. Absent = local-only: splits
+   *  and the balance still work, they are simply one-sided. */
+  remoteId?: string;
   updatedAt?: string;
 }
 
@@ -142,6 +148,11 @@ export interface Transaction {
     /** Person ids the rest belongs to. */
     withIds?: string[];
   };
+  /** Set on a REPLICA of the other member's shared expense: the id of the
+   *  shared_items row it mirrors. Its presence means they paid, not you -
+   *  which is what flips the balance - and that the row is theirs to edit.
+   *  Replicas are rebuilt from the server, never merged. */
+  fromShared?: string;
 }
 
 export interface UserSettings {

@@ -50,6 +50,7 @@ const SCENARIOS = `
 import { homeAmount, mineAmount } from './utils/currency';
 import { myShareOf, runningBalance, shareFraction } from './lib/shared';
 import { mergePayloads } from './lib/cloud';
+import { planPush, planTombstones, reconcileReplicas, mapCategory, replicaId } from './lib/sharedSync';
 
 let failed = 0;
 const eq = (name, got, want) => {
@@ -137,6 +138,85 @@ const m = mergePayloads(
 eq('settlements union across devices', m.settlements.length, 2);
 eq('people dedupe by id', m.people.length, 1);
 
+// ── Pairing: a full two-device exchange, no network ─────────────────────────
+const ME = 'user-me';
+const HER = 'user-her';
+const HID = 'household-1';
+const CATS = [
+  { id: 'groceries', name: 'Groceries', icon: 'ShoppingCart' },
+  { id: 'housing', name: 'Housing', icon: 'Home' },
+  { id: 'others', name: 'Others', icon: 'MoreHorizontal' },
+];
+const txn = (o) => ({ currency: 'EUR', type: 'expense', category: CATS[0], ...o });
+
+// My side publishes only what is mine and shared.
+const myLedger = [
+  txn({ id: 'a', date: '2026-08-01', description: 'Esselunga', amount: 84, split: { mine: 42 }, updatedAt: '2026-08-01T10:00:00Z' }),
+  txn({ id: 'b', date: '2026-08-02', description: 'Coffee', amount: 3 }),
+  txn({ id: 'shared-x1', date: '2026-08-03', description: 'Conad', amount: 60, split: { mine: 30 }, fromShared: 'x1' }),
+  txn({ id: 'c', date: '2026-08-04', description: 'Salary', amount: 3000, type: 'income', split: { mine: 1500 } }),
+];
+const pushed = planPush(myLedger, HID, ME);
+eq('push: only my own shared expenses', pushed.map((r) => r.id), ['a']);
+eq('push: carries the language-independent key', pushed[0].category_key, 'groceries');
+eq('push: author_share is my half', pushed[0].author_share, 42);
+eq('push: never echoes a replica back', pushed.some((r) => r.id.startsWith('shared-')), false);
+
+// Her rows arrive; mine come back unchanged.
+const herRow = {
+  id: 'x1', household_id: HID, author_id: HER, payer_id: HER,
+  date: '2026-08-03', description: 'Conad', amount: 60, currency: 'EUR',
+  base_amount: null, category_key: 'groceries', category_name: 'Spesa',
+  category_icon: 'ShoppingCart', subcategory: null, author_share: 30,
+  updated_at: '2026-08-03T09:00:00Z', deleted_at: null,
+};
+const mineEchoed = { ...pushed[0] };
+
+const noReplicas = myLedger.filter((t) => !t.fromShared);
+const r1 = reconcileReplicas(noReplicas, [mineEchoed, herRow], ME, CATS);
+eq('reconcile: her item becomes a replica', r1.added, 1);
+eq('reconcile: my own row is never replicated', r1.transactions.filter((t) => t.fromShared).length, 1);
+const rep = r1.transactions.find((t) => t.fromShared === 'x1');
+eq('replica: full amount kept', rep.amount, 60);
+eq('replica: my share is what she did not cover', rep.split.mine, 30);
+eq('replica: id is derived from the shared id', rep.id, replicaId('x1'));
+
+// THE property the spec insists on: running it twice changes nothing.
+const r2 = reconcileReplicas(r1.transactions, [mineEchoed, herRow], ME, CATS);
+eq('reconcile is idempotent (no adds)', r2.added, 0);
+eq('reconcile is idempotent (no updates)', r2.updated, 0);
+eq('reconcile is idempotent (same count)', r2.transactions.length, r1.transactions.length);
+
+// Her edit lands without a prompt; her deletion removes the replica.
+const herEdited = { ...herRow, amount: 75, author_share: 37.5, updated_at: '2026-08-04T09:00:00Z' };
+const r3 = reconcileReplicas(r1.transactions, [mineEchoed, herEdited], ME, CATS);
+eq('her edit updates the replica', r3.updated, 1);
+eq('her edit moves my share', r3.transactions.find((t) => t.fromShared === 'x1').split.mine, 37.5);
+const r4 = reconcileReplicas(r1.transactions, [mineEchoed, { ...herRow, deleted_at: '2026-08-05T09:00:00Z' }], ME, CATS);
+eq('her deletion removes the replica', r4.transactions.some((t) => t.fromShared === 'x1'), false);
+eq('her deletion is counted', r4.removed, 1);
+
+// Category mapping across languages and inventions.
+eq('map: seed id wins', mapCategory(herRow, CATS).id, 'groceries');
+eq('map: unknown id falls back to the icon',
+  mapCategory({ ...herRow, category_key: 'category-1723480915', category_icon: 'Home' }, CATS).id, 'housing');
+eq('map: otherwise a catch-all, never dropped',
+  mapCategory({ ...herRow, category_key: 'category-x', category_icon: 'Rocket' }, CATS).id, 'others');
+
+// Tombstones for things I stopped sharing.
+eq('tombstone: un-shared row', planTombstones([txn({ id: 'a', date: '2026-08-01', amount: 84 })], [mineEchoed], ME), ['a']);
+eq('tombstone: never hers', planTombstones([], [herRow], ME), []);
+
+// The balance is two-sided once replicas exist.
+const paired = [
+  txn({ id: 'a', date: '2026-08-01', amount: 900, split: { mine: 450 } }),          // I fronted 450 for her
+  txn({ id: 'shared-x1', date: '2026-08-03', amount: 60, split: { mine: 30 }, fromShared: 'x1' }), // she fronted 30 for me
+];
+eq('two-sided balance nets both directions', runningBalance(paired, [], 'EUR'), 420);
+eq('settlement retires the net', runningBalance(paired, [{ id: 's', personId: 'p', date: '2026-08-10', amount: 420 }], 'EUR'), 0);
+// And her expenses still count as MY spending, at my share.
+eq('replica counts as my spending', mineAmount(paired[1], 'EUR'), 30);
+
 if (failed) { console.error(\`\${failed} scenario(s) failed\`); process.exit(1); }
 console.log('all shared scenarios passed');
 `;
@@ -147,7 +227,7 @@ try {
   mkdirSync(join(tmp, 'utils'));
   mkdirSync(join(tmp, 'i18n'));
   copyFileSync(join(root, 'src/app/types.ts'), join(tmp, 'types.ts'));
-  for (const f of ['shared.ts', 'cloud.ts', 'fx.ts', 'currencyData.ts', 'supabase.ts']) {
+  for (const f of ['shared.ts', 'sharedSync.ts', 'cloud.ts', 'fx.ts', 'currencyData.ts', 'supabase.ts']) {
     copyFileSync(join(root, 'src/app/lib', f), join(tmp, 'lib', f));
   }
   copyFileSync(join(root, 'src/app/utils/currency.ts'), join(tmp, 'utils/currency.ts'));

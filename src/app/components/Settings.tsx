@@ -160,6 +160,9 @@ interface SettingsProps {
   onUpdateHousehold?: (patch: Partial<import('../types').Household>) => void;
   onRenamePartner?: (name: string) => void;
   onDisableShared?: () => void;
+  /** Create the household on the server (if needed) and mint a join code. */
+  onCreateInvite?: () => Promise<string>;
+  onJoinWithCode?: (code: string) => Promise<void>;
   onCreateSchedule: (draft: ScheduleDraft) => void;
   onUpdateSchedule: (ruleId: string, draft: ScheduleDraft) => void;
   onStopSchedule: (ruleId: string) => void;
@@ -227,6 +230,8 @@ export function Settings({
   onUpdateHousehold,
   onRenamePartner,
   onDisableShared,
+  onCreateInvite,
+  onJoinWithCode,
   onCreateSchedule,
   onUpdateSchedule,
   onStopSchedule,
@@ -306,6 +311,20 @@ export function Settings({
   const [showCatPicker, setShowCatPicker] = useState(false);
   const [pickerExpanded, setPickerExpanded] = useState<string | null>(null);
   const [showConnect, setShowConnect] = useState(false);
+  const [connectCode, setConnectCode] = useState<string | null>(null);
+  const [joinCode, setJoinCode] = useState('');
+  const [connectBusy, setConnectBusy] = useState(false);
+  const [connectError, setConnectError] = useState<string | null>(null);
+  const paired = !!household?.remoteId && !!partner?.userId;
+  // A failure here is nearly always one of three things, and guessing wrong
+  // wastes the user's time - so each says exactly what to do next.
+  const connectMessage = (e: unknown): string => {
+    const msg = e instanceof Error ? e.message : '';
+    if (msg === 'shared-schema-missing') return t('shared.connect.errSchema');
+    if (/not signed in/i.test(msg)) return t('shared.connect.errSignIn');
+    if (/invalid code|already used|expired|full|own invite/i.test(msg)) return t('shared.connect.errCode');
+    return t('shared.connect.errGeneric');
+  };
   const [showAllCurrencies, setShowAllCurrencies] = useState(false);
   const [showNameEditor, setShowNameEditor] = useState(false);
   const [showSupport, setShowSupport] = useState(false);
@@ -791,7 +810,9 @@ export function Settings({
                   >
                     <RowIcon icon={Cloud} tone={TILE.shared} />
                     <span className="flex-1 text-left" style={{ color: 'var(--ink)', fontSize: 15 }}>{t('shared.set.connect')}</span>
-                    <span style={{ color: 'var(--ink-2)', fontSize: 14 }}>{t('shared.set.connectSoon')}</span>
+                    <span style={{ color: paired ? '#16A34A' : 'var(--ink-2)', fontSize: 14 }}>
+                      {paired ? t('shared.set.connected') : t('shared.set.notConnected')}
+                    </span>
                     <ChevronRight className="w-4 h-4" style={{ color: 'var(--ghost)' }} />
                   </button>
                 </div>
@@ -1014,18 +1035,114 @@ export function Settings({
               <h3 className="text-center" style={{ color: 'var(--ink)', fontSize: 17, fontWeight: 700, marginBottom: 8 }}>
                 {t('shared.connect.title')}
               </h3>
-              <p style={{ color: 'var(--ink-2)', fontSize: 13.5, lineHeight: 1.5, marginBottom: 10 }}>
-                {t('shared.connect.body', { name: partner?.name ?? '' })}
-              </p>
-              <p style={{ color: 'var(--ink-2)', fontSize: 13.5, lineHeight: 1.5, marginBottom: 14 }}>
-                {t('shared.connect.sees')}
-              </p>
-              <div className="rounded-xl px-4 py-3 mb-5" style={{ backgroundColor: 'var(--bg-inset)' }}>
-                <p style={{ color: 'var(--ink-2)', fontSize: 12.5, lineHeight: 1.45 }}>{t('shared.connect.soonNote')}</p>
-              </div>
+              {paired ? (
+                <>
+                  <p className="text-center" style={{ color: '#16A34A', fontSize: 13.5, marginBottom: 14 }}>
+                    {t('shared.connect.paired', { name: partner?.name ?? '' })}
+                  </p>
+                  <p style={{ color: 'var(--ink-2)', fontSize: 13, lineHeight: 1.5, marginBottom: 18 }}>
+                    {t('shared.connect.pairedBody')}
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p style={{ color: 'var(--ink-2)', fontSize: 13.5, lineHeight: 1.5, marginBottom: 10 }}>
+                    {t('shared.connect.body', { name: partner?.name ?? '' })}
+                  </p>
+                  <p style={{ color: 'var(--ink-2)', fontSize: 13, lineHeight: 1.5, marginBottom: 16 }}>
+                    {t('shared.connect.sees')}
+                  </p>
+
+                  {connectCode ? (
+                    <div className="rounded-xl px-4 py-4 mb-4 text-center" style={{ backgroundColor: 'var(--bg-inset)' }}>
+                      <div style={{ color: 'var(--ink-2)', fontSize: 11.5, fontWeight: 700, letterSpacing: '0.13em', marginBottom: 8 }}>
+                        {t('shared.connect.codeLabel')}
+                      </div>
+                      <div className="tabular-nums" style={{ color: 'var(--ink)', fontSize: 30, fontWeight: 800, letterSpacing: '0.16em' }}>
+                        {connectCode}
+                      </div>
+                      <div style={{ color: 'var(--ink-2)', fontSize: 11.5, marginTop: 8, lineHeight: 1.4 }}>
+                        {t('shared.connect.codeHint', { name: partner?.name ?? '' })}
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={async () => {
+                        setConnectBusy(true);
+                        setConnectError(null);
+                        try {
+                          setConnectCode(await onCreateInvite!());
+                        } catch (e) {
+                          setConnectError(connectMessage(e));
+                        } finally {
+                          setConnectBusy(false);
+                        }
+                      }}
+                      disabled={connectBusy || !onCreateInvite}
+                      className="w-full px-4 py-3 rounded-xl font-medium mb-3 active:opacity-90"
+                      style={{ backgroundColor: '#4F74F3', color: '#FFFFFF', opacity: connectBusy ? 0.6 : 1 }}
+                    >
+                      {t('shared.connect.invite')}
+                    </button>
+                  )}
+
+                  <div className="flex items-center gap-3 my-3">
+                    <span className="flex-1" style={{ height: 1, background: 'var(--line-2)' }} />
+                    <span style={{ color: 'var(--ink-2)', fontSize: 12 }}>{t('shared.connect.or')}</span>
+                    <span className="flex-1" style={{ height: 1, background: 'var(--line-2)' }} />
+                  </div>
+
+                  <input
+                    type="text"
+                    inputMode="text"
+                    autoComplete="off"
+                    autoCapitalize="characters"
+                    value={joinCode}
+                    onChange={(e) => { setJoinCode(e.target.value.toUpperCase().slice(0, 6)); setConnectError(null); }}
+                    placeholder={t('shared.connect.enterPlaceholder')}
+                    className="w-full rounded-xl px-4 py-3 outline-none text-center tabular-nums"
+                    style={{
+                      backgroundColor: 'var(--bg-field)',
+                      color: 'var(--ink)',
+                      fontSize: 16,
+                      letterSpacing: joinCode ? '0.2em' : 'normal',
+                    }}
+                  />
+                  <button
+                    onClick={async () => {
+                      setConnectBusy(true);
+                      setConnectError(null);
+                      try {
+                        await onJoinWithCode!(joinCode.trim());
+                        setJoinCode('');
+                        setShowConnect(false);
+                      } catch (e) {
+                        setConnectError(connectMessage(e));
+                      } finally {
+                        setConnectBusy(false);
+                      }
+                    }}
+                    disabled={connectBusy || joinCode.trim().length < 6 || !onJoinWithCode}
+                    className="w-full mt-3 px-4 py-3 rounded-xl font-medium active:opacity-90"
+                    style={{
+                      backgroundColor: joinCode.trim().length === 6 && !connectBusy ? '#4F74F3' : 'var(--bg-inset)',
+                      color: joinCode.trim().length === 6 && !connectBusy ? '#FFFFFF' : 'var(--ink-2)',
+                    }}
+                  >
+                    {t('shared.connect.join')}
+                  </button>
+                </>
+              )}
+
+              {connectError && (
+                <p className="mt-3" style={{ color: 'var(--tone-danger)', fontSize: 12.5, lineHeight: 1.45 }}>
+                  {connectError}
+                </p>
+              )}
+
               <button
-                onClick={() => setShowConnect(false)}
-                className="w-full px-4 py-3 rounded-xl font-medium active:bg-neutral-200"
+                onClick={() => { setShowConnect(false); setConnectError(null); setConnectCode(null); }}
+                className="w-full mt-3 px-4 py-3 rounded-xl font-medium active:bg-neutral-200"
                 style={{ backgroundColor: 'var(--bg-inset)', color: 'var(--ink)' }}
               >
                 {t('common.close')}

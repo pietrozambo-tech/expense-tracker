@@ -38,6 +38,20 @@ import { SourceLogo } from './components/SourceLogo';
 import { SourceSelectorModal } from './components/SourceSelectorModal';
 import { getDemoTransactions } from './lib/demoData';
 import { myShareOf, newHousehold } from './lib/shared';
+import { planPush, planTombstones, reconcileReplicas } from './lib/sharedSync';
+import {
+  SCHEMA_MISSING,
+  createInviteCode,
+  createRemoteHousehold,
+  fetchRemoteHousehold,
+  fetchSettlements,
+  fetchSharedItems,
+  leaveRemoteHousehold,
+  pushSettlement,
+  pushSharedItems,
+  redeemInviteCode,
+  tombstoneSharedItems,
+} from './lib/householdCloud';
 import { buildImport, applyImportDecision, type ImportPayload, type ImportResult } from './lib/importData';
 import { ImportSummaryDialog } from './components/ImportSummaryDialog';
 import { ImportReviewDialog } from './components/ImportReviewDialog';
@@ -909,6 +923,12 @@ export default function App() {
   const handleEditExpense = (expenseId: string) => {
     const expense = expenses.find(e => e.id === expenseId);
     if (!expense) return;
+    // Her entry. The amount, date and split belong to whoever authored it -
+    // the rule RLS enforces server-side, said here before the write fails.
+    if (expense.fromShared) {
+      toast(t('shared.theirEntry', { name: partner?.name ?? '' }), { duration: 2200 });
+      return;
+    }
 
     // Store which tab we're coming from so we can return to it
     setReturnToTab(currentTab);
@@ -1000,25 +1020,163 @@ export default function App() {
   // Settlements stay too, so re-enabling later does not resurrect an already
   // settled balance. Only the config goes.
   const handleDisableShared = () => {
+    // Leave the server household first, so her device stops seeing my items;
+    // then drop her replicas, which are hers and have no meaning here now.
+    if (household?.remoteId) void leaveRemoteHousehold(household.remoteId).catch(() => {});
+    setExpenses((prev) => prev.filter((e) => !e.fromShared));
     setHousehold(null);
     track('shared_disabled');
     toast.success(t('toast.sharedOff'), { duration: 1400 });
+  };
+
+  // ---- Pairing: two accounts, one shared ledger ----
+  //
+  // Everything that DECIDES lives in lib/sharedSync (and is proven offline in
+  // test:shared); this only carries the decisions to the server and back.
+
+  const syncingRef = useRef(false);
+
+  const syncShared = useCallback(async () => {
+    const hid = household?.remoteId;
+    const uid = userIdRef.current;
+    if (!hid || !uid || syncingRef.current) return;
+    syncingRef.current = true;
+    try {
+      // Shared settings and who is in the household.
+      const remote = await fetchRemoteHousehold(hid);
+      if (!remote) {
+        // She disbanded it, or we were removed. Keep the local household and
+        // its splits; only the pairing is gone.
+        setHousehold((prev) => (prev ? { ...prev, remoteId: undefined } : prev));
+        return;
+      }
+      const other = remote.members.find((m) => m.userId !== uid);
+      if (other) {
+        setPeople((prev) =>
+          prev.map((p) =>
+            household!.memberIds.includes(p.id)
+              ? { ...p, name: other.displayName || p.name, color: other.color || p.color, userId: other.userId }
+              : p,
+          ),
+        );
+      }
+      setHousehold((prev) =>
+        prev && (prev.trackBalance !== remote.trackBalance ||
+                 JSON.stringify(prev.defaultSplit) !== JSON.stringify(remote.defaultSplit))
+          ? { ...prev, trackBalance: remote.trackBalance, defaultSplit: remote.defaultSplit }
+          : prev,
+      );
+
+      // Publish mine, retire what I stopped sharing, then take hers.
+      const before = await fetchSharedItems(hid);
+      await pushSharedItems(planPush(expenses, hid, uid));
+      await tombstoneSharedItems(planTombstones(expenses, before, uid));
+      const after = await fetchSharedItems(hid);
+
+      const result = reconcileReplicas(expenses, after, uid, categories);
+      // reconcileReplicas is idempotent, so "nothing moved" is a reliable
+      // signal - without this guard, setting state here would re-trigger the
+      // effect that called us and spin forever.
+      if (result.added || result.updated || result.removed) setExpenses(result.transactions);
+
+      const rows = await fetchSettlements(hid);
+      const pulled = rows.map((r) => ({
+        id: r.id,
+        personId: other?.userId ?? '',
+        date: r.date,
+        // Positive means they paid me, whichever side recorded it.
+        amount: r.from_user === uid ? -Number(r.amount) : Number(r.amount),
+        updatedAt: r.updated_at,
+      }));
+      setSettlements((prev) =>
+        JSON.stringify(prev.map((s) => s.id).sort()) === JSON.stringify(pulled.map((s) => s.id).sort())
+          ? prev
+          : pulled,
+      );
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : '';
+      if (msg === SCHEMA_MISSING) console.warn('[shared] database not provisioned yet');
+      else console.warn('[shared] sync failed', msg);
+    } finally {
+      syncingRef.current = false;
+    }
+  }, [household, expenses, categories]);
+
+  // Sync when the pairing appears, when the ledger changes, and on return to
+  // the app - the same three moments the per-user sync already uses.
+  useEffect(() => {
+    if (!household?.remoteId || !userId) return;
+    const timer = setTimeout(() => { void syncShared(); }, 800);
+    return () => clearTimeout(timer);
+  }, [household?.remoteId, userId, expenses, syncShared]);
+
+  useEffect(() => {
+    if (!household?.remoteId) return;
+    const onFocus = () => { void syncShared(); };
+    window.addEventListener('focus', onFocus);
+    return () => window.removeEventListener('focus', onFocus);
+  }, [household?.remoteId, syncShared]);
+
+  /** Create the household on the server and mint a code for her. */
+  const handleCreateInvite = async (): Promise<string> => {
+    if (!household) throw new Error('no household');
+    let hid = household.remoteId;
+    if (!hid) {
+      hid = await createRemoteHousehold(userName || 'Me', '#0B0B0D', household.defaultSplit, household.trackBalance);
+      setHousehold((prev) => (prev ? { ...prev, remoteId: hid, updatedAt: new Date().toISOString() } : prev));
+    }
+    return createInviteCode(hid);
+  };
+
+  /** Join hers. Her name, colour and the shared settings come from the server,
+   *  so the placeholder typed when sharing was switched on is replaced. */
+  const handleJoinWithCode = async (code: string): Promise<void> => {
+    if (!household) throw new Error('no household');
+    const hid = await redeemInviteCode(code, userName || 'Me', '#0B0B0D');
+    const remote = await fetchRemoteHousehold(hid);
+    const uid = userIdRef.current;
+    const other = remote?.members.find((m) => m.userId !== uid);
+    if (other) {
+      setPeople((prev) =>
+        prev.map((p) =>
+          household.memberIds.includes(p.id)
+            ? { ...p, name: other.displayName || p.name, color: other.color || p.color, userId: other.userId }
+            : p,
+        ),
+      );
+    }
+    setHousehold((prev) =>
+      prev
+        ? {
+            ...prev,
+            remoteId: hid,
+            ...(remote ? { defaultSplit: remote.defaultSplit, trackBalance: remote.trackBalance } : {}),
+            updatedAt: new Date().toISOString(),
+          }
+        : prev,
+    );
+    track('shared_paired');
   };
 
   const handleSettle = (amount: number) => {
     if (!partner) return;
     const today = new Date();
     const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    const id = `settle-${Date.now().toString(36)}`;
+    const value = Math.round(amount * 100) / 100;
     setSettlements((prev) => [
       ...prev,
-      {
-        id: `settle-${Date.now().toString(36)}`,
-        personId: partner.id,
-        date: dateStr,
-        amount: Math.round(amount * 100) / 100,
-        updatedAt: new Date().toISOString(),
-      },
+      { id, personId: partner.id, date: dateStr, amount: value, updatedAt: new Date().toISOString() },
     ]);
+    // Push it so her device sees the balance close too. Fire and forget: the
+    // local record already stands, and the next sync re-pushes if this failed.
+    const hid = household?.remoteId;
+    const uid = userIdRef.current;
+    if (hid && uid && partner.userId) {
+      // Positive means she paid me, so the money moved from her to me.
+      const [from, to] = value >= 0 ? [partner.userId, uid] : [uid, partner.userId];
+      void pushSettlement(hid, id, from, to, dateStr, Math.abs(value)).catch(() => {});
+    }
     track('shared_settled');
     toast.success(t('shared.settled'), { duration: 1600 });
   };
@@ -1356,6 +1514,11 @@ export default function App() {
 
   const handleDeleteExpense = (id: string) => {
     const txn = expenses.find((e) => e.id === id);
+    // Deleting her row locally would only bring it back on the next sync.
+    if (txn?.fromShared) {
+      toast(t('shared.theirEntry', { name: partner?.name ?? '' }), { duration: 2200 });
+      return;
+    }
     // generatesOn, NOT isActiveRule. isActiveRule means "no endedAt at all", so
     // an occurrence belonging to a chain that ends in the FUTURE failed this
     // test and fell through to the plain delete below - which records no skip,
@@ -2273,6 +2436,8 @@ export default function App() {
                 onUpdateHousehold={handleUpdateHousehold}
                 onRenamePartner={handleRenamePartner}
                 onDisableShared={handleDisableShared}
+                onCreateInvite={handleCreateInvite}
+                onJoinWithCode={handleJoinWithCode}
                 onCreateSchedule={handleCreateSchedule}
                 onUpdateSchedule={handleUpdateSchedule}
                 onStopSchedule={handleStopSchedule}
