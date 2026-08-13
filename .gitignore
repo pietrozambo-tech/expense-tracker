@@ -14,3 +14,7 @@ ios/App/App.xcworkspace/xcuserdata/
 ios/App/App.xcodeproj/xcuserdata/
 ios/DerivedData/
 *.xcuserstate
+
+# Mockup harness output — regenerate, do not commit (see docs/shared-expenses/mockups)
+docs/shared-expenses/mockups/shots/
+docs/shared-expenses/mockups/shared-mockups.html
