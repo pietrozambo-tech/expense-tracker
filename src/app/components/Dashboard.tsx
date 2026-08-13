@@ -2257,18 +2257,6 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
             </h1>
 
             <div className="flex items-center gap-2 flex-shrink-0">
-            {/* The way into the household lens. Exists only when a household
-                does - with the feature off this header is byte-identical to
-                the app before it. One avatar, the view you are on; tapping
-                shows the other one's. */}
-            {sharedAvailable && (
-              <ViewSwitcher
-                label={t('shared.switchToShared')}
-                faces={[{ name: userName || 'P', color: '#0B0B0D' }]}
-                onClick={() => setSharedMode(true)}
-              />
-            )}
-
             {/* Period selector — a native <select> styled like the Activity tab
                 filters, with a label and a chevron hint. Kept on the light
                 background because the same control flashes black on tap when
@@ -2338,6 +2326,19 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                 </select>
               </div>
             </div>
+
+            {/* The way into the household lens, and the last thing in the
+                header: whose money you are reading owns the corner. Exists
+                only when a household does - with the feature off the period
+                pill keeps that corner exactly as it always has, and this
+                header is byte-identical to the app before the feature. */}
+            {sharedAvailable && (
+              <ViewSwitcher
+                label={t('shared.switchToShared')}
+                faces={[{ name: userName || 'P', color: '#0B0B0D' }]}
+                onClick={() => setSharedMode(true)}
+              />
+            )}
             </div>
           </div>
         </div>
