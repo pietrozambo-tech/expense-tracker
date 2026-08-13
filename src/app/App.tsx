@@ -1018,11 +1018,14 @@ export default function App() {
   // Splits already stored on transactions stay - they are historical fact.
   // Settlements stay too, so re-enabling later does not resurrect an already
   // settled balance. Only the config goes.
+  //
+  // Her replicas stay as well (spec 6.5). They were being deleted, on the
+  // reasoning that they are hers - but my SHARE of them is money I actually
+  // spent, and it is counted in my Dashboard, my Trend and my budget. Dropping
+  // them rewrote my own finished months: June quietly got cheaper because
+  // somebody else left. They simply stop syncing.
   const handleDisableShared = () => {
-    // Leave the server household first, so her device stops seeing my items;
-    // then drop her replicas, which are hers and have no meaning here now.
     if (household?.remoteId) void leaveRemoteHousehold(household.remoteId).catch(() => {});
-    setExpenses((prev) => prev.filter((e) => !e.fromShared));
     setHousehold(null);
     track('shared_disabled');
     toast.success(t('toast.sharedOff'), { duration: 1400 });
@@ -1072,14 +1075,13 @@ export default function App() {
       return;
     }
     syncingRef.current = true;
-    // Back to a local-only household: my own splits and our settlements stay,
-    // because both are historical fact, but her replicas go - they are hers,
-    // and here they would be a permanent record of a ledger I can no longer
-    // see. The household itself survives, so I can invite somebody else
-    // without the app pretending she is still here.
+    // Back to a local-only household. Everything already in the ledger stays -
+    // my splits, her replicas and our settlements are all historical fact, and
+    // my share of her expenses is spending that really happened (spec 6.5).
+    // Only the connection goes, so the household survives as one-sided and I
+    // can invite somebody else without the app pretending she is still here.
     const endPairing = () => {
       const stamp = new Date().toISOString();
-      setExpenses((prev) => prev.filter((e) => !e.fromShared));
       setPeople((prev) =>
         prev.map((p) => (household!.memberIds.includes(p.id) ? { ...p, userId: undefined, updatedAt: stamp } : p)),
       );

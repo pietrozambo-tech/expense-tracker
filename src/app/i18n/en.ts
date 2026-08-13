@@ -566,6 +566,7 @@ export const en = {
   'shared.drill.count.one': '{n} item',
   'shared.drill.count.other': '{n} items',
   'shared.drill.allOf': 'All {name}',
+  'shared.drill.settled': 'Settled up with {name}',
   'shared.drill.yours': 'Your share:',
   'shared.chip.invite': 'Split with {name}',
   'shared.chip.on': 'Shared · yours {amt}',

@@ -1,10 +1,10 @@
-import { X } from 'lucide-react';
+import { ArrowLeftRight, X } from 'lucide-react';
 import { t } from '../i18n';
 import { dateLocale } from '../i18n/store';
 import { AmountText } from './AmountText';
 import { getCategoryIcon } from './categoryIcons';
 import { homeAmount, mineAmount } from '../utils/currency';
-import type { Person, Transaction } from '../types';
+import type { Person, Settlement, Transaction } from '../types';
 
 // The transactions behind a bar in the shared view.
 //
@@ -18,6 +18,15 @@ export interface SharedDrilldownProps {
   /** Period, or the category a subcategory belongs to - context for the title. */
   subtitle?: string;
   transactions: Transaction[];
+  /**
+   * Money that moved between you, in the same period. Only the whole-period
+   * view passes any: a settlement belongs to no category, so it has no place
+   * in a category drilldown (spec 6.2).
+   *
+   * Until this, a settlement could be recorded and then never seen again -
+   * it moved the balance and left no trace you could read.
+   */
+  settlements?: Settlement[];
   currency: string;
   partner: Person;
   userName: string;
@@ -28,6 +37,7 @@ export function SharedDrilldown({
   title,
   subtitle,
   transactions,
+  settlements = [],
   currency,
   partner,
   userName,
@@ -36,6 +46,7 @@ export function SharedDrilldown({
   const rows = [...transactions].sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
   const total = rows.reduce((sum, txn) => sum + homeAmount(txn, currency), 0);
   const mine = rows.reduce((sum, txn) => sum + mineAmount(txn, currency), 0);
+  const settled = [...settlements].sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
 
   const avatar = (name: string, color: string) => (
     <span
@@ -93,11 +104,41 @@ export function SharedDrilldown({
         </div>
 
         <div className="flex-1 overflow-y-auto px-6 py-2">
-          {rows.length === 0 && (
+          {rows.length === 0 && settled.length === 0 && (
             <div className="py-10 text-center" style={{ color: 'var(--ink-2)', fontSize: 13.5 }}>
               {t('shared.emptyPeriod')}
             </div>
           )}
+          {settled.map((s, i) => (
+            <div
+              key={s.id}
+              className="flex items-center gap-3 py-3"
+              style={i > 0 || rows.length ? { borderTop: '1px solid var(--line-2)' } : undefined}
+            >
+              <div
+                className="w-[34px] h-[34px] rounded-[10px] flex items-center justify-center flex-shrink-0"
+                style={{ background: 'var(--bg-inset)' }}
+              >
+                <ArrowLeftRight className="w-4 h-4" style={{ color: 'var(--ink-2)' }} strokeWidth={2} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="truncate" style={{ color: 'var(--ink)', fontSize: 14.5, fontWeight: 500 }}>
+                  {t('shared.drill.settled', { name: partner.name })}
+                </div>
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  {avatar(s.amount >= 0 ? partner.name : userName || 'P', s.amount >= 0 ? partner.color : '#3C3C46')}
+                  <span style={{ color: 'var(--ink-2)', fontSize: 11.5 }}>
+                    {new Date(s.date + 'T00:00:00').toLocaleDateString(dateLocale(), { day: 'numeric', month: 'short' })}
+                  </span>
+                </div>
+              </div>
+              {/* Neutral, never green: green means income in this app, and a
+                  settlement is neither spending nor income. */}
+              <div className="tabular-nums flex-shrink-0" style={{ color: 'var(--ink-2)', fontSize: 15, fontWeight: 700 }}>
+                <AmountText amount={Math.abs(s.amount)} currency={currency} decimals={2} />
+              </div>
+            </div>
+          ))}
           {rows.map((txn, i) => {
             const Icon = getCategoryIcon(txn.category?.icon ?? 'MoreHorizontal');
             const theirs = !!txn.fromShared;
@@ -107,7 +148,7 @@ export function SharedDrilldown({
               <div
                 key={txn.id}
                 className="flex items-center gap-3 py-3"
-                style={i > 0 ? { borderTop: '1px solid var(--line-2)' } : undefined}
+                style={i > 0 || settled.length ? { borderTop: '1px solid var(--line-2)' } : undefined}
               >
                 <div
                   className={`w-[34px] h-[34px] rounded-[10px] ${txn.category?.bgColor ?? 'bg-neutral-100'} flex items-center justify-center flex-shrink-0`}

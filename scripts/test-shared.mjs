@@ -50,7 +50,7 @@ const SCENARIOS = `
 import { homeAmount, mineAmount } from './utils/currency';
 import { myShareOf, runningBalance, shareFraction } from './lib/shared';
 import { mergePayloads } from './lib/cloud';
-import { planSync, mapCategory, pairingChange, replicaId, sharedIdOf } from './lib/sharedSync';
+import { planSync, mapCategory, paidBy, pairingChange, replicaId, sharedIdOf } from './lib/sharedSync';
 import { buildTransactionsCsv } from './lib/csv';
 
 let failed = 0;
@@ -283,6 +283,33 @@ const paired = [
 eq('two-sided balance nets both directions', runningBalance(paired, [], 'EUR'), 420);
 eq('settlement retires the net', runningBalance(paired, [{ id: 's', personId: 'p', date: '2026-08-10', amount: 420 }], 'EUR'), 0);
 eq('replica counts as my spending', mineAmount(paired[1], 'EUR'), 30);
+
+// ── Who was actually out of pocket ──────────────────────────────────────────
+// The hero's two columns. A replica is a row she authored, so she paid the
+// shop; anything else I paid myself. Full amounts, not shares - the question is
+// who was down the money at the till.
+const fronted = paidBy(
+  [
+    txn({ id: 'a', amount: 900, split: { mine: 450 } }),
+    txn({ id: 'shared-x1', amount: 60, split: { mine: 30 }, fromShared: 'x1' }),
+    txn({ id: 'shared-x2', amount: 40, split: { mine: 20 }, fromShared: 'x2' }),
+    txn({ id: 'plain', amount: 500 }),
+    txn({ id: 'inc', amount: 3000, type: 'income', split: { mine: 1500 } }),
+  ],
+  (t) => t.amount,
+);
+eq('paid: mine is what I fronted, at full value', fronted.mine, 900);
+eq('paid: theirs is every replica', fronted.theirs, 100);
+eq('paid: unshared and income are not household money', fronted.mine + fronted.theirs, 1000);
+// The two columns must reconcile with the balance, or the hero and the card
+// below it tell different stories about the same month.
+const heroTxns = [
+  txn({ id: 'a', amount: 900, split: { mine: 450 } }),
+  txn({ id: 'shared-x1', amount: 60, split: { mine: 30 }, fromShared: 'x1' }),
+];
+const heroPaid = paidBy(heroTxns, (t) => t.amount);
+eq('paid: columns sum to the household total', heroPaid.mine + heroPaid.theirs, 960);
+eq('paid: and agree with the balance', runningBalance(heroTxns, [], 'EUR'), 450 - 30);
 
 // ── Reading a departure off the membership list ─────────────────────────────
 // Nobody announces leaving: the row is just gone. One member therefore means

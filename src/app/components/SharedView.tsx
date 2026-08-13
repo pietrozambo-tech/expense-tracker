@@ -8,6 +8,7 @@ import { SharedDrilldown } from './SharedDrilldown';
 import { getCategoryIcon } from './categoryIcons';
 import { homeAmount, formatAmountListView } from '../utils/currency';
 import { isShared, runningBalance } from '../lib/shared';
+import { paidBy } from '../lib/sharedSync';
 import type { Household, Person, Settlement, Transaction } from '../types';
 
 // The Dashboard's other subject: not "how am I doing" but "what do WE spend".
@@ -66,7 +67,7 @@ export function SharedView({
   // list of transactions. Same two-step as the personal Dashboard.
   const [expanded, setExpanded] = useState<string | null>(null);
   const [drilldown, setDrilldown] = useState<
-    { title: string; subtitle?: string; items: Transaction[] } | null
+    { title: string; subtitle?: string; items: Transaction[]; settled?: Settlement[] } | null
   >(null);
   const { type: periodType, year, month, quarter } = period;
 
@@ -89,13 +90,26 @@ export function SharedView({
     [transactions, month, quarter, year, periodType],
   );
 
+  // Settlements of the visible period, for the all-items sheet. The BALANCE
+  // still ignores periods entirely - a debt does not reset on the 1st.
+  const periodSettlements = useMemo(
+    () =>
+      settlements.filter((s) => {
+        const y = Number(s.date.slice(0, 4));
+        const m = Number(s.date.slice(5, 7)) - 1;
+        if (y !== year) return false;
+        if (periodType === 'year') return true;
+        if (periodType === 'quarter') return Math.floor(m / 3) === quarter;
+        return m === month;
+      }),
+    [settlements, month, quarter, year, periodType],
+  );
+
   const together = periodShared.reduce((sum, txn) => sum + homeAmount(txn, currency), 0);
-  // Until account pairing exists every local transaction was paid by the
-  // user, so the partner's column is what pairing will fill in - shown at
-  // zero rather than hidden, because the split of who-fronted-what is the
-  // question this hero answers.
-  const youPaid = together;
-  const partnerPaid = 0;
+  // Who was actually out of pocket. A replica is a row she authored, so she
+  // paid the shop; everything else is mine. This read the household total on
+  // my side and a hard zero on hers while pairing was still being built.
+  const { mine: youPaid, theirs: partnerPaid } = paidBy(periodShared, (t) => homeAmount(t, currency));
 
   // Grouped the way the personal Dashboard groups: category, then the
   // subcategories inside it, and the transactions themselves one tap further.
@@ -295,7 +309,14 @@ export function SharedView({
           {periodShared.length > 0 && (
             <button
               onClick={() =>
-                setDrilldown({ title: t('shared.allShared'), subtitle: periodLabel, items: periodShared })
+                setDrilldown({
+                  title: t('shared.allShared'),
+                  subtitle: periodLabel,
+                  items: periodShared,
+                  // Only here: money moving back belongs to the household's
+                  // whole story, not to any one category.
+                  settled: periodSettlements,
+                })
               }
               className="active:opacity-60 transition-opacity"
               style={{ color: '#4F74F3', fontSize: 12, fontWeight: 600 }}
@@ -410,6 +431,7 @@ export function SharedView({
           title={drilldown.title}
           subtitle={drilldown.subtitle}
           transactions={drilldown.items}
+          settlements={drilldown.settled}
           currency={currency}
           partner={partner}
           userName={userName}

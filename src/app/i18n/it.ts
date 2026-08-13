@@ -567,6 +567,7 @@ export const it: Record<keyof typeof en, string> = {
   'shared.drill.count.one': '{n} voce',
   'shared.drill.count.other': '{n} voci',
   'shared.drill.allOf': 'Tutto {name}',
+  'shared.drill.settled': 'Pareggio con {name}',
   'shared.drill.yours': 'La tua quota:',
   'shared.chip.invite': 'Dividi con {name}',
   'shared.chip.on': 'Condivisa · tua {amt}',

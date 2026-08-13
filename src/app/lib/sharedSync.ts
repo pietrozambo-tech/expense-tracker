@@ -316,6 +316,32 @@ export function balanceFrom(
 }
 
 /**
+ * Who fronted the money, over a set of shared expenses.
+ *
+ * `fromShared` is the whole of it: a replica is a copy of a row THEY authored,
+ * so they paid the shop and you owe them your half. Anything else you paid for
+ * yourself. Same fact the balance is built on (see balanceFrom), stated as two
+ * totals instead of one net figure - so the hero's two columns and the balance
+ * card can never disagree about who has been carrying the household.
+ *
+ * Full amounts on both sides, like everything else in the shared view: the
+ * question is who was out of pocket at the till, not whose share it was.
+ */
+export function paidBy(
+  transactions: Transaction[],
+  homeValue: (t: Transaction) => number,
+): { mine: number; theirs: number } {
+  let mine = 0;
+  let theirs = 0;
+  for (const t of transactions) {
+    if (!t.split || t.type === 'income') continue;
+    if (t.fromShared) theirs += homeValue(t);
+    else mine += homeValue(t);
+  }
+  return { mine: Math.round(mine * 100) / 100, theirs: Math.round(theirs * 100) / 100 };
+}
+
+/**
  * What a household's membership list says about the pairing.
  *
  * The server never announces a departure: turning sharing off deletes the

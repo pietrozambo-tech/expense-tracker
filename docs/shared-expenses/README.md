@@ -560,6 +560,66 @@ don't just fail to help, they industrialise the error.
 
 ---
 
+## 12a. What is actually built (audit, August 2026)
+
+Written after the feature shipped and was used on two real phones. The spec
+above is the design as agreed; this is the honest state of the code against it,
+so nobody has to re-derive it by reading both.
+
+### Built and working
+
+- §3 data model, both local and server-side, including the two-way reconciler.
+- §4.1–4.2 step 1: category pairing by seed id, then by lucide icon, then a
+  catch-all. Verified across an Italian and an English account.
+- §5.1, §5.3 case A/B/D, §5.4: the chip under the amount, three states, any
+  source splittable.
+- §6.1 balance defaults on. §6.2 settlement is its own record, never a
+  Transaction, never categorised. §6.4 replicas rebuilt not merged, idempotent.
+  §6.5 disconnect keeps history.
+- §7.1–7.3 the switcher, the shared view, the period control (all three lenses,
+  no future navigation, the jump-to-period sheet).
+- §7.4 category drill-down, and a whole-period item list reached from the
+  count beside "What we spend".
+- §8 the read funnel, with the guard in `test:shared`.
+- §9 sync, backup and CSV export carry the shared fields. Import does not, by
+  decision.
+
+### Deliberately different from the spec
+
+- **Switcher.** The spec picked both avatars always (option B). Shipped: one
+  face on the personal view, both on the shared one - a later call, on the
+  grounds that the pair belongs to the pair's view.
+- **Feature gate.** Not in the spec: the whole feature is behind code 4700,
+  because it is a candidate for the paid tier (§11).
+
+### Not built
+
+| Spec | What is missing | Cost of the gap |
+|---|---|---|
+| §5.2 | Only *this entry* and *the category* decide. The **recurring rule** and the **source** rungs of the priority ladder do not exist. | Case C (joint card overrides a personal category) cannot happen. |
+| §5.5 | No joint-card Source with a paired-avatar tile. | Follows from the above; sharing is category- or entry-driven only. |
+| §4.2 step 2 | No saved mapping for her custom categories, and no "needs you" list. | Her invented categories land in the catch-all silently. |
+| §6.3 | Settlements are not checkpoints. A correction to an item from before a settlement moves the running balance with no adjustment line. | The *number* stays right; the *explanation* is missing. |
+| §7.5 | The item list is period-scoped, not month-grouped with per-month balance deltas, and it is reached from the category card rather than the balance card. | No reading of how the balance got where it is. |
+| §7.7 tiers 1–2 | Changes arrive as toasts. No dot on the switcher, no line above the budget bar, no "New since you last looked" group. | A change seen while the toast is gone leaves no trace. |
+| §7.8 | No UPDATED badge in Activity, no before/after. | Her correction changes a number on your screen with nothing marking it. |
+| §11 | Households are hard-capped at two, in the database. | As specced for v1. |
+
+### Known issues, not yet decided
+
+- **The balance survives a change of partner.** It is computed over every shared
+  transaction ever, minus every settlement ever. Turn sharing off, pair with
+  somebody new, and the old balance is still there. Needs a decision: zero it on
+  disconnect, or scope the balance to a household.
+- **`payer_id` is never set apart from `author_id`.** "She entered it but I paid"
+  is expressible in the schema and not in the app. Who-paid is therefore read off
+  `fromShared`, which is correct today and would stop being correct the moment
+  that changes.
+- **Settlement history** appears only in the whole-period item sheet. There is no
+  standalone list, and none in Settings (§7.6 asks for one).
+
+---
+
 ## 13. Regenerating the mockups
 
 See `mockups/README.md`. They drive the real app in Chromium and inject the
