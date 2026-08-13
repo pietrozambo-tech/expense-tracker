@@ -626,6 +626,11 @@ export const en = {
   'shared.nudge.removed': '{name} removed “{what}”',
   'shared.nudge.many': '{name} made {n} changes to your shared expenses',
   'shared.connect.waiting': 'Waiting for them to join…',
+  'shared.err.schemaMissing': 'Sharing isn’t set up on the server. Run supabase/schema-shared.sql on the project.',
+  'shared.err.schemaOutdated': 'The shared tables are out of date, so nothing is syncing. Run supabase/schema-shared.sql again — it’s safe to re-run.',
+  'shared.err.generic': 'Couldn’t reach the shared ledger. Retrying.',
+  'shared.status.live': 'Syncing instantly',
+  'shared.status.polling': 'Syncing every few seconds',
   'toast.paired': 'Connected with {name}',
   'toast.unpaired': '{name} turned off sharing — your own splits are unchanged',
 } as const;

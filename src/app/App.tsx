@@ -32,6 +32,8 @@ import {
   saveOwner,
   loadBackTagDismissed,
   saveBackTagDismissed,
+  loadSharedSeen,
+  saveSharedSeen,
 } from './lib/storage';
 import { DEFAULT_SOURCES, DEFAULT_SOURCE_EXPENSE, DEFAULT_SOURCE_INCOME } from './components/sources';
 import { SourceLogo } from './components/SourceLogo';
@@ -41,6 +43,7 @@ import { myShareOf, newHousehold } from './lib/shared';
 import { pairingChange, planSync, sharedIdOf } from './lib/sharedSync';
 import {
   SCHEMA_MISSING,
+  SCHEMA_OUTDATED,
   createInviteCode,
   createRemoteHousehold,
   fetchRemoteHousehold,
@@ -51,6 +54,7 @@ import {
   pushSharedItems,
   redeemInviteCode,
   tombstoneSharedItems,
+  watchHousehold,
 } from './lib/householdCloud';
 import { buildImport, applyImportDecision, type ImportPayload, type ImportResult } from './lib/importData';
 import { ImportSummaryDialog } from './components/ImportSummaryDialog';
@@ -1029,6 +1033,24 @@ export default function App() {
   // test:shared); this only carries the decisions to the server and back.
 
   const syncingRef = useRef(false);
+  // A sync asked for while one is already running. Dropping it was wrong in
+  // the one case that matters most: add an expense while a heartbeat is in
+  // flight and the push was simply skipped, leaving it on this phone only
+  // until something else happened to trigger a sync. Now the request is
+  // remembered and honoured the moment the current pass finishes.
+  const syncQueuedRef = useRef(false);
+  // The latest syncShared, so the re-run above uses the CURRENT ledger rather
+  // than the closure that was running when the request arrived.
+  const syncRef = useRef<() => Promise<void>>(async () => {});
+  // What went wrong last time, for the status line in Settings - and, once,
+  // as a toast when it is something the user has to act on.
+  const [sharedError, setSharedError] = useState<string | null>(null);
+  const sharedErrorToldRef = useRef<string | null>(null);
+  // The household whose backfill has already happened on this device.
+  const sharedSeenRef = useRef<string>(loadSharedSeen());
+  // Whether Postgres is pushing changes to us. False = poll harder.
+  const [sharedLive, setSharedLive] = useState(false);
+
   // Whether this device already knew who the partner is. Persisted state, not
   // a session flag: a ref alone re-armed on every launch, so the "connected"
   // toast fired every single time the app opened. Now it announces the moment
@@ -1043,7 +1065,11 @@ export default function App() {
   const syncShared = useCallback(async () => {
     const hid = household?.remoteId;
     const uid = userIdRef.current;
-    if (!hid || !uid || syncingRef.current) return;
+    if (!hid || !uid) return;
+    if (syncingRef.current) {
+      syncQueuedRef.current = true;
+      return;
+    }
     syncingRef.current = true;
     // Back to a local-only household: my own splits and our settlements stay,
     // because both are historical fact, but her replicas go - they are hers,
@@ -1091,14 +1117,27 @@ export default function App() {
         toast(t('toast.unpaired', { name: partnerNameRef.current || '' }), { duration: 2800 });
         return;
       }
+      // Only when something actually differs. Rebuilding the array on every
+      // pass made `people` a new object each time, which dirtied the payload
+      // and had the per-user cloud sync uploading an identical row every few
+      // seconds - for a value that changes when she renames herself, which is
+      // to say almost never.
       if (other) {
-        setPeople((prev) =>
-          prev.map((p) =>
+        setPeople((prev) => {
+          const stale = prev.some(
+            (p) =>
+              household!.memberIds.includes(p.id) &&
+              (p.userId !== other.userId ||
+                (!!other.displayName && p.name !== other.displayName) ||
+                (!!other.color && p.color !== other.color)),
+          );
+          if (!stale) return prev;
+          return prev.map((p) =>
             household!.memberIds.includes(p.id)
               ? { ...p, name: other.displayName || p.name, color: other.color || p.color, userId: other.userId }
               : p,
-          ),
-        );
+          );
+        });
       }
       setHousehold((prev) =>
         prev && (prev.trackBalance !== remote.trackBalance ||
@@ -1116,9 +1155,22 @@ export default function App() {
       if (plan.push.length) await pushSharedItems(plan.push);
       if (plan.changed) setExpenses(plan.transactions);
 
-      // Say what they changed. Silence would be worse than a nudge: the
-      // numbers on your own screen would simply be different than before.
-      const theirs = plan.incoming.filter((c) => c.kind !== 'new' || rows.length > 0);
+      // Say what they changed - including everything that happened while the
+      // app was closed, which is the first sync after every launch. Silence
+      // would be worse than a nudge: the numbers on your own screen would
+      // simply be different than they were, with no account of why.
+      //
+      // The one pass that must stay quiet is the backfill right after pairing:
+      // her entire shared history arrives at once and none of it is news.
+      // That is a per-device fact, so it is remembered per device - the old
+      // guard tested `rows.length > 0`, which is true whenever there is
+      // anything to announce and therefore never suppressed anything.
+      const firstPass = sharedSeenRef.current !== hid;
+      if (firstPass) {
+        sharedSeenRef.current = hid;
+        saveSharedSeen(hid);
+      }
+      const theirs = firstPass ? [] : plan.incoming;
       if (theirs.length && other) {
         const name = other.displayName || '';
         toast(
@@ -1141,19 +1193,43 @@ export default function App() {
         amount: r.from_user === uid ? -Number(r.amount) : Number(r.amount),
         updatedAt: r.updated_at,
       }));
-      setSettlements((prev) =>
-        JSON.stringify(prev.map((s) => s.id).sort()) === JSON.stringify(pulled.map((s) => s.id).sort())
-          ? prev
-          : pulled,
-      );
+      // Compared whole, not by id: a settlement whose amount or date was
+      // corrected has the same id as before, and an id-only check called that
+      // "unchanged" and kept the stale figure in the balance forever.
+      const sameSettlements = (a: Settlement[], b: Settlement[]) => {
+        const key = (s: Settlement) => `${s.id}|${s.date}|${s.amount}|${s.personId}`;
+        return JSON.stringify(a.map(key).sort()) === JSON.stringify(b.map(key).sort());
+      };
+      setSettlements((prev) => (sameSettlements(prev, pulled) ? prev : pulled));
+      setSharedError(null);
+      sharedErrorToldRef.current = null;
     } catch (err) {
-      const msg = err instanceof Error ? err.message : '';
-      if (msg === SCHEMA_MISSING) console.warn('[shared] database not provisioned yet');
-      else console.warn('[shared] sync failed', msg);
+      // A failure here used to go to the console and nowhere else, which is
+      // precisely why "she added it, I never saw it" could run for days: from
+      // the other phone a sync that never succeeds is indistinguishable from a
+      // partner who never typed anything. It is now on the Shared screen, and
+      // the two causes the user can actually fix say so out loud, once.
+      const msg = err instanceof Error ? err.message : 'unknown';
+      setSharedError(msg);
+      console.warn('[shared] sync failed', msg);
+      const actionable = msg === SCHEMA_MISSING || msg === SCHEMA_OUTDATED;
+      if (actionable && sharedErrorToldRef.current !== msg) {
+        sharedErrorToldRef.current = msg;
+        toast.error(t(msg === SCHEMA_MISSING ? 'shared.err.schemaMissing' : 'shared.err.schemaOutdated'), {
+          duration: 6000,
+        });
+      }
     } finally {
       syncingRef.current = false;
+      if (syncQueuedRef.current) {
+        syncQueuedRef.current = false;
+        // Through the ref, not this closure: whatever changed while we were
+        // busy is the whole reason to run again.
+        setTimeout(() => void syncRef.current(), 0);
+      }
     }
   }, [household, expenses, categories]);
+  syncRef.current = syncShared;
 
   // Sync when the pairing appears, when the ledger changes, and on return to
   // the app - the same three moments the per-user sync already uses.
@@ -1163,7 +1239,24 @@ export default function App() {
     return () => clearTimeout(timer);
   }, [household?.remoteId, userId, expenses, syncShared]);
 
-  // Coming back to the app, and a slow heartbeat while it is open.
+  // The fast path: Postgres tells us the moment she changes anything, and we
+  // re-run the ordinary reconciliation. Her expense lands here in about a
+  // second rather than on the next heartbeat.
+  //
+  // Deliberately not wired to `syncShared`: that callback is rebuilt on every
+  // ledger edit, and re-subscribing a websocket that often would spend more
+  // time connecting than listening. The ref always points at the current one.
+  useEffect(() => {
+    const hid = household?.remoteId;
+    if (!hid) return;
+    setSharedLive(false);
+    return watchHousehold(hid, () => { void syncRef.current(); }, setSharedLive);
+  }, [household?.remoteId]);
+
+  // The floor under it: coming back to the app, and a heartbeat while it is
+  // open. Realtime can be switched off on the project, blocked by a network,
+  // or simply drop - so the poll never goes away, it just slows down when
+  // something faster is working.
   //
   // `focus` alone was not enough: an installed PWA switching between tabs
   // never fires it, so the only thing refreshing a paired household was an
@@ -1171,25 +1264,23 @@ export default function App() {
   // phone comes back from the lock screen or another app.
   useEffect(() => {
     if (!household?.remoteId) return;
-    const wake = () => { void syncShared(); };
+    const wake = () => { void syncRef.current(); };
     const onVisible = () => { if (!document.hidden) wake(); };
     window.addEventListener('focus', wake);
     document.addEventListener('visibilitychange', onVisible);
-    const beat = setInterval(wake, 45000);
+    const beat = setInterval(() => { if (!document.hidden) wake(); }, sharedLive ? 60000 : 12000);
     return () => {
       window.removeEventListener('focus', wake);
       document.removeEventListener('visibilitychange', onVisible);
       clearInterval(beat);
     };
-  }, [household?.remoteId, syncShared]);
+  }, [household?.remoteId, sharedLive]);
 
   // Switching tabs is a cheap, deliberate moment to refresh - and it is what
   // people instinctively do when they are waiting for something to arrive.
   useEffect(() => {
     if (!household?.remoteId) return;
-    void syncShared();
-    // syncShared deliberately omitted: this fires on the tab change, not on
-    // every ledger edit that rebuilds the callback.
+    void syncRef.current();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentTab, household?.remoteId]);
 
@@ -2529,6 +2620,8 @@ export default function App() {
                 onCreateInvite={handleCreateInvite}
                 onJoinWithCode={handleJoinWithCode}
                 onRefreshPairing={syncShared}
+                sharedError={sharedError}
+                sharedLive={sharedLive}
                 onCreateSchedule={handleCreateSchedule}
                 onUpdateSchedule={handleUpdateSchedule}
                 onStopSchedule={handleStopSchedule}

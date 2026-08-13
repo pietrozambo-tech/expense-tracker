@@ -627,6 +627,11 @@ export const it: Record<keyof typeof en, string> = {
   'shared.nudge.removed': '{name} ha rimosso “{what}”',
   'shared.nudge.many': '{name} ha fatto {n} modifiche alle spese condivise',
   'shared.connect.waiting': 'In attesa che entri…',
+  'shared.err.schemaMissing': 'La condivisione non è configurata sul server. Esegui supabase/schema-shared.sql sul progetto.',
+  'shared.err.schemaOutdated': 'Le tabelle condivise non sono aggiornate e niente si sincronizza. Esegui di nuovo supabase/schema-shared.sql — si può rieseguire senza rischi.',
+  'shared.err.generic': 'Impossibile raggiungere il registro condiviso. Nuovo tentativo in corso.',
+  'shared.status.live': 'Sincronizzazione immediata',
+  'shared.status.polling': 'Sincronizzazione ogni pochi secondi',
   'toast.paired': 'Collegato con {name}',
   'toast.unpaired': '{name} ha disattivato la condivisione — le tue quote restano invariate',
 };

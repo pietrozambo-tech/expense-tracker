@@ -226,6 +226,31 @@ const refiled = p2.transactions.map((t) => (t.fromShared === 'x1' ? { ...t, cate
 const p8 = planSync(refiled, [mineEchoed, row({ id: 'x1', updated_at: '2026-08-09T09:00:00Z', amount: 66, author_share: 33 })], ME, HID, CATS);
 eq('her edit does not undo my re-filing', p8.transactions.find((t) => t.fromShared === 'x1').category.id, 'housing');
 
+// ── What the "while you were away" nudge is built from ──────────────────────
+// Nothing I did is ever announced back at me: the nudge exists to explain why
+// the numbers moved without me touching anything.
+const myEdit = p2.transactions.map((t) => (t.id === 'a' ? { ...t, amount: 100, updatedAt: '2026-08-08T09:00:00Z' } : t));
+const p9 = planSync(myEdit, [mineEchoed, row({ id: 'x1' })], ME, HID, CATS);
+eq('my own edit is not reported to me', p9.incoming.length, 0);
+eq('my own edit still goes up', p9.push.map((r) => r.id), ['a']);
+
+// The app was closed for a day: she added two and corrected one. All three are
+// reported in the one pass that runs on opening.
+const away = planSync(
+  p2.transactions,
+  [
+    { ...mineEchoed, amount: 90, author_share: 45, updated_by: HER, updated_at: '2026-08-09T09:00:00Z' },
+    row({ id: 'x1' }),
+    row({ id: 'x2', description: 'Farmacia', updated_at: '2026-08-09T10:00:00Z' }),
+    row({ id: 'x3', description: 'Benzina', updated_at: '2026-08-09T11:00:00Z' }),
+  ],
+  ME, HID, CATS,
+);
+eq('everything that happened while away is reported', away.incoming.length, 3);
+eq('and each says what it was', away.incoming.map((c) => c.kind).sort(), ['edited', 'new', 'new']);
+eq('the new ones actually land in the ledger',
+  away.transactions.filter((t) => t.fromShared).length, 3);
+
 eq('sharedIdOf: mine', sharedIdOf({ id: 'a' }), 'a');
 eq('sharedIdOf: replica', sharedIdOf({ id: 'shared-x1', fromShared: 'x1' }), 'x1');
 

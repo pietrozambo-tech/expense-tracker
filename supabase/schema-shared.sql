@@ -367,3 +367,46 @@ $$;
 
 revoke all on function public.redeem_household_invite(text, text, text) from public;
 grant execute on function public.redeem_household_invite(text, text, text) to authenticated;
+
+-- ── Realtime ────────────────────────────────────────────────────────────────
+-- Without this the other phone only learns about an expense on its next poll.
+-- With it, the change arrives in about a second - which is the difference
+-- between "shared expenses" and "shared expenses, eventually".
+--
+-- Events still obey RLS: a subscriber is sent only rows it could have read.
+-- The client treats every event as nothing more than "look again" and re-runs
+-- the ordinary reconciliation, so this is a speed-up and never a second,
+-- subtly different code path. If the publication is absent (a self-hosted
+-- Postgres without Realtime), the client notices and polls harder instead.
+do $$
+begin
+  if exists (select 1 from pg_publication where pubname = 'supabase_realtime') then
+    -- add-if-absent: re-running must not error
+    if not exists (
+      select 1 from pg_publication_tables
+       where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'shared_items'
+    ) then
+      alter publication supabase_realtime add table public.shared_items;
+    end if;
+    if not exists (
+      select 1 from pg_publication_tables
+       where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'settlements'
+    ) then
+      alter publication supabase_realtime add table public.settlements;
+    end if;
+    if not exists (
+      select 1 from pg_publication_tables
+       where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'household_members'
+    ) then
+      alter publication supabase_realtime add table public.household_members;
+    end if;
+  else
+    raise notice 'supabase_realtime publication not found - shared expenses will poll instead';
+  end if;
+end $$;
+
+-- Realtime sends the OLD row on update/delete only for tables with a full
+-- replica identity; without it a tombstone arrives with nothing but the id.
+-- The client re-reads either way, so this is belt and braces.
+alter table public.shared_items replica identity full;
+alter table public.settlements replica identity full;

@@ -10,6 +10,10 @@ import type { SettlementRow, SharedItemRow } from './sharedSync';
 // like a bug.
 
 export const SCHEMA_MISSING = 'shared-schema-missing';
+/** The tables exist but are older than this build - a column the client writes
+ *  is not there. Distinct from MISSING because the fix is different: the file
+ *  has already been run once, it just needs running again. */
+export const SCHEMA_OUTDATED = 'shared-schema-outdated';
 
 export interface RemoteMember {
   userId: string;
@@ -33,8 +37,20 @@ function isMissingSchema(error: { code?: string; message?: string } | null): boo
   return /relation .* does not exist|could not find the function/i.test(error.message ?? '');
 }
 
+// A project provisioned before a column existed. PostgREST answers PGRST204
+// for a payload key it cannot place, and Postgres 42703 for an unknown column
+// in a filter. This mattered more than it looks: `updated_by` arrived with
+// either-member editing, and against an older table EVERY push failed - which
+// is invisible from the other phone, where expenses simply never turned up.
+function isOutdatedSchema(error: { code?: string; message?: string } | null): boolean {
+  if (!error) return false;
+  if (error.code === 'PGRST204' || error.code === '42703') return true;
+  return /could not find the .* column|column .* does not exist/i.test(error.message ?? '');
+}
+
 function fail(error: { code?: string; message?: string } | null): never {
   if (isMissingSchema(error)) throw new Error(SCHEMA_MISSING);
+  if (isOutdatedSchema(error)) throw new Error(SCHEMA_OUTDATED);
   throw new Error(error?.message || 'request failed');
 }
 
@@ -198,4 +214,53 @@ export async function leaveRemoteHousehold(householdId: string): Promise<void> {
     .eq('household_id', householdId)
     .eq('user_id', uid);
   if (error && !isMissingSchema(error)) throw new Error(error.message);
+}
+
+/**
+ * Tell me the moment anything in this household changes.
+ *
+ * Polling is the floor, not the ceiling: a partner's expense should land while
+ * she is still holding the phone, not up to a heartbeat later. This is the
+ * fast path - Postgres change events for exactly one household - and it is
+ * deliberately allowed to fail. Realtime has to be enabled on the tables
+ * (schema-shared.sql does it), and if it is not, `onStatus` reports that and
+ * the caller falls back to polling harder.
+ *
+ * Every event carries the same meaning: "look again". No payload is trusted -
+ * a change is a prompt to re-run the ordinary reconciliation, which is already
+ * idempotent and already handles conflicts. That keeps one code path for both
+ * speeds.
+ */
+export function watchHousehold(
+  householdId: string,
+  onChange: () => void,
+  onStatus: (live: boolean) => void,
+): () => void {
+  let channel: { unsubscribe: () => void } | null = null;
+  try {
+    const ch = supabase.channel(`household-${householdId}`);
+    for (const table of ['shared_items', 'settlements', 'household_members'] as const) {
+      ch.on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table, filter: `household_id=eq.${householdId}` },
+        () => onChange(),
+      );
+    }
+    ch.subscribe((status: string) => {
+      onStatus(status === 'SUBSCRIBED');
+      if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+        console.warn('[shared] realtime unavailable, falling back to polling');
+      }
+    });
+    channel = ch;
+  } catch {
+    onStatus(false);
+  }
+  return () => {
+    try {
+      channel?.unsubscribe();
+    } catch {
+      /* already gone */
+    }
+  };
 }

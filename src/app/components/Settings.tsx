@@ -165,6 +165,11 @@ interface SettingsProps {
   onJoinWithCode?: (code: string) => Promise<void>;
   /** Re-check the server for the pairing, while a code is waiting to be used. */
   onRefreshPairing?: () => Promise<void>;
+  /** Why the last shared sync failed, if it did - shown under the Connect row
+   *  so a silent failure is not mistaken for a silent partner. */
+  sharedError?: string | null;
+  /** True when the server is pushing changes rather than us polling for them. */
+  sharedLive?: boolean;
   onCreateSchedule: (draft: ScheduleDraft) => void;
   onUpdateSchedule: (ruleId: string, draft: ScheduleDraft) => void;
   onStopSchedule: (ruleId: string) => void;
@@ -235,6 +240,8 @@ export function Settings({
   onCreateInvite,
   onJoinWithCode,
   onRefreshPairing,
+  sharedError,
+  sharedLive,
   onCreateSchedule,
   onUpdateSchedule,
   onStopSchedule,
@@ -839,6 +846,21 @@ export function Settings({
                     <ChevronRight className="w-4 h-4" style={{ color: 'var(--ghost)' }} />
                   </button>
                 </div>
+                {/* Whether the two phones are actually talking. A sync that
+                    keeps failing used to be visible only in a console nobody
+                    opens, so "she added it and it never arrived" looked
+                    exactly like "she never added it". */}
+                {paired && (
+                  <p className="px-1 mt-2" style={{ fontSize: 12, lineHeight: 1.45, color: sharedError ? 'var(--tone-danger)' : 'var(--faint)' }}>
+                    {sharedError
+                      ? t(
+                          sharedError === 'shared-schema-missing' ? 'shared.err.schemaMissing'
+                          : sharedError === 'shared-schema-outdated' ? 'shared.err.schemaOutdated'
+                          : 'shared.err.generic',
+                        )
+                      : t(sharedLive ? 'shared.status.live' : 'shared.status.polling')}
+                  </p>
+                )}
               </div>
 
               <div className="px-6 mt-5">
