@@ -79,6 +79,13 @@ do $$ begin
 end $$;
 select case when amount=975 then 'PASS' else 'FAIL' end || '  and the correction landed' as r
   from public.shared_items where id='tx-a';
+-- Who PAID is a fact about the expense, not identity: either member may say
+-- "you entered it, I was the one at the till". author_id must not move with it.
+update public.shared_items set payer_id = auth.uid(), updated_by = auth.uid() where id='tx-a';
+select case when payer_id = :'G' and author_id = :'P' then 'PASS' else 'FAIL' end
+  || '  the payer can change without authorship moving' as r
+  from public.shared_items where id='tx-a';
+update public.shared_items set payer_id = :'P' where id='tx-a';
 -- The client deletes by tombstoning, so her device can drop its copy.
 update public.shared_items set deleted_at = now() where id='tx-a';
 select case when deleted_at is not null then 'PASS' else 'FAIL' end || '  partner CAN retire his item' as r

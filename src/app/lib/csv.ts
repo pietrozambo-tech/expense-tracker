@@ -1,5 +1,6 @@
 import type { Settlement, Source, Transaction } from '../types';
 import { homeAmount, mineAmount } from '../utils/currency';
+import { paidByPartner } from './sharedSync';
 
 // Spreadsheet export - the way OUT of the app into Excel / Google Sheets /
 // Numbers, complementing the JSON backup (which only TracklyLab itself can
@@ -72,8 +73,8 @@ export function buildTransactionsCsv(
         // Only when it differs from the amount above, like Original Amount.
         isSplit ? homeAmount(t, homeCurrency).toFixed(2) : '',
         isSplit ? esc(partner) : '',
-        // A replica is theirs: they paid, you owe your half.
-        isSplit ? (t.fromShared ? esc(partner) : 'You') : '',
+        // Who fronted it, not who typed it.
+        isSplit ? (paidByPartner(t) ? esc(partner) : 'You') : '',
         '',
         foreign ? t.amount.toFixed(2) : '',
         foreign ? t.currency : '',

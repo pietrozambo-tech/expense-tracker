@@ -613,10 +613,12 @@ so nobody has to re-derive it by reading both.
   attribution existed are claimed for the household in hand by a one-time
   backfill in `App.tsx`, so nothing changes for an existing pairing and a new one
   starts at zero - which is what the disconnect dialog promised all along.
-- **`payer_id` is never set apart from `author_id`.** "She entered it but I paid"
-  is expressible in the schema and not in the app. Who-paid is therefore read off
-  `fromShared`, which is correct today and would stop being correct the moment
-  that changes.
+- ~~**`payer_id` is never set apart from `author_id`.**~~ **Fixed.** The Add
+  screen carries a payer toggle beside the share chip; the choice is stored as
+  `split.paidByThem`, written to `payer_id`, and read back on the other device.
+  Every consumer - the balance, the hero's two columns, the item list, the CSV -
+  goes through one `paidByPartner()` helper. With nothing said the author paid,
+  so every row written before this reads exactly as it did.
 - **Settlement history** appears only in the whole-period item sheet. There is no
   standalone list, and none in Settings (§7.6 asks for one).
 

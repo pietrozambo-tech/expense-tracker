@@ -62,6 +62,21 @@ const iso = (s: string): string => {
   return Number.isFinite(ms) ? new Date(ms).toISOString() : s;
 };
 
+/**
+ * Who was out of pocket: true when the OTHER member paid.
+ *
+ * Entering an expense and paying for it are different acts, and a household
+ * separates them constantly - she is at the till, you are the one who
+ * remembers to log it. `payer_id` has been in the schema since the first
+ * migration for exactly this; nothing was ever writing it.
+ *
+ * The fallback is what makes old rows safe: with no explicit payer, the author
+ * paid, which is the rule the whole app used before. Every consumer of
+ * "who paid" - the balance, the hero's two columns, the item list, the CSV -
+ * goes through here, so they cannot drift apart.
+ */
+export const paidByPartner = (t: Transaction): boolean => t.split?.paidByThem ?? !!t.fromShared;
+
 /** The shared id a local transaction maps to: its own for one I entered, the
  *  mirrored id for a copy of theirs. */
 export const sharedIdOf = (t: Transaction): string => t.fromShared ?? t.id;
@@ -80,16 +95,22 @@ function toRow(
   myUserId: string,
   prior: SharedItemRow | undefined,
   stamp: string,
+  partnerUserId?: string,
 ): SharedItemRow {
   const mine = t.split?.mine ?? 0;
   const authorIsMe = !t.fromShared;
+  // The other member, from the household if we know it, else read off a row
+  // they authored. Without either we are not paired, and there is nobody for
+  // the money to have come from but me.
+  const other = partnerUserId ?? (prior && prior.author_id !== myUserId ? prior.author_id : undefined);
+  const theyPaid = paidByPartner(t);
   return {
     id: sharedIdOf(t),
     household_id: householdId,
     // Authorship never moves: correcting someone's expense does not make it
     // yours, and who PAID is what the balance is computed from.
     author_id: prior?.author_id ?? myUserId,
-    payer_id: prior?.payer_id ?? myUserId,
+    payer_id: theyPaid ? other ?? myUserId : myUserId,
     date: t.date,
     description: t.description,
     amount: t.amount,
@@ -187,7 +208,9 @@ function toTransaction(
     recurrence: prior?.recurrence,
     recurrenceOf: prior?.recurrenceOf,
     updatedAt: iso(row.updated_at),
-    split: { mine },
+    // Stated outright rather than inferred from authorship: that inference is
+    // exactly what could not express "she entered it, I paid".
+    split: { mine, paidByThem: row.payer_id !== myUserId },
     ...(authorIsMe ? {} : { fromShared: row.id }),
   };
 }
@@ -217,6 +240,9 @@ export function planSync(
   myUserId: string,
   householdId: string,
   categories: Category[],
+  /** The other member's auth id, so "she paid for something I entered" can be
+   *  written down. Absent while local-only, where I am the only possible payer. */
+  partnerUserId?: string,
 ): SyncPlan {
   const stamp = new Date().toISOString();
   const byId = new Map(remote.map((r) => [r.id, r]));
@@ -253,7 +279,7 @@ export function planSync(
       // read the author from), which is worse than leaving it alone.
       if (t.fromShared) out.push(t);
       else {
-        push.push(toRow(t, householdId, myUserId, undefined, stamp));
+        push.push(toRow(t, householdId, myUserId, undefined, stamp, partnerUserId));
         out.push(t);
       }
     } else if (at(r.updated_at) > localStamp) {
@@ -267,7 +293,7 @@ export function planSync(
       }
       out.push(next);
     } else if (localStamp > at(r.updated_at)) {
-      patch.push(toRow(t, householdId, myUserId, r, stamp));
+      patch.push(toRow(t, householdId, myUserId, r, stamp, partnerUserId));
       out.push(t);
     } else {
       out.push(t);
@@ -325,9 +351,10 @@ export function balanceFrom(
   const fronted = transactions.reduce((sum, t) => {
     if (!t.split || t.type === 'income' || !ofThisHousehold(t)) return sum;
     const owedOnIt = homeValue(t) - shareValue(t);
-    // A replica is hers: what I did not owe on it is what SHE covered for me,
-    // so it moves the balance the other way - by my own share.
-    return t.fromShared ? sum - shareValue(t) : sum + owedOnIt;
+    // Whoever FRONTED it, not whoever typed it: if she paid, what I did not
+    // owe is what she covered for me, so it moves the balance the other way -
+    // by my own share.
+    return paidByPartner(t) ? sum - shareValue(t) : sum + owedOnIt;
   }, 0);
   const settled = settlements.reduce((sum, s) => (memberIds.includes(s.personId) ? sum + s.amount : sum), 0);
   return Math.round((fronted - settled) * 100) / 100;
@@ -336,11 +363,11 @@ export function balanceFrom(
 /**
  * Who fronted the money, over a set of shared expenses.
  *
- * `fromShared` is the whole of it: a replica is a copy of a row THEY authored,
- * so they paid the shop and you owe them your half. Anything else you paid for
- * yourself. Same fact the balance is built on (see balanceFrom), stated as two
- * totals instead of one net figure - so the hero's two columns and the balance
- * card can never disagree about who has been carrying the household.
+ * Reads the payer, not the author (see paidByPartner) - an expense she entered
+ * and you paid for belongs in YOUR column. Same fact the balance is built on
+ * (see balanceFrom), stated as two totals instead of one net figure, so the
+ * hero's two columns and the balance card can never disagree about who has
+ * been carrying the household.
  *
  * Full amounts on both sides, like everything else in the shared view: the
  * question is who was out of pocket at the till, not whose share it was.
@@ -353,7 +380,7 @@ export function paidBy(
   let theirs = 0;
   for (const t of transactions) {
     if (!t.split || t.type === 'income') continue;
-    if (t.fromShared) theirs += homeValue(t);
+    if (paidByPartner(t)) theirs += homeValue(t);
     else mine += homeValue(t);
   }
   return { mine: Math.round(mine * 100) / 100, theirs: Math.round(theirs * 100) / 100 };

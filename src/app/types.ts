@@ -147,6 +147,15 @@ export interface Transaction {
     mine: number;
     /** Person ids the rest belongs to. */
     withIds?: string[];
+    /**
+     * The other member fronted the money, whoever typed it in.
+     *
+     * Absent means "the author paid", which is what the app assumed
+     * everywhere before this existed - so every row written until now reads
+     * exactly as it did. See `paidByPartner()`, the one place that decision
+     * is made.
+     */
+    paidByThem?: boolean;
   };
   /** Set on a REPLICA of the other member's shared expense: the id of the
    *  shared_items row it mirrors. Its presence means they paid, not you -

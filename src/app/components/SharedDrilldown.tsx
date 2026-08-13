@@ -4,6 +4,7 @@ import { dateLocale } from '../i18n/store';
 import { AmountText } from './AmountText';
 import { getCategoryIcon } from './categoryIcons';
 import { homeAmount, mineAmount } from '../utils/currency';
+import { paidByPartner } from '../lib/sharedSync';
 import type { Person, Settlement, Transaction } from '../types';
 
 // The transactions behind a bar in the shared view.
@@ -141,7 +142,8 @@ export function SharedDrilldown({
           ))}
           {rows.map((txn, i) => {
             const Icon = getCategoryIcon(txn.category?.icon ?? 'MoreHorizontal');
-            const theirs = !!txn.fromShared;
+            // Who was out of pocket, which is not always who entered it.
+            const theirs = paidByPartner(txn);
             const full = homeAmount(txn, currency);
             const share = mineAmount(txn, currency);
             return (

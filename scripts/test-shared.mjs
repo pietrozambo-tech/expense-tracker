@@ -50,7 +50,7 @@ const SCENARIOS = `
 import { homeAmount, mineAmount } from './utils/currency';
 import { myShareOf, runningBalance, shareFraction } from './lib/shared';
 import { mergePayloads } from './lib/cloud';
-import { planSync, mapCategory, paidBy, pairingChange, replicaId, sharedIdOf } from './lib/sharedSync';
+import { planSync, mapCategory, paidBy, paidByPartner, pairingChange, replicaId, sharedIdOf } from './lib/sharedSync';
 import { buildTransactionsCsv } from './lib/csv';
 
 let failed = 0;
@@ -309,6 +309,45 @@ const paired = [
 eq('two-sided balance nets both directions', runningBalance(paired, [], 'EUR', ['p']), 420);
 eq('settlement retires the net', runningBalance(paired, [{ id: 's', personId: 'p', date: '2026-08-10', amount: 420 }], 'EUR', ['p']), 0);
 eq('replica counts as my spending', mineAmount(paired[1], 'EUR'), 30);
+
+// ── Entering an expense and paying for it are different acts ────────────────
+// payer_id has been in the schema since the first migration and nothing wrote
+// it, so "she was at the till, I logged it" was inexpressible.
+eq('payer: with nothing said, the author paid', paidByPartner(txn({ id: 'a', amount: 10, split: { mine: 5 } })), false);
+eq('payer: a replica defaults to her, as before',
+  paidByPartner(txn({ id: 'shared-x', amount: 10, split: { mine: 5 }, fromShared: 'x' })), true);
+eq('payer: I can say she paid for one I entered',
+  paidByPartner(txn({ id: 'a', amount: 10, split: { mine: 5, paidByThem: true } })), true);
+eq('payer: and that I paid for one she entered',
+  paidByPartner(txn({ id: 'shared-x', amount: 10, split: { mine: 5, paidByThem: false }, fromShared: 'x' })), false);
+
+// It has to reach the balance, or the toggle is decoration. She entered the
+// 60€ shop, I paid for it: she owes me her half, exactly as if I had typed it.
+const sheEnteredIPaid = [
+  txn({ id: 'shared-x9', date: '2026-08-02', amount: 60, split: { mine: 30, withIds: ['p1'], paidByThem: false }, fromShared: 'x9' }),
+];
+eq('payer: the balance follows the payer, not the author',
+  runningBalance(sheEnteredIPaid, [], 'EUR', ['p1']), 30);
+eq('payer: and so do the hero columns', paidBy(sheEnteredIPaid, (t) => t.amount), { mine: 60, theirs: 0 });
+
+// The round trip: what I say goes up as payer_id and comes back meaning the
+// same thing on the other device.
+const iPaidHers = planSync(
+  [txn({ id: 'shared-x1', amount: 60, split: { mine: 30, paidByThem: false }, fromShared: 'x1', updatedAt: '2026-08-09T09:00:00Z' })],
+  [row({ id: 'x1' })], ME, HID, CATS, HER,
+);
+eq('payer: goes up as payer_id', iPaidHers.patch[0].payer_id, ME);
+eq('payer: authorship is untouched by it', iPaidHers.patch[0].author_id, HER);
+const sheePaidMine = planSync(
+  [txn({ id: 'a', amount: 84, split: { mine: 42, paidByThem: true }, updatedAt: '2026-08-09T09:00:00Z' })],
+  [], ME, HID, CATS, HER,
+);
+eq('payer: her paying for my entry goes up as hers', sheePaidMine.push[0].payer_id, HER);
+eq('payer: still authored by me', sheePaidMine.push[0].author_id, ME);
+// Coming back down, on her device.
+const onHerPhone = planSync([], [{ ...sheePaidMine.push[0] }], HER, HID, CATS, ME);
+eq('payer: her device reads it as money she fronted',
+  paidByPartner(onHerPhone.transactions[0]), false);
 
 // ── Who was actually out of pocket ──────────────────────────────────────────
 // The hero's two columns. A replica is a row she authored, so she paid the

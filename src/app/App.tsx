@@ -40,7 +40,7 @@ import { SourceLogo } from './components/SourceLogo';
 import { SourceSelectorModal } from './components/SourceSelectorModal';
 import { getDemoTransactions } from './lib/demoData';
 import { myShareOf, newHousehold } from './lib/shared';
-import { pairingChange, planSync, sharedIdOf } from './lib/sharedSync';
+import { paidByPartner, pairingChange, planSync, sharedIdOf } from './lib/sharedSync';
 import {
   SCHEMA_MISSING,
   SCHEMA_OUTDATED,
@@ -287,6 +287,9 @@ export default function App() {
   // Per-entry override on the Add screen: 'auto' follows the category default,
   // the other two are this entry's explicit choice. Reset when the sheet closes.
   const [shareChoice, setShareChoice] = useState<'auto' | 'on' | 'off'>('auto');
+  // Who fronted the money for the entry being written. Defaults to me, which
+  // is the common case and what the app assumed until now.
+  const [paidByPartnerChoice, setPaidByPartnerChoice] = useState(false);
   // The household member. One person in v1; resolved here once so no child
   // component ever digs through `people`.
   const partner = household ? (people.find((p) => household.memberIds.includes(p.id)) ?? null) : null;
@@ -945,6 +948,7 @@ export default function App() {
     // An explicit state either way: reopening an old unshared entry in a
     // now-shared category must not silently share it on save.
     setShareChoice(expense.split ? 'on' : 'off');
+    setPaidByPartnerChoice(paidByPartner(expense));
 
     // Store original values for change detection
     setOriginalValues({
@@ -985,6 +989,7 @@ export default function App() {
     setEditingExpenseId(null);
     setOriginalValues(null);
     setShareChoice('auto');
+    setPaidByPartnerChoice(false);
     setCurrentTab(returnToTab); // Return to the tab that was active before editing
     setIsModalOpen(false);
   };
@@ -1180,7 +1185,7 @@ export default function App() {
       // signal - without that guard, setting state here would re-trigger the
       // effect that called us and spin forever.
       const rows = await fetchSharedItems(hid);
-      const plan = planSync(expenses, rows, uid, hid, categories);
+      const plan = planSync(expenses, rows, uid, hid, categories, other?.userId);
       if (plan.push.length) await pushSharedItems(plan.push);
       if (plan.patch.length) await patchSharedItems(plan.patch);
       if (plan.changed) setExpenses(plan.transactions);
@@ -1417,7 +1422,11 @@ export default function App() {
         // spread ({ ...expense, ...values }) must be able to REMOVE a split
         // the user just turned off.
         split: entryShared && household
-          ? { mine: myShareOf(parseFloat(amount), household.defaultSplit), withIds: household.memberIds }
+          ? {
+              mine: myShareOf(parseFloat(amount), household.defaultSplit),
+              withIds: household.memberIds,
+              paidByThem: paidByPartnerChoice,
+            }
           : undefined,
         updatedAt: new Date().toISOString()
       };
@@ -1490,7 +1499,13 @@ export default function App() {
         recurrence: recurrence, // Add recurrence
         sourceId: selectedSourceId || undefined,
         ...(entryShared && household
-          ? { split: { mine: myShareOf(parseFloat(amount), household.defaultSplit), withIds: household.memberIds } }
+          ? {
+              split: {
+                mine: myShareOf(parseFloat(amount), household.defaultSplit),
+                withIds: household.memberIds,
+                paidByThem: paidByPartnerChoice,
+              },
+            }
           : {}),
         updatedAt: new Date().toISOString()
       };
@@ -1559,6 +1574,7 @@ export default function App() {
       setEditingExpenseId(null);
       setOriginalValues(null);
       setShareChoice('auto');
+    setPaidByPartnerChoice(false);
       setIsSaving(false); // Reset saving state
     }, 500);
   };
@@ -3010,6 +3026,39 @@ export default function App() {
                     >
                       <Split className="w-3.5 h-3.5" strokeWidth={2} />
                       <span>{t('shared.chip.invite', { name: partner.name })}</span>
+                    </button>
+                  )}
+
+                  {/* Who fronted it. Only once the entry IS shared - on an
+                      expense that is all yours the question has no meaning -
+                      and a toggle rather than a picker, because a household is
+                      two people. Entering an expense and paying for it are
+                      different acts: she is at the till, you are the one who
+                      remembers to log it. */}
+                  {entryShared && (
+                    <button
+                      type="button"
+                      onClick={() => setPaidByPartnerChoice((v) => !v)}
+                      aria-label={t('shared.payer.aria')}
+                      className="inline-flex items-center gap-1.5 rounded-full active:scale-95 transition-transform ml-2"
+                      style={{ padding: '5px 11px 5px 5px', backgroundColor: 'var(--bg-inset)', color: 'var(--ink-2)', fontSize: 12.5, fontWeight: 500, WebkitTapHighlightColor: 'transparent' }}
+                    >
+                      <span
+                        aria-hidden="true"
+                        style={{
+                          width: 20, height: 20, borderRadius: 999,
+                          background: paidByPartnerChoice ? partner.color : '#3C3C46',
+                          color: '#FFFFFF', fontSize: 9, fontWeight: 700,
+                          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                        }}
+                      >
+                        {((paidByPartnerChoice ? partner.name : userName || 'P')[0] ?? '?').toUpperCase()}
+                      </span>
+                      <span>
+                        {paidByPartnerChoice
+                          ? t('shared.payer.them', { name: partner.name })
+                          : t('shared.payer.me')}
+                      </span>
                     </button>
                   )}
                 </div>

@@ -169,11 +169,13 @@ export async function pushSharedItems(rows: SharedItemRow[]): Promise<void> {
  * is precisely the "add and delete sync, edits do not" this fixes.
  *
  * Identity is left out of the payload rather than merely unchanged: authorship
- * and the household cannot move through this call at all.
+ * and the household cannot move through this call at all. `payer_id` is NOT
+ * identity and does go - who fronted the money is a fact about the expense,
+ * and either member may correct it like any other.
  */
 export async function patchSharedItems(rows: SharedItemRow[]): Promise<void> {
   for (const row of rows) {
-    const { id, household_id: _h, author_id: _a, payer_id: _p, ...fields } = row;
+    const { id, household_id: _h, author_id: _a, ...fields } = row;
     const { error } = await supabase.from('shared_items').update(fields).eq('id', id);
     if (error) fail(error);
   }
