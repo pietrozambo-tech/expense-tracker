@@ -54,6 +54,8 @@ interface ActivityProps {
   incomeCategories: any[];
   currency: string;
   sources: Source[];
+  /** The household member's name, so a filtered export names who shared. */
+  partnerName?: string;
   // One-shot: start with this type filter selected (e.g. 'Imported' from the
   // post-import "Review in Activity" button). Consumed on mount so the next
   // ordinary visit starts clean. Carries the YEAR of the imported batch and
@@ -76,6 +78,7 @@ export function Activity({
   incomeCategories,
   currency,
   sources,
+  partnerName,
   preset,
   onPresetConsumed,
   viewStateRef,
@@ -410,7 +413,7 @@ export function Activity({
       return;
     }
     downloadTransactionsCsv(
-      buildTransactionsCsv(rows, currency, sources),
+      buildTransactionsCsv(rows, currency, sources, { partnerName }),
       scope === 'all' ? 'tracklylab-transactions' : 'tracklylab-activity',
     );
     toast.success(`Exported ${rows.length} transaction${rows.length !== 1 ? 's' : ''}`);

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { t } from '../i18n';
-import { dateLocale } from '../i18n/store';
+import { monthsFull } from '../i18n/store';
 import { AmountText } from './AmountText';
 import { ConfirmDialog } from './ConfirmDialog';
 import { getCategoryIcon } from './categoryIcons';
@@ -15,7 +15,8 @@ import type { Household, Person, Settlement, Transaction } from '../types';
 // personal view already shows your half and halving it again here would hide
 // what living together actually costs. The one number that is not monthly is
 // the balance: a debt does not reset on the 1st, so it sits in its own card
-// labelled running while the hero and the category list follow the month.
+// labelled running while the hero and the category list follow the period the
+// header's pill selects.
 export interface SharedViewProps {
   transactions: Transaction[];
   settlements: Settlement[];
@@ -25,6 +26,20 @@ export interface SharedViewProps {
   userName: string;
   /** Record a settlement of the current balance. */
   onSettle: (amount: number) => void;
+  /** The Dashboard tab's period cursor - month, quarter or year - not a copy
+   *  of it. Both subjects read the one cursor, so the pill in the header keeps
+   *  meaning the same thing and crossing between them keeps your place.
+   *  `quarter` and `month` are both carried because the parent tracks them
+   *  separately; only the one the lens names is read. */
+  period: { type: 'month' | 'quarter' | 'year'; year: number; month: number; quarter: number };
+  /** Rendered in the hero, produced by the parent so the two views can never
+   *  name the same period differently. */
+  periodLabel: string;
+  /** True at the period containing today: the forward chevron stops there,
+   *  because empty future months are not a view of anything. */
+  atLatest: boolean;
+  onPrevPeriod: () => void;
+  onNextPeriod: () => void;
 }
 
 export function SharedView({
@@ -35,37 +50,35 @@ export function SharedView({
   currency,
   userName,
   onSettle,
+  period,
+  periodLabel,
+  atLatest,
+  onPrevPeriod,
+  onNextPeriod,
 }: SharedViewProps) {
-  const now = new Date();
-  const [month, setMonth] = useState(now.getMonth());
-  const [year, setYear] = useState(now.getFullYear());
   const [confirmSettle, setConfirmSettle] = useState(false);
+  const { type: periodType, year, month, quarter } = period;
 
-  const move = (delta: number) => {
-    const d = new Date(year, month + delta, 1);
-    setMonth(d.getMonth());
-    setYear(d.getFullYear());
-  };
+  // The same period without repeating the year the hero already shows.
+  const periodShort =
+    periodType === 'year' ? String(year) : periodType === 'quarter' ? `Q${quarter + 1}` : monthsFull()[month];
 
-  const monthLabel = new Date(year, month, 1).toLocaleDateString(dateLocale(), {
-    month: 'long',
-    year: 'numeric',
-  });
-
-  // Shared expenses of the visible month, at full value.
-  const monthShared = useMemo(
+  // Shared expenses of the visible period, at full value.
+  const periodShared = useMemo(
     () =>
       transactions.filter((txn) => {
         if (!isShared(txn) || txn.type === 'income') return false;
-        const d = txn.date;
-        return (
-          Number(d.slice(0, 4)) === year && Number(d.slice(5, 7)) === month + 1
-        );
+        const y = Number(txn.date.slice(0, 4));
+        const m = Number(txn.date.slice(5, 7)) - 1;
+        if (y !== year) return false;
+        if (periodType === 'year') return true;
+        if (periodType === 'quarter') return Math.floor(m / 3) === quarter;
+        return m === month;
       }),
-    [transactions, month, year],
+    [transactions, month, quarter, year, periodType],
   );
 
-  const together = monthShared.reduce((sum, txn) => sum + homeAmount(txn, currency), 0);
+  const together = periodShared.reduce((sum, txn) => sum + homeAmount(txn, currency), 0);
   // Until account pairing exists every local transaction was paid by the
   // user, so the partner's column is what pairing will fill in - shown at
   // zero rather than hidden, because the split of who-fronted-what is the
@@ -75,7 +88,7 @@ export function SharedView({
 
   const byCategory = useMemo(() => {
     const totals = new Map<string, { total: number; category: Transaction['category'] }>();
-    for (const txn of monthShared) {
+    for (const txn of periodShared) {
       const key = txn.category?.name ?? '?';
       const entry = totals.get(key);
       const value = homeAmount(txn, currency);
@@ -83,7 +96,7 @@ export function SharedView({
       else totals.set(key, { total: value, category: txn.category });
     }
     return [...totals.values()].sort((a, b) => b.total - a.total);
-  }, [monthShared, currency]);
+  }, [periodShared, currency]);
   const maxCategory = byCategory[0]?.total ?? 0;
 
   const balance = runningBalance(transactions, settlements, currency);
@@ -112,8 +125,9 @@ export function SharedView({
 
   return (
     <div className="px-6 pb-2" style={{ backgroundColor: 'var(--bg-page)' }}>
-      {/* Month hero - same dark surface and the same chevrons as the personal
-          Dashboard, because months must navigate the one way the app teaches. */}
+      {/* Period hero - same dark surface and the same chevrons as the personal
+          Dashboard, because periods must navigate the one way the app teaches:
+          back freely, forward only as far as today. */}
       <div
         className="rounded-3xl px-5 pt-4 pb-5"
         style={{
@@ -123,17 +137,22 @@ export function SharedView({
       >
         <div className="flex items-center justify-between mb-3">
           <button
-            onClick={() => move(-1)}
-            aria-label={t('shared.prevMonth')}
+            onClick={onPrevPeriod}
+            aria-label={t('shared.prevPeriod')}
             className="p-2 -m-2 active:opacity-60 transition-opacity"
           >
             <ChevronLeft className="w-5 h-5" style={{ color: 'rgba(255,255,255,0.55)' }} />
           </button>
-          <span style={{ color: '#FFFFFF', fontSize: 17, fontWeight: 700 }}>{monthLabel}</span>
+          <span style={{ color: '#FFFFFF', fontSize: 17, fontWeight: 700 }}>{periodLabel}</span>
+          {/* Dimmed and inert at the newest period rather than hidden: a
+              chevron that disappears makes the row jump and re-centres the
+              label mid-tap. */}
           <button
-            onClick={() => move(1)}
-            aria-label={t('shared.nextMonth')}
-            className="p-2 -m-2 active:opacity-60 transition-opacity"
+            onClick={onNextPeriod}
+            disabled={atLatest}
+            aria-label={t('shared.nextPeriod')}
+            className={`p-2 -m-2 transition-opacity ${atLatest ? '' : 'active:opacity-60'}`}
+            style={atLatest ? { opacity: 0.3, cursor: 'default' } : undefined}
           >
             <ChevronRight className="w-5 h-5" style={{ color: 'rgba(255,255,255,0.55)' }} />
           </button>
@@ -216,14 +235,16 @@ export function SharedView({
       >
         <div className="flex items-baseline justify-between mb-1">
           <span style={{ color: 'var(--ink)', fontSize: 17, fontWeight: 700 }}>{t('shared.whatWeSpend')}</span>
-          <span style={{ color: 'var(--ink-2)', fontSize: 12 }}>
-            {new Date(year, month, 1).toLocaleDateString(dateLocale(), { month: 'long' })}
-          </span>
+          {/* Suppressed when it would only repeat the hero directly above it,
+              which is exactly what the year lens does. */}
+          {periodShort !== periodLabel && (
+            <span style={{ color: 'var(--ink-2)', fontSize: 12 }}>{periodShort}</span>
+          )}
         </div>
         <div style={{ color: 'var(--ink-2)', fontSize: 11.5, marginBottom: 6 }}>{t('shared.fullAmounts')}</div>
         {byCategory.length === 0 && (
           <div className="py-6 text-center" style={{ color: 'var(--ink-2)', fontSize: 13.5 }}>
-            {t('shared.emptyMonth')}
+            {t('shared.emptyPeriod')}
           </div>
         )}
         {byCategory.map(({ total, category }, i) => {

@@ -51,6 +51,7 @@ import { homeAmount, mineAmount } from './utils/currency';
 import { myShareOf, runningBalance, shareFraction } from './lib/shared';
 import { mergePayloads } from './lib/cloud';
 import { planSync, mapCategory, replicaId, sharedIdOf } from './lib/sharedSync';
+import { buildTransactionsCsv } from './lib/csv';
 
 let failed = 0;
 const eq = (name, got, want) => {
@@ -244,6 +245,40 @@ eq('two-sided balance nets both directions', runningBalance(paired, [], 'EUR'), 
 eq('settlement retires the net', runningBalance(paired, [{ id: 's', personId: 'p', date: '2026-08-10', amount: 420 }], 'EUR'), 0);
 eq('replica counts as my spending', mineAmount(paired[1], 'EUR'), 30);
 
+// ── The spreadsheet export carries the shared facts ─────────────────────────
+// A row must say what it cost YOU (so a plain SUM is still spending), what it
+// cost the household, who fronted it, and - for settlements - the money that
+// moved without being spending at all.
+const csv = buildTransactionsCsv(
+  [
+    txn({ id: 'a', date: '2026-08-01', amount: 900, description: 'Rent', split: { mine: 450 }, category: { id: 'housing', name: 'Housing' }, subcategory: 'Rent' }),
+    txn({ id: 'shared-x1', date: '2026-08-03', amount: 60, description: 'Market', split: { mine: 30 }, fromShared: 'x1', category: { id: 'groceries', name: 'Groceries' } }),
+    txn({ id: 'c', date: '2026-08-05', amount: 12, description: 'Coffee', category: { id: 'food', name: 'Food' } }),
+  ],
+  'EUR',
+  [],
+  { partnerName: 'Giulia', settlements: [{ id: 's', personId: 'p1', date: '2026-08-10', amount: 420 }] },
+);
+const lines = csv.replace('\\ufeff', '').trim().split('\\r\\n');
+const head = lines[0].split(',');
+const col = (name) => head.indexOf(name);
+const cell = (rowIdx, name) => lines[rowIdx].split(',')[col(name)];
+eq('csv: shared columns exist', [
+  col('Shared Total (EUR)') > 0, col('Shared With') > 0, col('Paid By') > 0, col('Settled (EUR)') > 0,
+], [true, true, true, true]);
+// Newest first: settlement 08-10, coffee 08-05, replica 08-03, rent 08-01.
+eq('csv: settlement is neither spending nor income', cell(1, 'Amount (EUR)'), '0.00');
+eq('csv: settlement carries the money that moved', cell(1, 'Settled (EUR)'), '420.00');
+eq('csv: my share is the amount column', cell(4, 'Amount (EUR)'), '-450.00');
+eq('csv: the household figure rides beside it', cell(4, 'Shared Total (EUR)'), '900.00');
+eq('csv: I fronted my own row', cell(4, 'Paid By'), 'You');
+eq('csv: a replica was fronted by them', cell(3, 'Paid By'), 'Giulia');
+eq('csv: replica share', cell(3, 'Amount (EUR)'), '-30.00');
+eq('csv: unshared rows leave the shared columns empty', [
+  cell(2, 'Shared Total (EUR)'), cell(2, 'Shared With'), cell(2, 'Paid By'), cell(2, 'Settled (EUR)'),
+], ['', '', '', '']);
+eq('csv: unshared amount is untouched', cell(2, 'Amount (EUR)'), '-12.00');
+
 if (failed) { console.error(\`\${failed} scenario(s) failed\`); process.exit(1); }
 console.log('all shared scenarios passed');
 `;
@@ -254,7 +289,7 @@ try {
   mkdirSync(join(tmp, 'utils'));
   mkdirSync(join(tmp, 'i18n'));
   copyFileSync(join(root, 'src/app/types.ts'), join(tmp, 'types.ts'));
-  for (const f of ['shared.ts', 'sharedSync.ts', 'cloud.ts', 'fx.ts', 'currencyData.ts', 'supabase.ts']) {
+  for (const f of ['shared.ts', 'sharedSync.ts', 'cloud.ts', 'csv.ts', 'fx.ts', 'currencyData.ts', 'supabase.ts']) {
     copyFileSync(join(root, 'src/app/lib', f), join(tmp, 'lib', f));
   }
   copyFileSync(join(root, 'src/app/utils/currency.ts'), join(tmp, 'utils/currency.ts'));

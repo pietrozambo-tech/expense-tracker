@@ -225,6 +225,59 @@ function ViewSwitcher({ label, faces, onClick }: {
   );
 }
 
+// The Dashboard tab's lens: month, quarter or year. Both headers - personal
+// and household - render this same control over the same state, so switching
+// subject never silently changes how the period is cut up.
+//
+// A native <select> styled like the Activity tab filters. Kept on the light
+// background because the same control flashes black on tap when placed on the
+// dark card, and drawn as one pill rather than a labelled field: "Period:
+// Month" said the same thing twice.
+function PeriodPill({ value, onChange }: {
+  value: TimePeriodType;
+  onChange: (next: TimePeriodType) => void;
+}) {
+  return (
+    <div className="flex items-center gap-1.5 flex-shrink-0">
+      <div
+        className="relative"
+        style={{
+          WebkitTapHighlightColor: 'rgba(255, 255, 255, 0)',
+          isolation: 'isolate',
+          transform: 'translateZ(0)',
+        }}
+      >
+        <select
+          value={value}
+          onChange={(e) => onChange(e.target.value as TimePeriodType)}
+          className="pl-3 pr-7 py-1.5 rounded-full text-xs font-medium text-neutral-600 border border-neutral-200"
+          style={{
+            WebkitTapHighlightColor: 'rgba(255, 255, 255, 0)',
+            WebkitAppearance: 'none',
+            appearance: 'none',
+            userSelect: 'none',
+            WebkitUserSelect: 'none',
+            touchAction: 'manipulation',
+            backgroundColor: 'var(--bg-card)',
+            // Chevron drawn as the select's own background so it always paints
+            // (an overlay element gets hidden by the native control's
+            // compositing layer)
+            backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%238E8E93' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E\")",
+            backgroundRepeat: 'no-repeat',
+            backgroundPosition: 'right 8px center',
+            transform: 'translateZ(0)',
+            willChange: 'background-color',
+          }}
+        >
+          <option value="month">{t('dash.periodType.month')}</option>
+          <option value="quarter">{t('dash.periodType.quarter')}</option>
+          <option value="year">{t('dash.periodType.year')}</option>
+        </select>
+      </div>
+    </div>
+  );
+}
+
 // Sentinel drilldown target: only the transactions with no subcategory
 // ("Other"). Distinctive enough that it can't collide with a real
 // subcategory name. (A null subcategory already means "all transactions".)
@@ -466,7 +519,35 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
   const [selectedQuarter, setSelectedQuarter] = useState<number>(savedView?.selectedQuarter ?? Math.floor((initialPeriod?.month ?? now.getMonth()) / 3)); // 0-3
   const [selectedYear, setSelectedYear] = useState<number>(initialPeriod?.year ?? savedView?.selectedYear ?? now.getFullYear());
 
-
+  // Change the lens, stay where you are. This used to jump back to today, so
+  // looking at October 2025 by quarter landed on the CURRENT quarter and you
+  // had to navigate all the way back. The title picker is how you move; this
+  // only changes how the period in view is cut up.
+  //
+  // Zooming in lands on the last sub-period in view, never later than today:
+  // 2025 by month is December 2025, but this year by month is this month, not
+  // December.
+  //
+  // Both headers call this - the shared view reads the same lens, so crossing
+  // between subjects never quietly re-cuts the period under you.
+  const changePeriodType = (next: TimePeriodType) => {
+    setTimePeriodType(next);
+    const today = new Date();
+    const lastMonthInView =
+      timePeriodType === 'month' ? selectedMonth
+      : timePeriodType === 'quarter' ? selectedQuarter * 3 + 2
+      : 11;
+    const month =
+      selectedYear === today.getFullYear()
+        ? Math.min(lastMonthInView, today.getMonth())
+        : lastMonthInView;
+    setSelectedMonth(month);
+    setSelectedQuarter(Math.floor(month / 3));
+    setExpandedCategory(null);
+    // A pinned index is counted in the old unit; it would point at an
+    // unrelated period under the new one.
+    setComparisonBaseline('previous');
+  };
 
   // Keep the snapshot current on every selection change (ref write - no
   // re-render). Trend view has its own instance and never touches it.
@@ -2199,8 +2280,9 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
   }
 
   // The household lens. Same tab, same dock highlight - a change of subject,
-  // not a change of place. Renders its own header (no period pill: the shared
-  // view is monthly by construction, its hero carries the month).
+  // not a change of place. Same header furniture too, in the same order: the
+  // period pill, then the switcher in the corner. The lens is the Dashboard's,
+  // not the view's, so month/quarter/year survives crossing over.
   if (view === 'overview' && sharedMode && sharedAvailable) {
     return (
       <div className="min-h-screen" style={{ backgroundColor: 'var(--bg-page)' }}>
@@ -2209,14 +2291,17 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
             <h1 style={{ color: 'var(--ink)', fontSize: '30px', fontWeight: '800', letterSpacing: '-1px' }}>
               {t('shared.title')}
             </h1>
-            <ViewSwitcher
-              label={t('shared.switchToPersonal')}
-              faces={[
-                { name: userName || 'P', color: '#0B0B0D' },
-                { name: partner!.name, color: partner!.color },
-              ]}
-              onClick={() => setSharedMode(false)}
-            />
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <PeriodPill value={timePeriodType} onChange={changePeriodType} />
+              <ViewSwitcher
+                label={t('shared.switchToPersonal')}
+                faces={[
+                  { name: userName || 'P', color: '#0B0B0D' },
+                  { name: partner!.name, color: partner!.color },
+                ]}
+                onClick={() => setSharedMode(false)}
+              />
+            </div>
           </div>
         </div>
         <SharedView
@@ -2227,6 +2312,11 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
           currency={currency}
           userName={userName ?? ''}
           onSettle={(amount) => onSettle?.(amount)}
+          period={{ type: timePeriodType, year: selectedYear, month: selectedMonth, quarter: selectedQuarter }}
+          periodLabel={getPeriodDisplayName()}
+          atLatest={isAtCurrentPeriod()}
+          onPrevPeriod={navigatePrevious}
+          onNextPeriod={navigateNext}
         />
         <div className="h-6" />
       </div>
@@ -2257,75 +2347,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
             </h1>
 
             <div className="flex items-center gap-2 flex-shrink-0">
-            {/* Period selector — a native <select> styled like the Activity tab
-                filters, with a label and a chevron hint. Kept on the light
-                background because the same control flashes black on tap when
-                placed on the dark card. */}
-            {/* One pill, not a labelled field: "Period: Month" said the same
-                thing twice, and the value alone reads as what it is. */}
-            <div className="flex items-center gap-1.5 flex-shrink-0">
-              <div
-                className="relative"
-                style={{
-                  WebkitTapHighlightColor: 'rgba(255, 255, 255, 0)',
-                  isolation: 'isolate',
-                  transform: 'translateZ(0)'
-                }}
-              >
-                <select
-                  value={timePeriodType}
-                  onChange={(e) => {
-                    setTimePeriodType(e.target.value as TimePeriodType);
-                    // Change the lens, stay where you are. This used to jump
-                    // back to today, so looking at October 2025 by quarter
-                    // landed on the CURRENT quarter and you had to navigate all
-                    // the way back. The title picker is how you move; this only
-                    // changes how the period in view is cut up.
-                    //
-                    // Zooming in lands on the last sub-period in view, never
-                    // later than today: 2025 by month is December 2025, but
-                    // this year by month is this month, not December.
-                    const now = new Date();
-                    const lastMonthInView =
-                      timePeriodType === 'month' ? selectedMonth
-                      : timePeriodType === 'quarter' ? selectedQuarter * 3 + 2
-                      : 11;
-                    const month =
-                      selectedYear === now.getFullYear()
-                        ? Math.min(lastMonthInView, now.getMonth())
-                        : lastMonthInView;
-                    setSelectedMonth(month);
-                    setSelectedQuarter(Math.floor(month / 3));
-                    setExpandedCategory(null);
-                    // A pinned index is counted in the old unit; it would point
-                    // at an unrelated period under the new one.
-                    setComparisonBaseline('previous');
-                  }}
-                  className="pl-3 pr-7 py-1.5 rounded-full text-xs font-medium text-neutral-600 border border-neutral-200"
-                  style={{
-                    WebkitTapHighlightColor: 'rgba(255, 255, 255, 0)',
-                    WebkitAppearance: 'none',
-                    appearance: 'none',
-                    userSelect: 'none',
-                    WebkitUserSelect: 'none',
-                    touchAction: 'manipulation',
-                    backgroundColor: 'var(--bg-card)',
-                    // Chevron drawn as the select's own background so it always
-                    // paints (an overlay element gets hidden by the native
-                    // control's compositing layer)
-                    backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%238E8E93' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E\")",
-                    backgroundRepeat: 'no-repeat',
-                    backgroundPosition: 'right 8px center',
-                    transform: 'translateZ(0)',
-                    willChange: 'background-color'
-                  }}
-                >
-                  <option value="month">{t('dash.periodType.month')}</option>
-                  <option value="quarter">{t('dash.periodType.quarter')}</option>
-                  <option value="year">{t('dash.periodType.year')}</option>
-                </select>
-              </div>
-            </div>
+            <PeriodPill value={timePeriodType} onChange={changePeriodType} />
 
             {/* The way into the household lens, and the last thing in the
                 header: whose money you are reading owns the corner. Exists

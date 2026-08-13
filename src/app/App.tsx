@@ -1966,7 +1966,12 @@ export default function App() {
   // app's world with your data readable anywhere.
   const handleExportCsv = () => {
     try {
-      downloadTransactionsCsv(buildTransactionsCsv(expenses, userCurrency, sources));
+      downloadTransactionsCsv(
+        buildTransactionsCsv(expenses, userCurrency, sources, {
+          partnerName: partner?.name,
+          settlements: household ? settlements : [],
+        }),
+      );
       track('data_exported_csv', { count: expenses.length });
       toast.success(t('toast.csvExported'), {
         description: t(expenses.length === 1 ? 'toast.csvExportedDesc.one' : 'toast.csvExportedDesc.other', { n: expenses.length }),
@@ -2393,6 +2398,7 @@ export default function App() {
         {/* Content - Different structure for activity tab vs others */}
         {currentTab === 'activity' ? (
           <Activity
+            partnerName={partner?.name}
             weekStartsOn={weekStartsOn}
             preset={activityPreset ?? undefined}
             onPresetConsumed={() => setActivityPreset(null)}
