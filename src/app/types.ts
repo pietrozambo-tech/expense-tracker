@@ -128,6 +128,21 @@ export interface Settlement {
 }
 
 export interface Transaction {
+  /**
+   * When this row came into existence, as an ISO instant.
+   *
+   * `date` is the day the MONEY moved and carries no time, so two things
+   * bought on the same day had nothing to order them by: a list showed them in
+   * whatever position the array happened to hold, and a sync that rebuilt the
+   * array could quietly swap them. This is the tiebreaker.
+   *
+   * Distinct from `updatedAt` on purpose - editing last Tuesday's coffee must
+   * not vault it to the top of last Tuesday.
+   *
+   * Optional because rows written before it exists do not have one; see
+   * `byRecency` for what happens to them.
+   */
+  createdAt?: string;
   id: string;
   description: string;
   amount: number;

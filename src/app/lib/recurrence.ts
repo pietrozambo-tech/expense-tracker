@@ -299,6 +299,9 @@ export function processRecurrence(
       const made: Transaction = {
         id,
         date: dateStr,
+        // The occurrence exists from the moment the engine writes it, which is
+        // what puts it in the right place in a day's list.
+        createdAt: new Date().toISOString(),
         recurrence: rule.rule,
         recurrenceOf: rule.id,
         ...rule.template,

@@ -9,6 +9,7 @@ import { SourceFilterModal } from './SourceFilterModal';
 import { SearchModal } from './SearchModal';
 import { ExportScopeModal } from './ExportScopeModal';
 import { CURRENCIES, mineAmount } from '../utils/currency';
+import { byRecency } from '../lib/shared';
 import { AmountText } from './AmountText';
 import { switchGlow } from './categoryColors';
 import { t } from '../i18n';
@@ -287,12 +288,16 @@ export function Activity({
         )
       : [];
 
-  // Group transactions by date
+  // Group transactions by date, newest first WITHIN the day as well as across
+  // days. `date` stops at the day, so two things bought on the same day had
+  // nothing to order them by and sat in whatever position the array held -
+  // groceries added after the butcher appeared underneath it.
   const groupedTransactions = filteredTransactions.reduce((groups, t) => {
     if (!groups[t.date]) groups[t.date] = [];
     groups[t.date].push(t);
     return groups;
   }, {} as Record<string, Transaction[]>);
+  for (const day of Object.values(groupedTransactions)) day.sort(byRecency);
 
   // Header total: net for All (signed), spending total for Expenses, +total for Income
   const totalCount = filteredTransactions.length;

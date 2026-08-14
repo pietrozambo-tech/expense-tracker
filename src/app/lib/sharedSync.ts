@@ -208,6 +208,10 @@ function toTransaction(
     recurrence: prior?.recurrence,
     recurrenceOf: prior?.recurrenceOf,
     updatedAt: iso(row.updated_at),
+    // First seen is the best creation time on offer: shared_items carries no
+    // created_at, and taking updated_at every pull would re-sort her row every
+    // time she corrected it.
+    createdAt: prior?.createdAt ?? iso(row.updated_at),
     // Stated outright rather than inferred from authorship: that inference is
     // exactly what could not express "she entered it, I paid".
     split: { mine, paidByThem: row.payer_id !== myUserId },

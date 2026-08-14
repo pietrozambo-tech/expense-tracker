@@ -1496,6 +1496,7 @@ export default function App() {
       // Create new transaction with current currency
       const newExpense: Transaction = {
         id: `${transactionType}-${Date.now()}`,
+        createdAt: new Date().toISOString(),
         description: description || categoryData?.name || (transactionType === 'expense' ? 'Expense' : 'Income'),
         amount: parseFloat(amount),
         category: categoryData!,

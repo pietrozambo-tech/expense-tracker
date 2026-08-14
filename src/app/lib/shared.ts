@@ -61,3 +61,30 @@ export function newHousehold(personId: string): Household {
     updatedAt: new Date().toISOString(),
   };
 }
+
+/**
+ * Newest first, and within a day newest first as well.
+ *
+ * Every list of transactions in the app is a list in time order, and `date`
+ * only resolves to the day - so same-day rows were left in whatever order the
+ * array held. Adding groceries after the butcher put them BELOW it, and a
+ * shared sync rebuilding the array could reorder a day on its own.
+ *
+ * `createdAt` is the tiebreaker, falling back to `updatedAt` for rows written
+ * before it existed. That fallback is imperfect in one way worth knowing: an
+ * OLD row edited today floats to the top of its own day. It applies to
+ * historical data only - everything written from now on carries a real
+ * creation stamp - and it is better than the alternative, which is no order at
+ * all. Rows with neither keep their relative position, because Array.sort is
+ * stable.
+ */
+export const recencyKey = (t: Transaction): number => {
+  const stamp = t.createdAt ?? t.updatedAt;
+  const ms = stamp ? Date.parse(stamp) : NaN;
+  return Number.isFinite(ms) ? ms : 0;
+};
+
+export function byRecency(a: Transaction, b: Transaction): number {
+  if (a.date !== b.date) return a.date < b.date ? 1 : -1;
+  return recencyKey(b) - recencyKey(a);
+}

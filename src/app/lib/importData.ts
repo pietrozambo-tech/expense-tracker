@@ -235,6 +235,9 @@ export function buildImport(
       sourceId: rec.source || undefined,
       importedAt,
       updatedAt: importedAt,
+      // Everything in one file arrives together; within a day they keep the
+      // order the file had.
+      createdAt: importedAt,
     });
   }
 

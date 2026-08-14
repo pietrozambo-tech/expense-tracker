@@ -48,7 +48,7 @@ if (!esbuild) {
 
 const SCENARIOS = `
 import { homeAmount, mineAmount } from './utils/currency';
-import { myShareOf, runningBalance, shareFraction } from './lib/shared';
+import { byRecency, myShareOf, runningBalance, shareFraction } from './lib/shared';
 import { mergePayloads } from './lib/cloud';
 import { planSync, mapCategory, paidBy, paidByPartner, pairingChange, replicaId, sharedIdOf } from './lib/sharedSync';
 import { buildTransactionsCsv } from './lib/csv';
@@ -309,6 +309,42 @@ const paired = [
 eq('two-sided balance nets both directions', runningBalance(paired, [], 'EUR', ['p']), 420);
 eq('settlement retires the net', runningBalance(paired, [{ id: 's', personId: 'p', date: '2026-08-10', amount: 420 }], 'EUR', ['p']), 0);
 eq('replica counts as my spending', mineAmount(paired[1], 'EUR'), 30);
+
+// ── Newest first, inside a day as well as across days ───────────────────────
+// The date field stops at the day, so two things bought on the same day had
+// nothing to order them by: groceries added after the butcher sat underneath it.
+const carne = txn({ id: 'a', date: '2026-08-14', description: 'carne', amount: 40, createdAt: '2026-08-14T09:00:00Z' });
+const groceries = txn({ id: 'b', date: '2026-08-14', description: 'Groceries', amount: 25, createdAt: '2026-08-14T09:05:00Z' });
+const yesterday = txn({ id: 'c', date: '2026-08-13', description: 'Old', amount: 5, createdAt: '2026-08-13T09:00:00Z' });
+eq('order: the later of two same-day rows comes first',
+  [carne, groceries].sort(byRecency).map((t) => t.description), ['Groceries', 'carne']);
+eq('order: and it does not depend on the array order it started in',
+  [groceries, carne].sort(byRecency).map((t) => t.description), ['Groceries', 'carne']);
+eq('order: days still lead',
+  [yesterday, carne, groceries].sort(byRecency).map((t) => t.description), ['Groceries', 'carne', 'Old']);
+
+// Editing an old row must not vault it up its own day.
+const editedOld = { ...carne, updatedAt: '2026-08-20T12:00:00Z' };
+eq('order: an edit does not move a row', [editedOld, groceries].sort(byRecency).map((t) => t.description),
+  ['Groceries', 'carne']);
+// Rows written before createdAt existed fall back to updatedAt.
+const legacyEarly = txn({ id: 'd', date: '2026-08-14', description: 'legacy-early', amount: 1, updatedAt: '2026-08-14T08:00:00Z' });
+const legacyLate = txn({ id: 'e', date: '2026-08-14', description: 'legacy-late', amount: 1, updatedAt: '2026-08-14T10:00:00Z' });
+eq('order: legacy rows fall back to updatedAt',
+  [legacyEarly, legacyLate].sort(byRecency).map((t) => t.description), ['legacy-late', 'legacy-early']);
+// And a row with no stamp at all keeps its place rather than jumping.
+const bare = txn({ id: 'f', date: '2026-08-14', description: 'bare', amount: 1 });
+eq('order: a row with no stamp sinks, it does not lead',
+  [bare, groceries].sort(byRecency).map((t) => t.description), ['Groceries', 'bare']);
+
+// A replica is stamped when first seen and does not move when she edits it.
+const firstSight = planSync([], [row({ id: 'x1', updated_at: '2026-08-14T09:03:00Z' })], ME, HID, CATS, HER);
+const rep1 = firstSight.transactions[0];
+eq('order: a replica is stamped on arrival', rep1.createdAt, '2026-08-14T09:03:00.000Z');
+const afterHerEdit = planSync(firstSight.transactions,
+  [row({ id: 'x1', updated_at: '2026-08-20T18:00:00Z', amount: 99 })], ME, HID, CATS, HER);
+eq('order: her later edit does not restamp it',
+  afterHerEdit.transactions.find((t) => t.fromShared === 'x1').createdAt, '2026-08-14T09:03:00.000Z');
 
 // ── Entering an expense and paying for it are different acts ────────────────
 // payer_id has been in the schema since the first migration and nothing wrote

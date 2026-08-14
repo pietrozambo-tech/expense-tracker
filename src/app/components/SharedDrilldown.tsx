@@ -5,6 +5,7 @@ import { AmountText } from './AmountText';
 import { getCategoryIcon } from './categoryIcons';
 import { homeAmount, mineAmount } from '../utils/currency';
 import { paidByPartner } from '../lib/sharedSync';
+import { byRecency } from '../lib/shared';
 import type { Person, Settlement, Transaction } from '../types';
 
 // The transactions behind a bar in the shared view.
@@ -44,7 +45,8 @@ export function SharedDrilldown({
   userName,
   onClose,
 }: SharedDrilldownProps) {
-  const rows = [...transactions].sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
+  // Same order as Activity: newest first, and newest first inside a day too.
+  const rows = [...transactions].sort(byRecency);
   const total = rows.reduce((sum, txn) => sum + homeAmount(txn, currency), 0);
   const mine = rows.reduce((sum, txn) => sum + mineAmount(txn, currency), 0);
   const settled = [...settlements].sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));

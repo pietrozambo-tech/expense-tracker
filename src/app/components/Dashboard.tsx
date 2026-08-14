@@ -3,6 +3,7 @@ import { ChevronRight, ArrowUpDown, TrendingUp, TrendingDown, Minus, Plus, Recei
 import { TrendCategoryBreakdown } from './TrendCategoryBreakdown';
 import React from 'react';
 import { formatAmountListView, formatAbbreviatedAmount, abbreviateNumber, needsAbbreviation, formatSavingRate, CURRENCIES, mineAmount } from '../utils/currency';
+import { byRecency } from '../lib/shared';
 import { monthsShort, monthsFull, daysFull, daysShort, numberLocale, getLanguage, dateLocale, GROUPED } from '../i18n/store';
 import { t, useLanguage } from '../i18n';
 import { translateRecurrence } from '../i18n/store';
@@ -672,6 +673,8 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
       return groups;
     }, {} as Record<string, Expense[]>);
 
+    // Newest first inside the day as well, like Activity: same list, same rule.
+    for (const day of Object.values(grouped)) day.sort(byRecency as (a: Expense, b: Expense) => number);
     const groups = Object.entries(grouped)
       .sort(([dateA], [dateB]) => new Date(dateB).getTime() - new Date(dateA).getTime());
     return { mode: 'time', groups };
