@@ -6,6 +6,8 @@ import { getCategoryIcon } from './categoryIcons';
 import { homeAmount, mineAmount } from '../utils/currency';
 import { paidByPartner } from '../lib/sharedSync';
 import { byRecency } from '../lib/shared';
+import { useState } from 'react';
+import { ArrowUpDown } from 'lucide-react';
 import type { Person, Settlement, Transaction } from '../types';
 
 // The transactions behind a bar in the shared view.
@@ -45,8 +47,16 @@ export function SharedDrilldown({
   userName,
   onClose,
 }: SharedDrilldownProps) {
-  // Same order as Activity: newest first, and newest first inside a day too.
-  const rows = [...transactions].sort(byRecency);
+  // Date first, because a list of transactions is a diary before it is a
+  // ranking - "what did we spend on last week" is the question you arrive
+  // with. Amount is the other one worth asking, so it is one tap away.
+  const [sortBy, setSortBy] = useState<'date' | 'amount'>('date');
+  // Newest first, and newest first inside a day too - the Activity order.
+  const rows = [...transactions].sort(
+    sortBy === 'amount'
+      ? (a, b) => homeAmount(b, currency) - homeAmount(a, currency)
+      : byRecency,
+  );
   const total = rows.reduce((sum, txn) => sum + homeAmount(txn, currency), 0);
   const mine = rows.reduce((sum, txn) => sum + mineAmount(txn, currency), 0);
   const settled = [...settlements].sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
@@ -93,6 +103,22 @@ export function SharedDrilldown({
               <span style={{ color: 'var(--ink-2)', fontSize: 12.5 }}>
                 {t(rows.length === 1 ? 'shared.drill.count.one' : 'shared.drill.count.other', { n: rows.length })}
               </span>
+              {/* Same control as the two category lists, so one gesture sorts
+                  everything in the app. Hidden below two rows: a sort toggle
+                  over a single transaction is a button that does nothing. */}
+              {rows.length > 1 && (
+                <button
+                  onClick={() => setSortBy(sortBy === 'date' ? 'amount' : 'date')}
+                  className="ml-auto flex items-center gap-1 px-2 py-1 rounded-lg flex-shrink-0 active:opacity-60 transition-opacity"
+                  style={{ backgroundColor: 'var(--bg-inset)' }}
+                  aria-label={t('shared.drill.sortAria')}
+                >
+                  <ArrowUpDown className="w-3 h-3" style={{ color: 'var(--ink-2)' }} />
+                  <span style={{ color: 'var(--ink-2)', fontSize: 11 }}>
+                    {t(sortBy === 'date' ? 'shared.drill.sortDate' : 'shared.drill.sortAmount')}
+                  </span>
+                </button>
+              )}
             </div>
             {/* The household figure is the headline here, so the personal one
                 has to be stated rather than assumed - it is the number that

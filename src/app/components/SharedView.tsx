@@ -449,27 +449,6 @@ export function SharedView({
               </button>
             )}
           </div>
-          {/* The count is the way to the whole list. Until this existed there
-              was nowhere at all to read the shared transactions themselves -
-              only totals, with no way to check what was in them. */}
-          {periodShared.length > 0 && (
-            <button
-              onClick={() =>
-                setDrilldown({
-                  title: t('shared.allShared'),
-                  subtitle: periodLabel,
-                  items: periodShared,
-                  // Only here: money moving back belongs to the household's
-                  // whole story, not to any one category.
-                  settled: periodSettlements,
-                })
-              }
-              className="active:opacity-60 transition-opacity"
-              style={{ color: '#4F74F3', fontSize: 12, fontWeight: 600 }}
-            >
-              {t(periodShared.length === 1 ? 'shared.drill.count.one' : 'shared.drill.count.other', { n: periodShared.length })}
-            </button>
-          )}
         </div>
         <div className="flex items-baseline justify-between gap-3" style={{ marginBottom: 6 }}>
           <span className="min-w-0 truncate" style={{ color: 'var(--ink-2)', fontSize: 11.5 }}>
@@ -632,6 +611,34 @@ export function SharedView({
             </div>
           );
         })}
+
+        {/* The way into the whole list, under the breakdown it summarises
+            rather than beside the heading. It reads as the last row of the
+            table now - the natural place to end up after scanning the
+            categories and wanting the detail behind them - instead of
+            competing with the title and the sort control for the top line. */}
+        {periodShared.length > 0 && (
+          <button
+            onClick={() =>
+              setDrilldown({
+                title: t('shared.allShared'),
+                subtitle: periodLabel,
+                items: periodShared,
+                // Only here: money moving back belongs to the household's
+                // whole story, not to any one category.
+                settled: periodSettlements,
+              })
+            }
+            className="w-full flex items-center justify-center gap-1.5 py-3 mt-1 active:opacity-60 transition-opacity"
+            style={{ borderTop: '1px solid var(--line-2)', WebkitTapHighlightColor: 'transparent' }}
+          >
+            <span style={{ color: '#4F74F3', fontSize: 13.5, fontWeight: 600 }}>{t('shared.seeAll')}</span>
+            <span style={{ color: 'var(--ink-2)', fontSize: 12 }}>
+              {t(periodShared.length === 1 ? 'shared.drill.count.one' : 'shared.drill.count.other', { n: periodShared.length })}
+            </span>
+            <ChevronRight className="w-3.5 h-3.5" style={{ color: 'var(--ghost)' }} strokeWidth={2.5} />
+          </button>
+        )}
       </div>
 
       {drilldown && (
