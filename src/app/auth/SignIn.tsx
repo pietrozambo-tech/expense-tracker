@@ -82,8 +82,16 @@ export function SignIn() {
     if (error) { setError(error); setBusy(false); }
   };
 
-  // Soft brand halo at the top fading into the app background
-  const bg = 'radial-gradient(130% 65% at 50% -5%, rgba(99,102,241,0.12), rgba(59,130,246,0.06) 42%, #F6F5F2 72%)';
+  // Soft brand halo at the top fading into the app background.
+  //
+  // The last stop has to be the THEME's page colour, not a literal. It was
+  // #F6F5F2 - the light value - so in dark mode the two transparent stops let
+  // the dark page through at the top and then the gradient hard-faded into
+  // cream, splitting the screen into a dark half and a white half. The
+  // stylesheet already re-points the `bg-[#F6F5F2]` utility for dark mode, but
+  // an inline gradient string is out of its reach.
+  const bg =
+    'radial-gradient(130% 65% at 50% -5%, rgba(99,102,241,0.12), rgba(59,130,246,0.06) 42%, var(--bg-page) 72%)';
 
   return (
     // Viewport height, not a minimum: this screen grows every time a provider

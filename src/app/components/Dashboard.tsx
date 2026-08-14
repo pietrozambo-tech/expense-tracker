@@ -2566,16 +2566,36 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                       </div>
                       <div className="min-w-0 flex-1">
                         <div className="text-[11px] leading-tight mb-1" style={{ color: 'rgba(235,235,245,0.6)' }}>{t('dash.savings')}</div>
-                        <FitText
-                          max={17}
-                          min={14}
-                          compact={formatAbbreviatedAmount(savings, currency)}
-                          compactNode={<AmountText amount={savings} currency={currency} decimals={0} abbreviate="fit" />}
-                          className="font-bold leading-none tabular-nums"
-                          style={{ color: savings < 0 ? '#FF6961' : savings > 0 ? '#30D158' : '#FFFFFF' }}
-                        >
-                          <AmountText amount={savings} currency={currency} decimals={0} />
-                        </FitText>
+                        {/* With no income recorded, savings yields to a dash -
+                            the same answer the rate beside it already gives,
+                            and for the same reason. "Savings" is what is LEFT
+                            of money that came in; with nothing in, the figure
+                            is just the spending restated with a minus, and
+                            printing it in red says you fell behind on income
+                            you never had. A month you have not logged yet
+                            would open on an alarming red number describing
+                            nothing. */}
+                        {totalIncome > 0 ? (
+                          <FitText
+                            max={17}
+                            min={14}
+                            compact={formatAbbreviatedAmount(savings, currency)}
+                            compactNode={<AmountText amount={savings} currency={currency} decimals={0} abbreviate="fit" />}
+                            className="font-bold leading-none tabular-nums"
+                            style={{ color: savings < 0 ? '#FF6961' : savings > 0 ? '#30D158' : '#FFFFFF' }}
+                          >
+                            <AmountText amount={savings} currency={currency} decimals={0} />
+                          </FitText>
+                        ) : (
+                          <FitText
+                            max={17}
+                            min={14}
+                            className="font-bold leading-none tabular-nums"
+                            style={{ color: '#FFFFFF' }}
+                          >
+                            -
+                          </FitText>
+                        )}
                       </div>
                     </div>
                     <div className="w-px self-stretch mx-3" style={{ backgroundColor: 'rgba(255,255,255,0.07)' }} />
