@@ -48,7 +48,7 @@ if (!esbuild) {
 
 const SCENARIOS = `
 import { homeAmount, mineAmount } from './utils/currency';
-import { byRecency, myShareOf, partnerSource, partnerSourceId, runningBalance, shareFraction } from './lib/shared';
+import { byRecency, myShareOf, partnerSource, partnerSourceId, runningBalance, selectableSources, shareFraction } from './lib/shared';
 import { mergePayloads } from './lib/cloud';
 import { planSync, mapCategory, paidBy, paidByPartner, pairingChange, replicaId, sharedIdOf } from './lib/sharedSync';
 import { buildTransactionsCsv } from './lib/csv';
@@ -379,6 +379,33 @@ eq('source: named after them', src.name, 'Giulia');
 eq('source: in their colour', src.brand, '#7C5CFF');
 eq('source: wearing their initial', src.monogram, 'G');
 eq('source: with a stable id', src.id, SRC);
+
+// A partner's source lives exactly as long as the partnership. Turn sharing
+// off and the name has no business still sitting in the Add screen's picker -
+// but the rows she paid for are still yours, so the source must keep resolving
+// where things are DISPLAYED. Retired, not deleted.
+const bank = { id: 'revolut', name: 'Revolut', kind: 'bank', brand: '#000', monogram: 'R', mark: 'monogram' };
+const shelf = [bank, src];
+const sharingOn = { id: 'h1', memberIds: ['p1'], defaultSplit: { mode: 'equal', ways: 2 } };
+eq('source: hers is on the menu while you are sharing',
+  selectableSources(shelf, sharingOn).map((x) => x.id).join(','), 'revolut,' + SRC);
+eq('source: and off it the moment sharing is off',
+  selectableSources(shelf, null).map((x) => x.id).join(','), 'revolut');
+eq('source: but the object survives, so her old rows still resolve',
+  shelf.find((x) => x.id === SRC).name, 'Giulia');
+// Pairing with somebody else must not resurrect the previous partner.
+const withOther = { id: 'h2', memberIds: ['p2'], defaultSplit: { mode: 'equal', ways: 2 } };
+eq('source: a new partner does not bring the old one back',
+  selectableSources(shelf, withOther).map((x) => x.id).join(','), 'revolut');
+eq('source: and the new one appears once she has rows',
+  selectableSources([...shelf, partnerSource({ id: 'p2', name: 'Ada', color: '#0A0' })], withOther)
+    .map((x) => x.id).join(','), 'revolut,' + partnerSourceId('p2'));
+// Making up again restores it, history and all.
+eq('source: re-pairing with the same person puts hers back',
+  selectableSources(shelf, sharingOn).some((x) => x.id === SRC), true);
+// Real banks are never touched by any of this.
+eq('source: an ordinary source is never retired',
+  selectableSources([bank], null).length, 1);
 
 // ── Your share is summed, never halved ─────────────────────────────────────
 // The hero prints it beside the household total, and "usually half" is not

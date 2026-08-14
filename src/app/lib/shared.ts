@@ -107,6 +107,32 @@ export function byRecency(a: Transaction, b: Transaction): number {
  */
 export const partnerSourceId = (personId: string) => `src-partner-${personId}`;
 
+/** The prefix every partner-derived source id carries. */
+const PARTNER_SOURCE_PREFIX = 'src-partner-';
+
+/**
+ * The sources that may be CHOSEN for a new entry.
+ *
+ * A partner's source is not a bank the user added; it is derived from a person
+ * being in the household, and it should live exactly as long as that fact
+ * does. Turn sharing off - or pair with somebody else - and the old name has
+ * no business still sitting in the Add screen's picker.
+ *
+ * Retired, not deleted, and the difference is the whole point: the rows she
+ * paid for are still in the ledger and still yours to look at, so the source
+ * has to keep resolving for the donut, Activity and an export. Deleting the
+ * object would drop months of real spending into "No source". So this is a
+ * filter applied where things are picked, never where they are displayed.
+ *
+ * Derived rather than a stored flag: the answer is already in the household,
+ * so a field would only be a second copy of it to keep in step - and it would
+ * need a migration for every ledger already carrying one of these.
+ */
+export function selectableSources(sources: Source[], household: Household | null): Source[] {
+  const live = new Set((household?.memberIds ?? []).map(partnerSourceId));
+  return sources.filter((s) => !s.id.startsWith(PARTNER_SOURCE_PREFIX) || live.has(s.id));
+}
+
 export function partnerSource(person: Person): Source {
   return {
     id: partnerSourceId(person.id),

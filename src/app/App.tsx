@@ -39,7 +39,7 @@ import { DEFAULT_SOURCES, DEFAULT_SOURCE_EXPENSE, DEFAULT_SOURCE_INCOME } from '
 import { SourceLogo } from './components/SourceLogo';
 import { SourceSelectorModal } from './components/SourceSelectorModal';
 import { getDemoTransactions } from './lib/demoData';
-import { myShareOf, newHousehold, partnerSource, partnerSourceId } from './lib/shared';
+import { myShareOf, newHousehold, partnerSource, partnerSourceId, selectableSources } from './lib/shared';
 import { paidByPartner, pairingChange, planSync, sharedIdOf } from './lib/sharedSync';
 import {
   SCHEMA_MISSING,
@@ -501,7 +501,7 @@ export default function App() {
   // immediately (without needing to toggle expense/income).
   useEffect(() => {
     if (currentTab === 'add' && !editingExpenseId) {
-      setSelectedSourceId(transactionType === 'income' ? defaultSourceIncome : defaultSourceExpense);
+      setSelectedSourceId(defaultSourceFor(transactionType === 'income' ? 'income' : 'expense'));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentTab]);
@@ -1060,6 +1060,10 @@ export default function App() {
       return prev.map((s) => (s.id === id ? { ...s, ...want } : s));
     });
   }, [partner, expenses]);
+
+  // Sources on offer for a new entry. Everywhere a source is DISPLAYED keeps
+  // the full list - see selectableSources for why retiring is not deleting.
+  const pickableSources = useMemo(() => selectableSources(sources, household), [sources, household]);
 
   const handleUpdateHousehold = (patch: Partial<Household>) => {
     setHousehold((prev) => (prev ? { ...prev, ...patch, updatedAt: new Date().toISOString() } : prev));
@@ -1827,8 +1831,15 @@ export default function App() {
   const subcategories = selectedCategoryData?.subcategories || [];
   
   // The source pre-selected for a given direction
-  const defaultSourceFor = (type: 'expense' | 'income') =>
-    type === 'income' ? defaultSourceIncome : defaultSourceExpense;
+  // A default can go stale under you: pick your partner's source as the
+  // default, turn sharing off, and every new expense would still be stamped
+  // with a source the picker no longer offers - unpickable, unfixable from the
+  // form, and wrong. Fall back to the first source that is actually on offer.
+  const defaultSourceFor = (type: 'expense' | 'income') => {
+    const want = type === 'income' ? defaultSourceIncome : defaultSourceExpense;
+    if (!want || pickableSources.some((s) => s.id === want)) return want;
+    return pickableSources[0]?.id;
+  };
 
   // Handle transaction type switch
   const handleTransactionTypeChange = (newType: 'expense' | 'income') => {
@@ -2841,7 +2852,7 @@ export default function App() {
                 onImportData={handleImportData}
                 onExportData={handleExportData}
                 onExportCsv={handleExportCsv}
-                sources={sources}
+                sources={pickableSources}
                 defaultSourceExpense={defaultSourceExpense}
                 defaultSourceIncome={defaultSourceIncome}
                 onSetDefaultSource={handleSetDefaultSource}
@@ -3256,7 +3267,7 @@ export default function App() {
             {/* Source picker opened from the pill on the amount line */}
             <SourceSelectorModal
               isOpen={showSourceSelector}
-              sources={sources}
+              sources={pickableSources}
               selectedSourceId={selectedSourceId}
               onSelect={(id) => setSelectedSourceId(id)}
               onClose={() => setShowSourceSelector(false)}
