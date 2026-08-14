@@ -167,10 +167,6 @@ interface SettingsProps {
   onJoinWithCode?: (code: string) => Promise<void>;
   /** Re-check the server for the pairing, while a code is waiting to be used. */
   onRefreshPairing?: () => Promise<void>;
-  /** True while any of the sample set is still in the ledger. Pairing is held
-   *  until it is gone: invented expenses must not land on a real phone. */
-  hasSampleData?: boolean;
-  onRemoveSampleData?: () => void;
   /** Why the last shared sync failed, if it did - shown under the Connect row
    *  so a silent failure is not mistaken for a silent partner. */
   sharedError?: string | null;
@@ -197,7 +193,10 @@ interface SettingsProps {
   onUserNameChange: (name: string) => void;
   onLoadDemoData: () => void;
   onEraseAllData: () => void;
-  onEraseDemoData?: () => void;
+  /** `stay` keeps the current screen - see the handler in App. */
+  onEraseDemoData?: (opts?: { stay?: boolean }) => void;
+  /** True while any of the sample set is still in the ledger. Pairing is held
+   *  until it is gone: invented expenses must not land on a real phone. */
   hasDemoData?: boolean;
   onImportData?: (payload: ImportPayload) => void;
   onExportData?: () => void;
@@ -246,8 +245,6 @@ export function Settings({
   onCreateInvite,
   onJoinWithCode,
   onRefreshPairing,
-  hasSampleData,
-  onRemoveSampleData,
   sharedError,
   sharedLive,
   onCreateSchedule,
@@ -1239,7 +1236,7 @@ export function Settings({
                     {t('shared.connect.pairedBody')}
                   </p>
                 </>
-              ) : hasSampleData ? (
+              ) : hasDemoData ? (
                 /* Pairing publishes what is in the ledger, and the ledger is
                    currently full of invented expenses. They would arrive on a
                    real person's phone as real money and move a real balance, so
@@ -1253,7 +1250,7 @@ export function Settings({
                     {t('shared.connect.sampleBody', { name: partner?.name ?? '' })}
                   </p>
                   <button
-                    onClick={() => onRemoveSampleData?.()}
+                    onClick={() => onEraseDemoData?.({ stay: true })}
                     className="w-full py-3.5 rounded-xl font-medium active:scale-[0.98] transition-transform"
                     style={{ backgroundColor: '#4F74F3', color: '#FFFFFF', fontSize: 15 }}
                   >

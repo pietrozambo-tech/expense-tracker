@@ -652,7 +652,6 @@ export const it: Record<keyof typeof en, string> = {
   'shared.err.generic': 'Impossibile raggiungere il registro condiviso. Nuovo tentativo in corso.',
   'shared.status.live': 'Sincronizzazione immediata',
   'shared.status.polling': 'Sincronizzazione ogni pochi secondi',
-  'toast.sampleRemoved': 'Dati di esempio rimossi',
   'toast.paired': 'Collegato con {name}',
   'toast.unpaired': '{name} ha disattivato la condivisione — le tue quote restano invariate',
 };

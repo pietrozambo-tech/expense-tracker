@@ -651,7 +651,6 @@ export const en = {
   'shared.err.generic': 'Couldn’t reach the shared ledger. Retrying.',
   'shared.status.live': 'Syncing instantly',
   'shared.status.polling': 'Syncing every few seconds',
-  'toast.sampleRemoved': 'Sample data removed',
   'toast.paired': 'Connected with {name}',
   'toast.unpaired': '{name} turned off sharing — your own splits are unchanged',
 } as const;

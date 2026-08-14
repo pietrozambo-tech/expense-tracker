@@ -2155,12 +2155,23 @@ export default function App() {
   };
 
   // Demo transactions carry a `demo-` id prefix, so they can be removed on
-  // their own without touching the user's real data.
+  // their own without touching the user's real data. The splits ride ON those
+  // rows, so the household side of the samples goes out with them.
   const hasDemoData = expenses.some((e) => e.id.startsWith('demo-'));
-  const handleEraseDemoData = () => {
+  /**
+   * `stay` keeps the screen you are on. The Data row wants the jump - erasing
+   * from Settings and landing on the Dashboard shows you it happened - but the
+   * pairing guard calls this from inside the Connect sheet, where being thrown
+   * to the Dashboard abandons the flow you were halfway through.
+   *
+   * An options object rather than a bare boolean on purpose: `onClick={fn}`
+   * hands the handler a React event, and a positional boolean would read that
+   * as `true`.
+   */
+  const handleEraseDemoData = (opts?: { stay?: boolean }) => {
     setExpenses((prev) => prev.filter((e) => !e.id.startsWith('demo-')));
     setRefreshKey((prev) => prev + 1);
-    setCurrentTab('dashboard');
+    if (!opts?.stay) setCurrentTab('dashboard');
     toast.success(t('toast.demoRemoved'), { duration: 1400 });
   };
 
@@ -2381,23 +2392,6 @@ export default function App() {
     setHousehold(null);
     setPeople([]);
     setSettlements([]);
-  };
-
-  /** Is any of the sample set still in the ledger? */
-  const hasSampleData = expenses.some((e) => e.id.startsWith('demo-'));
-
-  /**
-   * Take the samples out and leave everything else alone.
-   *
-   * "Erase all data" was the only way to be rid of them, which is far too big a
-   * hammer once somebody has typed real transactions alongside. The samples are
-   * all id-prefixed, so this is exact - and the splits ride ON those rows, so
-   * the household side of the samples goes with them.
-   */
-  const handleRemoveSampleData = () => {
-    setExpenses((prev) => prev.filter((e) => !e.id.startsWith('demo-')));
-    setRefreshKey((prev) => prev + 1);
-    toast.success(t('toast.sampleRemoved'), { duration: 1600 });
   };
 
   const handleEraseAllData = async () => {
@@ -2780,8 +2774,6 @@ export default function App() {
                 onCreateInvite={handleCreateInvite}
                 onJoinWithCode={handleJoinWithCode}
                 onRefreshPairing={syncShared}
-                hasSampleData={hasSampleData}
-                onRemoveSampleData={handleRemoveSampleData}
                 sharedError={sharedError}
                 sharedLive={sharedLive}
                 onCreateSchedule={handleCreateSchedule}
