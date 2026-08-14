@@ -309,6 +309,10 @@ export function Settings({
   const [showAppearance, setShowAppearance] = useState(false);
   const [showShared, setShowShared] = useState(false);
   const [sharedName, setSharedName] = useState('');
+  // Which half of the setup you are on: the fork, or naming somebody who is
+  // not in the app. Reset whenever the Shared page is left, so it never opens
+  // half-way through a decision made days ago.
+  const [setupStep, setSetupStep] = useState<'choose' | 'solo'>('choose');
   const [confirmDisableShared, setConfirmDisableShared] = useState(false);
   // Early-access gate: shared expenses will be a paid feature, so enabling it
   // needs a code for now. Device-local and remembered; an existing household
@@ -399,9 +403,13 @@ export function Settings({
     if (showSupport) return closeSupport();
     if (showNameEditor) return setShowNameEditor(false);
     if (showShared) {
+      // Inside the setup fork, back means back one step - the same as the
+      // chevron would do on any other two-step screen.
+      if (!household && setupStep === 'solo') return setSetupStep('choose');
       setShowShared(false);
       setGateCode('');
       setGateError(false);
+      setSetupStep('choose');
       return;
     }
     if (showAppearance) return setShowAppearance(false);
@@ -413,7 +421,7 @@ export function Settings({
     if (showCategories) return setShowCategories(false);
   }, [legalDoc, showCurrencySelector, showSupport, showNameEditor, showShared,
       showAppearance, showLanguage, showImport, showAbout, showScheduled,
-      showSources, showCategories]);
+      showSources, showCategories, household, setupStep]);
   useEdgeSwipeBack(anySubpageOpen, useCallback(() => navTransition('back', closeSubpage), [closeSubpage]));
 
   const openSupport = () => {
@@ -635,7 +643,13 @@ export function Settings({
           <div className="px-6 pb-4 pt-0">
             <div className="flex items-center justify-center relative">
               <button
-                onClick={() => navTransition('back', () => { setShowShared(false); setGateCode(''); setGateError(false); })}
+                onClick={() => navTransition('back', () => {
+                  if (!household && setupStep === 'solo') return setSetupStep('choose');
+                  setShowShared(false);
+                  setGateCode('');
+                  setGateError(false);
+                  setSetupStep('choose');
+                })}
                 className="absolute left-0 -ml-2 px-2 py-1 rounded-lg active:bg-neutral-200 transition-colors"
               >
                 <ChevronLeft size={24} style={{ color: '#4F74F3' }} />
@@ -751,7 +765,12 @@ export function Settings({
           <div className="px-6 pb-4 pt-0">
             <div className="flex items-center justify-center relative">
               <button
-                onClick={() => navTransition('back', () => setShowShared(false))}
+                onClick={() => navTransition('back', () => {
+                  // Inside the fork, back means back one step.
+                  if (!household && setupStep === 'solo') return setSetupStep('choose');
+                  setShowShared(false);
+                  setSetupStep('choose');
+                })}
                 className="absolute left-0 -ml-2 px-2 py-1 rounded-lg active:bg-neutral-200 transition-colors"
               >
                 <ChevronLeft size={24} style={{ color: '#4F74F3' }} />
@@ -763,42 +782,96 @@ export function Settings({
 
         <div className="flex-1 overflow-y-auto" style={{ paddingBottom: DOCK_CLEARANCE }}>
           {!household ? (
+            /* Setup asks the question that actually BRANCHES, which is not the
+               name. If the two of you both use the app, the name comes off
+               their account and typing one here would only be overwritten the
+               moment you paired - the old first screen demanded exactly that,
+               and hid the connect flow behind it. So: who is this with, then a
+               name only on the path that genuinely needs one. */
             <div className="px-6">
               <div className="rounded-2xl shadow-sm px-5 py-5" style={{ backgroundColor: 'var(--bg-card)' }}>
                 <h2 style={{ color: 'var(--ink)', fontSize: 17, fontWeight: 700, marginBottom: 6 }}>
                   {t('shared.set.introTitle')}
                 </h2>
-                <p style={{ color: 'var(--ink-2)', fontSize: 13.5, lineHeight: 1.5, marginBottom: 18 }}>
+                <p style={{ color: 'var(--ink-2)', fontSize: 13.5, lineHeight: 1.5, marginBottom: 0 }}>
                   {t('shared.set.introBody')}
                 </p>
-                <label className="block" style={{ color: 'var(--ink-2)', fontSize: 13, marginBottom: 6 }}>
-                  {t('shared.set.nameLabel')}
-                </label>
-                <input
-                  type="text"
-                  value={sharedName}
-                  onChange={(e) => setSharedName(e.target.value)}
-                  placeholder={t('shared.set.namePlaceholder')}
-                  className="w-full rounded-xl px-4 py-3 outline-none"
-                  style={{ backgroundColor: 'var(--bg-field)', color: 'var(--ink)', fontSize: 16 }}
-                />
-                <button
-                  onClick={() => {
-                    if (!sharedName.trim()) return;
-                    onEnableShared?.(sharedName);
-                    setSharedName('');
-                  }}
-                  disabled={!sharedName.trim()}
-                  className="w-full mt-4 py-3.5 rounded-xl font-medium active:scale-[0.98] transition-transform"
-                  style={{
-                    backgroundColor: sharedName.trim() ? '#4F74F3' : 'var(--bg-inset)',
-                    color: sharedName.trim() ? '#FFFFFF' : 'var(--ink-2)',
-                    fontSize: 15,
-                  }}
-                >
-                  {t('shared.set.enable')}
-                </button>
               </div>
+
+              {setupStep === 'choose' ? (
+                <div className="rounded-2xl shadow-sm overflow-hidden mt-4" style={{ backgroundColor: 'var(--bg-card)' }}>
+                  {/* The account path first: it is the half of this feature a
+                      bank feed can never do, and it used to be invisible until
+                      after you had already committed. */}
+                  <button
+                    onClick={() => {
+                      // A household has to exist before a code can be minted,
+                      // so it is created under a placeholder that pairing
+                      // replaces with whatever they call themselves.
+                      onEnableShared?.(t('shared.set.defaultName'));
+                      setShowConnect(true);
+                    }}
+                    className="w-full flex items-start gap-3 px-4 py-4 text-left hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
+                    style={{ borderBottom: '1px solid var(--bg-inset)' }}
+                  >
+                    <RowIcon icon={Cloud} tone={TILE.shared} />
+                    <span className="flex-1 min-w-0">
+                      <span className="block" style={{ color: 'var(--ink)', fontSize: 15, fontWeight: 500 }}>
+                        {t('shared.set.optConnect')}
+                      </span>
+                      <span className="block mt-1" style={{ color: 'var(--ink-2)', fontSize: 13, lineHeight: 1.45 }}>
+                        {t('shared.set.optConnectBody')}
+                      </span>
+                    </span>
+                    <ChevronRight className="w-4 h-4 mt-1 flex-shrink-0" style={{ color: 'var(--ghost)' }} />
+                  </button>
+                  <button
+                    onClick={() => setSetupStep('solo')}
+                    className="w-full flex items-start gap-3 px-4 py-4 text-left hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
+                  >
+                    <RowIcon icon={Split} tone={TILE.shared} />
+                    <span className="flex-1 min-w-0">
+                      <span className="block" style={{ color: 'var(--ink)', fontSize: 15, fontWeight: 500 }}>
+                        {t('shared.set.optSolo')}
+                      </span>
+                      <span className="block mt-1" style={{ color: 'var(--ink-2)', fontSize: 13, lineHeight: 1.45 }}>
+                        {t('shared.set.optSoloBody')}
+                      </span>
+                    </span>
+                    <ChevronRight className="w-4 h-4 mt-1 flex-shrink-0" style={{ color: 'var(--ghost)' }} />
+                  </button>
+                </div>
+              ) : (
+                <div className="rounded-2xl shadow-sm px-5 py-5 mt-4" style={{ backgroundColor: 'var(--bg-card)' }}>
+                  <h2 style={{ color: 'var(--ink)', fontSize: 17, fontWeight: 700, marginBottom: 6 }}>
+                    {t('shared.set.soloTitle')}
+                  </h2>
+                  <p style={{ color: 'var(--ink-2)', fontSize: 13.5, lineHeight: 1.5, marginBottom: 16 }}>
+                    {t('shared.set.soloBody')}
+                  </p>
+                  <input
+                    type="text"
+                    value={sharedName}
+                    onChange={(e) => setSharedName(e.target.value)}
+                    placeholder={t('shared.set.namePlaceholder')}
+                    className="w-full rounded-xl px-4 py-3 outline-none"
+                    style={{ backgroundColor: 'var(--bg-field)', color: 'var(--ink)', fontSize: 16 }}
+                  />
+                  {/* Always live: an empty field means "Partner", which the
+                      Sharing with row renames in two taps. A disabled button
+                      guarding a label is not worth anybody's time. */}
+                  <button
+                    onClick={() => {
+                      onEnableShared?.(sharedName.trim() || t('shared.set.defaultName'));
+                      setSharedName('');
+                    }}
+                    className="w-full mt-4 py-3.5 rounded-xl font-medium active:scale-[0.98] transition-transform"
+                    style={{ backgroundColor: '#4F74F3', color: '#FFFFFF', fontSize: 15 }}
+                  >
+                    {t('shared.set.enable')}
+                  </button>
+                </div>
+              )}
             </div>
           ) : (
             <>

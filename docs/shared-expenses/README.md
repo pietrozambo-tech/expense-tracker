@@ -590,7 +590,15 @@ so nobody has to re-derive it by reading both.
   face on the personal view, both on the shared one - a later call, on the
   grounds that the pair belongs to the pair's view.
 - **Feature gate.** Not in the spec: the whole feature is behind code 4700,
-  because it is a candidate for the paid tier (§11).
+  because it is a candidate for the paid tier (§11). It stays in FRONT of the
+  setup - a paid feature should not be advertised before it can be had.
+- **Setup asks who, not what they are called.** The spec's setup screen took a
+  name first. That is the one field pairing overwrites (the partner's display
+  name comes off their account), so on the path that matters it was typed only
+  to be discarded - and it hid the connect flow behind itself. Setup now forks
+  on "do they use the app": the account path goes straight to pairing under a
+  placeholder, and only the local-only path asks for a name, defaulted so the
+  button is never dead.
 
 ### Not built
 
