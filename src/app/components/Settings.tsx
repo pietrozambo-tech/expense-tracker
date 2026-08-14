@@ -2498,7 +2498,6 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
           <button
             onClick={() => navTransition('forward', () => setShowAppearance(true))}
             className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
-            style={{ borderBottom: '1px solid var(--bg-inset)' }}
           >
             <RowIcon icon={Palette} tone={TILE.appearance} />
             <span className="flex-1 text-left" style={{ color: 'var(--ink)', fontSize: '15px' }}>{t('set.theme')}</span>
@@ -2507,8 +2506,15 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
             </span>
             <ChevronRight className="w-4 h-4" style={{ color: 'var(--ghost)' }} />
           </button>
+        </div>
 
-          <button 
+        {/* What your transactions are built from. Its own card because these
+            are the rows you come BACK to - categories shift as your spending
+            does - while the four above are set during the first week and then
+            never again. Ten rows in one run buried the returning ones under
+            the finished ones. */}
+        <div className="bg-white rounded-2xl shadow-sm overflow-hidden mt-6">
+          <button
             onClick={() => navTransition('forward', () => setShowCategories(true))}
             className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
             style={{ borderBottom: '1px solid var(--bg-inset)' }}
@@ -2544,7 +2550,6 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
           <button
             onClick={() => navTransition('forward', () => setShowShared(true))}
             className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
-            style={{ borderBottom: '1px solid var(--bg-inset)' }}
           >
             <RowIcon icon={Split} tone={TILE.shared} />
             <span className="flex items-center gap-1.5 flex-1 min-w-0 text-left">
@@ -2568,7 +2573,12 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
             </span>
             <ChevronRight className="w-4 h-4" style={{ color: 'var(--ghost)' }} />
           </button>
+        </div>
 
+        {/* Help. Last of the unlabelled cards, because the labelled ones below
+            are a different kind of thing: everything above navigates somewhere,
+            everything below Data DOES something to your ledger. */}
+        <div className="bg-white rounded-2xl shadow-sm overflow-hidden mt-6">
           <button
             onClick={() => navTransition('forward', openSupport)}
             className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
@@ -2591,7 +2601,7 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
 
         {/* Data section — demo data is for testing the app, erase resets everything */}
         <p className="mt-8 mb-2 px-1" style={{ color: 'var(--ink-2)', fontSize: '13px' }}>
-          Data
+          {t('set.data')}
         </p>
         <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
           {onImportData && (
