@@ -41,6 +41,11 @@ function readUrlAuthError(): string | null {
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
+// Set by signOut() so the listener can tell a deliberate exit from a session
+// the server took away. Module scope, not state: the listener fires outside
+// React's render cycle and must read it synchronously.
+let deliberateSignOut = false;
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
@@ -55,6 +60,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     const { data: sub } = supabase.auth.onAuthStateChange((event, newSession) => {
+      // A sign-out nobody asked for is nearly always one thing: the access
+      // token expired and the refresh was REJECTED - a rotated refresh token,
+      // usually because the same account refreshed somewhere else first. It
+      // presents as "I tapped something and got logged out", with the tap
+      // being whatever happened to make the request that noticed.
+      //
+      // Recorded rather than guessed at, so the next report comes with its own
+      // evidence. Local data is untouched by this; signing back in re-attaches
+      // it, because the owner mark still matches.
+      if (event === 'SIGNED_OUT' && !deliberateSignOut) {
+        console.warn('[auth] signed out without being asked - a token refresh was rejected');
+        track('signed_out_unexpected');
+      }
+      if (event === 'SIGNED_OUT') deliberateSignOut = false;
       setSession(newSession);
       // Signing in supersedes guest mode
       if (newSession) {
@@ -164,6 +183,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signInWithApple = () => signInWithProvider('apple');
 
   const signOut = async () => {
+    deliberateSignOut = true;
     track('signed_out');
     resetAnalytics();
     await supabase.auth.signOut();

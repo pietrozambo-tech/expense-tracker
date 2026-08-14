@@ -1056,7 +1056,9 @@ export default function App() {
   // them rewrote my own finished months: June quietly got cheaper because
   // somebody else left. They simply stop syncing.
   const handleDisableShared = () => {
-    if (household?.remoteId) void leaveRemoteHousehold(household.remoteId).catch(() => {});
+    if (household?.remoteId && userIdRef.current) {
+      void leaveRemoteHousehold(household.remoteId, userIdRef.current).catch(() => {});
+    }
     setHousehold(null);
     track('shared_disabled');
     toast.success(t('toast.sharedOff'), { duration: 1400 });
@@ -1146,7 +1148,7 @@ export default function App() {
       // pulling her rows back in, and dropping the replicas would undo itself
       // on the next sync.
       if (change === 'left') {
-        void leaveRemoteHousehold(hid).catch(() => {});
+        void leaveRemoteHousehold(hid, uid).catch(() => {});
         endPairing();
         toast(t('toast.unpaired', { name: partnerNameRef.current || '' }), { duration: 2800 });
         return;
@@ -1303,7 +1305,11 @@ export default function App() {
     const onVisible = () => { if (!document.hidden) wake(); };
     window.addEventListener('focus', wake);
     document.addEventListener('visibilitychange', onVisible);
-    const beat = setInterval(() => { if (!document.hidden) wake(); }, sharedLive ? 60000 : 12000);
+    // 12s was too eager. Four queries a beat is twenty requests a minute for a
+    // household of two, on top of the per-user cloud poll - and the value of
+    // hearing about her groceries eight seconds sooner does not pay for it.
+    // Realtime is the fast path; this is only the floor under it.
+    const beat = setInterval(() => { if (!document.hidden) wake(); }, sharedLive ? 60000 : 30000);
     return () => {
       window.removeEventListener('focus', wake);
       document.removeEventListener('visibilitychange', onVisible);
@@ -1324,7 +1330,9 @@ export default function App() {
     if (!household) throw new Error('no household');
     let hid = household.remoteId;
     if (!hid) {
-      hid = await createRemoteHousehold(userName || 'Me', '#0B0B0D', household.defaultSplit, household.trackBalance);
+      const uid = userIdRef.current;
+      if (!uid) throw new Error('not signed in');
+      hid = await createRemoteHousehold(uid, userName || 'Me', '#0B0B0D', household.defaultSplit, household.trackBalance);
       setHousehold((prev) => (prev ? { ...prev, remoteId: hid, updatedAt: new Date().toISOString() } : prev));
     }
     return createInviteCode(hid);

@@ -333,20 +333,26 @@ export function Settings({
   const [connectError, setConnectError] = useState<string | null>(null);
   const paired = !!household?.remoteId && !!partner?.userId;
 
-  // While this sheet is open, ask the server every few seconds. Without it the
-  // device has no reason to look again, and the state only surfaced when some
-  // unrelated render happened to refresh it - which is exactly how it felt:
-  // connected on her phone, stubbornly not on his.
+  // While this sheet is open, ask the server again. Without it the device has
+  // no reason to look, and the state only surfaced when some unrelated render
+  // happened to refresh it - connected on her phone, stubbornly not on his.
   //
-  // It runs in both directions. Waiting on a code is the obvious one; the
-  // other is the screen that says "Connected with Giulia" after Giulia has
-  // turned sharing off, which is the same lie the other way round.
+  // Two speeds, because the two cases are not equally urgent. Waiting on a code
+  // is a person standing there watching for it, so three seconds. Already
+  // paired, this is only guarding against the rarer lie in the other direction
+  // - the screen still saying "Connected with Giulia" after she turned sharing
+  // off - and 3s for that was indefensible: each pass is four queries, so an
+  // open sheet was making eighty requests a minute against a two-person
+  // household. Every one of those carries the access token, and the more of
+  // them there are the more chances a token refresh lands in the middle of one
+  // and loses.
+  const pollMs = connectCode && !paired ? 3000 : 15000;
   useEffect(() => {
     if (!showConnect || !onRefreshPairing) return;
     if (!paired && !connectCode) return;
-    const id = setInterval(() => { void onRefreshPairing(); }, 3000);
+    const id = setInterval(() => { void onRefreshPairing(); }, pollMs);
     return () => clearInterval(id);
-  }, [showConnect, paired, connectCode, onRefreshPairing]);
+  }, [showConnect, paired, connectCode, onRefreshPairing, pollMs]);
 
   // Once it lands, the code has done its job.
   useEffect(() => {

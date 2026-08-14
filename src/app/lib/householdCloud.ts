@@ -54,15 +54,23 @@ function fail(error: { code?: string; message?: string } | null): never {
   throw new Error(error?.message || 'request failed');
 }
 
-/** Create a household on the server and join it as its first member. */
+/**
+ * Create a household on the server and join it as its first member.
+ *
+ * `uid` is passed in rather than fetched. `supabase.auth.getUser()` is a
+ * NETWORK call that validates the token with the auth server, and on a token
+ * near expiry it forces a refresh - so the first tap of pairing could hinge on
+ * a refresh succeeding, and a refresh that loses a rotation race signs the user
+ * out. The app already knows its own id from the session it is holding; asking
+ * the server to confirm it bought nothing and risked the session.
+ */
 export async function createRemoteHousehold(
+  uid: string,
   displayName: string,
   color: string,
   defaultSplit: RemoteHousehold['defaultSplit'],
   trackBalance: boolean,
 ): Promise<string> {
-  const { data: user } = await supabase.auth.getUser();
-  const uid = user?.user?.id;
   if (!uid) throw new Error('not signed in');
 
   const { data, error } = await supabase
@@ -225,10 +233,9 @@ export async function pushSettlement(
   if (error) fail(error);
 }
 
-/** Leave: drop only my own membership row. Her copy of the ledger stays hers. */
-export async function leaveRemoteHousehold(householdId: string): Promise<void> {
-  const { data: user } = await supabase.auth.getUser();
-  const uid = user?.user?.id;
+/** Leave: drop only my own membership row. Her copy of the ledger stays hers.
+ *  `uid` is passed in for the same reason as createRemoteHousehold. */
+export async function leaveRemoteHousehold(householdId: string, uid: string): Promise<void> {
   if (!uid) return;
   const { error } = await supabase
     .from('household_members')
