@@ -446,6 +446,11 @@ export const it: Record<keyof typeof en, string> = {
   'set.currencyTitle': 'Valuta',
   'set.currencyHint': 'Le nuove transazioni useranno la valuta selezionata',
   'set.others': 'Altre',
+  // Intestazioni di sezione - vedi la nota nel catalogo inglese.
+  'set.sec.account': 'Account',
+  'set.sec.preferences': 'Preferenze',
+  'set.sec.money': 'I tuoi soldi',
+  'set.sec.help': 'Aiuto',
   'set.data': 'Dati',
   'set.importData': 'Importa dati',
   'set.exportBackup': 'Esporta backup',
@@ -457,6 +462,16 @@ export const it: Record<keyof typeof en, string> = {
   'set.eraseDemo': 'Rimuovi dati di esempio',
   'set.eraseDemoSub': 'Rimuove i campioni',
   'set.chooseFile': 'Scegli file',
+  // I tre livelli di reset - vedi la nota nel catalogo inglese.
+  'set.clearTxns': 'Cancella le transazioni',
+  'set.clearTxnsSub': 'Va via lo storico. Resta la tua configurazione.',
+  'set.eraseAllSub': 'Vanno via storico e configurazione. Resta il tuo account.',
+  'set.eraseAllSubGuest': 'Vanno via storico e configurazione. Non resta nulla.',
+  'conf.clearTitle': 'Cancellare le tue transazioni?',
+  'conf.clearMsg': 'Elimina tutte le transazioni e i rimborsi. Categorie, conti, pagamenti programmati e budget restano, e i pagamenti programmati riprendono da oggi invece di riempire di nuovo i mesi appena cancellati.',
+  'conf.clearMsgShared': 'Le spese condivise restano: sono anche sul telefono di {name}, quindi cancellare le tue riscriverebbe le sue.',
+  'conf.clearCta': 'Cancella le transazioni',
+  'toast.txnsCleared': 'Transazioni cancellate',
   'set.danger': 'Zona pericolosa',
 
   // Riga di sincronizzazione - vedi la nota nel catalogo inglese.

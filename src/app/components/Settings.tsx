@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react';
-import { ChevronRight, ChevronLeft, UserCircle, Wallet, HelpCircle, ShieldCheck, ScrollText, Layers, FlaskConical, Trash2, Landmark, Cloud, LogOut, Upload, Copy, Download, FileSpreadsheet, Palmtree, UserX, Mail, LifeBuoy, CheckCircle2, Globe, CalendarClock, Sparkles, Palette, Sun, Moon, SunMoon, Split, Plus } from 'lucide-react';
+import { ChevronRight, ChevronLeft, UserCircle, Wallet, HelpCircle, ShieldCheck, ScrollText, Layers, FlaskConical, Trash2, Landmark, Cloud, LogOut, Upload, Copy, Download, FileSpreadsheet, Palmtree, UserX, Mail, LifeBuoy, CheckCircle2, Globe, CalendarClock, Sparkles, Palette, Sun, Moon, SunMoon, Split, Plus, Eraser } from 'lucide-react';
 import { getCategoryIcon } from './categoryIcons';
 import { sendSupportMessage, supportLimitReached } from '../lib/support';
 import { switchGlow } from './categoryColors';
@@ -194,6 +194,8 @@ interface SettingsProps {
   onEraseAllData: () => void;
   /** `stay` keeps the current screen - see the handler in App. */
   onEraseDemoData?: (opts?: { stay?: boolean }) => void;
+  /** Mildest of the three resets: history out, setup kept. */
+  onClearTransactions?: () => void;
   /** True while any of the sample set is still in the ledger. Pairing is held
    *  until it is gone: invented expenses must not land on a real phone. */
   hasDemoData?: boolean;
@@ -268,6 +270,7 @@ export function Settings({
   onLoadDemoData,
   onEraseAllData,
   onEraseDemoData,
+  onClearTransactions,
   hasDemoData,
   onImportData,
   onExportData,
@@ -381,7 +384,7 @@ export function Settings({
   const [budgetOn, setBudgetOn] = useState(!!monthlyBudget);
   // Device-local, applies instantly like every switch on this card.
   const [themeMode, setThemeModeState] = useState<ThemeMode>(loadThemeMode);
-  const [confirmAction, setConfirmAction] = useState<'demo' | 'erase' | 'erase-demo' | 'restore' | 'delete-account' | null>(null);
+  const [confirmAction, setConfirmAction] = useState<'demo' | 'erase' | 'erase-demo' | 'clear-txns' | 'restore' | 'delete-account' | null>(null);
   const [pendingBackup, setPendingBackup] = useState<ImportPayload | null>(null);
 
   // Opening a Settings sub-screen (Categories, Sources, Currency, About,
@@ -536,7 +539,7 @@ export function Settings({
     setShowNameEditor(false);
   };
 
-  const openConfirm = (action: 'demo' | 'erase' | 'erase-demo' | 'restore' | 'delete-account') => {
+  const openConfirm = (action: 'demo' | 'erase' | 'erase-demo' | 'clear-txns' | 'restore' | 'delete-account') => {
     setConfirmAction(action);
     onModalOpenChange(true);
   };
@@ -569,6 +572,8 @@ export function Settings({
       onEraseAllData();
     } else if (confirmAction === 'erase-demo') {
       onEraseDemoData?.();
+    } else if (confirmAction === 'clear-txns') {
+      onClearTransactions?.();
     } else if (confirmAction === 'restore' && pendingBackup) {
       onImportData?.(pendingBackup);
       setPendingBackup(null);
@@ -2389,6 +2394,9 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
 
       {/* Account section — sign-in / sign-out + sync status */}
       <div className="px-6 mb-6">
+        <p className="mb-2 px-1" style={{ color: 'var(--ink-2)', fontSize: '13px' }}>
+          {t('set.sec.account')}
+        </p>
         <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
           {isGuest ? (
             <button
@@ -2427,6 +2435,9 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
 
       {/* Settings List */}
       <div className="px-6">
+        <p className="mb-2 px-1" style={{ color: 'var(--ink-2)', fontSize: '13px' }}>
+          {t('set.sec.preferences')}
+        </p>
         <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
           <button
             onClick={() => {
@@ -2518,7 +2529,10 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
             does - while the four above are set during the first week and then
             never again. Ten rows in one run buried the returning ones under
             the finished ones. */}
-        <div className="bg-white rounded-2xl shadow-sm overflow-hidden mt-6">
+        <p className="mt-8 mb-2 px-1" style={{ color: 'var(--ink-2)', fontSize: '13px' }}>
+          {t('set.sec.money')}
+        </p>
+        <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
           <button
             onClick={() => navTransition('forward', () => setShowCategories(true))}
             className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
@@ -2583,7 +2597,10 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
         {/* Help. Last of the unlabelled cards, because the labelled ones below
             are a different kind of thing: everything above navigates somewhere,
             everything below Data DOES something to your ledger. */}
-        <div className="bg-white rounded-2xl shadow-sm overflow-hidden mt-6">
+        <p className="mt-8 mb-2 px-1" style={{ color: 'var(--ink-2)', fontSize: '13px' }}>
+          {t('set.sec.help')}
+        </p>
+        <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
           <button
             onClick={() => navTransition('forward', openSupport)}
             className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
@@ -2664,12 +2681,34 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
           )}
         </div>
 
-        {/* Destructive actions, grouped so the difference between wiping your
-            data and removing your whole account is obvious at a glance. */}
+        {/* Three tiers of the SAME question - how much of this goes? - so they
+            are written to be read against each other: each subtitle names what
+            is destroyed and then what survives, in that order, so the scale is
+            legible without opening anything. Severity is the reading order.
+
+            Comparison is the whole point. Nobody can judge "Erase all data" in
+            isolation; they judge it against what else was on offer. These used
+            to be phrased independently - one led with the outcome ("Starts
+            fresh"), the next with the deletion - so the reader had to open two
+            dialogs and remember the first to tell them apart. */}
         <p className="mt-8 mb-2 px-1" style={{ color: 'var(--ink-2)', fontSize: '13px' }}>
           {t('set.danger')}
         </p>
         <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+          <button
+            onClick={() => openConfirm('clear-txns')}
+            className="w-full flex items-start gap-3 px-4 py-2.5 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
+            style={{ borderBottom: '1px solid var(--bg-inset)' }}
+          >
+            <Eraser className="w-5 h-5 flex-shrink-0 mt-0.5" style={{ color: 'var(--tone-danger)' }} strokeWidth={2} />
+            <div className="flex-1 text-left">
+              <div style={{ color: 'var(--tone-danger)', fontSize: '15px' }}>{t('set.clearTxns')}</div>
+              <div style={{ color: 'var(--ink-2)', fontSize: '13px', marginTop: 2 }}>
+                {t('set.clearTxnsSub')}
+              </div>
+            </div>
+          </button>
+
           <button
             onClick={() => openConfirm('erase')}
             className="w-full flex items-start gap-3 px-4 py-2.5 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
@@ -2679,11 +2718,7 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
             <div className="flex-1 text-left">
               <div style={{ color: 'var(--tone-danger)', fontSize: '15px' }}>{t('set.eraseAll')}</div>
               <div style={{ color: 'var(--ink-2)', fontSize: '13px', marginTop: 2 }}>
-                {getLanguage() === 'it'
-                  ? (isGuest ? 'Elimina transazioni e impostazioni' : 'Riparte da zero. Il tuo account resta')
-                  : isGuest
-                    ? 'Deletes your transactions and settings'
-                    : 'Starts fresh. You keep your account'}
+                {t(isGuest ? 'set.eraseAllSubGuest' : 'set.eraseAllSub')}
               </div>
             </div>
           </button>
@@ -2751,6 +2786,17 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
           confirmLabel={t('conf.restoreCta')}
           onConfirm={handleConfirm}
           onCancel={() => { setPendingBackup(null); closeConfirm(); }}
+        />
+      )}
+      {confirmAction === 'clear-txns' && (
+        <ConfirmDialog
+          title={t('conf.clearTitle')}
+          message={
+            t('conf.clearMsg') + (household && partner ? ' ' + t('conf.clearMsgShared', { name: partner.name }) : '')
+          }
+          confirmLabel={t('conf.clearCta')}
+          onConfirm={handleConfirm}
+          onCancel={closeConfirm}
         />
       )}
       {confirmAction === 'delete-account' && (

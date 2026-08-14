@@ -71,7 +71,7 @@ import { SaveButton } from './components/SaveButton';
 import { DescriptionInput } from './components/DescriptionInput';
 import { Onboarding } from './components/Onboarding';
 import { useAuth } from './auth/AuthProvider';
-import { processRecurrence, buildRuleTemplate, newRuleId, occurrenceDueDate, isActiveRule, generatesOn, applyFutureEdit, findPastSeriesMatches, findUnclaimedSeriesRows, findGeneratedDuplicates, tagPastSeries, anchorForStart, anchorPlanForStart, toDateStr, chargeHistory, type SeriesClaim } from './lib/recurrence';
+import { processRecurrence, buildRuleTemplate, newRuleId, occurrenceDueDate, isActiveRule, generatesOn, applyFutureEdit, findPastSeriesMatches, findUnclaimedSeriesRows, findGeneratedDuplicates, tagPastSeries, anchorForStart, anchorPlanForStart, toDateStr, chargeHistory, reanchorAfterClear, type SeriesClaim } from './lib/recurrence';
 import { SeriesClaimDialog } from './components/SeriesClaimDialog';
 import type { ScheduleDraft } from './components/ScheduledManager';
 import { RecurringScopeDialog } from './components/RecurringScopeDialog';
@@ -2365,6 +2365,36 @@ export default function App() {
   // Full reset: wipe everything and return to a fresh first-login. Deletes the
   // cloud record and signs out (so the next sign-in is a clean first login) —
   // handy for re-testing onboarding with a test account.
+  /**
+   * The mildest of the three resets: the history goes, the setup stays.
+   *
+   * For "I want to start the year clean" - the categories, sources, schedules
+   * and budget somebody spent an evening building should not have to be built
+   * again to get an empty ledger.
+   *
+   * Settlements go with the transactions. They are the other half of the same
+   * history ("you paid me back 60"), and keeping them against an empty ledger
+   * would leave a balance owed on spending that no longer exists.
+   *
+   * The schedules survive but have to be re-anchored - see the note on
+   * reanchorAfterClear. Without it they treat the empty ledger as a year of
+   * missing occurrences and write it straight back.
+   *
+   * Shared expenses are the one thing this cannot promise to clear, and the
+   * confirm dialog says so: they live on the partner's phone too, and the
+   * reconciler restores from the server anything it still holds. Clearing my
+   * own ledger must not rewrite hers.
+   */
+  const handleClearTransactions = () => {
+    setExpenses([]);
+    setSettlements([]);
+    setRecurringRules((prev) => prev.map((r) => reanchorAfterClear(r)));
+    dashboardViewRef.current = null;
+    setRefreshKey((prev) => prev + 1);
+    setCurrentTab('dashboard');
+    toast.success(t('toast.txnsCleared'), { duration: 1600 });
+  };
+
   // Wipe local storage + in-memory state back to a fresh first-login. Shared by
   // "Erase all data" and account deletion.
   const resetLocalState = () => {
@@ -2806,6 +2836,7 @@ export default function App() {
                 onLoadDemoData={handleLoadDemoData}
                 onEraseAllData={handleEraseAllData}
                 onEraseDemoData={handleEraseDemoData}
+                onClearTransactions={handleClearTransactions}
                 hasDemoData={hasDemoData}
                 onImportData={handleImportData}
                 onExportData={handleExportData}

@@ -914,3 +914,39 @@ export function anchorPlanForStart(
   }
   return { anchorDate: anchorForStart(start, rule), skipDates: [] };
 }
+
+/**
+ * Move a rule's anchor forward so it stops back-filling, without moving the
+ * day it falls on.
+ *
+ * This exists for "Clear transactions", and it is not optional there. A rule
+ * has no memory of what it has already produced: materialization asks
+ * `dueDatesSince(anchorDate, ...)` every pass and writes anything that is not
+ * already in the ledger. Clear the ledger and keep the rules, and the very
+ * next pass rebuilds every occurrence back to the anchor - somebody clearing
+ * a year of history to start fresh would watch twelve months of rent land
+ * straight back on top of it.
+ *
+ * Re-anchoring to *today* would fix that and break something else: the anchor
+ * carries the cadence's phase, so a rent anchored to the 1st would silently
+ * move to whatever today happens to be. The anchor moves instead to the most
+ * recent date the rule was already due - which is a date it is in phase with,
+ * and which `dueDatesSince` treats as exclusive, so nothing on or before it is
+ * ever regenerated.
+ *
+ * Skips are pruned to the ones still ahead of the new anchor; the rest name
+ * occurrences that can no longer occur.
+ */
+export function reanchorAfterClear(rule: RecurringRule, today: Date = new Date()): RecurringRule {
+  const due = dueDatesSince(rule.anchorDate, rule.rule, today);
+  const last = due[due.length - 1];
+  // Nothing has come due yet, so there is no history to suppress.
+  if (!last) return rule;
+  const skipDates = (rule.skipDates ?? []).filter((d) => d > last);
+  return {
+    ...rule,
+    anchorDate: last,
+    skipDates: skipDates.length > 0 ? skipDates : undefined,
+    updatedAt: new Date().toISOString(),
+  };
+}

@@ -445,6 +445,14 @@ export const en = {
   'set.currencyTitle': 'Currency',
   'set.currencyHint': 'New transactions will use the selected currency',
   'set.others': 'Others',
+  // Section captions. Every group carries one: a screen where some groups are
+  // captioned and some are not reads as an oversight, whatever rule the code
+  // thinks it is following. "Your money" echoes the tour slide of the same
+  // name rather than inventing a word for the same idea.
+  'set.sec.account': 'Account',
+  'set.sec.preferences': 'Preferences',
+  'set.sec.money': 'Your money',
+  'set.sec.help': 'Help',
   'set.data': 'Data',
   'set.importData': 'Import data',
   'set.exportBackup': 'Export backup',
@@ -456,6 +464,18 @@ export const en = {
   'set.eraseDemo': 'Erase demo data',
   'set.eraseDemoSub': 'Removes samples',
   'set.chooseFile': 'Choose file',
+  // The three resets, written to be read against each other: what is destroyed,
+  // then what survives, in that order. Read down the list and the scale is
+  // obvious without opening a single dialog.
+  'set.clearTxns': 'Clear transactions',
+  'set.clearTxnsSub': 'Your history goes. Your setup stays.',
+  'set.eraseAllSub': 'History and setup go. Your account stays.',
+  'set.eraseAllSubGuest': 'History and setup go. Nothing is kept.',
+  'conf.clearTitle': 'Clear your transactions?',
+  'conf.clearMsg': 'This deletes every transaction and settlement. Your categories, sources, scheduled payments and budget are kept, and scheduled payments carry on from today instead of refilling the months you just cleared.',
+  'conf.clearMsgShared': 'Shared expenses stay: they are on {name}’s phone too, so clearing yours would rewrite theirs.',
+  'conf.clearCta': 'Clear transactions',
+  'toast.txnsCleared': 'Transactions cleared',
   'set.danger': 'Danger zone',
 
   // Sync row. These were hardcoded English until now, so the Italian app

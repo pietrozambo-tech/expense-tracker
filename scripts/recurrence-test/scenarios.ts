@@ -28,6 +28,7 @@ import {
   generatesOn,
   isActiveRule,
   toDateStr,
+  reanchorAfterClear,
 } from './lib/recurrence';
 import type { RecurringRule, Transaction } from './types';
 
@@ -515,6 +516,48 @@ function scenarioNoDoubleUp() {
     String(findGeneratedDuplicates(cleaned, [rule]).length), '0');
   expect('nor does the engine put them back',
     String(processRecurrence(cleaned, [rule], TODAY).createdCount), '0');
+}
+
+// ── Clearing the ledger must not summon the past back ───────────────────────
+//
+// A rule remembers nothing about what it has produced: every pass asks for all
+// due dates since its anchor and writes whatever is missing. So "clear my
+// transactions, keep my setup" is a trap unless the anchor moves - otherwise
+// the next pass rebuilds the year that was just deleted.
+{
+  const rule: RecurringRule = {
+    id: 'rule-rent', rule: 'First day of the month', anchorDate: '2025-09-01',
+    template: { description: 'Rent', amount: 900, currency: 'EUR',
+      category: { id: 'housing', name: 'Housing', icon: 'home', color: '#7C5CE0' }, type: 'expense' },
+  };
+
+  // The trap itself, so this test fails if the fix is ever removed.
+  const rebuilt = processRecurrence([], [rule], TODAY);
+  expect('without re-anchoring, an empty ledger refills itself',
+    String(rebuilt.createdCount > 10), 'true');
+
+  const moved = reanchorAfterClear(rule, TODAY);
+  expect('the anchor moves to the last date it was already due', moved.anchorDate, '2026-08-01');
+  expect('which keeps the day of the month it falls on',
+    moved.anchorDate.slice(-2), rule.anchorDate.slice(-2));
+  expect('and now nothing regenerates',
+    String(processRecurrence([], [moved], TODAY).createdCount), '0');
+
+  // The rule is still live: tomorrow's month still lands.
+  const nextMonth = new Date(2026, 8, 2); // 2 September 2026
+  expect('but the schedule carries on from here',
+    String(processRecurrence([], [moved], nextMonth).createdCount), '1');
+
+  // Skips naming occurrences that can no longer happen are dropped; ones still
+  // ahead of the new anchor are kept, because they are still decisions.
+  const withSkips = reanchorAfterClear(
+    { ...rule, skipDates: ['2025-11-01', '2026-12-01'] }, TODAY);
+  expect('stale skips are pruned', (withSkips.skipDates ?? []).join(','), '2026-12-01');
+
+  // A rule that has not come due yet has no history to suppress - leave it be.
+  const future: RecurringRule = { ...rule, id: 'rule-future', anchorDate: '2026-11-01' };
+  expect('a rule with no past is untouched',
+    reanchorAfterClear(future, TODAY).anchorDate, '2026-11-01');
 }
 
 console.log('\n================================================================');
