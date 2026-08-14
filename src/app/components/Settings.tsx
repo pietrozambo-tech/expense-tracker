@@ -2393,8 +2393,8 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
       </div>
 
       {/* Account section — sign-in / sign-out + sync status */}
-      <div className="px-6 mb-6">
-        <p className="mb-2 px-1" style={{ color: 'var(--ink-2)', fontSize: '13px' }}>
+      <div className="px-6 mb-5">
+        <p className="mb-1.5 px-1" style={{ color: 'var(--ink-2)', fontSize: '13px' }}>
           {t('set.sec.account')}
         </p>
         <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
@@ -2435,7 +2435,7 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
 
       {/* Settings List */}
       <div className="px-6">
-        <p className="mb-2 px-1" style={{ color: 'var(--ink-2)', fontSize: '13px' }}>
+        <p className="mb-1.5 px-1" style={{ color: 'var(--ink-2)', fontSize: '13px' }}>
           {t('set.sec.preferences')}
         </p>
         <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
@@ -2529,7 +2529,7 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
             does - while the four above are set during the first week and then
             never again. Ten rows in one run buried the returning ones under
             the finished ones. */}
-        <p className="mt-8 mb-2 px-1" style={{ color: 'var(--ink-2)', fontSize: '13px' }}>
+        <p className="mt-5 mb-1.5 px-1" style={{ color: 'var(--ink-2)', fontSize: '13px' }}>
           {t('set.sec.money')}
         </p>
         <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
@@ -2597,7 +2597,7 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
         {/* Help. Last of the unlabelled cards, because the labelled ones below
             are a different kind of thing: everything above navigates somewhere,
             everything below Data DOES something to your ledger. */}
-        <p className="mt-8 mb-2 px-1" style={{ color: 'var(--ink-2)', fontSize: '13px' }}>
+        <p className="mt-5 mb-1.5 px-1" style={{ color: 'var(--ink-2)', fontSize: '13px' }}>
           {t('set.sec.help')}
         </p>
         <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
@@ -2622,7 +2622,7 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
         </div>
 
         {/* Data section — demo data is for testing the app, erase resets everything */}
-        <p className="mt-8 mb-2 px-1" style={{ color: 'var(--ink-2)', fontSize: '13px' }}>
+        <p className="mt-5 mb-1.5 px-1" style={{ color: 'var(--ink-2)', fontSize: '13px' }}>
           {t('set.data')}
         </p>
         <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
@@ -2691,7 +2691,7 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
             to be phrased independently - one led with the outcome ("Starts
             fresh"), the next with the deletion - so the reader had to open two
             dialogs and remember the first to tell them apart. */}
-        <p className="mt-8 mb-2 px-1" style={{ color: 'var(--ink-2)', fontSize: '13px' }}>
+        <p className="mt-5 mb-1.5 px-1" style={{ color: 'var(--ink-2)', fontSize: '13px' }}>
           {t('set.danger')}
         </p>
         <div className="bg-white rounded-2xl shadow-sm overflow-hidden">

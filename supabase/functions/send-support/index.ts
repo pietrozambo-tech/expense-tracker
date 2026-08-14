@@ -51,9 +51,15 @@ Deno.serve(async (req: Request) => {
   // sender knows; the metadata fields are merely context, so they truncate.
   const MAX_MESSAGE = 5000;
   const clip = (v: unknown, n: number) => String(v ?? '').trim().slice(0, n);
+  // Anything that reaches a mail HEADER loses its line breaks first. `name`
+  // is interpolated into the subject, and a newline inside a header value is
+  // how header injection starts - Resend takes JSON and almost certainly
+  // sanitises this itself, but "almost certainly" is not a thing to rely on
+  // when the cost of not relying on it is one replace().
+  const header = (v: unknown, n: number) => clip(v, n).replace(/[\r\n]+/g, ' ');
   const message = clip(payload.message, MAX_MESSAGE + 1);
-  const replyEmailRaw = clip(payload.email, 200);
-  const name = clip(payload.name, 100);
+  const replyEmailRaw = header(payload.email, 200);
+  const name = header(payload.name, 100);
   const isGuest = Boolean(payload.isGuest);
   const appVersion = clip(payload.appVersion, 32) || '?';
   const userAgent = clip(payload.userAgent, 300);

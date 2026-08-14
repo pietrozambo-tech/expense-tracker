@@ -45,7 +45,11 @@ export async function sendSupportMessage(payload: {
         email: payload.email,
         name: payload.name || '',
         isGuest: !!payload.isGuest,
-        appVersion: '1.0',
+        // The real build, not a literal. This was pinned at '1.0' while the
+        // app shipped 1.0.0 and Settings displayed __APP_VERSION__ - so the
+        // one field whose entire job is telling you which build a bug came
+        // from was guaranteed to be wrong from the first version bump.
+        appVersion: typeof __APP_VERSION__ === 'string' ? __APP_VERSION__ : '?',
         userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : '',
       },
     });
