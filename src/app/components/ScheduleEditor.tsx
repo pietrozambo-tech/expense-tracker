@@ -8,7 +8,7 @@ import { switchGlow } from './categoryColors';
 import { CURRENCIES } from '../utils/currency';
 import { toDateStr, nextDueDate, repriceCandidate } from '../lib/recurrence';
 import { Split, X as XIcon } from 'lucide-react';
-import { myShareOf } from '../lib/shared';
+import { myShareOf, partnerSourceId } from '../lib/shared';
 import { formatAmountListView } from '../utils/currency';
 import type { Category, Household, Person, RecurringRule, Source, Transaction, TransactionType } from '../types';
 import type { ScheduleDraft } from './ScheduledManager';
@@ -96,6 +96,11 @@ export function ScheduleEditor({
   // existing shared schedule opens showing that it is shared.
   const [shared, setShared] = useState(!!rule?.template.split);
   const [paidByThem, setPaidByThem] = useState(!!rule?.template.split?.paidByThem);
+  /** They front this one every time, so no account of mine is involved - the
+   *  same rule the Add screen applies, and it matters more here: a schedule
+   *  repeats, so getting it wrong stamps my bank on a payment my bank never
+   *  makes, once a month, indefinitely. */
+  const partnerIsPaying = Boolean(shared && household && partner && paidByThem && type === 'expense');
 
   // What an amount edit MEANS. Only ever read when the question below is on
   // screen, and it defaults to the common answer so the fast path stays a
@@ -388,7 +393,7 @@ export function ScheduleEditor({
             </div>
           </div>
 
-          {sources.length > 0 && (
+          {sources.length > 0 && !partnerIsPaying && (
             <div>
               <div style={LABEL} className="mb-1.5">{t('act.source')}</div>
               <div className="flex gap-2 flex-wrap">
@@ -434,7 +439,7 @@ export function ScheduleEditor({
                 currency: rule?.template.currency || currency,
                 category: category!,
                 subcategory: rule?.template.subcategory,
-                sourceId: sourceId || undefined,
+                sourceId: partnerIsPaying && partner ? partnerSourceId(partner.id) : sourceId || undefined,
                 type,
                 rule: cadence,
                 start,

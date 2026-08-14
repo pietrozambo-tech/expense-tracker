@@ -403,6 +403,7 @@ export default function App() {
     recurrence: string;
     sourceId: string | null;
     shared: boolean;
+    paidByThem: boolean;
   } | null>(null);
 
   // Persist app data whenever it changes
@@ -944,7 +945,13 @@ export default function App() {
     setSelectedSubcategory(expense.subcategory || null);
     setSelectedTransactionCurrency(expense.currency || userCurrency); // Set currency for current transaction
     setRecurrence(expense.recurrence || 'Never repeat');
-    setSelectedSourceId(expense.sourceId || defaultSourceFor(expense.type || 'expense'));
+    // A row filed under the partner must not seed the picker with HER source:
+    // it is not an account of mine, so if the payment is handed back to me on
+    // this screen there has to be a card of mine already standing behind it.
+    // Left as-is, taking the bill back saved it under her anyway - the source
+    // followed the payer one way and not the other.
+    const editSource = partner && expense.sourceId === partnerSourceId(partner.id) ? '' : expense.sourceId;
+    setSelectedSourceId(editSource || defaultSourceFor(expense.type || 'expense'));
     // An explicit state either way: reopening an old unshared entry in a
     // now-shared category must not silently share it on save.
     setShareChoice(expense.split ? 'on' : 'off');
@@ -961,7 +968,8 @@ export default function App() {
       currency: expense.currency || userCurrency,
       recurrence: expense.recurrence || 'Never repeat',
       sourceId: expense.sourceId || null,
-      shared: !!expense.split
+      shared: !!expense.split,
+      paidByThem: !!expense.split?.paidByThem,
     });
     
     // Set editing mode and open modal
@@ -1064,6 +1072,24 @@ export default function App() {
   // Sources on offer for a new entry. Everywhere a source is DISPLAYED keeps
   // the full list - see selectableSources for why retiring is not deleting.
   const pickableSources = useMemo(() => selectableSources(sources, household), [sources, household]);
+
+  /**
+   * They fronted this one, so it did not leave any account of mine.
+   *
+   * Offering my cards here describes something that did not happen, and
+   * picking one puts my bank on a payment my bank never made - which then
+   * turns up in my own source breakdown as if it had. Her expenses arriving
+   * over sync were already filed under her; this makes the SAME fact look the
+   * same whether she typed it on her phone or I typed it on mine.
+   */
+  const partnerIsPaying = Boolean(
+    entryShared && household && partner && paidByPartnerChoice && transactionType === 'expense',
+  );
+  /** What to store. `selectedSourceId` is deliberately left alone, so toggling
+   *  the payer back restores the card you had picked rather than a default. */
+  const sourceIdForSave = partnerIsPaying && partner
+    ? partnerSourceId(partner.id)
+    : selectedSourceId || undefined;
 
   const handleUpdateHousehold = (patch: Partial<Household>) => {
     setHousehold((prev) => (prev ? { ...prev, ...patch, updatedAt: new Date().toISOString() } : prev));
@@ -1478,7 +1504,7 @@ export default function App() {
         currency: selectedTransactionCurrency, // Update currency when editing
         baseAmount: convertAmount(parseFloat(amount), selectedTransactionCurrency, BASE_CURRENCY), // lock FX value
         recurrence: recurrence,
-        sourceId: selectedSourceId || undefined,
+        sourceId: sourceIdForSave,
         // Present when shared, and explicitly undefined when not: the edit
         // spread ({ ...expense, ...values }) must be able to REMOVE a split
         // the user just turned off.
@@ -1559,7 +1585,7 @@ export default function App() {
         currency: selectedTransactionCurrency, // Store the currency with the transaction
         baseAmount: convertAmount(parseFloat(amount), selectedTransactionCurrency, BASE_CURRENCY), // lock FX value
         recurrence: recurrence, // Add recurrence
-        sourceId: selectedSourceId || undefined,
+        sourceId: sourceIdForSave,
         ...(entryShared && household
           ? {
               split: {
@@ -1861,7 +1887,13 @@ export default function App() {
       selectedTransactionCurrency !== originalValues.currency ||
       recurrence !== originalValues.recurrence ||
       (selectedSourceId || null) !== (originalValues.sourceId || null) ||
-      entryShared !== originalValues.shared
+      entryShared !== originalValues.shared ||
+      // Who paid was missing here, so correcting it on an existing expense
+      // left Save disabled: the one screen that can fix a wrong payer refused
+      // to record the fix. It moves the balance and now, with the source
+      // following the payer, it moves the source too - about as far from "no
+      // change" as an edit gets.
+      paidByPartnerChoice !== originalValues.paidByThem
     : true;
   
   const canSave = amount && parseFloat(amount) > 0 && selectedCategory && hasChanges;
@@ -3112,16 +3144,21 @@ export default function App() {
                 onCurrencyChange={setSelectedTransactionCurrency}
                 autoFocus={!editingExpenseId}
                 rightSlot={
-                  <button
-                    type="button"
-                    onClick={() => setShowSourceSelector(true)}
-                    className="flex items-center gap-1 rounded-full pl-1 pr-1.5 py-1 active:scale-95 transition-transform"
-                    style={{ backgroundColor: 'var(--bg-inset)', WebkitTapHighlightColor: 'transparent' }}
-                    aria-label={t('add.selectSource')}
-                  >
-                    <SourceLogo source={sources.find(s => s.id === selectedSourceId)} size={24} />
-                    <ChevronDown className="w-3.5 h-3.5" style={{ color: 'var(--ink-2)' }} strokeWidth={2.5} />
-                  </button>
+                  // Hidden while they are the one paying - see partnerIsPaying.
+                  // The chip below already names who paid, so the row does not
+                  // go quiet, it just stops asking a question with no answer.
+                  partnerIsPaying ? undefined : (
+                    <button
+                      type="button"
+                      onClick={() => setShowSourceSelector(true)}
+                      className="flex items-center gap-1 rounded-full pl-1 pr-1.5 py-1 active:scale-95 transition-transform"
+                      style={{ backgroundColor: 'var(--bg-inset)', WebkitTapHighlightColor: 'transparent' }}
+                      aria-label={t('add.selectSource')}
+                    >
+                      <SourceLogo source={sources.find(s => s.id === selectedSourceId)} size={24} />
+                      <ChevronDown className="w-3.5 h-3.5" style={{ color: 'var(--ink-2)' }} strokeWidth={2.5} />
+                    </button>
+                  )
                 }
               />
               
