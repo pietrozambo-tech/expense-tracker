@@ -205,6 +205,10 @@ eq('replica: my share is what she did not cover', rep.split.mine, 30);
 eq('replica: id derives from the shared id', rep.id, replicaId('x1'));
 eq('settled state pushes nothing', p2.push.length + p2.patch.length, 0);
 eq('she authored it, so it is flagged incoming', p2.incoming.map((c) => c.kind), ['new']);
+// The nudge needs the money, not just the noun: "Pietro added Cibo e Bevande"
+// with no figure says an event occurred and nothing about what it cost.
+eq('nudge: carries the HOUSEHOLD amount, not my half', p2.incoming[0].amount, 60);
+eq('nudge: and the currency it was in', p2.incoming[0].currency, 'EUR');
 
 // THE property: running it again changes nothing and sends nothing.
 const p3 = planSync(p2.transactions, [mineEchoed, row({ id: 'x1' })], ME, HID, CATS);
@@ -227,6 +231,8 @@ eq('her correction to my expense is accepted', mineNow.amount, 90);
 eq('my share follows her correction', mineNow.split.mine, 45);
 eq('and my stale copy is NOT re-pushed over it', [...p5.push, ...p5.patch].some((r) => r.id === 'a'), false);
 eq('her correction is reported', p5.incoming.some((c) => c.kind === 'edited'), true);
+eq('nudge: a correction reports the NEW household figure',
+  p5.incoming.find((c) => c.kind === 'edited').amount, 90);
 
 // I correct HER expense: it must go up, keeping her as the author.
 const editedReplica = p2.transactions.map((t) =>
@@ -246,6 +252,8 @@ eq('and it is stamped as mine', pushedBack.updated_by, ME);
 const p7 = planSync(p2.transactions, [mineEchoed, row({ id: 'x1', deleted_at: '2026-08-07T09:00:00Z' })], ME, HID, CATS);
 eq('deletion removes the replica', p7.transactions.some((t) => t.fromShared === 'x1'), false);
 eq('deletion is reported', p7.incoming.some((c) => c.kind === 'removed'), true);
+eq('nudge: a deletion reports what it was worth',
+  p7.incoming.find((c) => c.kind === 'removed').amount, 60);
 
 // Absence is NEVER a deletion: a fresh device pulls, it does not wipe.
 const fresh = planSync([], [mineEchoed, row({ id: 'x1' })], ME, HID, CATS);

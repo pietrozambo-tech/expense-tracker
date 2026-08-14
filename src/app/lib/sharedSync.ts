@@ -153,6 +153,12 @@ export interface IncomingChange {
   id: string;
   description: string;
   kind: 'new' | 'edited' | 'removed';
+  /** The HOUSEHOLD figure - what the receipt said, not your half. Carried raw
+   *  with its currency so the caller can convert it the way every other amount
+   *  in the app is converted; this module knows nothing about home currency. */
+  amount: number;
+  currency: string;
+  baseAmount?: number;
 }
 
 export interface SyncPlan {
@@ -277,7 +283,10 @@ export function planSync(
 
     if (r?.deleted_at) {
       // Removed by whoever deleted it - on both devices.
-      incoming.push({ id: sid, description: t.description, kind: 'removed' });
+      incoming.push({
+        id: sid, description: t.description, kind: 'removed',
+        amount: t.amount, currency: t.currency, baseAmount: t.baseAmount,
+      });
       changed = true;
       continue;
     }
@@ -298,7 +307,10 @@ export function planSync(
       if (JSON.stringify(next) !== JSON.stringify(t)) {
         changed = true;
         if (r.updated_by && r.updated_by !== myUserId) {
-          incoming.push({ id: sid, description: r.description, kind: 'edited' });
+          incoming.push({
+            id: sid, description: r.description, kind: 'edited',
+            amount: Number(r.amount), currency: r.currency, baseAmount: r.base_amount ?? undefined,
+          });
         }
       }
       out.push(next);
@@ -316,7 +328,10 @@ export function planSync(
     out.push(toTransaction(r, myUserId, categories, undefined, partnerSourceId));
     changed = true;
     if (r.author_id !== myUserId) {
-      incoming.push({ id: r.id, description: r.description, kind: 'new' });
+      incoming.push({
+        id: r.id, description: r.description, kind: 'new',
+        amount: Number(r.amount), currency: r.currency, baseAmount: r.base_amount ?? undefined,
+      });
     }
   }
 

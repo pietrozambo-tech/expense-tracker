@@ -4,7 +4,7 @@ import { Toaster } from './components/ui/sonner';
 import { createPortal } from 'react-dom';
 import { BarChart3, Plus, List, X, Settings as SettingsIcon, TrendingUp, ChevronDown, Repeat, Split, Undo2 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
-import { CURRENCIES, convertAmount, BASE_CURRENCY, formatAmountListView } from './utils/currency';
+import { CURRENCIES, convertAmount, BASE_CURRENCY, formatAmountListView, homeAmount } from './utils/currency';
 import type { Transaction, Source, RecurringRule, Category, Household, Person, Settlement } from './types';
 import {
   clearAllData,
@@ -1238,7 +1238,26 @@ export default function App() {
           theirs.length === 1
             ? t(
                 theirs[0].kind === 'removed' ? 'shared.nudge.removed' : theirs[0].kind === 'edited' ? 'shared.nudge.edited' : 'shared.nudge.added',
-                { name, what: theirs[0].description },
+                {
+                  name,
+                  what: theirs[0].description,
+                  // The HOUSEHOLD figure, not your half: the nudge reports what
+                  // they did, and what they did was spend the whole amount.
+                  // Converted the way every other amount is, so a euro row in a
+                  // pound household still reads in pounds.
+                  amt: formatAmountListView(
+                    homeAmount(
+                      {
+                        amount: theirs[0].amount,
+                        currency: theirs[0].currency,
+                        baseAmount: theirs[0].baseAmount,
+                      } as Transaction,
+                      userCurrency,
+                    ),
+                    userCurrency,
+                    theirs[0].amount % 1 ? 2 : 0,
+                  ),
+                },
               )
             : t('shared.nudge.many', { name, n: theirs.length }),
           { duration: 2600 },

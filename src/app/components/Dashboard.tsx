@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { ChevronRight, ArrowUpDown, TrendingUp, TrendingDown, Minus, Plus, Receipt, ChevronLeft, ChevronDown, X, Wallet, Gauge, Sparkles } from 'lucide-react';
+import { ChevronRight, ArrowUpDown, TrendingUp, TrendingDown, Minus, Plus, Receipt, ChevronLeft, ChevronDown, X, Wallet, Gauge, Sparkles, Split } from 'lucide-react';
 import { TrendCategoryBreakdown } from './TrendCategoryBreakdown';
 import React from 'react';
 import { formatAmountListView, formatAbbreviatedAmount, abbreviateNumber, needsAbbreviation, formatSavingRate, CURRENCIES, mineAmount } from '../utils/currency';
-import { byRecency } from '../lib/shared';
+import { byRecency, partnerSourceId } from '../lib/shared';
 import { monthsShort, monthsFull, daysFull, daysShort, numberLocale, getLanguage, dateLocale, GROUPED } from '../i18n/store';
 import { t, useLanguage } from '../i18n';
 import { translateRecurrence } from '../i18n/store';
@@ -4014,6 +4014,19 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                               <div style={{ width: '12px', height: '12px', borderRadius: '3px', backgroundColor: item.color }} />
                             )}
                             <span style={{ color: 'var(--ink)', fontSize: '13px', fontWeight: '500' }}>{item.name}</span>
+                            {/* The partner is not a card you carry, and their
+                                row in this chart should say so at a glance -
+                                otherwise "Elisabetta" reads as an account you
+                                own and forgot about. Same glyph as the split
+                                chip on the Add screen. */}
+                            {partner && item.id === partnerSourceId(partner.id) && (
+                              <Split
+                                className="w-3.5 h-3.5 flex-shrink-0"
+                                style={{ color: 'var(--ink-2)' }}
+                                strokeWidth={2.2}
+                                aria-label={t('shared.set.connect')}
+                              />
+                            )}
                           </div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                             <span style={{ color: 'var(--ink-2)', fontSize: '12px' }}>{item.percentage.toFixed(0)}%</span>
