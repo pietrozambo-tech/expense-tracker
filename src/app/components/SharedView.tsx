@@ -1,12 +1,12 @@
 import { useMemo, useState } from 'react';
-import { ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ArrowUpDown, ChevronDown, ChevronLeft, ChevronRight, TrendingDown, TrendingUp } from 'lucide-react';
 import { t } from '../i18n';
 import { monthsFull } from '../i18n/store';
 import { AmountText } from './AmountText';
 import { ConfirmDialog } from './ConfirmDialog';
 import { SharedDrilldown } from './SharedDrilldown';
 import { getCategoryIcon } from './categoryIcons';
-import { homeAmount, mineAmount, formatAmountListView } from '../utils/currency';
+import { homeAmount, mineAmount, formatAmountListView, CURRENCIES } from '../utils/currency';
 import { isShared, runningBalance } from '../lib/shared';
 import { paidBy } from '../lib/sharedSync';
 import type { Household, Person, Settlement, Transaction } from '../types';
@@ -21,6 +21,16 @@ const RING_W = 13;
 const RING_R = (DONUT - RING_W) / 2;
 const CIRC = 2 * Math.PI * RING_R;
 const YOU_COLOR = 'rgba(255,255,255,0.92)';
+
+/** "Jul", "Q2", "2025" - what the trend column is measured against. */
+function priorLabel(
+  type: 'month' | 'quarter' | 'year',
+  p: { year: number; month: number; quarter: number },
+): string {
+  if (type === 'year') return String(p.year);
+  if (type === 'quarter') return `Q${p.quarter + 1}`;
+  return monthsFull()[p.month].slice(0, 3);
+}
 
 // The Dashboard's other subject: not "how am I doing" but "what do WE spend".
 //
@@ -74,6 +84,10 @@ export function SharedView({
   onPickPeriod,
 }: SharedViewProps) {
   const [confirmSettle, setConfirmSettle] = useState(false);
+  // Same two-state toggle the personal Categories card uses, and deliberately
+  // the same two states: biggest-first to see where the money goes, A-Z to
+  // find one category among many. Not persisted, like its counterpart.
+  const [sortBy, setSortBy] = useState<'amount' | 'alphabetical'>('amount');
   // Which category is showing its subcategories, and which slice is open as a
   // list of transactions. Same two-step as the personal Dashboard.
   const [expanded, setExpanded] = useState<string | null>(null);
@@ -155,9 +169,51 @@ export function SharedView({
         totals.set(key, { total: value, category: txn.category, items: [txn] });
       }
     }
-    return [...totals.values()].sort((a, b) => b.total - a.total);
+    return [...totals.values()];
   }, [periodShared, currency]);
-  const maxCategory = byCategory[0]?.total ?? 0;
+
+  // The period before this one, as household totals per category name.
+  //
+  // Only the immediately preceding one, and no picker to choose another: the
+  // personal card offers a menu because "versus the same month last year" is a
+  // real question about your own habits, while the household question people
+  // actually ask is "are we spending more than last month". Its label is plain
+  // text there too whenever there is nothing to choose between.
+  const priorByCategory = useMemo(() => {
+    const p = { year, month, quarter };
+    if (periodType === 'year') p.year = year - 1;
+    else if (periodType === 'quarter') {
+      p.quarter = quarter - 1;
+      if (p.quarter < 0) { p.quarter = 3; p.year = year - 1; }
+    } else {
+      p.month = month - 1;
+      if (p.month < 0) { p.month = 11; p.year = year - 1; }
+    }
+    const totals = new Map<string, number>();
+    for (const txn of transactions) {
+      if (!isShared(txn) || txn.type === 'income') continue;
+      const y = Number(txn.date.slice(0, 4));
+      const m = Number(txn.date.slice(5, 7)) - 1;
+      if (y !== p.year) continue;
+      if (periodType === 'quarter' && Math.floor(m / 3) !== p.quarter) continue;
+      if (periodType === 'month' && m !== p.month) continue;
+      const key = txn.category?.name ?? '?';
+      totals.set(key, (totals.get(key) ?? 0) + homeAmount(txn, currency));
+    }
+    return { totals, label: priorLabel(periodType, p) };
+  }, [transactions, currency, periodType, year, month, quarter]);
+
+  // Sorted for display. Amount-sorted is the default because the first
+  // question about a shared ledger is "what is costing us the most".
+  const sortedCategories = useMemo(() => {
+    const rows = [...byCategory];
+    rows.sort((a, b) =>
+      sortBy === 'alphabetical'
+        ? (a.category?.name ?? '?').localeCompare(b.category?.name ?? '?')
+        : b.total - a.total,
+    );
+    return rows;
+  }, [byCategory, sortBy]);
 
   // Subcategories of one category, biggest first. `null` is the bucket for
   // items filed under no subcategory at all.
@@ -373,8 +429,26 @@ export function SharedView({
         className="mt-4 rounded-2xl px-5 pt-4 pb-2"
         style={{ backgroundColor: 'var(--bg-card)', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}
       >
-        <div className="flex items-baseline justify-between mb-1">
-          <span style={{ color: 'var(--ink)', fontSize: 17, fontWeight: 700 }}>{t('shared.whatWeSpend')}</span>
+        <div className="flex items-center justify-between mb-1 gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <span style={{ color: 'var(--ink)', fontSize: 17, fontWeight: 700 }}>{t('shared.whatWeSpend')}</span>
+            {/* Sort sits with the heading because it acts on the whole list -
+                the same placement, control and two states as the personal
+                Categories card, so the two lists are operated the same way. */}
+            {byCategory.length > 1 && (
+              <button
+                onClick={() => setSortBy(sortBy === 'alphabetical' ? 'amount' : 'alphabetical')}
+                className="flex items-center gap-1 px-2 py-1 rounded-lg flex-shrink-0 active:opacity-60 transition-opacity"
+                style={{ backgroundColor: 'var(--bg-inset)' }}
+                aria-label={t('shared.sortAria')}
+              >
+                <ArrowUpDown className="w-3 h-3" style={{ color: 'var(--ink-2)' }} />
+                <span style={{ color: 'var(--ink-2)', fontSize: 11 }}>
+                  {sortBy === 'alphabetical' ? 'A-Z' : CURRENCIES[currency]?.symbol ?? currency}
+                </span>
+              </button>
+            )}
+          </div>
           {/* The count is the way to the whole list. Until this existed there
               was nowhere at all to read the shared transactions themselves -
               only totals, with no way to check what was in them. */}
@@ -397,16 +471,34 @@ export function SharedView({
             </button>
           )}
         </div>
-        <div style={{ color: 'var(--ink-2)', fontSize: 11.5, marginBottom: 6 }}>
-          {t('shared.fullAmounts')}
-          {periodShort !== periodLabel ? ` · ${periodShort}` : ''}
+        <div className="flex items-baseline justify-between gap-3" style={{ marginBottom: 6 }}>
+          <span className="min-w-0 truncate" style={{ color: 'var(--ink-2)', fontSize: 11.5 }}>
+            {t('shared.fullAmounts')}
+            {/* The card names its own period, and keeps doing so now that
+                the comparison label shares the line. Dropping it for the month
+                lens would have bought the space more cheaply, but scrolled
+                past the hero this suffix is the only thing saying WHICH month
+                these totals are - which is exactly what the period test
+                pins. The subtitle got shorter instead. */}
+            {periodShort !== periodLabel ? ` · ${periodShort}` : ''}
+          </span>
+          {/* What the arrows are measured against. Plain text, no chevron:
+              there is one baseline here and a menu of one is just noise - the
+              same rule the personal card follows when it has nothing to
+              offer. Hidden entirely when the previous period was empty, so it
+              never promises a comparison the rows cannot make. */}
+          {priorByCategory.totals.size > 0 && (
+            <span className="flex-shrink-0" style={{ color: 'var(--ink-2)', fontSize: 11.5 }}>
+              {t('shared.vsPeriod', { period: priorByCategory.label })}
+            </span>
+          )}
         </div>
         {byCategory.length === 0 && (
           <div className="py-6 text-center" style={{ color: 'var(--ink-2)', fontSize: 13.5 }}>
             {t('shared.emptyPeriod')}
           </div>
         )}
-        {byCategory.map(({ total, category, items }, i) => {
+        {sortedCategories.map(({ total, category, items }, i) => {
           const Icon = getCategoryIcon(category?.icon ?? 'MoreHorizontal');
           const name = category?.name ?? '?';
           const subs = subsOf(items);
@@ -415,6 +507,12 @@ export function SharedView({
           // list of one that says the same as the row above it.
           const expandable = subs.length > 1;
           const open = expanded === name;
+          const pct = together > 0 ? (total / together) * 100 : 0;
+          const was = priorByCategory.totals.get(name);
+          // Only a category that existed in both periods can be compared. New
+          // this month is not "up", and gone this month is not "down" - both
+          // are a change of what the household buys, not of how much.
+          const trend = was && was > 0 && total > 0 ? (total - was) / was : null;
           return (
             <div key={category?.id ?? i} style={i > 0 ? { borderTop: '1px solid var(--line-2)' } : undefined}>
               <button
@@ -440,15 +538,40 @@ export function SharedView({
                     <div
                       className={`h-full rounded-full ${category?.color ?? 'text-neutral-500'}`}
                       style={{
-                        width: `${maxCategory ? Math.max(4, (total / maxCategory) * 100) : 0}%`,
+                        // Share of the household total, matching the % beside
+                        // it. It used to scale against the LARGEST category,
+                        // which put the top row at a full bar whatever it was
+                        // worth - fine alone, but next to a printed "84%" a
+                        // bar that means something else is just two answers to
+                        // one question.
+                        width: `${Math.max(pct > 0 ? 2 : 0, pct)}%`,
                         background: 'currentColor',
                         opacity: 0.55,
                       }}
                     />
                   </div>
                 </div>
+                <div
+                  className="tabular-nums text-right flex-shrink-0"
+                  style={{ color: 'var(--ink-2)', fontSize: 11, width: 30 }}
+                >
+                  {pct.toFixed(0)}%
+                </div>
                 <div className="tabular-nums" style={{ color: 'var(--ink)', fontSize: 15, fontWeight: 700 }}>
                   <AmountText amount={total} currency={currency} decimals={total % 1 ? 2 : 0} />
+                </div>
+                {/* Direction only, no number: the arrow answers "more or less
+                    than last month" at a glance, and the figure it would print
+                    is already one tap away in the drilldown. Colour follows
+                    spending, so up is the warm one. */}
+                <div className="flex-shrink-0" style={{ width: 14 }}>
+                  {trend !== null && Math.abs(trend) >= 0.05 && (
+                    trend > 0 ? (
+                      <TrendingUp className="w-3.5 h-3.5" style={{ color: '#FF6961' }} strokeWidth={2.5} />
+                    ) : (
+                      <TrendingDown className="w-3.5 h-3.5" style={{ color: '#30D158' }} strokeWidth={2.5} />
+                    )
+                  )}
                 </div>
                 {expandable ? (
                   <ChevronDown
@@ -478,9 +601,22 @@ export function SharedView({
                     <span className="flex-1 min-w-0 truncate" style={{ color: 'var(--ink-2)', fontSize: 13.5 }}>
                       {sub.name ?? t('trend.other')}
                     </span>
+                    {/* Share of the HOUSEHOLD total, not of the category above
+                        it - the same basis as the category rows, so the column
+                        reads as one scale down the card rather than resetting
+                        to 100% inside every group. */}
+                    <span
+                      className="tabular-nums text-right flex-shrink-0"
+                      style={{ color: 'var(--ink-3)', fontSize: 10.5, width: 30 }}
+                    >
+                      {together > 0 ? `${((sub.total / together) * 100).toFixed(0)}%` : ''}
+                    </span>
                     <span className="tabular-nums" style={{ color: 'var(--ink-2)', fontSize: 13.5, fontWeight: 600 }}>
                       <AmountText amount={sub.total} currency={currency} decimals={sub.total % 1 ? 2 : 0} />
                     </span>
+                    {/* Keeps the sub rows on the same column grid as the
+                        parents, which carry a trend arrow here. */}
+                    <span className="flex-shrink-0" style={{ width: 14 }} />
                     <ChevronRight className="w-3.5 h-3.5 flex-shrink-0" style={{ color: 'var(--ghost)' }} strokeWidth={2.5} />
                   </button>
                 ))}
