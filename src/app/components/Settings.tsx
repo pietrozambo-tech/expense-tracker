@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react';
-import { ChevronRight, ChevronLeft, UserCircle, Wallet, HelpCircle, ShieldCheck, ScrollText, Layers, FlaskConical, Trash2, Landmark, Cloud, LogOut, Upload, Copy, Download, FileSpreadsheet, Palmtree, UserX, Mail, LifeBuoy, CheckCircle2, Globe, CalendarClock, Sparkles, Palette, Sun, Moon, SunMoon, Split, Lock } from 'lucide-react';
+import { ChevronRight, ChevronLeft, UserCircle, Wallet, HelpCircle, ShieldCheck, ScrollText, Layers, FlaskConical, Trash2, Landmark, Cloud, LogOut, Upload, Copy, Download, FileSpreadsheet, Palmtree, UserX, Mail, LifeBuoy, CheckCircle2, Globe, CalendarClock, Sparkles, Palette, Sun, Moon, SunMoon, Split, Lock, Plus } from 'lucide-react';
 import { loadSharedUnlock, saveSharedUnlock } from '../lib/storage';
 import { getCategoryIcon } from './categoryIcons';
 import { sendSupportMessage, supportLimitReached } from '../lib/support';
@@ -795,11 +795,40 @@ export function Settings({
                and hid the connect flow behind it. So: who is this with, then a
                name only on the path that genuinely needs one. */
             <div className="px-6">
-              <div className="rounded-2xl shadow-sm px-5 py-5" style={{ backgroundColor: 'var(--bg-card)' }}>
-                <h2 style={{ color: 'var(--ink)', fontSize: 17, fontWeight: 700, marginBottom: 6 }}>
+              <div className="rounded-2xl shadow-sm px-5 py-7 text-center" style={{ backgroundColor: 'var(--bg-card)' }}>
+                {/* You, and somebody yet to be named. Deliberately the same
+                    paired mark the Dashboard switcher wears once this is on,
+                    so what is being offered here is recognisable later as the
+                    thing that arrived. */}
+                <div className="flex items-center justify-center mb-4" aria-hidden="true">
+                  <span
+                    style={{
+                      // Ink on card, not a fixed near-black: at 44px on a dark
+                      // card #0B0B0D is a hole with a letter floating in it.
+                      // These two tokens swap with the theme, so the mark is
+                      // solid in both.
+                      width: 44, height: 44, borderRadius: 999,
+                      background: 'var(--ink)', color: 'var(--bg-card)',
+                      fontSize: 17, fontWeight: 700, display: 'inline-flex',
+                      alignItems: 'center', justifyContent: 'center',
+                    }}
+                  >
+                    {(userName?.[0] ?? 'P').toUpperCase()}
+                  </span>
+                  <span
+                    style={{
+                      width: 44, height: 44, borderRadius: 999, background: '#7C5CFF', color: '#FFFFFF',
+                      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                      marginLeft: -13, border: '2.5px solid var(--bg-card)',
+                    }}
+                  >
+                    <Plus className="w-5 h-5" strokeWidth={2.6} />
+                  </span>
+                </div>
+                <h2 style={{ color: 'var(--ink)', fontSize: 19, fontWeight: 700, marginBottom: 7, letterSpacing: '-0.2px' }}>
                   {t('shared.set.introTitle')}
                 </h2>
-                <p style={{ color: 'var(--ink-2)', fontSize: 13.5, lineHeight: 1.5, marginBottom: 0 }}>
+                <p className="mx-auto" style={{ color: 'var(--ink-2)', fontSize: 13.5, lineHeight: 1.5, maxWidth: 290 }}>
                   {t('shared.set.introBody')}
                 </p>
               </div>
