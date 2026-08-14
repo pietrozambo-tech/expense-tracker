@@ -1,4 +1,4 @@
-import type { Household, SplitRule, Settlement, Transaction } from '../types';
+import type { Household, Person, Source, SplitRule, Settlement, Transaction } from '../types';
 import { homeAmount, mineAmount } from '../utils/currency';
 import { balanceFrom } from './sharedSync';
 
@@ -87,4 +87,33 @@ export const recencyKey = (t: Transaction): number => {
 export function byRecency(a: Transaction, b: Transaction): number {
   if (a.date !== b.date) return a.date < b.date ? 1 : -1;
   return recencyKey(b) - recencyKey(a);
+}
+
+/**
+ * The Source that stands for the other member.
+ *
+ * Their expenses arrive with no source of their own - which card they used is
+ * theirs, not ours, and it never crosses the wire - so they landed under "No
+ * source" in the spending-by-source donut, where they read as a gap in your own
+ * records rather than as money somebody else spent.
+ *
+ * A source named after them, wearing their initial in their colour, answers it
+ * where the question is asked: the donut segment is the same violet as their
+ * avatar everywhere else in the app.
+ *
+ * Derived from the person rather than stored, so the id is stable and the name
+ * and colour follow theirs - which matters most right after pairing, when the
+ * placeholder "Partner" becomes whatever they actually call themselves.
+ */
+export const partnerSourceId = (personId: string) => `src-partner-${personId}`;
+
+export function partnerSource(person: Person): Source {
+  return {
+    id: partnerSourceId(person.id),
+    name: person.name,
+    kind: 'bank',
+    brand: person.color,
+    monogram: (person.name[0] ?? '?').toUpperCase(),
+    mark: 'monogram',
+  };
 }

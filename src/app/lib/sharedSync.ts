@@ -185,6 +185,7 @@ function toTransaction(
   myUserId: string,
   categories: Category[],
   prior: Transaction | undefined,
+  partnerSourceId?: string,
 ): Transaction {
   const authorIsMe = row.author_id === myUserId;
   // Two people: whatever is not the author's half is the other's. Clamped, so
@@ -204,7 +205,9 @@ function toTransaction(
     type: 'expense',
     currency: row.currency,
     baseAmount: row.base_amount ?? undefined,
-    sourceId: prior?.sourceId,
+    // Their expense has no source of ours; it came from them, and that is a
+    // fact about the row rather than a field to leave blank.
+    sourceId: prior?.sourceId ?? (authorIsMe ? undefined : partnerSourceId),
     recurrence: prior?.recurrence,
     recurrenceOf: prior?.recurrenceOf,
     updatedAt: iso(row.updated_at),
@@ -247,6 +250,9 @@ export function planSync(
   /** The other member's auth id, so "she paid for something I entered" can be
    *  written down. Absent while local-only, where I am the only possible payer. */
   partnerUserId?: string,
+  /** The local Source that stands for them, so their expenses land somewhere
+   *  legible in the spending-by-source breakdown instead of under "No source". */
+  partnerSourceId?: string,
 ): SyncPlan {
   const stamp = new Date().toISOString();
   const byId = new Map(remote.map((r) => [r.id, r]));
@@ -288,7 +294,7 @@ export function planSync(
       }
     } else if (at(r.updated_at) > localStamp) {
       // The server holds the newer statement: take it.
-      const next = toTransaction(r, myUserId, categories, t);
+      const next = toTransaction(r, myUserId, categories, t, partnerSourceId);
       if (JSON.stringify(next) !== JSON.stringify(t)) {
         changed = true;
         if (r.updated_by && r.updated_by !== myUserId) {
@@ -307,7 +313,7 @@ export function planSync(
   // Rows this device has never seen.
   for (const r of remote) {
     if (seen.has(r.id) || r.deleted_at) continue;
-    out.push(toTransaction(r, myUserId, categories, undefined));
+    out.push(toTransaction(r, myUserId, categories, undefined, partnerSourceId));
     changed = true;
     if (r.author_id !== myUserId) {
       incoming.push({ id: r.id, description: r.description, kind: 'new' });

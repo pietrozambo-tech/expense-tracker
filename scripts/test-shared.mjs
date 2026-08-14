@@ -48,7 +48,7 @@ if (!esbuild) {
 
 const SCENARIOS = `
 import { homeAmount, mineAmount } from './utils/currency';
-import { byRecency, myShareOf, runningBalance, shareFraction } from './lib/shared';
+import { byRecency, myShareOf, partnerSource, partnerSourceId, runningBalance, shareFraction } from './lib/shared';
 import { mergePayloads } from './lib/cloud';
 import { planSync, mapCategory, paidBy, paidByPartner, pairingChange, replicaId, sharedIdOf } from './lib/sharedSync';
 import { buildTransactionsCsv } from './lib/csv';
@@ -345,6 +345,32 @@ const afterHerEdit = planSync(firstSight.transactions,
   [row({ id: 'x1', updated_at: '2026-08-20T18:00:00Z', amount: 99 })], ME, HID, CATS, HER);
 eq('order: her later edit does not restamp it',
   afterHerEdit.transactions.find((t) => t.fromShared === 'x1').createdAt, '2026-08-14T09:03:00.000Z');
+
+// ── Their expenses need a home in the source breakdown ─────────────────────
+// Which card they used never crosses the wire, so a replica arrived with no
+// source and landed under "No source" - reading as a gap in your own records
+// rather than as money somebody else spent.
+const SRC = partnerSourceId('p1');
+const arrived = planSync([], [row({ id: 'x1' })], ME, HID, CATS, HER, SRC);
+eq('source: a replica is filed under them', arrived.transactions[0].sourceId, SRC);
+// My own shared expense keeps whatever card I picked.
+const mineWithCard = planSync(
+  [txn({ id: 'a', amount: 10, split: { mine: 5 }, sourceId: 'revolut', updatedAt: '2026-08-09T09:00:00Z' })],
+  [], ME, HID, CATS, HER, SRC,
+);
+eq('source: my own row keeps my card', mineWithCard.transactions[0].sourceId, 'revolut');
+// And a card I chose for one of HER rows is mine to keep.
+const recarded = arrived.transactions.map((t) => ({ ...t, sourceId: 'cash' }));
+const again = planSync(recarded, [row({ id: 'x1' })], ME, HID, CATS, HER, SRC);
+eq('source: a card I put on her row survives the next sync',
+  again.transactions.find((t) => t.fromShared === 'x1').sourceId, 'cash');
+// The source wears their initial in their colour, so the donut segment matches
+// the avatar they have everywhere else.
+const src = partnerSource({ id: 'p1', name: 'Giulia', color: '#7C5CFF' });
+eq('source: named after them', src.name, 'Giulia');
+eq('source: in their colour', src.brand, '#7C5CFF');
+eq('source: wearing their initial', src.monogram, 'G');
+eq('source: with a stable id', src.id, SRC);
 
 // ── Your share is summed, never halved ─────────────────────────────────────
 // The hero prints it beside the household total, and "usually half" is not

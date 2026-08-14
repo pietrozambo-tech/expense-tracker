@@ -39,7 +39,7 @@ import { DEFAULT_SOURCES, DEFAULT_SOURCE_EXPENSE, DEFAULT_SOURCE_INCOME } from '
 import { SourceLogo } from './components/SourceLogo';
 import { SourceSelectorModal } from './components/SourceSelectorModal';
 import { getDemoTransactions } from './lib/demoData';
-import { myShareOf, newHousehold } from './lib/shared';
+import { myShareOf, newHousehold, partnerSource, partnerSourceId } from './lib/shared';
 import { paidByPartner, pairingChange, planSync, sharedIdOf } from './lib/sharedSync';
 import {
   SCHEMA_MISSING,
@@ -1036,6 +1036,31 @@ export default function App() {
     });
   }, [household, expenses]);
 
+  // Give the other member a Source, once anything of theirs is actually here.
+  //
+  // Created lazily rather than the moment sharing is switched on: somebody
+  // tracking a split on their own has no partner rows, and a source named after
+  // a person who is not in the app would only clutter the Add screen's picker.
+  //
+  // Kept in step with them afterwards, name and colour both. That matters right
+  // after pairing, when the placeholder "Partner" becomes whatever they call
+  // themselves - a donut segment still labelled "Partner" a month later would
+  // be the setup flow's placeholder leaking into a chart. It does mean this one
+  // source is renamed from Settings > Shared rather than from Sources, which is
+  // the right place anyway: it is named after a person, not chosen.
+  useEffect(() => {
+    if (!partner) return;
+    const id = partnerSourceId(partner.id);
+    if (!expenses.some((e) => e.sourceId === id)) return;
+    setSources((prev) => {
+      const want = partnerSource(partner);
+      const cur = prev.find((s) => s.id === id);
+      if (!cur) return [...prev, want];
+      if (cur.name === want.name && cur.brand === want.brand && cur.monogram === want.monogram) return prev;
+      return prev.map((s) => (s.id === id ? { ...s, ...want } : s));
+    });
+  }, [partner, expenses]);
+
   const handleUpdateHousehold = (patch: Partial<Household>) => {
     setHousehold((prev) => (prev ? { ...prev, ...patch, updatedAt: new Date().toISOString() } : prev));
   };
@@ -1185,7 +1210,8 @@ export default function App() {
       // signal - without that guard, setting state here would re-trigger the
       // effect that called us and spin forever.
       const rows = await fetchSharedItems(hid);
-      const plan = planSync(expenses, rows, uid, hid, categories, other?.userId);
+      const plan = planSync(expenses, rows, uid, hid, categories, other?.userId,
+        partner ? partnerSourceId(partner.id) : undefined);
       if (plan.push.length) await pushSharedItems(plan.push);
       if (plan.patch.length) await patchSharedItems(plan.patch);
       if (plan.changed) setExpenses(plan.transactions);
