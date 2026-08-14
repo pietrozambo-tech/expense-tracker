@@ -16,11 +16,16 @@ import type { Household, Person, Settlement, Transaction } from '../types';
 // You are the neutral one and they are the coloured one, the same way the
 // avatars work everywhere else - and on this dark card neutral has to mean
 // near-white, not the near-black the switcher uses on a light background.
-const DONUT = 86;
-const RING_W = 13;
+const DONUT = 64;
+const RING_W = 10;
 const RING_R = (DONUT - RING_W) / 2;
 const CIRC = 2 * Math.PI * RING_R;
 const YOU_COLOR = 'rgba(255,255,255,0.92)';
+// Past this gap (in the home currency) the balance caption suggests dinner
+// instead of explaining the running total. 100 was chosen for EUR-scale
+// currencies; it is a nudge threshold, not accounting, so being wrong in
+// JPY costs a joke told early, nothing more.
+const NUDGE_GAP = 100;
 
 /** "Jul", "Q2", "2025" - what the trend column is measured against. */
 function priorLabel(
@@ -265,7 +270,7 @@ export function SharedView({
           Dashboard, because periods must navigate the one way the app teaches:
           back freely, forward only as far as today. */}
       <div
-        className="rounded-3xl px-5 pt-4 pb-5"
+        className="rounded-3xl px-5 pt-4 pb-4"
         style={{
           background: 'linear-gradient(160deg, #26262F 0%, #17171D 55%, #191A22 100%)',
           boxShadow: '0 6px 22px rgba(0, 0, 0, 0.16)',
@@ -311,21 +316,26 @@ export function SharedView({
             every other screen in the app shows and the one you actually
             budget against. Usually half, but the split decides - so it is
             computed, never divided by two. */}
-        <div className="flex items-stretch mb-4">
+        <div className="flex items-stretch mb-3">
           <div className="flex-1 text-center">
-            <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 11.5, marginBottom: 5 }}>
+            <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 11.5, marginBottom: 4 }}>
               {t('shared.weSpent')}
             </div>
-            <div className="tabular-nums" style={{ color: '#FFFFFF', fontSize: 30, fontWeight: 800, letterSpacing: '-0.02em', lineHeight: 1 }}>
+            {/* 20px, not 30: the personal hero caps its metrics at 17px, and
+                these two sat at nearly double that - the loudest numbers in
+                the app for holding the same rank as Spending/Income. One step
+                above 17 keeps them the headline of this card without shouting
+                across the tab. */}
+            <div className="tabular-nums" style={{ color: '#FFFFFF', fontSize: 20, fontWeight: 700, letterSpacing: '-0.02em', lineHeight: 1 }}>
               <AmountText amount={together} currency={currency} decimals={together % 1 ? 2 : 0} />
             </div>
           </div>
           <div style={{ width: 1, background: 'rgba(255,255,255,0.08)' }} />
           <div className="flex-1 text-center">
-            <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 11.5, marginBottom: 5 }}>
+            <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 11.5, marginBottom: 4 }}>
               {t('shared.yourShare')}
             </div>
-            <div className="tabular-nums" style={{ color: 'rgba(255,255,255,0.92)', fontSize: 30, fontWeight: 800, letterSpacing: '-0.02em', lineHeight: 1 }}>
+            <div className="tabular-nums" style={{ color: 'rgba(255,255,255,0.92)', fontSize: 20, fontWeight: 700, letterSpacing: '-0.02em', lineHeight: 1 }}>
               <AmountText amount={yourShare} currency={currency} decimals={yourShare % 1 ? 2 : 0} />
             </div>
           </div>
@@ -336,7 +346,7 @@ export function SharedView({
             what an arc shows at a glance. The figures stay, because a chart
             you cannot read the numbers off is decoration. Same donut geometry
             as the One-off vs Recurring card. */}
-        <div className="flex items-center gap-4" style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: 14 }}>
+        <div className="flex items-center gap-4" style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: 10 }}>
           <div style={{ position: 'relative', width: DONUT, height: DONUT, flexShrink: 0 }}>
             <svg width={DONUT} height={DONUT} aria-hidden="true">
               {/* The track, so an empty period still reads as a ring. */}
@@ -365,7 +375,7 @@ export function SharedView({
               <div
                 key={row.key}
                 className="flex items-center gap-2.5"
-                style={{ paddingTop: i ? 9 : 0 }}
+                style={{ paddingTop: i ? 7 : 0 }}
               >
                 <span
                   aria-hidden="true"
@@ -386,40 +396,54 @@ export function SharedView({
         </div>
       </div>
 
-      {/* The balance - running, and deliberately outside the month's reach. */}
+      {/* The balance - running, and deliberately outside the month's reach.
+          One line of label+amount, one line of caption: this card holds a
+          single number, and it was spending 125px of the screen to say it -
+          stacked label, jumbo figure, a divider and a footnote. The label and
+          amount now share a baseline, and the divider is gone.
+
+          Past NUDGE_GAP apart, the footnote stops explaining the mechanism
+          and starts closing the gap: "let them get the next dinner" turns a
+          number into something a couple actually does about it, which also
+          keeps settling optional - dinner IS a settlement. */}
       {household.trackBalance && (
         <div
-          className="mt-4 rounded-2xl px-5 py-4"
+          className="mt-4 rounded-2xl px-5 py-3.5"
           style={{ backgroundColor: 'var(--bg-card)', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}
         >
           <div className="flex items-center gap-3">
             <div className="flex-1 min-w-0">
-              <div style={{ color: 'var(--ink-2)', fontSize: 12, marginBottom: 3 }}>
-                {Math.abs(owed) < 0.005
-                  ? t('shared.even')
-                  : owed > 0
-                    ? t('shared.owesYou', { name: partner.name })
-                    : t('shared.youOwe', { name: partner.name })}
+              <div className="flex items-baseline gap-2 flex-wrap">
+                <span style={{ color: 'var(--ink-2)', fontSize: 13 }}>
+                  {Math.abs(owed) < 0.005
+                    ? t('shared.even')
+                    : owed > 0
+                      ? t('shared.owesYou', { name: partner.name })
+                      : t('shared.youOwe', { name: partner.name })}
+                </span>
+                {Math.abs(owed) >= 0.005 && (
+                  <span className="tabular-nums" style={{ color: 'var(--ink)', fontSize: 17, fontWeight: 700 }}>
+                    <AmountText amount={Math.abs(owed)} currency={currency} decimals={2} />
+                  </span>
+                )}
               </div>
-              <div className="tabular-nums" style={{ color: 'var(--ink)', fontSize: 22, fontWeight: 800 }}>
-                <AmountText amount={Math.abs(owed)} currency={currency} decimals={2} />
+              <div className="mt-1" style={{ color: 'var(--ink-2)', fontSize: 11.5 }}>
+                {Math.abs(owed) >= NUDGE_GAP
+                  ? owed > 0
+                    ? t('shared.balance.dinnerThem', { name: partner.name })
+                    : t('shared.balance.dinnerYou')
+                  : t('shared.running')}
               </div>
             </div>
             {owed > 0.005 && (
               <button
                 onClick={() => setConfirmSettle(true)}
-                className="rounded-xl active:scale-[0.98] transition-transform"
-                style={{ padding: '10px 16px', backgroundColor: '#4F74F3', color: '#FFFFFF', fontSize: 14, fontWeight: 600 }}
+                className="rounded-xl active:scale-[0.98] transition-transform flex-shrink-0"
+                style={{ padding: '8px 14px', backgroundColor: '#4F74F3', color: '#FFFFFF', fontSize: 13.5, fontWeight: 600 }}
               >
                 {t('shared.settleUp')}
               </button>
             )}
-          </div>
-          <div
-            className="mt-2.5 pt-2.5"
-            style={{ borderTop: '1px solid var(--line-2)', color: 'var(--ink-2)', fontSize: 12 }}
-          >
-            {t('shared.running')}
           </div>
         </div>
       )}

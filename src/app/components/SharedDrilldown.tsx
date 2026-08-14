@@ -108,14 +108,20 @@ export function SharedDrilldown({
                   over a single transaction is a button that does nothing. */}
               {rows.length > 1 && (
                 <button
+                  key={sortBy}
                   onClick={() => setSortBy(sortBy === 'date' ? 'amount' : 'date')}
                   className="ml-auto flex items-center gap-1 px-2 py-1 rounded-lg flex-shrink-0 active:opacity-60 transition-opacity"
-                  style={{ backgroundColor: 'var(--bg-inset)' }}
+                  style={{ backgroundColor: 'var(--bg-inset)', transform: 'translateZ(0)' }}
                   aria-label={t('shared.drill.sortAria')}
                 >
-                  <ArrowUpDown className="w-3 h-3" style={{ color: 'var(--ink-2)' }} />
-                  <span style={{ color: 'var(--ink-2)', fontSize: 11 }}>
-                    {t(sortBy === 'date' ? 'shared.drill.sortDate' : 'shared.drill.sortAmount')}
+                  <ArrowUpDown className="w-3 h-3 flex-shrink-0" style={{ color: 'var(--ink-2)' }} />
+                  <span className="grid text-center" style={{ color: 'var(--ink-2)', fontSize: 11 }}>
+                    <span style={{ gridArea: '1 / 1', visibility: sortBy === 'date' ? 'visible' : 'hidden' }}>
+                      {t('shared.drill.sortDate')}
+                    </span>
+                    <span style={{ gridArea: '1 / 1', visibility: sortBy === 'amount' ? 'visible' : 'hidden' }}>
+                      {t('shared.drill.sortAmount')}
+                    </span>
                   </span>
                 </button>
               )}
@@ -156,8 +162,8 @@ export function SharedDrilldown({
                 </div>
                 <div className="flex items-center gap-1.5 mt-0.5">
                   {avatar(s.amount >= 0 ? partner.name : userName || 'P', s.amount >= 0 ? partner.color : '#3C3C46')}
-                  <span style={{ color: 'var(--ink-2)', fontSize: 11.5 }}>
-                    {new Date(s.date + 'T00:00:00').toLocaleDateString(dateLocale(), { day: 'numeric', month: 'short' })}
+                  <span className="flex-1 min-w-0 truncate" style={{ color: 'var(--ink-2)', fontSize: 11.5 }}>
+                    {new Date(s.date + 'T00:00:00').toLocaleDateString(dateLocale(), { weekday: 'long', day: 'numeric', month: 'long' })}
                   </span>
                 </div>
               </div>
@@ -191,8 +197,13 @@ export function SharedDrilldown({
                   </div>
                   <div className="flex items-center gap-1.5 mt-0.5">
                     {avatar(theirs ? partner.name : userName || 'P', theirs ? partner.color : '#3C3C46')}
-                    <span style={{ color: 'var(--ink-2)', fontSize: 11.5 }}>
-                      {new Date(txn.date + 'T00:00:00').toLocaleDateString(dateLocale(), { day: 'numeric', month: 'short' })}
+                    {/* The full day, because there is room for it and the
+                        weekday is half of how people remember an expense -
+                        "that was Saturday" places it faster than "the 14th".
+                        Truncated, so a long subcategory gives way before the
+                        row does. */}
+                    <span className="flex-1 min-w-0 truncate" style={{ color: 'var(--ink-2)', fontSize: 11.5 }}>
+                      {new Date(txn.date + 'T00:00:00').toLocaleDateString(dateLocale(), { weekday: 'long', day: 'numeric', month: 'long' })}
                       {txn.subcategory ? ` · ${txn.subcategory}` : ''}
                     </span>
                   </div>

@@ -593,6 +593,8 @@ export const en = {
   'shared.owesYou': '{name} owes you',
   'shared.youOwe': 'You owe {name}',
   'shared.even': 'You are even',
+  'shared.balance.dinnerThem': 'Let {name} get the next dinner 🍝',
+  'shared.balance.dinnerYou': 'Your turn to get the next dinner 🍝',
   'shared.running': 'Running total — months don’t reset it',
   'shared.settleUp': 'Settle up',
   'shared.settleTitle': 'Settle up',

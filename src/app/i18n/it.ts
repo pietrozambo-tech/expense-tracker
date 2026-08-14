@@ -587,6 +587,8 @@ export const it: Record<keyof typeof en, string> = {
   'shared.owesYou': '{name} ti deve',
   'shared.youOwe': 'Devi a {name}',
   'shared.even': 'Siete pari',
+  'shared.balance.dinnerThem': 'La prossima cena la paga {name} 🍝',
+  'shared.balance.dinnerYou': 'La prossima cena la paghi tu 🍝',
   'shared.running': 'Totale corrente — i mesi non lo azzerano',
   'shared.settleUp': 'Salda',
   'shared.settleTitle': 'Saldare il conto',
