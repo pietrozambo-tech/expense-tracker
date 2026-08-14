@@ -6,10 +6,21 @@ import { AmountText } from './AmountText';
 import { ConfirmDialog } from './ConfirmDialog';
 import { SharedDrilldown } from './SharedDrilldown';
 import { getCategoryIcon } from './categoryIcons';
-import { homeAmount, formatAmountListView } from '../utils/currency';
+import { homeAmount, mineAmount, formatAmountListView } from '../utils/currency';
 import { isShared, runningBalance } from '../lib/shared';
 import { paidBy } from '../lib/sharedSync';
 import type { Household, Person, Settlement, Transaction } from '../types';
+
+// Ring geometry, and the two colours that stand for the two of you.
+//
+// You are the neutral one and they are the coloured one, the same way the
+// avatars work everywhere else - and on this dark card neutral has to mean
+// near-white, not the near-black the switcher uses on a light background.
+const DONUT = 86;
+const RING_W = 13;
+const RING_R = (DONUT - RING_W) / 2;
+const CIRC = 2 * Math.PI * RING_R;
+const YOU_COLOR = 'rgba(255,255,255,0.92)';
 
 // The Dashboard's other subject: not "how am I doing" but "what do WE spend".
 //
@@ -111,6 +122,18 @@ export function SharedView({
   // paid the shop; everything else is mine. This read the household total on
   // my side and a hard zero on hers while pairing was still being built.
   const { mine: youPaid, theirs: partnerPaid } = paidBy(periodShared, (t) => homeAmount(t, currency));
+  // What the household's spending actually cost YOU. Usually half, but the
+  // split rule decides, so it is summed rather than halved.
+  const yourShare = periodShared.reduce((sum, txn) => sum + mineAmount(txn, currency), 0);
+
+  const paidSegments = (() => {
+    if (together <= 0) return [];
+    const mineLen = (youPaid / together) * CIRC;
+    return [
+      { key: 'me', color: YOU_COLOR, length: mineLen, offset: 0 },
+      { key: 'them', color: partner.color, length: (partnerPaid / together) * CIRC, offset: mineLen },
+    ].filter((seg) => seg.length > 0);
+  })();
 
   // Grouped the way the personal Dashboard groups: category, then the
   // subcategories inside it, and the transactions themselves one tap further.
@@ -226,35 +249,83 @@ export function SharedView({
             <ChevronRight className="w-5 h-5" style={{ color: 'rgba(255,255,255,0.55)' }} />
           </button>
         </div>
-        <div className="text-center mb-4">
-          <div style={{ color: 'rgba(255,255,255,0.55)', fontSize: 12.5, marginBottom: 5 }}>
-            {t('shared.weSpent')}
-          </div>
-          <div className="tabular-nums" style={{ color: '#FFFFFF', fontSize: 36, fontWeight: 800, letterSpacing: '-0.02em', lineHeight: 1 }}>
-            <AmountText amount={together} currency={currency} decimals={together % 1 ? 2 : 0} />
-          </div>
-        </div>
-        <div className="flex" style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: 14 }}>
-          <div className="flex-1 flex items-center justify-center gap-2.5">
-            {avatar(userName || 'P', '#3C3C46')}
-            <div>
-              <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 11 }}>{t('shared.youPaid')}</div>
-              <div className="tabular-nums" style={{ color: '#FFFFFF', fontSize: 15, fontWeight: 700 }}>
-                <AmountText amount={youPaid} currency={currency} decimals={0} />
-              </div>
+        {/* The household total and YOUR half, side by side.
+            The big figure answers "what does living together cost"; the one
+            beside it answers "what did that cost ME", which is the number
+            every other screen in the app shows and the one you actually
+            budget against. Usually half, but the split decides - so it is
+            computed, never divided by two. */}
+        <div className="flex items-stretch mb-4">
+          <div className="flex-1 text-center">
+            <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 11.5, marginBottom: 5 }}>
+              {t('shared.weSpent')}
+            </div>
+            <div className="tabular-nums" style={{ color: '#FFFFFF', fontSize: 30, fontWeight: 800, letterSpacing: '-0.02em', lineHeight: 1 }}>
+              <AmountText amount={together} currency={currency} decimals={together % 1 ? 2 : 0} />
             </div>
           </div>
           <div style={{ width: 1, background: 'rgba(255,255,255,0.08)' }} />
-          <div className="flex-1 flex items-center justify-center gap-2.5">
-            {avatar(partner.name, partner.color)}
-            <div>
-              <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 11 }}>
-                {t('shared.theyPaid', { name: partner.name })}
-              </div>
-              <div className="tabular-nums" style={{ color: '#FFFFFF', fontSize: 15, fontWeight: 700 }}>
-                <AmountText amount={partnerPaid} currency={currency} decimals={0} />
-              </div>
+          <div className="flex-1 text-center">
+            <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 11.5, marginBottom: 5 }}>
+              {t('shared.yourShare')}
             </div>
+            <div className="tabular-nums" style={{ color: 'rgba(255,255,255,0.92)', fontSize: 30, fontWeight: 800, letterSpacing: '-0.02em', lineHeight: 1 }}>
+              <AmountText amount={yourShare} currency={currency} decimals={yourShare % 1 ? 2 : 0} />
+            </div>
+          </div>
+        </div>
+
+        {/* Who fronted it, as a ring rather than two boxes: the question is a
+            proportion ("are we carrying this evenly?") and a proportion is
+            what an arc shows at a glance. The figures stay, because a chart
+            you cannot read the numbers off is decoration. Same donut geometry
+            as the One-off vs Recurring card. */}
+        <div className="flex items-center gap-4" style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: 14 }}>
+          <div style={{ position: 'relative', width: DONUT, height: DONUT, flexShrink: 0 }}>
+            <svg width={DONUT} height={DONUT} aria-hidden="true">
+              {/* The track, so an empty period still reads as a ring. */}
+              <circle
+                cx={DONUT / 2} cy={DONUT / 2} r={RING_R} fill="none"
+                stroke="rgba(255,255,255,0.10)" strokeWidth={RING_W}
+              />
+              {paidSegments.map((seg) => (
+                <circle
+                  key={seg.key}
+                  cx={DONUT / 2} cy={DONUT / 2} r={RING_R} fill="none"
+                  stroke={seg.color} strokeWidth={RING_W}
+                  strokeDasharray={`${seg.length} ${CIRC}`}
+                  strokeDashoffset={-seg.offset}
+                  strokeLinecap="butt"
+                  style={{ transform: 'rotate(-90deg)', transformOrigin: `${DONUT / 2}px ${DONUT / 2}px` }}
+                />
+              ))}
+            </svg>
+          </div>
+          <div className="flex-1 min-w-0">
+            {[
+              { key: 'me', name: userName || 'P', color: YOU_COLOR, label: t('shared.youPaid'), value: youPaid },
+              { key: 'them', name: partner.name, color: partner.color, label: t('shared.theyPaid', { name: partner.name }), value: partnerPaid },
+            ].map((row, i) => (
+              <div
+                key={row.key}
+                className="flex items-center gap-2.5"
+                style={{ paddingTop: i ? 9 : 0 }}
+              >
+                <span
+                  aria-hidden="true"
+                  style={{ width: 9, height: 9, borderRadius: 3, background: row.color, flexShrink: 0 }}
+                />
+                <span className="flex-1 min-w-0 truncate" style={{ color: 'rgba(255,255,255,0.62)', fontSize: 12 }}>
+                  {row.label}
+                </span>
+                <span className="tabular-nums flex-shrink-0" style={{ color: '#FFFFFF', fontSize: 14.5, fontWeight: 700 }}>
+                  <AmountText amount={row.value} currency={currency} decimals={row.value % 1 ? 2 : 0} />
+                </span>
+                <span className="tabular-nums flex-shrink-0 text-right" style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11.5, width: 34 }}>
+                  {together > 0 ? `${Math.round((row.value / together) * 100)}%` : '—'}
+                </span>
+              </div>
+            ))}
           </div>
         </div>
       </div>

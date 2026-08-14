@@ -549,6 +549,7 @@ export const it: Record<keyof typeof en, string> = {
   'shared.nextPeriod': 'Periodo successivo',
   'shared.choosePeriod': 'Scegli un periodo',
   'shared.weSpent': 'Abbiamo speso insieme',
+  'shared.yourShare': 'La tua quota',
   'shared.youPaid': 'Hai pagato',
   'shared.theyPaid': '{name} ha pagato',
   'shared.owesYou': '{name} ti deve',

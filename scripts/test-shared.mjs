@@ -346,6 +346,22 @@ const afterHerEdit = planSync(firstSight.transactions,
 eq('order: her later edit does not restamp it',
   afterHerEdit.transactions.find((t) => t.fromShared === 'x1').createdAt, '2026-08-14T09:03:00.000Z');
 
+// ── Your share is summed, never halved ─────────────────────────────────────
+// The hero prints it beside the household total, and "usually half" is not
+// "half": the split rule decides, and a 60/40 household must not read 50.
+const skewed = [
+  txn({ id: 's1', amount: 100, split: { mine: 60 } }),
+  txn({ id: 's2', amount: 50, split: { mine: 30 } }),
+];
+const full = skewed.reduce((n, t) => n + homeAmount(t, 'EUR'), 0);
+const mineOf = skewed.reduce((n, t) => n + mineAmount(t, 'EUR'), 0);
+eq('share: the household total is the receipts', full, 150);
+eq('share: my share follows the split, not a division by two', mineOf, 90);
+// And the two payer figures always add back up to the household total, or the
+// donut would be drawing a proportion of something the hero does not show.
+const skewPaid = paidBy(skewed, (t) => homeAmount(t, 'EUR'));
+eq('share: the ring covers the whole total', skewPaid.mine + skewPaid.theirs, full);
+
 // ── Entering an expense and paying for it are different acts ────────────────
 // payer_id has been in the schema since the first migration and nothing wrote
 // it, so "she was at the till, I logged it" was inexpressible.

@@ -548,6 +548,7 @@ export const en = {
   'shared.nextPeriod': 'Next period',
   'shared.choosePeriod': 'Choose a period',
   'shared.weSpent': 'We spent together',
+  'shared.yourShare': 'Your share',
   'shared.youPaid': 'You paid',
   'shared.theyPaid': '{name} paid',
   'shared.owesYou': '{name} owes you',

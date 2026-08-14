@@ -1163,14 +1163,12 @@ export default function App() {
           const stale = prev.some(
             (p) =>
               household!.memberIds.includes(p.id) &&
-              (p.userId !== other.userId ||
-                (!!other.displayName && p.name !== other.displayName) ||
-                (!!other.color && p.color !== other.color)),
+              (p.userId !== other.userId || (!!other.displayName && p.name !== other.displayName)),
           );
           if (!stale) return prev;
           return prev.map((p) =>
             household!.memberIds.includes(p.id)
-              ? { ...p, name: other.displayName || p.name, color: other.color || p.color, userId: other.userId }
+              ? { ...p, name: other.displayName || p.name, userId: other.userId }
               : p,
           );
         });
@@ -1338,8 +1336,14 @@ export default function App() {
     return createInviteCode(hid);
   };
 
-  /** Join hers. Her name, colour and the shared settings come from the server,
-   *  so the placeholder typed when sharing was switched on is replaced. */
+  /** Join hers. Her NAME and the shared settings come from the server, so the
+   *  placeholder typed at setup is replaced.
+   *
+   *  Her colour is not taken. Both sides publish '#0B0B0D' as their own avatar
+   *  colour, so each device was painting the other with it and the two of you
+   *  came out as identical black circles - in the switcher, in the hero, in the
+   *  item list. Colour is a local presentation choice: on my phone I am ink and
+   *  she is violet, and on hers it is the other way round. */
   const handleJoinWithCode = async (code: string): Promise<void> => {
     if (!household) throw new Error('no household');
     const hid = await redeemInviteCode(code, userName || 'Me', '#0B0B0D');
@@ -1350,7 +1354,7 @@ export default function App() {
       setPeople((prev) =>
         prev.map((p) =>
           household.memberIds.includes(p.id)
-            ? { ...p, name: other.displayName || p.name, color: other.color || p.color, userId: other.userId }
+            ? { ...p, name: other.displayName || p.name, userId: other.userId }
             : p,
         ),
       );
