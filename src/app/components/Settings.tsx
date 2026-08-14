@@ -443,7 +443,7 @@ export function Settings({
   const submitSupport = async () => {
     if (!canSendSupport || sendingSupport) return;
     if (supportLimitReached()) {
-      toast.error('Daily limit reached', {
+      toast.error(t('toast.supportLimit'), {
         description: getLanguage() === 'it'
           ? `Puoi inviare fino a 10 messaggi al giorno - oppure scrivici direttamente a ${SUPPORT_EMAIL}.`
           : `You can send up to 10 messages a day - or email us directly at ${SUPPORT_EMAIL}.`,
@@ -460,7 +460,7 @@ export function Settings({
     });
     setSendingSupport(false);
     if (res.error) {
-      toast.error("Couldn't send your message", { description: res.error, duration: 3500 });
+      toast.error(t('toast.supportFailed'), { description: res.error, duration: 3500 });
       return;
     }
     setSupportMessage('');
@@ -547,13 +547,13 @@ export function Settings({
   const handleDeleteAccountConfirm = async () => {
     setConfirmAction(null);
     setDeletingAccount(true);
-    const toastId = toast.loading('Deleting your account…');
+    const toastId = toast.loading(t('toast.deletingAccount'));
     const res = await onDeleteAccount?.();
     toast.dismiss(toastId);
     setDeletingAccount(false);
     onModalOpenChange(false);
     if (res?.error) {
-      toast.error('Could not delete account', { description: res.error, duration: 3500 });
+      toast.error(t('toast.deleteAccountFailed'), { description: res.error, duration: 3500 });
     }
   };
 
@@ -601,29 +601,34 @@ export function Settings({
         onImportData?.(payload as ImportPayload);
       }
     } catch {
-      toast.error("Couldn't read that file", {
-        description: 'Expected a TracklyLab import file (.json)',
+      toast.error(t('toast.badFile'), {
+        description: t('toast.badFileDesc'),
         duration: 2400,
       });
     }
   };
 
-  // Coarse relative time for the sync row ("just now", "5m ago", ...)
+  // Coarse relative time for the sync row ("just now", "5m ago", ...). Past a
+  // day it hands off to the locale's own date formatting, which was already
+  // right - only the words in front of it were stuck in English.
   const relTime = (ts: number) => {
     const s = Math.floor((Date.now() - ts) / 1000);
-    if (s < 60) return 'just now';
-    if (s < 3600) return `${Math.floor(s / 60)}m ago`;
-    if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
+    if (s < 60) return t('sync.justNow');
+    if (s < 3600) return t('sync.minsAgo', { n: Math.floor(s / 60) });
+    if (s < 86400) return t('sync.hoursAgo', { n: Math.floor(s / 3600) });
     return new Date(ts).toLocaleDateString(dateLocale(), { day: 'numeric', month: 'short' });
   };
   const syncMeta =
     syncStatus === 'pending'
-      ? { label: 'Syncing…', color: 'var(--ink-2)' }
+      ? { label: t('sync.syncing'), color: 'var(--ink-2)' }
       : syncStatus === 'offline'
-        ? { label: 'Offline - will sync when back online', color: '#FF9F0A' }
+        ? { label: t('sync.offline'), color: '#FF9F0A' }
         : syncStatus === 'error'
-          ? { label: "Sync issue - retrying automatically", color: '#FF3B30' }
-          : { label: lastSyncedAt ? `Synced · ${relTime(lastSyncedAt)}` : 'Synced', color: '#30D158' };
+          ? { label: t('sync.error'), color: '#FF3B30' }
+          : {
+              label: lastSyncedAt ? t('sync.syncedAt', { when: relTime(lastSyncedAt) }) : t('sync.synced'),
+              color: '#30D158',
+            };
 
   // Shared expenses setup. Setup ONLY - the balance and the household view
   // live on the Dashboard behind the avatar switcher; this screen holds what
@@ -2066,7 +2071,7 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
         await navigator.clipboard.writeText(importPrompt);
         toast.success(t('set.promptCopied'), { duration: 1400 });
       } catch {
-        toast.error('Copy failed - select the text and copy it manually');
+        toast.error(t('toast.copyFailed'));
       }
     };
 

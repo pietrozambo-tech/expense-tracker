@@ -457,6 +457,25 @@ export const en = {
   'set.eraseDemoSub': 'Removes samples',
   'set.chooseFile': 'Choose file',
   'set.danger': 'Danger zone',
+
+  // Sync row. These were hardcoded English until now, so the Italian app
+  // reported its sync state in English - and this row is the one place that
+  // tells you whether your data is safe.
+  'sync.syncing': 'Syncing…',
+  'sync.offline': 'Offline - will sync when back online',
+  'sync.error': 'Sync issue - retrying automatically',
+  'sync.synced': 'Synced',
+  'sync.syncedAt': 'Synced · {when}',
+  'sync.justNow': 'just now',
+  'sync.minsAgo': '{n}m ago',
+  'sync.hoursAgo': '{n}h ago',
+  'toast.supportFailed': 'Couldn’t send your message',
+  'toast.supportLimit': 'Daily limit reached',
+  'toast.deletingAccount': 'Deleting your account…',
+  'toast.deleteAccountFailed': 'Could not delete account',
+  'toast.badFile': 'Couldn’t read that file',
+  'toast.badFileDesc': 'Expected a TracklyLab import file (.json)',
+  'toast.copyFailed': 'Copy failed - select the text and copy it manually',
   'set.eraseAll': 'Erase all data',
   'set.deleteAccount': 'Delete account',
   'set.deleteAccountSub': 'Deletes your data and your account',
