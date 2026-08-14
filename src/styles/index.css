@@ -156,6 +156,63 @@ html[data-theme="dark"] {
   --wash-red: #3A2626;
 }
 
+/* Settings navigation, as a movement rather than a cut.
+ *
+ * The whole page is snapshotted, so the DOCK would slide with it - and the
+ * dock does not go anywhere when you open Categories. Giving it its own
+ * view-transition-name captures it separately: the browser matches the old and
+ * new copies, finds them identical, and leaves it sitting still while the page
+ * moves underneath.
+ *
+ * Timing is iOS's: 300ms on a curve that leaves fast and settles slowly, which
+ * is what makes a push feel driven rather than played back.
+ */
+.app-dock { view-transition-name: app-dock; }
+
+@keyframes nav-in-from-right { from { transform: translateX(100%); } }
+@keyframes nav-out-to-left { to { transform: translateX(-22%); } }
+@keyframes nav-in-from-left { from { transform: translateX(-22%); } }
+@keyframes nav-out-to-right { to { transform: translateX(100%); } }
+
+html[data-nav]::view-transition-old(root),
+html[data-nav]::view-transition-new(root) {
+  animation-duration: 300ms;
+  animation-timing-function: cubic-bezier(0.32, 0.72, 0, 1);
+  animation-fill-mode: both;
+  /* The default cross-fade would show both pages through each other; these
+   * screens are opaque and one slides over the other. */
+  mix-blend-mode: normal;
+}
+
+/* Forward: the new page slides in over the old, which drifts left a little -
+ * the parallax that says it is still there, underneath. */
+html[data-nav="forward"]::view-transition-old(root) {
+  animation-name: nav-out-to-left;
+  z-index: 0;
+}
+html[data-nav="forward"]::view-transition-new(root) {
+  animation-name: nav-in-from-right;
+  z-index: 1;
+}
+
+/* Back: exactly the reverse. The page you are leaving is on top and slides
+ * off to the right, uncovering the one you came from. */
+html[data-nav="back"]::view-transition-old(root) {
+  animation-name: nav-out-to-right;
+  z-index: 1;
+}
+html[data-nav="back"]::view-transition-new(root) {
+  animation-name: nav-in-from-left;
+  z-index: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-nav]::view-transition-old(root),
+  html[data-nav]::view-transition-new(root) {
+    animation: none;
+  }
+}
+
 /* Press feedback must not fire while you are SCROLLING.
  *
  * :active applies the instant a finger lands, before the browser can know

@@ -12,6 +12,7 @@ const isValidEmail = (e: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e.trim());
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { SUBPAGE_STYLE, DOCK_CLEARANCE } from './subpageLayout';
 import { useEdgeSwipeBack } from '../lib/useEdgeSwipeBack';
+import { navTransition } from '../lib/navTransition';
 import { loadThemeMode, setThemeMode, type ThemeMode } from '../lib/themeMode';
 import { toast } from 'sonner';
 import { Categories } from './Categories';
@@ -413,7 +414,7 @@ export function Settings({
   }, [legalDoc, showCurrencySelector, showSupport, showNameEditor, showShared,
       showAppearance, showLanguage, showImport, showAbout, showScheduled,
       showSources, showCategories]);
-  useEdgeSwipeBack(anySubpageOpen, closeSubpage);
+  useEdgeSwipeBack(anySubpageOpen, useCallback(() => navTransition('back', closeSubpage), [closeSubpage]));
 
   const openSupport = () => {
     setSupportSent(false);
@@ -634,7 +635,7 @@ export function Settings({
           <div className="px-6 pb-4 pt-0">
             <div className="flex items-center justify-center relative">
               <button
-                onClick={() => { setShowShared(false); setGateCode(''); setGateError(false); }}
+                onClick={() => navTransition('back', () => { setShowShared(false); setGateCode(''); setGateError(false); })}
                 className="absolute left-0 -ml-2 px-2 py-1 rounded-lg active:bg-neutral-200 transition-colors"
               >
                 <ChevronLeft size={24} style={{ color: '#4F74F3' }} />
@@ -750,7 +751,7 @@ export function Settings({
           <div className="px-6 pb-4 pt-0">
             <div className="flex items-center justify-center relative">
               <button
-                onClick={() => setShowShared(false)}
+                onClick={() => navTransition('back', () => setShowShared(false))}
                 className="absolute left-0 -ml-2 px-2 py-1 rounded-lg active:bg-neutral-200 transition-colors"
               >
                 <ChevronLeft size={24} style={{ color: '#4F74F3' }} />
@@ -1281,7 +1282,7 @@ export function Settings({
           <div className="px-6 pb-4 pt-0">
             <div className="flex items-center justify-center relative">
               <button
-                onClick={() => setShowAppearance(false)}
+                onClick={() => navTransition('back', () => setShowAppearance(false))}
                 className="absolute left-0 -ml-2 px-2 py-1 rounded-lg active:bg-neutral-200 transition-colors"
               >
                 <ChevronLeft size={24} style={{ color: '#4F74F3' }} />
@@ -1347,7 +1348,7 @@ export function Settings({
           <div className="px-6 pb-4 pt-0">
             <div className="flex items-center justify-center relative">
               <button
-                onClick={() => setShowLanguage(false)}
+                onClick={() => navTransition('back', () => setShowLanguage(false))}
                 className="absolute left-0 -ml-2 px-2 py-1 rounded-lg active:bg-neutral-200 transition-colors"
               >
                 <ChevronLeft size={24} style={{ color: '#4F74F3' }} />
@@ -1422,10 +1423,10 @@ export function Settings({
           <div className="px-6 pb-4 pt-0">
             <div className="flex items-center justify-center relative">
               <button
-                onClick={() => {
+                onClick={() => navTransition('back', () => {
                   if (showAllCurrencies) setShowAllCurrencies(false);
                   else setShowCurrencySelector(false);
-                }}
+                })}
                 className="absolute left-0 -ml-2 px-2 py-1 rounded-lg active:bg-neutral-200 transition-colors"
               >
                 <ChevronLeft size={24} style={{ color: '#4F74F3' }} />
@@ -1528,10 +1529,10 @@ export function Settings({
           <div className="px-6 pb-3 pt-0">
             <div className="flex items-center justify-center relative">
               <button
-                onClick={() => {
+                onClick={() => navTransition('back', () => {
                   setShowNameEditor(false);
                   setEditedName(userName);
-                }}
+                })}
                 className="absolute left-0 -ml-2 px-2 py-1 rounded-lg active:bg-neutral-200 transition-colors"
               >
                 <ChevronLeft size={24} style={{ color: '#4F74F3' }} />
@@ -1695,10 +1696,10 @@ export function Settings({
           <div className="px-6 pb-4 pt-0">
             <div className="flex items-center justify-center relative">
               <button
-                onClick={() => {
+                onClick={() => navTransition('back', () => {
                   setShowCategories(false);
                   setCategoryType('expense'); // Reset to default
-                }}
+                })}
                 className="absolute left-0 -ml-2 px-2 py-1 rounded-lg active:bg-neutral-200 transition-colors"
               >
                 <ChevronLeft size={24} style={{ color: '#4F74F3' }} />
@@ -1764,7 +1765,7 @@ export function Settings({
   // Show a legal document. Checked before About so that closing it lands back
   // on the About screen the link was tapped from.
   if (legalDoc) {
-    return <LegalScreen doc={legalDoc} onBack={() => setLegalDoc(null)} />;
+    return <LegalScreen doc={legalDoc} onBack={() => navTransition('back', () => setLegalDoc(null))} />;
   }
 
   // Show About subpage
@@ -1775,7 +1776,7 @@ export function Settings({
           <div className="px-6 pb-4 pt-0">
             <div className="flex items-center justify-center relative">
               <button
-                onClick={() => setShowAbout(false)}
+                onClick={() => navTransition('back', () => setShowAbout(false))}
                 className="absolute left-0 -ml-2 px-2 py-1 rounded-lg active:bg-neutral-200 transition-colors"
               >
                 <ChevronLeft size={24} style={{ color: '#4F74F3' }} />
@@ -1807,7 +1808,7 @@ export function Settings({
           <div className="px-6">
             <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
               <button
-                onClick={() => setLegalDoc(PRIVACY_POLICY)}
+                onClick={() => navTransition('forward', () => setLegalDoc(PRIVACY_POLICY))}
                 className="w-full flex items-center gap-3 px-4 py-2.5 active:bg-neutral-100 transition-colors"
                 style={{ borderBottom: '1px solid var(--bg-inset)' }}
               >
@@ -1816,7 +1817,7 @@ export function Settings({
                 <ChevronRight className="w-4 h-4" style={{ color: 'var(--ghost)' }} />
               </button>
               <button
-                onClick={() => setLegalDoc(TERMS_OF_SERVICE)}
+                onClick={() => navTransition('forward', () => setLegalDoc(TERMS_OF_SERVICE))}
                 className="w-full flex items-center gap-3 px-4 py-2.5 active:bg-neutral-100 transition-colors"
               >
                 <RowIcon icon={ScrollText} tone={TILE.neutral} />
@@ -2052,7 +2053,7 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
           <div className="px-6 pb-4 pt-0">
             <div className="flex items-center justify-center relative">
               <button
-                onClick={() => setShowImport(false)}
+                onClick={() => navTransition('back', () => setShowImport(false))}
                 className="absolute left-0 -ml-2 px-2 py-1 rounded-lg active:bg-neutral-200 transition-colors"
               >
                 <ChevronLeft size={24} style={{ color: '#4F74F3' }} />
@@ -2186,7 +2187,7 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
         sources={sources}
         defaultSourceExpense={defaultSourceExpense}
         defaultSourceIncome={defaultSourceIncome}
-        onBack={() => setShowSources(false)}
+        onBack={() => navTransition('back', () => setShowSources(false))}
         onSetDefault={onSetDefaultSource}
         onAddSource={onAddSource}
         onEditSource={onEditSource}
@@ -2202,7 +2203,7 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
           <div className="px-6 pb-4 pt-0">
             <div className="flex items-center justify-center relative">
               <button
-                onClick={() => setShowScheduled(false)}
+                onClick={() => navTransition('back', () => setShowScheduled(false))}
                 className="absolute left-0 -ml-2 px-2 py-1 rounded-lg active:bg-neutral-200 transition-colors"
               >
                 <ChevronLeft size={24} style={{ color: '#4F74F3' }} />
@@ -2244,7 +2245,7 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
           <div className="px-6 pb-4 pt-0">
             <div className="flex items-center justify-center relative">
               <button
-                onClick={closeSupport}
+                onClick={() => navTransition('back', closeSupport)}
                 className="absolute left-0 -ml-2 px-2 py-1 rounded-lg active:bg-neutral-200 transition-colors"
               >
                 <ChevronLeft size={24} style={{ color: '#4F74F3' }} />
@@ -2433,7 +2434,7 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
               question. */}
           {/* Language — a row that opens its own page, like Currency. */}
           <button
-            onClick={() => setShowLanguage(true)}
+            onClick={() => navTransition('forward', () => setShowLanguage(true))}
             className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
             style={{ borderBottom: '1px solid var(--bg-inset)' }}
           >
@@ -2447,7 +2448,7 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
           </button>
 
           <button 
-            onClick={() => setShowCurrencySelector(true)}
+            onClick={() => navTransition('forward', () => setShowCurrencySelector(true))}
             className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
             style={{ borderBottom: '1px solid var(--bg-inset)' }}
           >
@@ -2460,7 +2461,7 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
           </button>
 
           <button
-            onClick={() => setShowAppearance(true)}
+            onClick={() => navTransition('forward', () => setShowAppearance(true))}
             className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
             style={{ borderBottom: '1px solid var(--bg-inset)' }}
           >
@@ -2473,7 +2474,7 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
           </button>
 
           <button 
-            onClick={() => setShowCategories(true)}
+            onClick={() => navTransition('forward', () => setShowCategories(true))}
             className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
             style={{ borderBottom: '1px solid var(--bg-inset)' }}
           >
@@ -2484,7 +2485,7 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
           </button>
 
           <button
-            onClick={() => setShowSources(true)}
+            onClick={() => navTransition('forward', () => setShowSources(true))}
             className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
             style={{ borderBottom: '1px solid var(--bg-inset)' }}
           >
@@ -2495,7 +2496,7 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
           </button>
 
           <button
-            onClick={() => setShowScheduled(true)}
+            onClick={() => navTransition('forward', () => setShowScheduled(true))}
             className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
             style={{ borderBottom: '1px solid var(--bg-inset)' }}
           >
@@ -2506,7 +2507,7 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
           </button>
 
           <button
-            onClick={() => setShowShared(true)}
+            onClick={() => navTransition('forward', () => setShowShared(true))}
             className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
             style={{ borderBottom: '1px solid var(--bg-inset)' }}
           >
@@ -2519,7 +2520,7 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
           </button>
 
           <button
-            onClick={openSupport}
+            onClick={() => navTransition('forward', openSupport)}
             className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
             style={{ borderBottom: '1px solid var(--bg-inset)' }}
           >
@@ -2529,7 +2530,7 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
           </button>
 
           <button
-            onClick={() => setShowAbout(true)}
+            onClick={() => navTransition('forward', () => setShowAbout(true))}
             className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
           >
             <RowIcon icon={HelpCircle} tone={TILE.about} />
@@ -2545,7 +2546,7 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
         <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
           {onImportData && (
             <button
-              onClick={() => setShowImport(true)}
+              onClick={() => navTransition('forward', () => setShowImport(true))}
               className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
               style={{ borderBottom: '1px solid var(--bg-inset)' }}
             >

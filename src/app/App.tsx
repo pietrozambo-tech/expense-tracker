@@ -2828,7 +2828,7 @@ export default function App() {
             >
             <div
               ref={dockRef}
-              className="relative w-full max-w-[430px] mx-auto grid grid-cols-5 items-center px-2 py-2 pointer-events-auto rounded-[26px] backdrop-blur-[26px] backdrop-saturate-150"
+              className="app-dock relative w-full max-w-[430px] mx-auto grid grid-cols-5 items-center px-2 py-2 pointer-events-auto rounded-[26px] backdrop-blur-[26px] backdrop-saturate-150"
               style={{
                 // 0.84: dark enough that the dock reads correctly even where
                 // its backdrop blur is dropped (Chromium skips the lower of
