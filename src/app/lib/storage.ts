@@ -47,7 +47,6 @@ const KEYS = {
   // entered here once). An access gate, not data: never synced, never in a
   // backup - each device earns its own unlock. Cleared by an erase, which is
   // fine; the code can be re-entered.
-  sharedUnlock: key('shared-unlock'),
   // The household id this device has already completed one full sync with.
   // Device-local, like the unlock: it exists so the FIRST sync after pairing
   // folds in her existing expenses quietly, instead of announcing every one of
@@ -127,8 +126,6 @@ export const savePeople = (people: Person[]) => write(KEYS.people, people);
 export const loadSettlements = () => read<Settlement[]>(KEYS.settlements, []);
 export const saveSettlements = (s: Settlement[]) => write(KEYS.settlements, s);
 
-export const loadSharedUnlock = () => getItem(KEYS.sharedUnlock) === 'true';
-export const saveSharedUnlock = () => setItem(KEYS.sharedUnlock, 'true');
 
 export const loadSharedSeen = () => getItem(KEYS.sharedSeen) ?? '';
 export const saveSharedSeen = (householdId: string) => setItem(KEYS.sharedSeen, householdId);

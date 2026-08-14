@@ -4,7 +4,7 @@ import { t } from '../i18n';
 import {
   Minus, Plus, Wallet, Gauge, Calendar, Repeat, ChevronDown, ChevronRight,
   ShoppingCart, Car, Home, Clapperboard, Landmark, Layers, Pencil,
-  FlaskConical, Trash2, FileSpreadsheet, Palmtree, UtensilsCrossed, Tv,
+  FlaskConical, Trash2, FileSpreadsheet, Palmtree, UtensilsCrossed, Tv, Split,
 } from 'lucide-react';
 import type { Source } from '../types';
 import { SourceLogo } from './SourceLogo';
@@ -92,6 +92,22 @@ function AddIllustration() {
           <ChevronDown className="w-3.5 h-3.5" style={{ color: 'var(--ink-2)' }} strokeWidth={2.5} />
         </span>
       </div>
+      {/* Sharing, where the real screen puts it: its own line directly under
+          the amount, because it qualifies the amount rather than sitting
+          alongside the date. The wording comes from the app's own key, so the
+          tour cannot drift from the chip it is drawing - and half of 24.90 is
+          12.45, arithmetic the reader can do, which is what makes a mock read
+          as a screenshot instead of a diagram. */}
+      <div className="flex mb-2.5">
+        <span
+          className="inline-flex items-center gap-1.5 rounded-full"
+          style={{ padding: '4px 9px 4px 8px', background: 'var(--bg-inset)', color: 'var(--ink-2)', fontSize: 12, fontWeight: 500 }}
+        >
+          <Split className="w-3.5 h-3.5" strokeWidth={2} />
+          <span>{t('shared.chip.on', { amt: getLanguage() === 'it' ? '12,45€' : '12.45€' })}</span>
+        </span>
+      </div>
+
       {/* Date + recurrence chips */}
       <div className="flex items-center gap-2 mb-3">
         <span className="flex items-center gap-1.5 rounded-full px-2.5 py-1.5 text-xs font-medium" style={{ background: '#F2F2F5', color: '#3C3C43' }}>
@@ -400,7 +416,7 @@ function SettingsIllustration() {
         <ChevronRight className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--ghost)' }} />
       </div>
       {/* Sources row with the default banks */}
-      <div className="flex items-center gap-3 px-4 py-3.5">
+      <div className="flex items-center gap-3 px-4 py-3.5" style={{ borderBottom: '1px solid var(--bg-inset)' }}>
         <span className="flex items-center justify-center flex-shrink-0" style={{ width: 30, height: 30, borderRadius: 9, background: 'var(--bg-inset)' }}>
           <Landmark className="w-4 h-4" style={{ color: 'var(--ink-2)' }} />
         </span>
@@ -411,6 +427,30 @@ function SettingsIllustration() {
           ))}
         </div>
         <ChevronRight className="w-4 h-4 flex-shrink-0 ml-2" style={{ color: 'var(--ghost)' }} />
+      </div>
+      {/* Shared, drawn as the real row draws it - partner's name in the value
+          slot, and the same mark the row carries in the app. The tour points
+          at where the feature lives rather than teaching it: it is new enough
+          that a slide explaining it would be rewritten within the month. */}
+      <div className="flex items-center gap-3 px-4 py-3.5">
+        <span className="flex items-center justify-center flex-shrink-0" style={{ width: 30, height: 30, borderRadius: 9, background: 'var(--bg-inset)' }}>
+          <Split className="w-4 h-4" style={{ color: 'var(--ink-2)' }} />
+        </span>
+        <span className="flex items-center gap-1.5 flex-1 min-w-0">
+          <span className="text-[15px] font-medium" style={{ color: 'var(--ink)' }}>{t('set.shared')}</span>
+          <span
+            style={{
+              color: '#4F74F3', background: 'var(--wash-accent2)', fontSize: 9,
+              fontWeight: 700, letterSpacing: '0.04em', padding: '1px 5px', borderRadius: 999,
+            }}
+          >
+            {t('set.shared.beta')}
+          </span>
+        </span>
+        <span className="text-[14px]" style={{ color: 'var(--ink-2)' }}>
+          {getLanguage() === 'it' ? 'Giulia' : 'Alex'}
+        </span>
+        <ChevronRight className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--ghost)' }} />
       </div>
     </div>
   );
@@ -533,9 +573,12 @@ export function WelcomeCarousel({ onDone, onSetupCategories, onLoadDemo }: Welco
     {
       illustration: <SettingsIllustration />,
       title: getLanguage() === 'it' ? 'Fallo tuo' : 'Make it yours',
+      // The shared clause is a pointer, not a pitch: the feature is young and
+      // a sentence selling it would be rewritten within the month, so the tour
+      // only says where it lives.
       desc: getLanguage() === 'it'
-        ? 'Parti dalle categorie - adattale a come spendi. Aggiungi le tue banche come conti ed esporta un backup completo quando vuoi.'
-        : 'Start with your categories - tailor them to how you spend. Add your banks as sources, and export a full backup of everything whenever you like.',
+        ? 'Parti dalle categorie - adattale a come spendi. Aggiungi le tue banche come conti, dividi le spese con chi vuoi ed esporta un backup completo quando vuoi.'
+        : 'Start with your categories - tailor them to how you spend. Add your banks as sources, share expenses with someone, and export a full backup whenever you like.',
     },
   ];
 

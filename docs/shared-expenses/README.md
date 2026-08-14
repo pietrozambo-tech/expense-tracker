@@ -589,9 +589,15 @@ so nobody has to re-derive it by reading both.
 - **Switcher.** The spec picked both avatars always (option B). Shipped: one
   face on the personal view, both on the shared one - a later call, on the
   grounds that the pair belongs to the pair's view.
-- **Feature gate.** Not in the spec: the whole feature is behind code 4700,
-  because it is a candidate for the paid tier (§11). It stays in FRONT of the
-  setup - a paid feature should not be advertised before it can be had.
+- **Feature gate, and its removal.** Not in the spec: the feature shipped
+  behind code 4700, because it is a candidate for the paid tier (§11). That is
+  now gone. Two reasons. The code was a string literal in the shipped bundle,
+  so it stopped anybody who did not want in and nobody who did - full cost, no
+  protection. And the thing the feature most needed at this stage was real
+  pairs on real phones: pre-App-Store, feedback on the hardest surface in the
+  app is worth more than holding it back. What replaces it is a BETA mark on
+  the Settings row, which is the honest half of what the gate was doing -
+  free while it settles, and nobody surprised later that it changed.
 - **Setup asks who, not what they are called.** The spec's setup screen took a
   name first. That is the one field pairing overwrites (the partner's display
   name comes off their account), so on the path that matters it was typed only

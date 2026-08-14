@@ -1,6 +1,5 @@
 import type { LucideIcon } from 'lucide-react';
-import { ChevronRight, ChevronLeft, UserCircle, Wallet, HelpCircle, ShieldCheck, ScrollText, Layers, FlaskConical, Trash2, Landmark, Cloud, LogOut, Upload, Copy, Download, FileSpreadsheet, Palmtree, UserX, Mail, LifeBuoy, CheckCircle2, Globe, CalendarClock, Sparkles, Palette, Sun, Moon, SunMoon, Split, Lock, Plus } from 'lucide-react';
-import { loadSharedUnlock, saveSharedUnlock } from '../lib/storage';
+import { ChevronRight, ChevronLeft, UserCircle, Wallet, HelpCircle, ShieldCheck, ScrollText, Layers, FlaskConical, Trash2, Landmark, Cloud, LogOut, Upload, Copy, Download, FileSpreadsheet, Palmtree, UserX, Mail, LifeBuoy, CheckCircle2, Globe, CalendarClock, Sparkles, Palette, Sun, Moon, SunMoon, Split, Plus } from 'lucide-react';
 import { getCategoryIcon } from './categoryIcons';
 import { sendSupportMessage, supportLimitReached } from '../lib/support';
 import { switchGlow } from './categoryColors';
@@ -320,9 +319,6 @@ export function Settings({
   // Early-access gate: shared expenses will be a paid feature, so enabling it
   // needs a code for now. Device-local and remembered; an existing household
   // is never gated - its presence proves the code was entered once.
-  const [sharedUnlocked, setSharedUnlocked] = useState(loadSharedUnlock);
-  const [gateCode, setGateCode] = useState('');
-  const [gateError, setGateError] = useState(false);
   // Sheets on the Shared subpage. renameDraft doubles as the open flag.
   const [renameDraft, setRenameDraft] = useState<string | null>(null);
   const [showSplitEditor, setShowSplitEditor] = useState(false);
@@ -416,8 +412,6 @@ export function Settings({
       // chevron would do on any other two-step screen.
       if (!household && setupStep === 'solo') return setSetupStep('choose');
       setShowShared(false);
-      setGateCode('');
-      setGateError(false);
       setSetupStep('choose');
       return;
     }
@@ -635,97 +629,6 @@ export function Settings({
   // live on the Dashboard behind the avatar switcher; this screen holds what
   // you configure once: who, the default split, which categories always
   // share, whether a balance is kept, and the way out.
-  if (showShared && !household && !sharedUnlocked) {
-    const tryUnlock = () => {
-      if (gateCode.trim() === '4700') {
-        saveSharedUnlock();
-        setSharedUnlocked(true);
-        setGateCode('');
-        setGateError(false);
-      } else {
-        setGateError(true);
-      }
-    };
-    return (
-      <div className="flex flex-col" style={SUBPAGE_STYLE}>
-        <div style={{ backgroundColor: 'var(--bg-page)' }}>
-          <div className="px-6 pb-4 pt-0">
-            <div className="flex items-center justify-center relative">
-              <button
-                onClick={() => navTransition('back', () => {
-                  if (!household && setupStep === 'solo') return setSetupStep('choose');
-                  setShowShared(false);
-                  setGateCode('');
-                  setGateError(false);
-                  setSetupStep('choose');
-                })}
-                className="absolute left-0 -ml-2 px-2 py-1 rounded-lg active:bg-neutral-200 transition-colors"
-              >
-                <ChevronLeft size={24} style={{ color: '#4F74F3' }} />
-              </button>
-              <h1 style={{ color: 'var(--ink)', fontSize: '20px', fontWeight: '600', letterSpacing: '-0.3px' }}>{t('set.shared')}</h1>
-            </div>
-          </div>
-        </div>
-
-        <div className="flex-1 overflow-y-auto" style={{ paddingBottom: DOCK_CLEARANCE }}>
-          <div className="px-6">
-            <div className="rounded-2xl shadow-sm px-5 py-6 text-center" style={{ backgroundColor: 'var(--bg-card)' }}>
-              <div
-                className="mx-auto mb-4 flex items-center justify-center"
-                style={{ width: 52, height: 52, borderRadius: 999, backgroundColor: 'var(--bg-inset)' }}
-              >
-                <Lock className="w-6 h-6" style={{ color: 'var(--ink-2)' }} strokeWidth={2} />
-              </div>
-              <h2 style={{ color: 'var(--ink)', fontSize: 17, fontWeight: 700, marginBottom: 6 }}>
-                {t('shared.gate.title')}
-              </h2>
-              <p style={{ color: 'var(--ink-2)', fontSize: 13.5, lineHeight: 1.5, marginBottom: 18 }}>
-                {t('shared.gate.body')}
-              </p>
-              <input
-                type="text"
-                inputMode="numeric"
-                autoComplete="off"
-                value={gateCode}
-                onChange={(e) => { setGateCode(e.target.value); setGateError(false); }}
-                onKeyDown={(e) => { if (e.key === 'Enter') tryUnlock(); }}
-                placeholder={t('shared.gate.placeholder')}
-                className="w-full rounded-xl px-4 py-3 outline-none text-center tabular-nums"
-                style={{
-                  backgroundColor: 'var(--bg-field)',
-                  color: 'var(--ink)',
-                  fontSize: 16,
-                  // Only the digits get the spacing - on the placeholder it
-                  // reads as a typesetting accident.
-                  letterSpacing: gateCode ? '0.2em' : 'normal',
-                  border: gateError ? '1.5px solid var(--tone-danger)' : '1.5px solid transparent',
-                }}
-              />
-              {gateError && (
-                <p style={{ color: 'var(--tone-danger)', fontSize: 12.5, marginTop: 8 }}>
-                  {t('shared.gate.wrong')}
-                </p>
-              )}
-              <button
-                onClick={tryUnlock}
-                disabled={!gateCode.trim()}
-                className="w-full mt-4 py-3.5 rounded-xl font-medium active:scale-[0.98] transition-transform"
-                style={{
-                  backgroundColor: gateCode.trim() ? '#4F74F3' : 'var(--bg-inset)',
-                  color: gateCode.trim() ? '#FFFFFF' : 'var(--ink-2)',
-                  fontSize: 15,
-                }}
-              >
-                {t('shared.gate.cta')}
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   if (showShared) {
     const sharedCats: string[] = household?.sharedCategoryIds ?? [];
     const subMap: Record<string, string[]> = household?.sharedSubcategories ?? {};
@@ -2644,7 +2547,22 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
             style={{ borderBottom: '1px solid var(--bg-inset)' }}
           >
             <RowIcon icon={Split} tone={TILE.shared} />
-            <span className="flex-1 text-left" style={{ color: 'var(--ink)', fontSize: '15px' }}>{t('set.shared')}</span>
+            <span className="flex items-center gap-1.5 flex-1 min-w-0 text-left">
+              <span style={{ color: 'var(--ink)', fontSize: '15px' }}>{t('set.shared')}</span>
+              {/* The lock came off this feature before it is finished, which is
+                  the point - it needs real pairs using it. The mark is what
+                  replaces the gate's honesty: it stays free while it settles,
+                  and nobody should be surprised later that it changed. */}
+              <span
+                style={{
+                  color: '#4F74F3', backgroundColor: 'var(--wash-accent2)',
+                  fontSize: 10, fontWeight: 700, letterSpacing: '0.04em',
+                  padding: '1.5px 6px', borderRadius: 999,
+                }}
+              >
+                {t('set.shared.beta')}
+              </span>
+            </span>
             <span style={{ color: 'var(--ink-2)', fontSize: '14px' }}>
               {household && partner ? partner.name : t('set.shared.off')}
             </span>
