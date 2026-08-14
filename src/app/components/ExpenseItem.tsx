@@ -1,12 +1,11 @@
 import { Trash2, Repeat, Split } from 'lucide-react';
 import { t } from '../i18n';
 import { homeAmount } from '../utils/currency';
-import { dateLocale } from '../i18n/store';
 import { AmountText } from './AmountText';
 import { useState } from 'react';
 import { getCategoryIcon } from './categoryIcons';
 import { useSwipeToDelete } from '../lib/useSwipeToDelete';
-import { parseLocalDate } from '../lib/dates';
+import { formatFullDate } from '../lib/dates';
 
 interface ExpenseItemProps {
   expense: {
@@ -32,12 +31,7 @@ interface ExpenseItemProps {
   showDate?: boolean; // show the transaction date on the row (e.g. amount-sorted lists with no day headers)
 }
 
-// Compact date like "1 Jul" for inline row use
-const formatShortDate = (dateString: string) => {
-  const parsed = parseLocalDate(dateString);
-  if (isNaN(parsed.getTime())) return dateString;
-  return parsed.toLocaleDateString(dateLocale(), { day: 'numeric', month: 'short' });
-};
+
 
 export function ExpenseItem({ expense, onTap, onDelete, currency, showDate = false }: ExpenseItemProps) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -103,7 +97,7 @@ const creditStyle = isCredit ? { color: 'var(--tone-income)' } : undefined;
             </p>
             {showDate ? (
               <p className="text-neutral-400 text-[10px] mt-0.5 font-medium">
-                {formatShortDate(expense.date)}
+                {formatFullDate(expense.date)}
               </p>
             ) : null}
             {/* No third line for recurring rows: the repeat icon beside the
