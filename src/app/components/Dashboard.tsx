@@ -295,12 +295,11 @@ const UNCATEGORIZED = '__uncategorized__';
 // colour: the highlight is anchored at 90%/-20% of the element, so on a small
 // stat card it sits closer in and reads brighter than on the wide hero. That
 // is the effect working as intended - same material, different pane size.
-export const DARK_SURFACE: React.CSSProperties = {
-  background: 'radial-gradient(120% 120% at 90% -20%, rgba(99,102,241,0.30) 0%, rgba(59,130,246,0.12) 42%, rgba(28,28,30,0) 68%), radial-gradient(100% 100% at 6% 118%, rgba(59,130,246,0.10) 0%, rgba(99,102,241,0.04) 45%, rgba(28,28,30,0) 72%), linear-gradient(150deg, #2E2E32 0%, #1C1C1E 100%)',
-  boxShadow: '0 12px 30px rgba(28, 28, 30, 0.22)',
-  border: '1px solid rgba(255, 255, 255, 0.06)',
-};
+// Moved to surfaces.ts so SharedView can wear it too without importing this
+// whole file (Dashboard renders SharedView, so that import would be a cycle).
+export { DARK_SURFACE } from './surfaces';
 
+import { DARK_SURFACE } from './surfaces';
 const TREND_STAT_CARD: React.CSSProperties = DARK_SURFACE;
 
 // Headline number on the Trend tab. All three toggles use a pair of these, so

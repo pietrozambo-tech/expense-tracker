@@ -6,6 +6,7 @@ import { AmountText } from './AmountText';
 import { ConfirmDialog } from './ConfirmDialog';
 import { SharedDrilldown } from './SharedDrilldown';
 import { getCategoryIcon } from './categoryIcons';
+import { DARK_SURFACE } from './surfaces';
 import { homeAmount, mineAmount, formatAmountListView, CURRENCIES } from '../utils/currency';
 import { isShared, runningBalance } from '../lib/shared';
 import { paidBy } from '../lib/sharedSync';
@@ -269,13 +270,11 @@ export function SharedView({
       {/* Period hero - same dark surface and the same chevrons as the personal
           Dashboard, because periods must navigate the one way the app teaches:
           back freely, forward only as far as today. */}
-      <div
-        className="rounded-3xl px-5 pt-4 pb-4"
-        style={{
-          background: 'linear-gradient(160deg, #26262F 0%, #17171D 55%, #191A22 100%)',
-          boxShadow: '0 6px 22px rgba(0, 0, 0, 0.16)',
-        }}
-      >
+      {/* The same material as the personal hero, spread from the one
+          definition - this card had its own flat gradient, no bloom, no
+          hairline and half the shadow, so switching subjects changed what the
+          hero seemed to be made of. */}
+      <div className="rounded-3xl px-5 pt-4 pb-4" style={DARK_SURFACE}>
         <div className="flex items-center justify-between mb-3">
           <button
             onClick={onPrevPeriod}
