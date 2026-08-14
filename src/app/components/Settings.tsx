@@ -167,6 +167,10 @@ interface SettingsProps {
   onJoinWithCode?: (code: string) => Promise<void>;
   /** Re-check the server for the pairing, while a code is waiting to be used. */
   onRefreshPairing?: () => Promise<void>;
+  /** True while any of the sample set is still in the ledger. Pairing is held
+   *  until it is gone: invented expenses must not land on a real phone. */
+  hasSampleData?: boolean;
+  onRemoveSampleData?: () => void;
   /** Why the last shared sync failed, if it did - shown under the Connect row
    *  so a silent failure is not mistaken for a silent partner. */
   sharedError?: string | null;
@@ -242,6 +246,8 @@ export function Settings({
   onCreateInvite,
   onJoinWithCode,
   onRefreshPairing,
+  hasSampleData,
+  onRemoveSampleData,
   sharedError,
   sharedLive,
   onCreateSchedule,
@@ -1232,6 +1238,27 @@ export function Settings({
                   <p style={{ color: 'var(--ink-2)', fontSize: 13, lineHeight: 1.5, marginBottom: 18 }}>
                     {t('shared.connect.pairedBody')}
                   </p>
+                </>
+              ) : hasSampleData ? (
+                /* Pairing publishes what is in the ledger, and the ledger is
+                   currently full of invented expenses. They would arrive on a
+                   real person's phone as real money and move a real balance, so
+                   the way forward is to take them out - not to warn and let it
+                   happen anyway. */
+                <>
+                  <p className="text-center" style={{ color: 'var(--tone-danger)', fontSize: 14, fontWeight: 600, marginBottom: 8 }}>
+                    {t('shared.connect.sampleTitle')}
+                  </p>
+                  <p style={{ color: 'var(--ink-2)', fontSize: 13, lineHeight: 1.5, marginBottom: 18 }}>
+                    {t('shared.connect.sampleBody', { name: partner?.name ?? '' })}
+                  </p>
+                  <button
+                    onClick={() => onRemoveSampleData?.()}
+                    className="w-full py-3.5 rounded-xl font-medium active:scale-[0.98] transition-transform"
+                    style={{ backgroundColor: '#4F74F3', color: '#FFFFFF', fontSize: 15 }}
+                  >
+                    {t('shared.connect.removeSample')}
+                  </button>
                 </>
               ) : (
                 <>

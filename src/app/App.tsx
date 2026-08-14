@@ -2116,7 +2116,35 @@ export default function App() {
         ? sources[Math.floor(Math.random() * sources.length)].id
         : undefined,
     }));
-    setExpenses((prev) => [...demo, ...prev.filter((e) => !e.id.startsWith('demo-'))]);
+    let sharedSeq = 0;
+    const seeded = demo.map((t) => {
+      // Give the samples a household side, but ONLY for somebody who already
+      // has one. Sharing is behind the early-access code; sample data must not
+      // become a back door into a screen the gate is holding shut, and "off
+      // means nothing appears on the Dashboard" has to survive this too.
+      //
+      // Kept deliberately plain: a split on the two categories a household
+      // actually shares, and every third one fronted by them. That is enough
+      // to fill the ring with two arcs, put a real number under "Your share"
+      // and leave a balance that is not zero - without inventing replicas of
+      // rows that never existed on anybody's phone.
+      if (!household || !partner || t.type === 'income') return t;
+      if (!['groceries', 'housing'].includes(t.category?.id ?? '')) return t;
+      // Counted, not derived from the id: every third SHARED row is fronted by
+      // them. Reading a number out of the id left whole months with nobody but
+      // me paying, which draws a ring with one arc and a balance that only ever
+      // runs one way - the opposite of what the samples are meant to show.
+      sharedSeq += 1;
+      return {
+        ...t,
+        split: {
+          mine: myShareOf(t.amount, household.defaultSplit),
+          withIds: household.memberIds,
+          paidByThem: sharedSeq % 3 === 0,
+        },
+      };
+    });
+    setExpenses((prev) => [...seeded, ...prev.filter((e) => !e.id.startsWith('demo-'))]);
     setRefreshKey(prev => prev + 1);
     setCurrentTab('dashboard');
     track('demo_loaded');
@@ -2346,6 +2374,30 @@ export default function App() {
     setCurrentTab('dashboard');
     setHasCompletedOnboarding(false);
     setHasSeenIntro(false);
+    // The shared trio was missing, and clearAllData only empties STORAGE: the
+    // persistence effects then wrote household, people and settlements straight
+    // back from state that had never been reset. Erasing everything left the
+    // household, the partner and the balance exactly where they were.
+    setHousehold(null);
+    setPeople([]);
+    setSettlements([]);
+  };
+
+  /** Is any of the sample set still in the ledger? */
+  const hasSampleData = expenses.some((e) => e.id.startsWith('demo-'));
+
+  /**
+   * Take the samples out and leave everything else alone.
+   *
+   * "Erase all data" was the only way to be rid of them, which is far too big a
+   * hammer once somebody has typed real transactions alongside. The samples are
+   * all id-prefixed, so this is exact - and the splits ride ON those rows, so
+   * the household side of the samples goes with them.
+   */
+  const handleRemoveSampleData = () => {
+    setExpenses((prev) => prev.filter((e) => !e.id.startsWith('demo-')));
+    setRefreshKey((prev) => prev + 1);
+    toast.success(t('toast.sampleRemoved'), { duration: 1600 });
   };
 
   const handleEraseAllData = async () => {
@@ -2728,6 +2780,8 @@ export default function App() {
                 onCreateInvite={handleCreateInvite}
                 onJoinWithCode={handleJoinWithCode}
                 onRefreshPairing={syncShared}
+                hasSampleData={hasSampleData}
+                onRemoveSampleData={handleRemoveSampleData}
                 sharedError={sharedError}
                 sharedLive={sharedLive}
                 onCreateSchedule={handleCreateSchedule}
