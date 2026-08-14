@@ -26,7 +26,7 @@ export function ConfirmDialog({
   const NeutralIcon = icon ?? FlaskConical;
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-6 max-w-[430px] mx-auto">
+    <div data-overlay className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-6 max-w-[430px] mx-auto">
       <div className="bg-white rounded-2xl w-full max-w-sm">
         {/* Icon */}
         <div className="pt-6 px-6 flex justify-center">

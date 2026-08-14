@@ -156,6 +156,37 @@ html[data-theme="dark"] {
   --wash-red: #3A2626;
 }
 
+/* Press feedback must not fire while you are SCROLLING.
+ *
+ * :active applies the instant a finger lands, before the browser can know
+ * whether the touch is a tap or the first millimetre of a scroll - so dragging
+ * a list lit up whatever row the finger started on. Reported in dark, and it is
+ * genuinely worse there: the press colour is a LIFT off a dark card (#313139 on
+ * #232329) where in light it is a faint grey on white, so the same flash reads
+ * as fields highlighting themselves for no reason.
+ *
+ * iOS solves this in its own lists by delaying the highlight and dropping it if
+ * the touch turns into a scroll (UIScrollView.delaysContentTouches). This is
+ * that, in CSS: the colour change waits, and a scroll clears :active long
+ * before the wait is over, so nothing ever paints. A real press outlasts it and
+ * feels exactly as it did.
+ *
+ * Touch pointers only - a mouse knows its own mind and should press instantly.
+ * The transition is declared here too, because a quarter of these elements
+ * carry active:bg- with no transition of their own and the delay would have
+ * nothing to delay. None of them animate anything but colour (checked), so
+ * naming the colour properties cannot cancel a transform or a size.
+ */
+@media (hover: none) {
+  [class*="active:bg-"] {
+    transition-property: color, background-color, border-color, text-decoration-color, fill, stroke;
+    transition-duration: 150ms;
+  }
+  [class*="active:bg-"]:active {
+    transition-delay: 110ms;
+  }
+}
+
 /* Utility shim: the Tailwind grey utilities the app actually uses, restated
  * for dark. Bounded and explicit - every selector here was grepped from src,
  * nothing is generated - so light mode never routes through this block. */

@@ -63,7 +63,7 @@ export function SharedDrilldown({
   );
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-end justify-center sm:items-center p-0 sm:p-4 bg-black/40 backdrop-blur-sm">
+    <div data-overlay className="fixed inset-0 z-[60] flex items-end justify-center sm:items-center p-0 sm:p-4 bg-black/40 backdrop-blur-sm">
       <div
         className="w-full max-w-[430px] h-[85vh] sm:h-[700px] rounded-t-3xl sm:rounded-3xl flex flex-col overflow-hidden shadow-2xl animate-in slide-in-from-bottom duration-300"
         style={{ backgroundColor: 'var(--bg-card)' }}

@@ -111,7 +111,7 @@ export function PeriodPickerModal({
     onSelect({ type: draftType, year: draftYear, month, quarter, ...choice });
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40" onClick={onClose}>
+    <div data-overlay className="fixed inset-0 z-50 flex items-end justify-center bg-black/40" onClick={onClose}>
       <div
         className="w-full max-w-[430px] bg-white rounded-t-3xl shadow-2xl animate-slide-up relative z-10"
         onClick={(e) => e.stopPropagation()}

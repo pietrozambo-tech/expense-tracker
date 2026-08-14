@@ -9,8 +9,9 @@ import { switchGlow } from './categoryColors';
 const SUPPORT_EMAIL = 'support@tracklylab.com';
 const isValidEmail = (e: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e.trim());
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { SUBPAGE_STYLE, DOCK_CLEARANCE } from './subpageLayout';
+import { useEdgeSwipeBack } from '../lib/useEdgeSwipeBack';
 import { loadThemeMode, setThemeMode, type ThemeMode } from '../lib/themeMode';
 import { toast } from 'sonner';
 import { Categories } from './Categories';
@@ -379,6 +380,40 @@ export function Settings({
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [showCategories, showSources, showScheduled, showAbout, showImport, showCurrencySelector, showLanguage, showNameEditor, showSupport, legalDoc]);
+
+  // Drag in from the left edge to leave a sub-page, the way iOS does it. The
+  // chevron is in the far corner; the thumb holding the phone is not.
+  //
+  // One handler for all of them rather than one per screen: this closes
+  // whichever is open, in the order they can stack. The gate code is cleared
+  // alongside Shared for the same reason its chevron clears it - leaving and
+  // coming back should not find a half-typed code waiting.
+  const anySubpageOpen =
+    showCategories || showSources || showScheduled || showAbout || showImport ||
+    showCurrencySelector || showLanguage || showAppearance || showShared ||
+    showNameEditor || showSupport || !!legalDoc;
+  const closeSubpage = useCallback(() => {
+    if (legalDoc) return setLegalDoc(null);
+    if (showCurrencySelector) return setShowCurrencySelector(false);
+    if (showSupport) return closeSupport();
+    if (showNameEditor) return setShowNameEditor(false);
+    if (showShared) {
+      setShowShared(false);
+      setGateCode('');
+      setGateError(false);
+      return;
+    }
+    if (showAppearance) return setShowAppearance(false);
+    if (showLanguage) return setShowLanguage(false);
+    if (showImport) return setShowImport(false);
+    if (showAbout) return setShowAbout(false);
+    if (showScheduled) return setShowScheduled(false);
+    if (showSources) return setShowSources(false);
+    if (showCategories) return setShowCategories(false);
+  }, [legalDoc, showCurrencySelector, showSupport, showNameEditor, showShared,
+      showAppearance, showLanguage, showImport, showAbout, showScheduled,
+      showSources, showCategories]);
+  useEdgeSwipeBack(anySubpageOpen, closeSubpage);
 
   const openSupport = () => {
     setSupportSent(false);
@@ -881,7 +916,7 @@ export function Settings({
 
         {/* Rename the partner */}
         {renameDraft !== null && (
-          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-6" onClick={() => setRenameDraft(null)}>
+          <div data-overlay className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-6" onClick={() => setRenameDraft(null)}>
             <div className="rounded-2xl p-6 max-w-sm w-full shadow-xl" style={{ backgroundColor: 'var(--bg-card)' }} onClick={(e) => e.stopPropagation()}>
               <h3 style={{ color: 'var(--ink)', fontSize: 17, fontWeight: 600, marginBottom: 14 }}>{t('shared.set.renameTitle')}</h3>
               <input
@@ -918,7 +953,7 @@ export function Settings({
 
         {/* Default split editor */}
         {showSplitEditor && household && (
-          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-6" onClick={() => setShowSplitEditor(false)}>
+          <div data-overlay className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-6" onClick={() => setShowSplitEditor(false)}>
             <div className="rounded-2xl p-6 max-w-sm w-full shadow-xl" style={{ backgroundColor: 'var(--bg-card)' }} onClick={(e) => e.stopPropagation()}>
               <h3 style={{ color: 'var(--ink)', fontSize: 17, fontWeight: 600, marginBottom: 14 }}>{t('shared.set.splitTitle')}</h3>
               <button
@@ -989,7 +1024,7 @@ export function Settings({
             subcategories. A bottom sheet, not a settings page - choosing is a
             moment, not a place. */}
         {showCatPicker && household && (
-          <div className="fixed inset-0 bg-black/50 z-50 flex items-end justify-center" onClick={() => { setShowCatPicker(false); setPickerExpanded(null); }}>
+          <div data-overlay className="fixed inset-0 bg-black/50 z-50 flex items-end justify-center" onClick={() => { setShowCatPicker(false); setPickerExpanded(null); }}>
             <div
               className="w-full max-w-[430px] rounded-t-3xl flex flex-col"
               style={{ backgroundColor: 'var(--bg-card)', maxHeight: '80dvh' }}
@@ -1066,7 +1101,7 @@ export function Settings({
         {/* Account pairing - the honest version: what it will do and what will
             cross, stated now; the pairing itself is a later slice. */}
         {showConnect && (
-          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-6" onClick={() => setShowConnect(false)}>
+          <div data-overlay className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-6" onClick={() => setShowConnect(false)}>
             <div className="rounded-2xl p-6 max-w-sm w-full shadow-xl" style={{ backgroundColor: 'var(--bg-card)' }} onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center justify-center gap-2.5 mb-4">
                 <span style={{ width: 40, height: 40, borderRadius: 999, background: '#0B0B0D', color: '#FFF', fontSize: 16, fontWeight: 700, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
