@@ -805,6 +805,25 @@ export default function App() {
       const dock = dockRef.current;
       if (!dock) return;
       if (e.target instanceof Node && dock.contains(e.target)) return; // a real tab tap
+      // ...but a sheet ABOVE the dock owns its own bottom band.
+      //
+      // This assumed a modal means no dock. Sheets opened from a Settings
+      // sub-page do not: the dock stays mounted underneath, so anything the
+      // sheet puts in the bottom ~75px was silently killed - including the
+      // "Add source" button, which sits at y=772 on a 844pt screen. It looked
+      // completely normal and did nothing, because the click was stopped in
+      // capture before React ever saw it.
+      //
+      // A layer above the dock is a fixed-position subtree (every sheet here
+      // is `fixed inset-0`), or one carrying the overlay markers the swipe-back
+      // hook already keys on. Page content behind the dock is neither, so
+      // genuine mis-taps are still swallowed.
+      if (e.target instanceof Element) {
+        for (let n: Element | null = e.target; n && n !== document.body; n = n.parentElement) {
+          if (n.hasAttribute('data-overlay') || n.getAttribute('role') === 'dialog') return;
+          if (getComputedStyle(n).position === 'fixed') return;
+        }
+      }
       if (e.clientY >= dock.getBoundingClientRect().top) {
         e.stopPropagation();
         e.preventDefault();
