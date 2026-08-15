@@ -9,6 +9,7 @@ import {
   DEFAULT_SOURCE_INCOME,
 } from '../components/sources';
 import { getItem, hydrate, removeItem, setItem } from './kv';
+import type { CountryVisit } from './travel';
 
 // Versioned keys so a future schema change can migrate (or ignore) old data.
 const key = (name: string) => `expense-tracker.v1.${name}`;
@@ -65,6 +66,11 @@ const KEYS = {
   // is still a row in the ledger and can carry its own mark; a deleted one is
   // gone, so it needs somewhere else to wait.
   sharedRemoved: key('shared-removed'),
+  // Which countries this device has been in, so the travel nudge can tell a
+  // trip from an address. Device-local and never synced: it is a fact about
+  // this phone's whereabouts, and it has no business on anyone's server or in
+  // a backup file.
+  travelCountries: key('travel-countries'),
 };
 
 /**
@@ -148,6 +154,9 @@ export const saveSharedLastSeen = (at: string) => setItem(KEYS.sharedLastSeen, a
 
 export const loadSharedRemovals = () => read<SharedRemoval[]>(KEYS.sharedRemoved, []);
 export const saveSharedRemovals = (rows: SharedRemoval[]) => write(KEYS.sharedRemoved, rows);
+
+export const loadTravelCountries = () => read<CountryVisit[]>(KEYS.travelCountries, []);
+export const saveTravelCountries = (rows: CountryVisit[]) => write(KEYS.travelCountries, rows);
 
 // ── Guest mode ──────────────────────────────────────────────────────────────
 

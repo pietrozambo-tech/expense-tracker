@@ -8,6 +8,8 @@
 
 import { usualCurve, median } from './lib/usual';
 import { dailyAllowance } from './lib/budget';
+import { acceptCountry, currencyOfCountry, dismissCountry, observeCountry, travelSuggestion } from './lib/travel';
+import { countryOfZone } from './lib/zones';
 
 const OLD = process.argv.includes('--before');
 
@@ -193,6 +195,106 @@ heading('8. dailyAllowance() - the band the advice has to fall inside');
   // introduces with "up to" must not overshoot the budget it came from.
   expect('the figure is floored, so following it cannot overshoot',
     dailyAllowance(1600, 3100, 9, 22 / 31), 166);
+}
+
+
+// 9. The travel nudge: telling a trip from an address.
+//
+// Every case here is really the same question asked from a different angle -
+// is this somewhere you ARE, or somewhere you LIVE. Get it wrong in one
+// direction and a traveller never hears about the local currency; get it
+// wrong in the other and somebody living in Dubai with euro books is asked
+// about dirhams every day for the rest of their life.
+heading('9. travelSuggestion() - somewhere you are vs somewhere you live');
+{
+  const days = (n: number, from = 1, month = '2026-08') =>
+    Array.from({ length: n }, (_, i) => `${month}-${String(from + i).padStart(2, '0')}`);
+
+  // The country the app first sees is taken as home on the spot. People
+  // install an app at home; waiting a week to believe it would nudge every
+  // new user in their own kitchen.
+  {
+    const h = observeCountry([], 'AE', '2026-08-01');
+    expect('the first country seen is home immediately', h[0].home, true);
+    expect('and is never nudged', travelSuggestion(h, 'EUR', 'AE'), null);
+  }
+
+  // The case that shaped the whole design: living in Dubai, accounting in
+  // euros. Country and currency disagree permanently and that is fine.
+  {
+    const h = observeCountry([], 'AE', '2026-08-01');
+    expect('living somewhere your books are not: still silent',
+      travelSuggestion(h, 'EUR', 'AE'), null);
+    // ...and a real trip from there still speaks up.
+    const away = observeCountry(h, 'PH', '2026-08-12');
+    expect('but a trip abroad offers the local money',
+      travelSuggestion(away, 'EUR', 'PH')?.currency, 'PHP');
+  }
+
+  // A fortnight away is a holiday, not an address: the day count alone must
+  // not promote it, or the nudge would go quiet halfway through every trip.
+  {
+    const h = [
+      { cc: 'AE', days: ['2026-01-01'], home: true },
+      { cc: 'PH', days: days(14) },
+    ];
+    expect('two weeks in one month is still a trip',
+      travelSuggestion(h, 'EUR', 'PH')?.currency, 'PHP');
+  }
+  // Spread across months, it is somewhere you live.
+  {
+    const h = [
+      { cc: 'AE', days: ['2026-01-01'], home: true },
+      { cc: 'PH', days: [...days(5, 1, '2026-07'), ...days(5, 1, '2026-08')] },
+    ];
+    expect('the same days spread over two months is an address',
+      travelSuggestion(h, 'EUR', 'PH'), null);
+  }
+
+  // The fast path out, for an actual move: three refusals in a row and it
+  // stops asking, long before the slow test above would catch up.
+  {
+    let h: any = [{ cc: 'IT', days: ['2026-01-01'], home: true }, { cc: 'AE', days: days(3) }];
+    expect('first refusal does not silence it', travelSuggestion(h = dismissCountry(h, 'AE'), 'EUR', 'AE')?.currency, 'AED');
+    expect('nor the second', travelSuggestion(h = dismissCountry(h, 'AE'), 'EUR', 'AE')?.currency, 'AED');
+    expect('the third does', travelSuggestion(dismissCountry(h, 'AE'), 'EUR', 'AE'), null);
+    // Taking it once forgives everything before, so a change of mind is not
+    // punished by a counter the user cannot see.
+    const forgiven = acceptCountry(dismissCountry(dismissCountry(h, 'AE'), 'AE'), 'AE');
+    expect('accepting once clears the refusals', travelSuggestion(forgiven, 'EUR', 'AE')?.currency, 'AED');
+  }
+
+  // Nothing to offer is not a nudge.
+  {
+    const h = [{ cc: 'IT', days: ['2026-01-01'], home: true }, { cc: 'FR', days: ['2026-08-12'] }];
+    expect('a eurozone hop offers nothing, because nothing would change',
+      travelSuggestion(h, 'EUR', 'FR'), null);
+    expect('an unplaceable timezone says nothing', travelSuggestion(h, 'EUR', null), null);
+    expect('a country we carry no currency for says nothing',
+      travelSuggestion(h, 'EUR', 'ZZ'), null);
+  }
+
+  // Observation is idempotent within a day - it runs on every launch.
+  {
+    let h = observeCountry([], 'IT', '2026-08-01');
+    h = observeCountry(h, 'IT', '2026-08-01');
+    h = observeCountry(h, 'IT', '2026-08-02');
+    expect('a day is recorded once however often the app is opened', h[0].days.length, 2);
+  }
+
+  // The country -> currency map, including the half derived from the flags
+  // already in currencyData and the half that had to be written down.
+  expect('from the flag data: the Philippines', currencyOfCountry('PH'), 'PHP');
+  expect('from the flag data: Japan', currencyOfCountry('JP'), 'JPY');
+  expect('written down: Italy is the euro, not its own flag', currencyOfCountry('IT'), 'EUR');
+  expect('written down: Ecuador is dollarised', currencyOfCountry('EC'), 'USD');
+  expect('written down: Senegal is the CFA franc', currencyOfCountry('SN'), 'XOF');
+  expect('somewhere we cannot place', currencyOfCountry('ZZ'), null);
+
+  // And the timezone table underneath it all.
+  expect('a timezone resolves to its country', countryOfZone('Asia/Manila'), 'PH');
+  expect('a legacy alias resolves too', countryOfZone('Asia/Calcutta'), 'IN');
+  expect('an unknown zone resolves to nothing', countryOfZone('Mars/Olympus'), null);
 }
 
 

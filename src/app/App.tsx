@@ -38,12 +38,16 @@ import {
   saveSharedLastSeen,
   loadSharedRemovals,
   saveSharedRemovals,
+  loadTravelCountries,
+  saveTravelCountries,
 } from './lib/storage';
 import { DEFAULT_SOURCES, DEFAULT_SOURCE_EXPENSE, DEFAULT_SOURCE_INCOME } from './components/sources';
 import { SourceLogo } from './components/SourceLogo';
 import { SourceSelectorModal } from './components/SourceSelectorModal';
 import { getDemoTransactions } from './lib/demoData';
 import { myShareOf, newHousehold, partnerSource, partnerSourceId, selectableSources, sharedNews, unseenKind } from './lib/shared';
+import { acceptCountry, currentCountry, dismissCountry, observeCountry, travelSuggestion } from './lib/travel';
+import type { CountryVisit } from './lib/travel';
 import type { SharedNews } from './lib/shared';
 import { paidByPartner, pairingChange, planSync, sharedIdOf } from './lib/sharedSync';
 import {
@@ -299,6 +303,11 @@ export default function App() {
   // goes in a backup.
   const [sharedLastSeen, setSharedLastSeen] = useState<string>(() => loadSharedLastSeen());
   const [sharedRemovals, setSharedRemovals] = useState<SharedRemoval[]>(() => loadSharedRemovals());
+  // Where this device has been, so a trip can be told from an address. Also
+  // device-local, and for a stronger reason than the two above: it is a record
+  // of the user's whereabouts, so it never syncs and never enters a backup.
+  const [travelCountries, setTravelCountries] = useState<CountryVisit[]>(() => loadTravelCountries());
+  const [travelDismissed, setTravelDismissed] = useState(false);
   // Per-entry override on the Add screen: 'auto' follows the category default,
   // the other two are this entry's explicit choice. Reset when the sheet closes.
   const [shareChoice, setShareChoice] = useState<'auto' | 'on' | 'off'>('auto');
@@ -449,6 +458,16 @@ export default function App() {
   useEffect(() => {
     saveSharedRemovals(sharedRemovals);
   }, [sharedRemovals]);
+  useEffect(() => {
+    saveTravelCountries(travelCountries);
+  }, [travelCountries]);
+  // One observation per launch. Idempotent within a day, so a phone left open
+  // over midnight simply records the new date the next time it wakes.
+  useEffect(() => {
+    const today = new Date();
+    const iso = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    setTravelCountries((prev) => observeCountry(prev, currentCountry(), iso));
+  }, []);
   // Start each tab from the top when switching in the nav bar, rather than
   // inheriting the previous tab's scroll position. Reset both the shared
   // scroll container and the window (whichever actually scrolls).
@@ -1590,6 +1609,35 @@ export default function App() {
     // one kind that has to be actively retired. The snapshot above already
     // holds them for the screen.
     setSharedRemovals([]);
+  };
+
+  /**
+   * The local currency worth offering for the entry being written.
+   *
+   * Null almost always - at home there is nothing to say, and the row below
+   * then renders exactly as it did before this existed. See lib/travel.ts for
+   * the four ways it stays quiet.
+   */
+  const travelHint = useMemo(
+    () =>
+      currentTab === 'add' && !editingExpenseId && !travelDismissed
+        ? travelSuggestion(travelCountries, selectedTransactionCurrency)
+        : null,
+    [currentTab, editingExpenseId, travelDismissed, travelCountries, selectedTransactionCurrency],
+  );
+
+  /** Taken: this entry is in pesos from now, and the refusals are forgiven. */
+  const acceptTravelHint = () => {
+    if (!travelHint) return;
+    setSelectedTransactionCurrency(travelHint.currency);
+    setTravelCountries((prev) => acceptCountry(prev, travelHint.cc));
+  };
+
+  /** Turned down: quiet for this session, and one refusal closer to silence. */
+  const dismissTravelHint = () => {
+    if (!travelHint) return;
+    setTravelDismissed(true);
+    setTravelCountries((prev) => dismissCountry(prev, travelHint.cc));
   };
 
   const handleSettle = (amount: number) => {
@@ -3348,9 +3396,50 @@ export default function App() {
                   carries an avatar rather than an icon - sat lower than the one
                   beside it. items-stretch also keeps the two the same height
                   without either hard-coding a number the other has to match. */}
-              {household && partner && transactionType === 'expense' && (
+              {((household && partner && transactionType === 'expense') || travelHint) && (
                 <div className="px-6 -mt-3 pb-5 flex items-stretch gap-2 flex-wrap">
-                  {entryShared ? (
+                  {/* Somewhere new: the local currency, one tap away.
+
+                      Filled rather than outlined, unlike the two beside it.
+                      Both of those are offers YOU can take and wear a dashed
+                      hairline for it; drawn the same way, this became a third
+                      identical pill and the shape stopped telling them apart.
+                      The tint says this one is the app volunteering something.
+
+                      It suggests and never applies: the amount above still
+                      reads in your own currency until you tap, and what the
+                      tap changes is this entry, not your account. */}
+                  {travelHint && (
+                    <span
+                      className="inline-flex items-center rounded-full"
+                      style={{ backgroundColor: 'var(--wash-accent)', color: 'var(--accent-ink)', fontSize: 12.5, fontWeight: 600 }}
+                    >
+                      <button
+                        type="button"
+                        data-travel-chip
+                        onClick={acceptTravelHint}
+                        aria-label={t('travel.useAria', { code: travelHint.currency })}
+                        className="inline-flex items-center gap-1.5 rounded-full active:scale-95 transition-transform"
+                        style={{ padding: '5px 4px 5px 10px', WebkitTapHighlightColor: 'transparent' }}
+                      >
+                        <span aria-hidden="true" style={{ fontSize: 13, lineHeight: 1 }}>{travelHint.flag}</span>
+                        <span>{t('travel.use', { code: travelHint.currency })}</span>
+                      </button>
+                      {/* Its own button, not part of the offer: tapping the
+                          chip must never be able to dismiss what it offers. */}
+                      <button
+                        type="button"
+                        data-travel-dismiss
+                        onClick={dismissTravelHint}
+                        aria-label={t('travel.dismissAria')}
+                        className="inline-flex items-center rounded-full active:scale-95 transition-transform"
+                        style={{ padding: '5px 9px 5px 5px', WebkitTapHighlightColor: 'transparent' }}
+                      >
+                        <X className="w-3 h-3" style={{ opacity: 0.55 }} strokeWidth={2.5} />
+                      </button>
+                    </span>
+                  )}
+                  {household && partner && transactionType === 'expense' && (entryShared ? (
                     <button
                       type="button"
                       onClick={() => setShareChoice('off')}
@@ -3392,7 +3481,7 @@ export default function App() {
                       <Split className="w-3.5 h-3.5" strokeWidth={2} />
                       <span>{t('shared.chip.invite', { name: partner.name })}</span>
                     </button>
-                  )}
+                  ))}
 
                   {/* Who fronted it. Only once the entry IS shared - on an
                       expense that is all yours the question has no meaning -
