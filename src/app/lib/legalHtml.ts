@@ -32,11 +32,11 @@ export function renderLegalHtml(doc: LegalDoc): string {
   header { border-bottom: 1px solid var(--line); padding-bottom: 20px; margin-bottom: 28px; }
   .brand { font-size: 13px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #4F74F3; }
   h1 { font-size: 30px; letter-spacing: -.5px; margin: 8px 0 6px; }
-  .updated { color: #8E8E93; font-size: 14px; margin: 0; }
+  .updated { color: var(--ink-2); font-size: 14px; margin: 0; }
   .intro { font-size: 17px; color: #3A3A3C; }
   h2 { font-size: 17px; margin: 32px 0 8px; }
   p { color: #48484A; margin: 0 0 10px; }
-  footer { margin-top: 48px; padding-top: 20px; border-top: 1px solid var(--line); color: #8E8E93; font-size: 13px; }
+  footer { margin-top: 48px; padding-top: 20px; border-top: 1px solid var(--line); color: var(--ink-2); font-size: 13px; }
   a { color: #4F74F3; }
   @media (prefers-color-scheme: dark) {
     body { color: #F2F1ED; background: #1C1C1E; }

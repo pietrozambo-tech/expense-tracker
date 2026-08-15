@@ -214,10 +214,14 @@ function DockTab({
       className="flex flex-col items-center justify-center gap-1 h-[46px] w-full rounded-2xl transition-colors duration-200 pointer-events-auto"
       style={{ backgroundColor: active ? 'rgba(255, 255, 255, 0.13)' : 'transparent' }}
     >
-      <Icon size={22} style={{ color: active ? '#FFFFFF' : 'var(--ink-2)' }} strokeWidth={active ? 2.4 : 2} />
+      {/* Fixed ink, not var(--ink-2): the pill is DARK IN BOTH THEMES, so a
+          token that darkens for light mode moves the label toward the pill -
+          measured 2.1:1 after the light token was corrected for pages. #AAAAB4
+          is 4.6:1 on the composited glass in either theme. */}
+      <Icon size={22} style={{ color: active ? '#FFFFFF' : '#AAAAB4' }} strokeWidth={active ? 2.4 : 2} />
       <span
         className="text-[9.5px] font-semibold leading-none whitespace-nowrap"
-        style={{ color: active ? '#FFFFFF' : 'var(--ink-2)' }}
+        style={{ color: active ? '#FFFFFF' : '#AAAAB4' }}
       >
         {label}
       </span>

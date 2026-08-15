@@ -76,7 +76,7 @@ export function ActivityDayGroup({
       >
         <h3
           className="font-bold text-[10px] uppercase tracking-wider"
-          style={{ color: isToday ? '#4F74F3' : '#737378' }}
+          style={{ color: isToday ? 'var(--accent-ink)' : 'var(--ink-2)' }}
         >
           {formatDate(date)}
         </h3>
@@ -86,7 +86,7 @@ export function ActivityDayGroup({
           currency={currency}
           decimals={2}
           className="text-[10px] font-medium tabular-nums pr-4"
-          style={{ minWidth: '80px', textAlign: 'right', color: ahead ? 'var(--tone-income)' : '#A3A3A3' }}
+          style={{ minWidth: '80px', textAlign: 'right', color: ahead ? 'var(--tone-income)' : 'var(--ink-2)' }}
         />
       </div>
 

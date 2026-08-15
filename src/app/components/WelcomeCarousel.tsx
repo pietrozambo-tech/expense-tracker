@@ -176,7 +176,7 @@ function RecurringIllustration() {
           <MockAmount value="-12.99" className="text-[15px] font-bold tabular-nums" style={{ color: 'var(--ink)' }} />
         </div>
         <div className="flex items-center justify-between mt-2.5 pt-2.5" style={{ borderTop: '1px solid var(--bg-inset)' }}>
-          <span className="text-[12px] font-semibold" style={{ color: '#4F74F3' }}>
+          <span className="text-[12px] font-semibold" style={{ color: 'var(--accent-ink)' }}>
             {it ? 'Prossima' : 'Next'} {fmt(3)}
           </span>
           <span className="flex items-center gap-3">
@@ -190,7 +190,7 @@ function RecurringIllustration() {
       <div className="rounded-2xl px-4 py-3" style={{ background: 'var(--bg-card)', boxShadow: '0 8px 24px rgba(0,0,0,0.06)', border: '1px solid var(--line-2)' }}>
         <div className="flex items-baseline justify-between mb-1">
           <span className="text-[11.5px] font-semibold" style={{ color: 'var(--ink-2)', letterSpacing: '0.2px' }}>{t('rec.comingUp')}</span>
-          <span className="text-[12px] font-semibold" style={{ color: '#4F74F3' }}>{t('rec.manage')}</span>
+          <span className="text-[12px] font-semibold" style={{ color: 'var(--accent-ink)' }}>{t('rec.manage')}</span>
         </div>
         {[
           { day: fmt(2), name: it ? 'Affitto' : 'Rent', amt: '-800' },
@@ -440,7 +440,7 @@ function SettingsIllustration() {
           <span className="text-[15px] font-medium" style={{ color: 'var(--ink)' }}>{t('set.shared')}</span>
           <span
             style={{
-              color: '#4F74F3', background: 'var(--wash-accent2)', fontSize: 9,
+              color: 'var(--accent-ink)', background: 'var(--wash-accent2)', fontSize: 9,
               fontWeight: 700, letterSpacing: '0.04em', padding: '1px 5px', borderRadius: 999,
             }}
           >

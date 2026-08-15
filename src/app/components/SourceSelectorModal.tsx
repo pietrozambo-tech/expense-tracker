@@ -42,7 +42,7 @@ export function SourceSelectorModal({
                 onManage();
               }}
               className="flex items-center gap-1.5 text-sm font-medium rounded-lg px-2.5 py-1.5 active:bg-neutral-100"
-              style={{ color: '#4F74F3' }}
+              style={{ color: 'var(--accent-ink)' }}
             >
               <Settings2 className="w-4 h-4" />
               Manage

@@ -314,7 +314,7 @@ export function BudgetNudge({ currency, onSave, onDismiss }: BudgetNudgeProps) {
               className="w-8 h-8 rounded-[10px] flex items-center justify-center flex-shrink-0"
               style={{ backgroundColor: 'var(--wash-accent)' }}
             >
-              <Target className="w-[18px] h-[18px]" style={{ color: '#4F74F3' }} strokeWidth={2.2} />
+              <Target className="w-[18px] h-[18px]" style={{ color: 'var(--accent-ink)' }} strokeWidth={2.2} />
             </span>
             <span className="flex-1" style={{ color: 'var(--ink)', fontSize: 14, fontWeight: 600 }}>
               {t('budget.nudge.title')}

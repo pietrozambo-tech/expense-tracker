@@ -626,7 +626,7 @@ export function SharedView({
                 <button
                   onClick={() => setDrilldown({ title: name, subtitle: periodLabel, items })}
                   className="w-full py-2.5 pl-[46px] text-left active:opacity-60 transition-opacity"
-                  style={{ color: '#4F74F3', fontSize: 13, fontWeight: 600, WebkitTapHighlightColor: 'transparent' }}
+                  style={{ color: 'var(--accent-ink)', fontSize: 13, fontWeight: 600, WebkitTapHighlightColor: 'transparent' }}
                 >
                   {t('shared.drill.allOf', { name })}
                 </button>
@@ -655,7 +655,7 @@ export function SharedView({
             className="w-full flex items-center justify-center gap-1.5 py-3 mt-1 active:opacity-60 transition-opacity"
             style={{ borderTop: '1px solid var(--line-2)', WebkitTapHighlightColor: 'transparent' }}
           >
-            <span style={{ color: '#4F74F3', fontSize: 13.5, fontWeight: 600 }}>{t('shared.seeAll')}</span>
+            <span style={{ color: 'var(--accent-ink)', fontSize: 13.5, fontWeight: 600 }}>{t('shared.seeAll')}</span>
             <span style={{ color: 'var(--ink-2)', fontSize: 12 }}>
               {t(periodShared.length === 1 ? 'shared.drill.count.one' : 'shared.drill.count.other', { n: periodShared.length })}
             </span>

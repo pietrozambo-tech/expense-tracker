@@ -215,8 +215,8 @@ export function TrendCategoryBreakdown({
       {/* Column headers. Two bare trend arrows used to sit here, which said
           nothing about what the columns hold; naming them costs the same room. */}
       <div className="flex items-center justify-end gap-0.5 mb-2 pr-1">
-        <div className="w-9 text-right text-[9px] uppercase tracking-wide text-neutral-400">{t('tcb.share')}</div>
-        <div className="w-16 text-right text-[9px] uppercase tracking-wide text-neutral-400">{t('tcb.avg')}</div>
+        <div className="w-9 text-right text-[9px] uppercase tracking-wide text-neutral-500">{t('tcb.share')}</div>
+        <div className="w-16 text-right text-[9px] uppercase tracking-wide text-neutral-500">{t('tcb.avg')}</div>
       </div>
       
       <div className="space-y-px">
@@ -234,7 +234,7 @@ export function TrendCategoryBreakdown({
                 <div className="flex items-center gap-2.5 flex-1 min-w-0">
                   {subcategories.length > 0 ? (
                     <ChevronRight
-                      className={`w-4 h-4 text-neutral-400 flex-shrink-0 transition-transform ${
+                      className={`w-4 h-4 text-neutral-500 flex-shrink-0 transition-transform ${
                         isExpanded ? 'rotate-90' : ''
                       }`}
                     />
@@ -264,7 +264,7 @@ export function TrendCategoryBreakdown({
                   </div>
                 </div>
                 <div className="flex items-center gap-0.5 flex-shrink-0 ml-1">
-                  <div className="text-neutral-400 text-[11px] tabular-nums text-right w-9">{item.weightPercentage.toFixed(0)}%</div>
+                  <div className="text-neutral-500 text-[11px] tabular-nums text-right w-9">{item.weightPercentage.toFixed(0)}%</div>
                   <div className="text-neutral-900 font-bold text-sm tabular-nums text-right w-16">
                     <AmountText amount={item.monthlyAvg} currency={currency} abbreviate="summary" />
                   </div>
@@ -285,7 +285,7 @@ export function TrendCategoryBreakdown({
                           <div className="text-neutral-500 text-xs truncate">{sub.name}</div>
                         </div>
                         <div className="flex items-center gap-0.5 flex-shrink-0 ml-1">
-                          <div className="text-neutral-400 text-[10px] tabular-nums text-right w-9">{sub.weightPercentage.toFixed(0)}%</div>
+                          <div className="text-neutral-500 text-[10px] tabular-nums text-right w-9">{sub.weightPercentage.toFixed(0)}%</div>
                           <div className="text-neutral-600 font-normal text-xs tabular-nums text-right w-16">
                             <AmountText amount={sub.monthlyAvg} currency={currency} abbreviate="summary" />
                           </div>
@@ -307,7 +307,7 @@ export function TrendCategoryBreakdown({
         <button
           onClick={() => setShowAll(!showAll)}
           className="w-full mt-1 py-2 rounded-lg text-center transition-colors active:bg-neutral-50"
-          style={{ color: '#4F74F3', fontSize: 12.5, fontWeight: 600 }}
+          style={{ color: 'var(--accent-ink)', fontSize: 12.5, fontWeight: 600 }}
         >
           {showAll ? t('tcb.showLess') : t('tcb.showAll', { n: hiddenCount })}
         </button>

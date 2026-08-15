@@ -39,7 +39,7 @@ export function ExportScopeModal({ filteredCount, totalCount, filters, onSelect,
       }}
     >
       <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: 'var(--wash-accent3)' }}>
-        <Icon className="w-4 h-4" style={{ color: '#4F74F3' }} strokeWidth={2.2} />
+        <Icon className="w-4 h-4" style={{ color: 'var(--accent-ink)' }} strokeWidth={2.2} />
       </div>
       <div className="min-w-0 flex-1">
         <div className="text-[15px] font-semibold" style={{ color: 'var(--ink)' }}>{title}</div>

@@ -695,7 +695,7 @@ export function Settings({
                 })}
                 className="absolute left-0 -ml-2 px-2 py-1 rounded-lg active:bg-neutral-200 transition-colors"
               >
-                <ChevronLeft size={24} style={{ color: '#4F74F3' }} />
+                <ChevronLeft size={24} style={{ color: 'var(--accent-ink)' }} />
               </button>
               <h1 style={{ color: 'var(--ink)', fontSize: '20px', fontWeight: '600', letterSpacing: '-0.3px' }}>{t('set.shared')}</h1>
             </div>
@@ -1063,7 +1063,7 @@ export function Settings({
                 <button
                   onClick={() => { setShowCatPicker(false); setPickerExpanded(null); }}
                   className="flex-shrink-0 font-semibold"
-                  style={{ color: '#4F74F3', fontSize: 15, paddingTop: 2 }}
+                  style={{ color: 'var(--accent-ink)', fontSize: 15, paddingTop: 2 }}
                 >
                   {t('common.done')}
                 </button>
@@ -1132,7 +1132,7 @@ export function Settings({
                 <span style={{ width: 40, height: 40, borderRadius: 999, background: '#0B0B0D', color: '#FFF', fontSize: 16, fontWeight: 700, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
                   {(userName?.[0] ?? 'P').toUpperCase()}
                 </span>
-                <Cloud className="w-5 h-5" style={{ color: '#4F74F3' }} strokeWidth={2.2} />
+                <Cloud className="w-5 h-5" style={{ color: 'var(--accent-ink)' }} strokeWidth={2.2} />
                 <span style={{ width: 40, height: 40, borderRadius: 999, background: partner?.color ?? '#7C5CFF', color: '#FFF', fontSize: 16, fontWeight: 700, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
                   {(partner?.name?.[0] ?? '?').toUpperCase()}
                 </span>
@@ -1330,7 +1330,7 @@ export function Settings({
                 onClick={() => navTransition('back', () => setShowAppearance(false))}
                 className="absolute left-0 -ml-2 px-2 py-1 rounded-lg active:bg-neutral-200 transition-colors"
               >
-                <ChevronLeft size={24} style={{ color: '#4F74F3' }} />
+                <ChevronLeft size={24} style={{ color: 'var(--accent-ink)' }} />
               </button>
               <h1 style={{ color: 'var(--ink)', fontSize: '20px', fontWeight: '600', letterSpacing: '-0.3px' }}>{t('set.theme')}</h1>
             </div>
@@ -1396,7 +1396,7 @@ export function Settings({
                 onClick={() => navTransition('back', () => setShowLanguage(false))}
                 className="absolute left-0 -ml-2 px-2 py-1 rounded-lg active:bg-neutral-200 transition-colors"
               >
-                <ChevronLeft size={24} style={{ color: '#4F74F3' }} />
+                <ChevronLeft size={24} style={{ color: 'var(--accent-ink)' }} />
               </button>
               <h1 style={{ color: 'var(--ink)', fontSize: '20px', fontWeight: '600', letterSpacing: '-0.3px' }}>{t('settings.language')}</h1>
             </div>
@@ -1474,7 +1474,7 @@ export function Settings({
                 })}
                 className="absolute left-0 -ml-2 px-2 py-1 rounded-lg active:bg-neutral-200 transition-colors"
               >
-                <ChevronLeft size={24} style={{ color: '#4F74F3' }} />
+                <ChevronLeft size={24} style={{ color: 'var(--accent-ink)' }} />
               </button>
               <h1 style={{ color: 'var(--ink)', fontSize: '20px', fontWeight: '600', letterSpacing: '-0.3px' }}>{t('set.currencyTitle')}</h1>
             </div>
@@ -1580,7 +1580,7 @@ export function Settings({
                 })}
                 className="absolute left-0 -ml-2 px-2 py-1 rounded-lg active:bg-neutral-200 transition-colors"
               >
-                <ChevronLeft size={24} style={{ color: '#4F74F3' }} />
+                <ChevronLeft size={24} style={{ color: 'var(--accent-ink)' }} />
               </button>
               <h1 style={{ color: 'var(--ink)', fontSize: '20px', fontWeight: '600', letterSpacing: '-0.3px' }}>{t('set.profileTitle')}</h1>
             </div>
@@ -1747,7 +1747,7 @@ export function Settings({
                 })}
                 className="absolute left-0 -ml-2 px-2 py-1 rounded-lg active:bg-neutral-200 transition-colors"
               >
-                <ChevronLeft size={24} style={{ color: '#4F74F3' }} />
+                <ChevronLeft size={24} style={{ color: 'var(--accent-ink)' }} />
               </button>
               <h1 style={{ color: 'var(--ink)', fontSize: '20px', fontWeight: '600', letterSpacing: '-0.3px' }}>{t('set.categories')}</h1>
             </div>
@@ -1824,7 +1824,7 @@ export function Settings({
                 onClick={() => navTransition('back', () => setShowAbout(false))}
                 className="absolute left-0 -ml-2 px-2 py-1 rounded-lg active:bg-neutral-200 transition-colors"
               >
-                <ChevronLeft size={24} style={{ color: '#4F74F3' }} />
+                <ChevronLeft size={24} style={{ color: 'var(--accent-ink)' }} />
               </button>
               <h1 style={{ color: 'var(--ink)', fontSize: '20px', fontWeight: '600', letterSpacing: '-0.3px' }}>{t('set.about')}</h1>
             </div>
@@ -1836,7 +1836,7 @@ export function Settings({
           <div className="flex flex-col items-center text-center px-6 pt-6 pb-8">
             <TracklyLogo size={80} className="mb-4" />
             <h2 style={{ color: 'var(--ink)', fontSize: '28px', fontWeight: 700, letterSpacing: '-0.03em' }}>TracklyLab</h2>
-            <p style={{ color: '#4F74F3', fontSize: '14px', fontWeight: 600, marginTop: '4px', letterSpacing: '0.02em' }}>Your Expense Lens</p>
+            <p style={{ color: 'var(--accent-ink)', fontSize: '14px', fontWeight: 600, marginTop: '4px', letterSpacing: '0.02em' }}>Your Expense Lens</p>
             <p style={{ color: 'var(--ink-2)', fontSize: '13px', marginTop: '6px' }}>
               {t('set.version', { v: __APP_VERSION__ })}
             </p>
@@ -2104,7 +2104,7 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
                 onClick={() => navTransition('back', () => setShowImport(false))}
                 className="absolute left-0 -ml-2 px-2 py-1 rounded-lg active:bg-neutral-200 transition-colors"
               >
-                <ChevronLeft size={24} style={{ color: '#4F74F3' }} />
+                <ChevronLeft size={24} style={{ color: 'var(--accent-ink)' }} />
               </button>
               <h1 style={{ color: 'var(--ink)', fontSize: '20px', fontWeight: '600', letterSpacing: '-0.3px' }}>{t('set.importData')}</h1>
             </div>
@@ -2266,7 +2266,7 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
                 onClick={() => navTransition('back', () => setShowScheduled(false))}
                 className="absolute left-0 -ml-2 px-2 py-1 rounded-lg active:bg-neutral-200 transition-colors"
               >
-                <ChevronLeft size={24} style={{ color: '#4F74F3' }} />
+                <ChevronLeft size={24} style={{ color: 'var(--accent-ink)' }} />
               </button>
               <h1 style={{ color: 'var(--ink)', fontSize: '20px', fontWeight: '600', letterSpacing: '-0.3px' }}>
                 {t('sched.title')}
@@ -2308,7 +2308,7 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
                 onClick={() => navTransition('back', closeSupport)}
                 className="absolute left-0 -ml-2 px-2 py-1 rounded-lg active:bg-neutral-200 transition-colors"
               >
-                <ChevronLeft size={24} style={{ color: '#4F74F3' }} />
+                <ChevronLeft size={24} style={{ color: 'var(--accent-ink)' }} />
               </button>
               <h1 style={{ color: 'var(--ink)', fontSize: '20px', fontWeight: '600', letterSpacing: '-0.3px' }}>{t('set.support')}</h1>
             </div>
@@ -2385,7 +2385,7 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
 
             <p className="text-center mt-4" style={{ color: 'var(--ink-2)', fontSize: 13, lineHeight: 1.5 }}>
               {getLanguage() === 'it' ? 'Oppure scrivici direttamente a' : 'Or email us directly at'}{' '}
-              <a href={`mailto:${SUPPORT_EMAIL}`} style={{ color: '#4F74F3', fontWeight: 500 }}>{SUPPORT_EMAIL}</a>
+              <a href={`mailto:${SUPPORT_EMAIL}`} style={{ color: 'var(--accent-ink)', fontWeight: 500 }}>{SUPPORT_EMAIL}</a>
             </p>
           </div>
         )}
@@ -2418,7 +2418,7 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
               onClick={onSignInToSync}
               className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
             >
-              <Cloud className="w-5 h-5" style={{ color: '#4F74F3' }} strokeWidth={2} />
+              <Cloud className="w-5 h-5" style={{ color: 'var(--accent-ink)' }} strokeWidth={2} />
               <div className="flex-1 text-left">
                 <div style={{ color: 'var(--ink)', fontSize: '15px' }}>{t('set.signIn')}</div>
                 <div style={{ color: 'var(--ink-2)', fontSize: '13px' }}>{t('set.signInSub')}</div>
@@ -2594,7 +2594,7 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
                   and nobody should be surprised later that it changed. */}
               <span
                 style={{
-                  color: '#4F74F3', backgroundColor: 'var(--wash-accent2)',
+                  color: 'var(--accent-ink)', backgroundColor: 'var(--wash-accent2)',
                   fontSize: 10, fontWeight: 700, letterSpacing: '0.04em',
                   padding: '1.5px 6px', borderRadius: 999,
                 }}

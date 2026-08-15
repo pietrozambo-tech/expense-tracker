@@ -98,7 +98,14 @@ export function SignIn() {
     // is added (the email block pushed the terms off a 667pt phone, and Apple
     // will add a button again). A fixed height with the middle section taking
     // the slack keeps the buttons where they are on any device.
-    <div className="flex flex-col max-w-[430px] mx-auto" style={{ height: '100dvh', background: bg }}>
+    // Two nested boxes where there was one: the OUTER paints the gradient down
+    // the whole viewport column; the INNER holds the actual screen and caps at
+    // 900px, centred vertically. On a phone nothing changes - the cap only
+    // engages on tall screens (iPad portrait is 1194pt), where the old single
+    // box pinned the buttons to the bottom and opened a 400px hole between
+    // the email field and "Email me a code".
+    <div className="flex max-w-[430px] mx-auto" style={{ height: '100dvh', background: bg }}>
+      <div className="flex flex-col w-full my-auto" style={{ height: '100%', maxHeight: 900 }}>
       <div className="flex-1 min-h-0 overflow-y-auto flex flex-col px-6">
         {step === 'start' ? (
           <>
@@ -180,7 +187,7 @@ export function SignIn() {
           </>
         ) : (
           <div style={{ paddingTop: 'clamp(28px, 7vh, 64px)' }}>
-            <button onClick={() => { setStep('start'); setError(null); }} className="flex items-center gap-1 -ml-1 mb-5 self-start" style={{ color: '#4F74F3', fontSize: 15 }}>
+            <button onClick={() => { setStep('start'); setError(null); }} className="flex items-center gap-1 -ml-1 mb-5 self-start" style={{ color: 'var(--accent-ink)', fontSize: 15 }}>
               <ArrowLeft className="w-4 h-4" />{getLanguage() === 'it' ? 'Indietro' : 'Back'}</button>
             <TracklyLogo size={48} className="mb-5" />
             <h1 style={{ color: 'var(--ink)', fontSize: 28, fontWeight: 700, letterSpacing: '-0.02em', marginBottom: 8 }}>{getLanguage() === 'it' ? 'Inserisci il codice' : 'Enter your code'}</h1>
@@ -203,7 +210,7 @@ export function SignIn() {
               onBlur={(e) => { e.target.style.border = '1px solid var(--line)'; e.target.style.boxShadow = '0 2px 10px rgba(17,24,39,0.04)'; }}
             />
             {error && <p className="mt-3" style={{ color: '#FF3B30', fontSize: 13 }}>{error}</p>}
-            <button onClick={send} disabled={busy} className="mt-4 text-[15px] font-medium self-start" style={{ color: '#4F74F3' }}>
+            <button onClick={send} disabled={busy} className="mt-4 text-[15px] font-medium self-start" style={{ color: 'var(--accent-ink)' }}>
               {getLanguage() === 'it' ? 'Invia di nuovo il codice' : 'Resend code'}
             </button>
           </div>
@@ -243,6 +250,7 @@ export function SignIn() {
             {busy ? (getLanguage() === 'it' ? 'Verifica…' : 'Verifying…') : (getLanguage() === 'it' ? 'Verifica e accedi' : 'Verify & sign in')}
           </button>
         )}
+      </div>
       </div>
     </div>
   );

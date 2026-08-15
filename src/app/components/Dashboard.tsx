@@ -2253,7 +2253,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
         <div className="flex-1 flex flex-col justify-center px-6 pt-4 pb-4">
           <div className="rounded-2xl px-6 py-8 text-center" style={{ background: 'var(--bg-card)', boxShadow: '0 8px 24px rgba(0,0,0,0.06)', border: '1px solid var(--line-2)' }}>
             <div className="mx-auto mb-4 flex items-center justify-center" style={{ width: 56, height: 56, borderRadius: 999, background: 'var(--wash-accent2)' }}>
-              <Plus className="w-7 h-7" style={{ color: '#4F74F3' }} strokeWidth={2.5} />
+              <Plus className="w-7 h-7" style={{ color: 'var(--accent-ink)' }} strokeWidth={2.5} />
             </div>
             <h2 style={{ color: 'var(--ink)', fontSize: 20, fontWeight: 700, letterSpacing: '-0.02em', marginBottom: 8 }}>
               {t('dash.empty.title')}
@@ -2698,12 +2698,12 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                   className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0"
                   style={{ backgroundColor: 'var(--bg-card)' }}
                 >
-                  <Sparkles className="w-3.5 h-3.5" style={{ color: '#4F74F3' }} strokeWidth={2.2} />
+                  <Sparkles className="w-3.5 h-3.5" style={{ color: 'var(--accent-ink)' }} strokeWidth={2.2} />
                 </span>
                 <span className="flex-1 text-left" style={{ color: 'var(--ink)', fontSize: 14, fontWeight: 600 }}>
                   {t('review.pointer', { period: previousPeriodName })}
                 </span>
-                <ChevronRight className="w-4 h-4 flex-shrink-0" style={{ color: '#4F74F3' }} />
+                <ChevronRight className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--accent-ink)' }} />
               </button>
             </div>
           )}
@@ -2943,7 +2943,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                 </div>
                 {sortedCategories.length === 0 ? (
                   <div className="py-12 text-center">
-                    <div className="text-neutral-400 text-sm mb-1">
+                    <div className="text-neutral-500 text-sm mb-1">
                       {transactionType === 'expense' ? t('cat.emptyExpenses') : t('cat.emptyIncome')}
                     </div>
                     <p className="text-neutral-500 text-xs">
@@ -2974,7 +2974,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                             <div className="flex items-center gap-2.5 flex-1 min-w-0">
                               {subcategories.length > 0 ? (
                                 <ChevronRight
-                                  className={`w-4 h-4 text-neutral-400 flex-shrink-0 transition-transform ${
+                                  className={`w-4 h-4 text-neutral-500 flex-shrink-0 transition-transform ${
                                     isExpanded ? 'rotate-90' : ''
                                   }`}
                                 />
@@ -3004,7 +3004,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                               </div>
                             </div>
                             <div className="flex items-center gap-1.5 flex-shrink-0 ml-1">
-                              <div className="text-neutral-400 text-[11px] tabular-nums text-right w-8">{item.percentage.toFixed(0)}%</div>
+                              <div className="text-neutral-500 text-[11px] tabular-nums text-right w-8">{item.percentage.toFixed(0)}%</div>
                               <div className="text-neutral-900 font-semibold text-[14px] tabular-nums text-right whitespace-nowrap min-w-[60px]">
                                 {formatRowAmount(item.amount)}
                               </div>
@@ -3062,7 +3062,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                                       </div>
                                     </div>
                                     <div className="flex items-center gap-1.5 flex-shrink-0 ml-1">
-                                      <div className="text-neutral-400 text-[10px] tabular-nums text-right w-8">{sub.percentage.toFixed(0)}%</div>
+                                      <div className="text-neutral-500 text-[10px] tabular-nums text-right w-8">{sub.percentage.toFixed(0)}%</div>
                                       <div className="text-neutral-600 font-normal text-xs tabular-nums text-right whitespace-nowrap min-w-[60px]">
                                         {formatRowAmount(sub.amount)}
                                       </div>
@@ -3094,7 +3094,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                                   className="flex items-center justify-between gap-3 py-1 w-full text-left active:bg-neutral-100 rounded-md pl-1 pr-0 transition-colors"
                                 >
                                   <div className="flex-1 min-w-0">
-                                    <div className="text-neutral-400 text-xs truncate italic">{t('trend.other')}</div>
+                                    <div className="text-neutral-500 text-xs truncate italic">{t('trend.other')}</div>
                                     <div className="h-0.5 bg-neutral-100 rounded-full overflow-hidden mt-1">
                                       {/* Same dead bg-opacity-* as above. Kept
                                           fainter than a named subcategory: this
@@ -3109,7 +3109,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                                     </div>
                                   </div>
                                   <div className="flex items-center gap-1.5 flex-shrink-0 ml-1">
-                                    <div className="text-neutral-400 text-[10px] tabular-nums text-right w-8">{extras.otherPercentage.toFixed(0)}%</div>
+                                    <div className="text-neutral-500 text-[10px] tabular-nums text-right w-8">{extras.otherPercentage.toFixed(0)}%</div>
                                     <div className="text-neutral-600 font-normal text-xs tabular-nums text-right whitespace-nowrap min-w-[60px]">
                                       {formatRowAmount(extras.otherAmount)}
                                     </div>
@@ -3127,10 +3127,10 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                                 onClick={() => setDrilldownContext({ categoryName: item.name, subcategoryName: null })}
                                 className="flex items-center gap-1 py-1.5 w-full text-left active:bg-neutral-100 rounded-md px-1 transition-colors"
                               >
-                                <span className="text-[11px] font-medium" style={{ color: '#4F74F3' }}>
+                                <span className="text-[11px] font-medium" style={{ color: 'var(--accent-ink)' }}>
                                   {t('cat.viewAll', { n: extras.totalCount })}
                                 </span>
-                                <ChevronRight className="w-3.5 h-3.5" style={{ color: '#4F74F3' }} />
+                                <ChevronRight className="w-3.5 h-3.5" style={{ color: 'var(--accent-ink)' }} />
                               </button>
                             </div>
                           )}
@@ -3887,7 +3887,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                             </span>
                             <button
                               onClick={onManageRecurring}
-                              style={{ color: '#4F74F3', fontSize: 12, fontWeight: 600 }}
+                              style={{ color: 'var(--accent-ink)', fontSize: 12, fontWeight: 600 }}
                             >
                               {t('rec.manage')}
                             </button>
@@ -4550,7 +4550,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
               </h3>
               
               {trendData.length === 0 ? (
-                <div className="text-center py-8 text-neutral-400 text-sm">
+                <div className="text-center py-8 text-neutral-500 text-sm">
                   {t('trend.noData')}
                 </div>
               ) : (
@@ -4561,7 +4561,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                         characters and not one more, so these always abbreviate
                         rather than deciding per dataset. Below 10K nothing
                         changes - "9,999" already fits. */}
-                    <div className="absolute left-0 top-0 h-24 flex flex-col justify-between text-[10px] text-neutral-400 tabular-nums pr-2 w-12 font-medium">
+                    <div className="absolute left-0 top-0 h-24 flex flex-col justify-between text-[10px] text-neutral-500 tabular-nums pr-2 w-12 font-medium">
                       <AmountText amount={yMax} currency={currency} decimals={0} abbreviate="fit" />
                       <AmountText amount={yMin + yRange / 2} currency={currency} decimals={0} abbreviate="fit" />
                       <AmountText amount={yMin} currency={currency} decimals={0} abbreviate="fit" />
@@ -4729,7 +4729,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                       return (
                         <div 
                           key={index} 
-                          className="absolute text-[10px] text-neutral-400 font-medium transform -translate-x-1/2"
+                          className="absolute text-[10px] text-neutral-500 font-medium transform -translate-x-1/2"
                           style={{ left: `${leftPosition}%` }}
                         >
                           {item.month}
@@ -4925,8 +4925,8 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                       <div className="flex items-center gap-2.5 pb-1.5 mt-2 mb-1 border-b border-neutral-100">
                         <div className="w-[72px] flex-shrink-0"></div>
                         <div className="flex-1 min-w-0"></div>
-                        <div className="w-16 flex-shrink-0 text-right text-[9px] text-neutral-400 uppercase tracking-wide">{t('dow.avgPerDay')}</div>
-                        <div className="w-8 flex-shrink-0 text-right text-[9px] text-neutral-400 uppercase tracking-wide">{t('dow.days')}</div>
+                        <div className="w-16 flex-shrink-0 text-right text-[9px] text-neutral-500 uppercase tracking-wide">{t('dow.avgPerDay')}</div>
+                        <div className="w-8 flex-shrink-0 text-right text-[9px] text-neutral-500 uppercase tracking-wide">{t('dow.days')}</div>
                       </div>
                       <div className="space-y-0">
                         {dowBuckets.map((b) => (
@@ -4946,7 +4946,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                                 abbreviate={needsAbbreviation(dowBuckets.map((x) => x.avg), currency, 8) ? 'fit' : undefined}
                               />
                             </div>
-                            <div className="w-8 flex-shrink-0 text-right text-[11px] text-neutral-400 tabular-nums">
+                            <div className="w-8 flex-shrink-0 text-right text-[11px] text-neutral-500 tabular-nums">
                               {b.occurrences > 0 ? `x${b.occurrences}` : '-'}
                             </div>
                           </div>
@@ -4974,7 +4974,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                     </>
                   ) : (
                     <div className="py-6 text-center">
-                      <p className="text-sm text-neutral-400">
+                      <p className="text-sm text-neutral-500">
                         {t('dow.noSpending')}{trendDowOneOffs && dowExcludedCount > 0 ? t('dow.outsideRecurring') : ''}.
                       </p>
                       {trendDowOneOffs && dowExcludedCount > 0 && (
@@ -5004,24 +5004,24 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                   {/* Bar chart spacer */}
                   <div className={`${selectedCategory === 'All' ? 'flex-1' : 'w-32'} min-w-0`}></div>
                   {/* Amount header */}
-                  <div className={`${selectedCategory === 'All' ? 'w-16' : 'w-14'} flex-shrink-0 text-right text-[9px] text-neutral-400 uppercase tracking-wide`}>
+                  <div className={`${selectedCategory === 'All' ? 'w-16' : 'w-14'} flex-shrink-0 text-right text-[9px] text-neutral-500 uppercase tracking-wide`}>
                     {transactionType === 'savings' ? t('trend.colSaved') : t('trend.colAmount')}
                   </div>
                   {selectedCategory !== 'All' && (
                     <>
                       {/* Weight header */}
-                      <div className="w-10 flex-shrink-0 text-right text-[9px] text-neutral-400 uppercase tracking-wide">
+                      <div className="w-10 flex-shrink-0 text-right text-[9px] text-neutral-500 uppercase tracking-wide">
                         {t('trend.colWeight')}
                       </div>
                       {/* Transaction count header */}
-                      <div className="w-8 flex-shrink-0 text-center text-[9px] text-neutral-400 uppercase tracking-wide">
+                      <div className="w-8 flex-shrink-0 text-center text-[9px] text-neutral-500 uppercase tracking-wide">
                         #
                       </div>
                     </>
                   )}
                   {/* Saving rate header */}
                   {transactionType === 'savings' && (
-                    <div className="w-10 flex-shrink-0 text-right text-[9px] text-neutral-400 uppercase tracking-wide">
+                    <div className="w-10 flex-shrink-0 text-right text-[9px] text-neutral-500 uppercase tracking-wide">
                       {t('trend.colRate')}
                     </div>
                   )}
@@ -5138,7 +5138,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
 
                       {/* Weight % - only for category/subcategory */}
                       {selectedCategory !== 'All' && (
-                        <div className="flex-shrink-0 w-10 text-right text-[11px] text-neutral-400 tabular-nums self-center">
+                        <div className="flex-shrink-0 w-10 text-right text-[11px] text-neutral-500 tabular-nums self-center">
                           {item.amount > 0 ? `${item.percentage.toFixed(0)}%` : '-'}
                         </div>
                       )}
@@ -5169,12 +5169,12 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                       {/* Badges */}
                       <div className="flex-shrink-0 w-11 flex justify-end self-center">
                         {trendData.length > 1 && index === bestMonthIndex && item.amount > 0 && (
-                          <span className="text-[9px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded font-medium leading-none">
+                          <span className="text-[9px] bg-green-100 text-green-800 px-1.5 py-0.5 rounded font-medium leading-none">
                             {t('trend.best')}
                           </span>
                         )}
                         {trendData.length > 1 && index === worstMonthIndex && item.amount !== 0 && index !== bestMonthIndex && (
-                          <span className="text-[9px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded font-medium leading-none">
+                          <span className="text-[9px] bg-red-100 text-red-800 px-1.5 py-0.5 rounded font-medium leading-none">
                             {t('trend.worst')}
                           </span>
                         )}
@@ -5183,7 +5183,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                             use for their colours - it is a status, not a
                             verdict. It is also why that row has no badge. */}
                         {trendData.length > 1 && isRunningMonth(item) && (
-                          <span className="text-[9px] bg-neutral-100 text-neutral-500 px-1.5 py-0.5 rounded font-medium leading-none whitespace-nowrap">
+                          <span className="text-[9px] bg-neutral-100 text-neutral-600 px-1.5 py-0.5 rounded font-medium leading-none whitespace-nowrap">
                             {t('trend.soFar')}
                           </span>
                         )}
@@ -5287,7 +5287,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                         : drilldownContext.categoryName}
                     </h3>
                     {(drilldownContext.recurrence || drilldownContext.subcategoryName) && (
-                      <span className="text-[10px] text-neutral-400 font-bold px-2 py-0.5 bg-neutral-50 rounded-full border border-neutral-100 uppercase tracking-tight">
+                      <span className="text-[10px] text-neutral-500 font-bold px-2 py-0.5 bg-neutral-50 rounded-full border border-neutral-100 uppercase tracking-tight">
                         {drilldownContext.recurrence ? t('rec.title') : drilldownContext.categoryName}
                       </span>
                     )}

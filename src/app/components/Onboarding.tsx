@@ -50,7 +50,7 @@ export function Onboarding({ onComplete, initialName = '' }: OnboardingProps) {
             <div style={{ color: 'var(--ink)', fontSize: 19, fontWeight: 700, letterSpacing: '-0.02em' }}>
               TracklyLab
             </div>
-            <div style={{ color: '#4F74F3', fontSize: 12.5, fontWeight: 600, letterSpacing: '0.02em' }}>
+            <div style={{ color: 'var(--accent-ink)', fontSize: 12.5, fontWeight: 600, letterSpacing: '0.02em' }}>
               Your Expense Lens
             </div>
           </div>
@@ -199,7 +199,7 @@ export function Onboarding({ onComplete, initialName = '' }: OnboardingProps) {
               <>
                 <span style={{ fontSize: '22px' }}>{nonMainPick.flag}</span>
                 <div className="flex flex-col flex-1">
-                  <span style={{ color: '#4F74F3', fontSize: '15px', fontWeight: '600' }}>{nonMainPick.code}</span>
+                  <span style={{ color: 'var(--accent-ink)', fontSize: '15px', fontWeight: '600' }}>{nonMainPick.code}</span>
                   <span style={{ color: 'var(--ink-2)', fontSize: '12px' }}>{nonMainPick.name}</span>
                 </div>
               </>

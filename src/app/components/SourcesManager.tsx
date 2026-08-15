@@ -59,7 +59,7 @@ export function SourcesManager({
               onClick={onBack}
               className="absolute left-0 -ml-2 px-2 py-1 rounded-lg active:bg-neutral-200 transition-colors"
             >
-              <ChevronLeft size={24} style={{ color: '#4F74F3' }} />
+              <ChevronLeft size={24} style={{ color: 'var(--accent-ink)' }} />
             </button>
             <h1 style={{ color: 'var(--ink)', fontSize: '20px', fontWeight: '600', letterSpacing: '-0.3px' }}>{t('set.sources')}</h1>
           </div>

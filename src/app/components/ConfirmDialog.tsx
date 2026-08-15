@@ -37,7 +37,7 @@ export function ConfirmDialog({
             {isDanger ? (
               <AlertTriangle className="w-8 h-8 text-red-500" />
             ) : (
-              <NeutralIcon className="w-8 h-8" style={{ color: '#4F74F3' }} />
+              <NeutralIcon className="w-8 h-8" style={{ color: 'var(--accent-ink)' }} />
             )}
           </div>
         </div>

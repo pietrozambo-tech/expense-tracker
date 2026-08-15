@@ -65,8 +65,16 @@
 :root {
   color-scheme: light;
   --ink: #1C1C1E;
-  --ink-2: #8E8E93;
-  --ink-3: #6B6B75;
+  /* Secondary prose. #8E8E93 measured 2.9:1 on the page and 3.3:1 on cards -
+     under the 4.5:1 floor for the 11-15px it is used at, everywhere, in the
+     theme most people use. #67676F is the lightest grey in this hue that
+     clears 4.5 on EVERY light surface prose sits on - cards 5.5, page 5.1,
+     inset 5.0, and the segmented-control track (#ECEAE4) at 4.7, which is
+     the strictest and the one the first attempt missed.
+     That lands where ink-3 used to sit, so ink-3 steps down a rung - two
+     tokens one JND apart is no hierarchy at all. */
+  --ink-2: #67676F; /* 4.7:1 on --bg-track, the darkest surface prose sits on */
+  --ink-3: #54545E;
   --faint: #B0B0B5;
   --faint-2: #A0A0A8;
   --disabled: #A5A5AD;
@@ -98,7 +106,12 @@
   --hairline: #E3E3E8;
   --tone-expense: #C2352B;
   --tone-income: #1F7A43;
-  --tone-danger: #EF4444;
+  --tone-danger: #DC2626; /* was #EF4444: 3.8:1 on white at 15px - under the floor on the two rows named Erase */
+  /* Accent-as-TEXT. The brand #4F74F3 stays for fills (white sits on it);
+     as text it measured 4.1:1 on white and 3.5-3.8:1 on its washes and dark
+     cards. Light: darkest step that still reads as the same blue. Dark: the
+     same hue lifted, because there text sits on near-black. */
+  --accent-ink: #3D5CE0;
   --accent-text: #4F74F3;
   /* Header rows (Trend's toggle + filter rows, Activity's filter bar) carry
    * no surface of their own in either theme: the controls sit directly on the
@@ -132,6 +145,7 @@ html[data-theme="dark"] {
   --tone-expense: #FF7A6E;
   --tone-income: #4ADE80;
   --tone-danger: #FF6B6B;
+  --accent-ink: #8FA5FF;
   --accent-text: #8AA4FF;
   --ink: #F2F2F4;
   --ink-2: #A6A6AE;
@@ -276,6 +290,11 @@ html[data-theme="dark"] {
    * glow of its own hue with a lifted icon - the iOS treatment - using the
    * palette vars Tailwind v4 already emits. */
   & .bg-red-100 { background-color: color-mix(in oklab, var(--color-red-500) 22%, transparent); }
+  /* The washes above go rich-dark, so the -700 inks on them must lift or the
+     Best/Worst chips read 2:1 - text remaps, paired with the bg remaps. */
+  & .text-green-700, & .text-green-800 { color: #7FDFA8; }
+  & .text-red-700, & .text-red-800 { color: #F5A6A6; }
+  & .text-neutral-600 { color: #A6A6AE; }
   & .bg-green-100 { background-color: color-mix(in oklab, var(--color-green-500) 22%, transparent); }
   & .bg-blue-100 { background-color: color-mix(in oklab, var(--color-blue-500) 22%, transparent); }
   & .bg-amber-100 { background-color: color-mix(in oklab, var(--color-amber-500) 22%, transparent); }
@@ -348,4 +367,17 @@ html[data-theme="dark"] {
   & svg [stroke="#C7C7CC"] { stroke: var(--ghost); }
   & svg [stroke="#A3A3A3"] { stroke: #6E6E76; }
   & svg text[fill="#8E8E93"] { fill: var(--ink-2); }
+}
+
+
+/* ── iPad / desktop width ─────────────────────────────────────────────────
+   The app is a phone column, and 31 files pin it with max-w-[430px] - the
+   root, the dock, every sheet and modal. On an iPad that left two thirds of
+   the screen as margin. Re-pointing the utility here widens ALL of them in
+   step, the same trick the dark block plays on .bg-white: one source of
+   truth instead of 31 edits that would drift the first time a new sheet
+   copied the old value. 560 keeps rows designed at 390 readable (30% wider,
+   not double); phones are untouched below 768. */
+@media (min-width: 768px) {
+  .max-w-\[430px\] { max-width: 560px; }
 }
