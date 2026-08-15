@@ -13,6 +13,9 @@ interface ActivityDayGroupProps {
   onTransactionTap: (id: string) => void;
   onDeleteTransaction: (id: string) => void;
   currency: string;
+  /** Their unread changes, by transaction id. Passed through rather than
+   *  derived here: one list feeds the dot, the shared view and these rows. */
+  badges?: Map<string, 'new' | 'updated'>;
 }
 
 export function ActivityDayGroup({
@@ -20,7 +23,8 @@ export function ActivityDayGroup({
   transactions,
   onTransactionTap,
   onDeleteTransaction,
-  currency
+  currency,
+  badges
 }: ActivityDayGroupProps) {
   const isToday = (() => {
     const parsed = parseLocalDate(date);
@@ -108,6 +112,7 @@ export function ActivityDayGroup({
               onTap={onTransactionTap}
               onDelete={onDeleteTransaction}
               currency={currency}
+              badge={badges?.get(transaction.id) ?? null}
             />
           )
         )}

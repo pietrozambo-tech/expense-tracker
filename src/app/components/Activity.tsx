@@ -68,6 +68,9 @@ interface ActivityProps {
   // Survives an edit round-trip; the parent nulls it once the user actually
   // leaves the tab, so an ordinary visit starts clean.
   viewStateRef?: React.MutableRefObject<ActivityViewState | null>;
+  /** Their unread changes, by transaction id, for the row marks. Empty for
+   *  anyone without a household - the tab is byte-identical then. */
+  sharedBadges?: Map<string, 'new' | 'updated'>;
 }
 
 export function Activity({
@@ -75,6 +78,7 @@ export function Activity({
   onEditTransaction,
   onDeleteTransaction,
   onModalOpenChange,
+  sharedBadges,
   categories,
   incomeCategories,
   currency,
@@ -606,6 +610,7 @@ export function Activity({
                   onDelete={onDeleteTransaction}
                   currency={currency}
                   showDate
+                  badge={sharedBadges?.get(transaction.id) ?? null}
                 />
               ),
             )}
@@ -628,6 +633,7 @@ export function Activity({
                 onTransactionTap={onEditTransaction}
                 onDeleteTransaction={onDeleteTransaction}
                 currency={currency}
+                badges={sharedBadges}
               />
             ))
         )}

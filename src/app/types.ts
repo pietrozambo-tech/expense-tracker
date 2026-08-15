@@ -127,6 +127,37 @@ export interface Settlement {
   updatedAt?: string;
 }
 
+/**
+ * One of their shared expenses that they deleted, held until you have seen it
+ * go.
+ *
+ * Every other kind of change leaves a row behind that can carry its own mark.
+ * A deletion removes the only thing that could have carried one, so without
+ * this the household total simply drops and nothing on any screen accounts for
+ * it. Short-lived by design: cleared the moment the shared view is opened.
+ */
+export interface SharedRemoval {
+  /** The shared_items id it used to be, so a re-appearance replaces it. */
+  id: string;
+  description: string;
+  /** The household figure in its OWN currency, converted where it is shown -
+   *  the same shape every other amount in the app travels in. */
+  amount: number;
+  currency: string;
+  baseAmount?: number;
+  /** Your share of it, so the summary can say what its removal did to your
+   *  own month rather than only to the household's. */
+  mine: number;
+  /** The day the money moved, so the removal can be scoped to a month like
+   *  every other figure on the screen. */
+  date: string;
+  /** Whether THEY fronted it, which is what says which way its disappearance
+   *  moves the balance. */
+  paidByThem: boolean;
+  /** When this device learned of the deletion. */
+  at: string;
+}
+
 export interface Transaction {
   /**
    * When this row came into existence, as an ISO instant.
@@ -185,6 +216,31 @@ export interface Transaction {
      * is made.
      */
     paidByThem?: boolean;
+    /**
+     * Who last wrote this row, as an auth user id. Straight off the server's
+     * `updated_by`, which the reconciler was already reading and throwing
+     * away.
+     *
+     * It is what makes "changed by THEM since I last looked" a question the
+     * ledger can answer on its own, without a second list to keep in step -
+     * the same derive-don't-store choice the partner sources make.
+     */
+    updatedBy?: string;
+    /**
+     * What this row said before their last edit to it.
+     *
+     * Has to be captured at the moment the replica is overwritten, because
+     * replicas are rebuilt rather than merged (spec 6.4): the instant their
+     * correction lands, `amount` and `mine` are the new values and the old
+     * ones exist nowhere - not on this device, not on the server, which keeps
+     * no history either. A before/after read later cannot be reconstructed,
+     * so it is either written down here or it is gone.
+     *
+     * Refreshed only once the previous one has been seen, so two edits in a
+     * row while you were away still compare against the figure YOU last saw
+     * rather than against the intermediate you never did.
+     */
+    was?: { amount: number; mine: number; at: string };
   };
   /** Set on a REPLICA of the other member's shared expense: the id of the
    *  shared_items row it mirrors. Its presence means they paid, not you -

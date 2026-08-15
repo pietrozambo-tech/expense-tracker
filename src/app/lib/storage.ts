@@ -1,4 +1,4 @@
-import type { Category, Household, Person, RecurringRule, Settlement, Source, Transaction, UserSettings } from '../types';
+import type { Category, Household, Person, RecurringRule, Settlement, SharedRemoval, Source, Transaction, UserSettings } from '../types';
 import {
   categories as defaultCategories,
   incomeCategories as defaultIncomeCategories,
@@ -52,6 +52,19 @@ const KEYS = {
   // folds in her existing expenses quietly, instead of announcing every one of
   // them as news. Every sync after that is genuinely "while you were away".
   sharedSeen: key('shared-seen'),
+  // The instant you last OPENED the shared view - not the last sync, which is
+  // a different fact and happens while the phone is in your pocket.
+  //
+  // One timestamp serves both the shared view's "new since you last looked"
+  // group and Activity's UPDATED badges, deliberately: they answer the same
+  // question in two places, and two clocks would let a row be news on one
+  // screen and old on the other. Device-local, like sharedSeen - "have I
+  // looked" is about this pair of eyes, not about the account.
+  sharedLastSeen: key('shared-last-seen'),
+  // Their deletions, until you have seen them. Everything else that changed
+  // is still a row in the ledger and can carry its own mark; a deleted one is
+  // gone, so it needs somewhere else to wait.
+  sharedRemoved: key('shared-removed'),
 };
 
 /**
@@ -129,6 +142,12 @@ export const saveSettlements = (s: Settlement[]) => write(KEYS.settlements, s);
 
 export const loadSharedSeen = () => getItem(KEYS.sharedSeen) ?? '';
 export const saveSharedSeen = (householdId: string) => setItem(KEYS.sharedSeen, householdId);
+
+export const loadSharedLastSeen = () => getItem(KEYS.sharedLastSeen) ?? '';
+export const saveSharedLastSeen = (at: string) => setItem(KEYS.sharedLastSeen, at);
+
+export const loadSharedRemovals = () => read<SharedRemoval[]>(KEYS.sharedRemoved, []);
+export const saveSharedRemovals = (rows: SharedRemoval[]) => write(KEYS.sharedRemoved, rows);
 
 // ── Guest mode ──────────────────────────────────────────────────────────────
 

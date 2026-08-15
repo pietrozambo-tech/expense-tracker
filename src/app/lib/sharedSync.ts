@@ -159,6 +159,17 @@ export interface IncomingChange {
   amount: number;
   currency: string;
   baseAmount?: number;
+  /** Your half of it, in the same currency. What the summary line needs to
+   *  say what their change did to YOUR month - the household figure alone
+   *  cannot, and for a deletion there is no row left to ask afterwards. */
+  mine: number;
+  /** The day the money moved. Carried for the same reason as `mine`: once a
+   *  deletion is through, nothing on the device knows which month lost the
+   *  expense, and "what changed in August" has to be able to tell. */
+  date: string;
+  /** Who was out of pocket. Same reason again: which way a deleted row had
+   *  been pushing the balance cannot be worked out from a row that is gone. */
+  paidByThem: boolean;
 }
 
 export interface SyncPlan {
@@ -185,6 +196,45 @@ export interface SyncPlan {
   incoming: IncomingChange[];
 }
 
+/**
+ * What this row said before their latest edit to it - or nothing, if this is
+ * not their edit of a row I already held.
+ *
+ * The window to record this is exactly one call wide. Replicas are rebuilt,
+ * never merged (spec 6.4), so a moment after `toTransaction` returns, the old
+ * amount exists on no device and on no server: shared_items keeps one row per
+ * expense with no history behind it. Either it is copied out here or a
+ * before/after can never be shown.
+ *
+ * Two rules keep it honest:
+ *
+ * - Only their edits. My own correction is not news to me.
+ * - The baseline is the last figure I SAW. Two edits while the app was closed
+ *   would otherwise leave "was" pointing at an intermediate I was never shown,
+ *   which reads as a change I could have sworn never happened.
+ *
+ * A description-only edit produces nothing: a before/after of two identical
+ * numbers is noise. The row still counts as changed - that is decided by the
+ * stamp, not by this.
+ */
+function priorWas(
+  prior: Transaction | undefined,
+  next: { amount: number; mine: number },
+  row: SharedItemRow,
+  myUserId: string,
+  lastSeen: string,
+): { amount: number; mine: number; at: string } | undefined {
+  if (!prior?.split) return undefined;
+  if (!row.updated_by || row.updated_by === myUserId) return undefined;
+  const priorUnseen =
+    !!prior.split.updatedBy &&
+    prior.split.updatedBy !== myUserId &&
+    at(prior.updatedAt) > at(lastSeen);
+  if (priorUnseen && prior.split.was) return prior.split.was;
+  if (prior.amount === next.amount && prior.split.mine === next.mine) return undefined;
+  return { amount: prior.amount, mine: prior.split.mine, at: prior.updatedAt ?? '' };
+}
+
 /** One server row as a local transaction. */
 function toTransaction(
   row: SharedItemRow,
@@ -192,6 +242,8 @@ function toTransaction(
   categories: Category[],
   prior: Transaction | undefined,
   partnerSourceId?: string,
+  /** The instant the shared view was last opened, for the `was` baseline. */
+  lastSeen = '',
 ): Transaction {
   const authorIsMe = row.author_id === myUserId;
   // Two people: whatever is not the author's half is the other's. Clamped, so
@@ -223,7 +275,20 @@ function toTransaction(
     createdAt: prior?.createdAt ?? iso(row.updated_at),
     // Stated outright rather than inferred from authorship: that inference is
     // exactly what could not express "she entered it, I paid".
-    split: { mine, paidByThem: row.payer_id !== myUserId },
+    split: {
+      mine,
+      paidByThem: row.payer_id !== myUserId,
+      // Both are omitted rather than written as undefined: planSync compares
+      // the produced row against the held one with JSON.stringify to decide
+      // whether anything changed, and an explicit `undefined` key is not the
+      // same string as an absent one - every sync would have looked like a
+      // change and re-rendered the ledger forever.
+      ...(row.updated_by ? { updatedBy: row.updated_by } : {}),
+      ...(() => {
+        const was = priorWas(prior, { amount: Number(row.amount), mine }, row, myUserId, lastSeen);
+        return was ? { was } : {};
+      })(),
+    },
     ...(authorIsMe ? {} : { fromShared: row.id }),
   };
 }
@@ -259,6 +324,9 @@ export function planSync(
   /** The local Source that stands for them, so their expenses land somewhere
    *  legible in the spending-by-source breakdown instead of under "No source". */
   partnerSourceId?: string,
+  /** When the shared view was last opened. Only used as the baseline for the
+   *  `was` snapshots; nothing about WHAT syncs depends on it. */
+  lastSeen = '',
 ): SyncPlan {
   const stamp = new Date().toISOString();
   const byId = new Map(remote.map((r) => [r.id, r]));
@@ -286,6 +354,7 @@ export function planSync(
       incoming.push({
         id: sid, description: t.description, kind: 'removed',
         amount: t.amount, currency: t.currency, baseAmount: t.baseAmount,
+        mine: t.split?.mine ?? 0, date: t.date, paidByThem: paidByPartner(t),
       });
       changed = true;
       continue;
@@ -303,13 +372,14 @@ export function planSync(
       }
     } else if (at(r.updated_at) > localStamp) {
       // The server holds the newer statement: take it.
-      const next = toTransaction(r, myUserId, categories, t, partnerSourceId);
+      const next = toTransaction(r, myUserId, categories, t, partnerSourceId, lastSeen);
       if (JSON.stringify(next) !== JSON.stringify(t)) {
         changed = true;
         if (r.updated_by && r.updated_by !== myUserId) {
           incoming.push({
             id: sid, description: r.description, kind: 'edited',
             amount: Number(r.amount), currency: r.currency, baseAmount: r.base_amount ?? undefined,
+            mine: next.split?.mine ?? 0, date: r.date, paidByThem: paidByPartner(next),
           });
         }
       }
@@ -325,12 +395,14 @@ export function planSync(
   // Rows this device has never seen.
   for (const r of remote) {
     if (seen.has(r.id) || r.deleted_at) continue;
-    out.push(toTransaction(r, myUserId, categories, undefined, partnerSourceId));
+    const fresh = toTransaction(r, myUserId, categories, undefined, partnerSourceId, lastSeen);
+    out.push(fresh);
     changed = true;
     if (r.author_id !== myUserId) {
       incoming.push({
         id: r.id, description: r.description, kind: 'new',
         amount: Number(r.amount), currency: r.currency, baseAmount: r.base_amount ?? undefined,
+        mine: fresh.split?.mine ?? 0, date: r.date, paidByThem: paidByPartner(fresh),
       });
     }
   }

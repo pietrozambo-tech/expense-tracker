@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom';
 import { BarChart3, Plus, List, X, Settings as SettingsIcon, TrendingUp, ChevronDown, Repeat, Split, Undo2 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { CURRENCIES, convertAmount, BASE_CURRENCY, formatAmountListView, homeAmount } from './utils/currency';
-import type { Transaction, Source, RecurringRule, Category, Household, Person, Settlement } from './types';
+import type { Transaction, Source, RecurringRule, Category, Household, Person, Settlement, SharedRemoval } from './types';
 import {
   clearAllData,
   loadCategories,
@@ -34,12 +34,17 @@ import {
   saveBackTagDismissed,
   loadSharedSeen,
   saveSharedSeen,
+  loadSharedLastSeen,
+  saveSharedLastSeen,
+  loadSharedRemovals,
+  saveSharedRemovals,
 } from './lib/storage';
 import { DEFAULT_SOURCES, DEFAULT_SOURCE_EXPENSE, DEFAULT_SOURCE_INCOME } from './components/sources';
 import { SourceLogo } from './components/SourceLogo';
 import { SourceSelectorModal } from './components/SourceSelectorModal';
 import { getDemoTransactions } from './lib/demoData';
-import { myShareOf, newHousehold, partnerSource, partnerSourceId, selectableSources } from './lib/shared';
+import { myShareOf, newHousehold, partnerSource, partnerSourceId, selectableSources, sharedNews, unseenKind } from './lib/shared';
+import type { SharedNews } from './lib/shared';
 import { paidByPartner, pairingChange, planSync, sharedIdOf } from './lib/sharedSync';
 import {
   SCHEMA_MISSING,
@@ -288,6 +293,12 @@ export default function App() {
   const [household, setHousehold] = useState<Household | null>(() => loadHousehold());
   const [people, setPeople] = useState<Person[]>(() => loadPeople());
   const [settlements, setSettlements] = useState<Settlement[]>(() => loadSettlements());
+  // What the other member changed while you were away, and when you last
+  // looked. Both are device-local: "have I read this" is about the person
+  // holding the phone, not about the account, so neither syncs and neither
+  // goes in a backup.
+  const [sharedLastSeen, setSharedLastSeen] = useState<string>(() => loadSharedLastSeen());
+  const [sharedRemovals, setSharedRemovals] = useState<SharedRemoval[]>(() => loadSharedRemovals());
   // Per-entry override on the Add screen: 'auto' follows the category default,
   // the other two are this entry's explicit choice. Reset when the sheet closes.
   const [shareChoice, setShareChoice] = useState<'auto' | 'on' | 'off'>('auto');
@@ -435,6 +446,9 @@ export default function App() {
   useEffect(() => {
     saveSettlements(settlements);
   }, [settlements]);
+  useEffect(() => {
+    saveSharedRemovals(sharedRemovals);
+  }, [sharedRemovals]);
   // Start each tab from the top when switching in the nav bar, rather than
   // inheriting the previous tab's scroll position. Reset both the shared
   // scroll container and the window (whichever actually scrolls).
@@ -1163,6 +1177,11 @@ export default function App() {
   const sharedErrorToldRef = useRef<string | null>(null);
   // The household whose backfill has already happened on this device.
   const sharedSeenRef = useRef<string>(loadSharedSeen());
+  // Read by the reconciler, mirrored rather than passed as state on purpose:
+  // opening the shared view moves this, and a state dependency would make
+  // every visit to the shared tab kick off a network sync.
+  const sharedLastSeenRef = useRef<string>(sharedLastSeen);
+  sharedLastSeenRef.current = sharedLastSeen;
   // Whether Postgres is pushing changes to us. False = poll harder.
   const [sharedLive, setSharedLive] = useState(false);
 
@@ -1264,7 +1283,7 @@ export default function App() {
       // effect that called us and spin forever.
       const rows = await fetchSharedItems(hid);
       const plan = planSync(expenses, rows, uid, hid, categories, other?.userId,
-        partner ? partnerSourceId(partner.id) : undefined);
+        partner ? partnerSourceId(partner.id) : undefined, sharedLastSeenRef.current);
       if (plan.push.length) await pushSharedItems(plan.push);
       if (plan.patch.length) await patchSharedItems(plan.patch);
       if (plan.changed) setExpenses(plan.transactions);
@@ -1283,8 +1302,41 @@ export default function App() {
       if (firstPass) {
         sharedSeenRef.current = hid;
         saveSharedSeen(hid);
+        // The backfill is not news, and it must not become news the moment
+        // the shared view derives its own list from this clock. Stamping here
+        // draws the line at "everything that existed when we paired", so the
+        // first thing the group ever shows is something they did afterwards.
+        const now = new Date().toISOString();
+        sharedLastSeenRef.current = now;
+        setSharedLastSeen(now);
+        saveSharedLastSeen(now);
       }
       const theirs = firstPass ? [] : plan.incoming;
+
+      // Their deletions, held until seen. Everything else they touched is
+      // still a row that can answer for itself; this is the one change that
+      // takes its own evidence away with it.
+      const goneNow = theirs.filter((c) => c.kind === 'removed');
+      if (goneNow.length) {
+        const at = new Date().toISOString();
+        setSharedRemovals((prev) => {
+          const byId = new Map(prev.map((r) => [r.id, r]));
+          for (const c of goneNow) {
+            byId.set(c.id, {
+              id: c.id,
+              description: c.description,
+              amount: c.amount,
+              currency: c.currency,
+              baseAmount: c.baseAmount,
+              mine: c.mine,
+              date: c.date,
+              paidByThem: c.paidByThem,
+              at,
+            });
+          }
+          return [...byId.values()];
+        });
+      }
       if (theirs.length && other) {
         const name = other.displayName || '';
         toast(
@@ -1468,6 +1520,76 @@ export default function App() {
         : prev,
     );
     track('shared_paired');
+  };
+
+  /**
+   * What they changed while you were away, right now.
+   *
+   * Feeds the dot on the switcher, which has to be live: the whole point of it
+   * is to appear the moment something lands, on whatever screen you are on.
+   */
+  const sharedNewsLive = useMemo(
+    () =>
+      household && partner
+        ? sharedNews(expenses, sharedRemovals, sharedLastSeen, userIdRef.current ?? '')
+        : null,
+    [household, partner, expenses, sharedRemovals, sharedLastSeen, userId],
+  );
+
+  /**
+   * Which rows carry a mark in Activity, by transaction id.
+   *
+   * Derived from the same list the dot counts, not computed separately: two
+   * passes over the ledger with the same intent is how a row ends up badged on
+   * one screen and not on the other.
+   */
+  const sharedBadges = useMemo(() => {
+    const marks = new Map<string, 'new' | 'updated'>();
+    for (const txn of sharedNewsLive?.added ?? []) marks.set(txn.id, 'new');
+    for (const txn of sharedNewsLive?.edited ?? []) marks.set(txn.id, 'updated');
+    return marks;
+  }, [sharedNewsLive]);
+
+  /**
+   * The row being edited, if their change to it is still unread.
+   *
+   * This is the other half of the badge: the mark says a number moved, and
+   * opening the row is where you find out which way. Nothing here is a prompt
+   * - the edit has already landed, and this only accounts for it.
+   */
+  const editingWas = (() => {
+    if (!editingExpenseId || !partner) return null;
+    const txn = expenses.find((e) => e.id === editingExpenseId);
+    const was = txn?.split?.was;
+    if (!txn || !was) return null;
+    if (!unseenKind(txn, sharedLastSeen, userIdRef.current ?? '')) return null;
+    return { txn, was };
+  })();
+
+  /**
+   * The same news, frozen for as long as you are reading it.
+   *
+   * Opening the shared view is what "looking" means, so it stamps the clock -
+   * and the live list empties on the spot. Rendering that directly would make
+   * the group vanish in the same frame it appeared, which is a worse version
+   * of the toast problem it exists to fix. So the list is copied first and the
+   * copy is what the screen reads, until you leave.
+   */
+  const [sharedNewsShown, setSharedNewsShown] = useState<SharedNews | null>(null);
+
+  const handleSharedModeChange = (on: boolean) => {
+    if (!on) {
+      setSharedNewsShown(null);
+      return;
+    }
+    setSharedNewsShown(sharedNewsLive && sharedNewsLive.count > 0 ? sharedNewsLive : null);
+    const now = new Date().toISOString();
+    setSharedLastSeen(now);
+    saveSharedLastSeen(now);
+    // Deletions are the one kind that cannot be re-derived, so they are the
+    // one kind that has to be actively retired. The snapshot above already
+    // holds them for the screen.
+    setSharedRemovals([]);
   };
 
   const handleSettle = (amount: number) => {
@@ -2785,6 +2907,7 @@ export default function App() {
             onEditTransaction={handleEditExpense}
             onDeleteTransaction={handleDeleteExpense}
             onModalOpenChange={setIsModalOpen}
+            sharedBadges={sharedBadges}
             categories={categories}
             incomeCategories={incomeCategories}
             currency={userCurrency}
@@ -2826,6 +2949,9 @@ export default function App() {
                 partner={partner}
                 settlements={settlements}
                 onSettle={handleSettle}
+                sharedNewsCount={sharedNewsLive?.count ?? 0}
+                sharedNews={sharedNewsShown}
+                onSharedModeChange={handleSharedModeChange}
               />
             )}
             {currentTab === 'trend' && (
@@ -3159,6 +3285,31 @@ export default function App() {
                   </button>
                 </div>
               </div>
+
+              {/* What their correction did, stated where the number is.
+                  Silence would be wrong - the figure on your screen simply
+                  changed - and a permission prompt would be worse, because
+                  there is nothing to permit: it is their expense. */}
+              {editingWas && (
+                <div className="px-6 pb-4">
+                  <div className="rounded-2xl px-4 py-3" style={{ backgroundColor: 'var(--bg-inset)' }}>
+                    <div style={{ color: 'var(--ink)', fontSize: 12.5, fontWeight: 600 }}>
+                      {t('shared.was.title', { name: partner?.name ?? '' })}
+                    </div>
+                    <div className="mt-1 tabular-nums" style={{ color: 'var(--ink-2)', fontSize: 11.5 }}>
+                      {t('shared.was.amounts', {
+                        from: formatAmountListView(editingWas.was.amount, editingWas.txn.currency, 2),
+                        to: formatAmountListView(editingWas.txn.amount, editingWas.txn.currency, 2),
+                      })}
+                      {' · '}
+                      {t('shared.was.share', {
+                        from: formatAmountListView(editingWas.was.mine, editingWas.txn.currency, 2),
+                        to: formatAmountListView(editingWas.txn.split?.mine ?? 0, editingWas.txn.currency, 2),
+                      })}
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <AmountInput
                 value={amount}

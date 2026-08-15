@@ -186,6 +186,15 @@ interface DashboardProps {
   partner?: import('../types').Person | null;
   settlements?: import('../types').Settlement[];
   onSettle?: (amount: number) => void;
+  /** How many changes of theirs you have not seen. Drives the dot only, so it
+   *  stays live while `sharedNews` below is deliberately frozen. */
+  sharedNewsCount?: number;
+  /** The list behind the dot, held still while you read it (App freezes it on
+   *  entry). Null when there is nothing new. */
+  sharedNews?: import('../lib/shared').SharedNews | null;
+  /** Entering the shared view IS reading the news, so App is told - it stamps
+   *  the clock and takes the snapshot. */
+  onSharedModeChange?: (on: boolean) => void;
 }
 
 // The header's way between the personal and household lenses. One avatar -
@@ -193,20 +202,43 @@ interface DashboardProps {
 // shared one carries theirs; tapping crosses over. Deliberately not both
 // faces at once: a lone avatar is quieter, and the title beside it says
 // which subject you are reading.
-function ViewSwitcher({ label, faces, onClick }: {
+function ViewSwitcher({ label, faces, onClick, dot = false }: {
   label: string;
   /** One face on the personal view (you); both on the shared view - the
    *  household lens belongs to both of you, and the pair says so at a glance. */
   faces: { name: string; color: string }[];
   onClick: () => void;
+  /**
+   * Something of theirs changed and you have not looked.
+   *
+   * A dot, not a count: the number is on the other side of the tap and would
+   * only be read as urgency here. It says where to go, which is the whole job
+   * of tier 1 in the spec - and it is the only thing on the personal view that
+   * knows the household moved, so it has to be visible without reading a word.
+   */
+  dot?: boolean;
 }) {
   return (
     <button
       onClick={onClick}
       aria-label={label}
-      className="flex items-center gap-1 rounded-full p-[3px] pr-1.5 active:scale-95 transition-transform flex-shrink-0"
+      className="relative flex items-center gap-1 rounded-full p-[3px] pr-1.5 active:scale-95 transition-transform flex-shrink-0"
       style={{ backgroundColor: 'var(--bg-card)', boxShadow: '0 1px 3px rgba(0,0,0,0.07)', WebkitTapHighlightColor: 'transparent' }}
     >
+      {dot && (
+        <span
+          data-shared-dot
+          aria-hidden="true"
+          style={{
+            position: 'absolute', top: -1, right: -1, width: 10, height: 10, borderRadius: 999,
+            background: '#4F74F3',
+            // The ring is the page behind it, not the pill: sitting on the
+            // corner the dot straddles both, and matching only the pill left a
+            // notch cut out of it against the page.
+            boxShadow: '0 0 0 2px var(--bg-page)',
+          }}
+        />
+      )}
       {faces.map((face, i) => (
         <span
           key={i}
@@ -410,7 +442,7 @@ function StatChip({ label, value, tone }: { label: React.ReactNode; value: strin
 // starting from it means the first render already draws at the right scale.
 let lastChartWidth = 0;
 
-export function Dashboard({ expenses, categories, incomeCategories, sources = [], userName, currency, onEditExpense, onDeleteExpense, view = 'overview', onShowOverview, initialPeriod, viewStateRef, trendStateRef, monthlyBudget, budgetNudgeDismissed, insightsEnabled = true, onDisableInsights, onModalOpenChange, onSetMonthlyBudget, onDismissBudgetNudge, onAddFirstExpense, onLoadDemoData, weekStartsOn = 1, recurringRules = [], onManageRecurring, household = null, partner = null, settlements = [], onSettle }: DashboardProps) {
+export function Dashboard({ expenses, categories, incomeCategories, sources = [], userName, currency, onEditExpense, onDeleteExpense, view = 'overview', onShowOverview, initialPeriod, viewStateRef, trendStateRef, monthlyBudget, budgetNudgeDismissed, insightsEnabled = true, onDisableInsights, onModalOpenChange, onSetMonthlyBudget, onDismissBudgetNudge, onAddFirstExpense, onLoadDemoData, weekStartsOn = 1, recurringRules = [], onManageRecurring, household = null, partner = null, settlements = [], onSettle, sharedNewsCount = 0, sharedNews = null, onSharedModeChange }: DashboardProps) {
   // Restore the previous view (period + drilldown) unless a Trend->Overview
   // link supplied an explicit period - that must win and start clean.
   // Subscribing here does two jobs: it re-renders the Dashboard the instant the
@@ -2330,7 +2362,10 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                   { name: userName || 'P', color: '#0B0B0D' },
                   { name: partner!.name, color: partner!.color },
                 ]}
-                onClick={() => setSharedMode(false)}
+                onClick={() => {
+                  setSharedMode(false);
+                  onSharedModeChange?.(false);
+                }}
               />
             </div>
           </div>
@@ -2343,6 +2378,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
           currency={currency}
           userName={userName ?? ''}
           onSettle={(amount) => onSettle?.(amount)}
+          news={sharedNews}
           period={{ type: timePeriodType, year: selectedYear, month: selectedMonth, quarter: selectedQuarter }}
           periodLabel={getPeriodDisplayName()}
           atLatest={isAtCurrentPeriod()}
@@ -2391,7 +2427,11 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
               <ViewSwitcher
                 label={t('shared.switchToShared')}
                 faces={[{ name: userName || 'P', color: '#0B0B0D' }]}
-                onClick={() => setSharedMode(true)}
+                dot={sharedNewsCount > 0}
+                onClick={() => {
+                  setSharedMode(true);
+                  onSharedModeChange?.(true);
+                }}
               />
             )}
             </div>

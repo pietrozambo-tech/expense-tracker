@@ -1,14 +1,16 @@
-import { useMemo, useState } from 'react';
-import { ArrowUpDown, ChevronDown, ChevronLeft, ChevronRight, TrendingDown, TrendingUp } from 'lucide-react';
+import { useCallback, useMemo, useState } from 'react';
+import { ArrowUpDown, ChevronDown, ChevronLeft, ChevronRight, TrendingDown, TrendingUp, X } from 'lucide-react';
 import { t } from '../i18n';
 import { monthsFull } from '../i18n/store';
 import { AmountText } from './AmountText';
 import { ConfirmDialog } from './ConfirmDialog';
 import { SharedDrilldown } from './SharedDrilldown';
 import { getCategoryIcon } from './categoryIcons';
+import { formatFullDate } from '../lib/dates';
 import { DARK_SURFACE } from './surfaces';
 import { homeAmount, mineAmount, formatAmountListView, CURRENCIES } from '../utils/currency';
-import { isShared, runningBalance } from '../lib/shared';
+import { asWas, isShared, newsBalanceDelta, newsShareDelta, runningBalance } from '../lib/shared';
+import type { SharedNews } from '../lib/shared';
 import { paidBy } from '../lib/sharedSync';
 import type { Household, Person, Settlement, Transaction } from '../types';
 
@@ -27,6 +29,10 @@ const YOU_COLOR = 'rgba(255,255,255,0.92)';
 // currencies; it is a nudge threshold, not accounting, so being wrong in
 // JPY costs a joke told early, nothing more.
 const NUDGE_GAP = 100;
+// How many of their changes the card lists before summarising the rest. Four
+// covers an ordinary evening apart; a longer list stops being a nudge and
+// becomes the item sheet, which already exists one tap away.
+const NEWS_ROWS = 4;
 
 /** "Jul", "Q2", "2025" - what the trend column is measured against. */
 function priorLabel(
@@ -55,6 +61,15 @@ export interface SharedViewProps {
   userName: string;
   /** Record a settlement of the current balance. */
   onSettle: (amount: number) => void;
+  /**
+   * What they changed while you were away, frozen by App on the way in.
+   *
+   * Null when there is nothing, which is the normal state - this card exists
+   * to be absent. Held still rather than derived here on purpose: arriving is
+   * what marks it read, so a live list would empty itself in the frame it
+   * rendered.
+   */
+  news?: SharedNews | null;
   /** The Dashboard tab's period cursor - month, quarter or year - not a copy
    *  of it. Both subjects read the one cursor, so the pill in the header keeps
    *  meaning the same thing and crossing between them keeps your place.
@@ -82,6 +97,7 @@ export function SharedView({
   currency,
   userName,
   onSettle,
+  news = null,
   period,
   periodLabel,
   atLatest,
@@ -90,6 +106,9 @@ export function SharedView({
   onPickPeriod,
 }: SharedViewProps) {
   const [confirmSettle, setConfirmSettle] = useState(false);
+  // Closing the card is a local act: the clock was already stamped on arrival,
+  // so this only decides whether you keep looking at it.
+  const [newsDismissed, setNewsDismissed] = useState(false);
   // Same two-state toggle the personal Categories card uses, and deliberately
   // the same two states: biggest-first to see where the money goes, A-Z to
   // find one category among many. Not persisted, like its counterpart.
@@ -106,35 +125,36 @@ export function SharedView({
   const periodShort =
     periodType === 'year' ? String(year) : periodType === 'quarter' ? `Q${quarter + 1}` : monthsFull()[month];
 
+  // Does a YYYY-MM-DD fall in the period the header names? One definition,
+  // because three lists and a summary line all have to agree on what "August"
+  // means or the card can contradict the table under it.
+  const inPeriod = useCallback(
+    (date: string) => {
+      const y = Number(date.slice(0, 4));
+      const m = Number(date.slice(5, 7)) - 1;
+      if (y !== year) return false;
+      if (periodType === 'year') return true;
+      if (periodType === 'quarter') return Math.floor(m / 3) === quarter;
+      return m === month;
+    },
+    [month, quarter, year, periodType],
+  );
+
   // Shared expenses of the visible period, at full value.
   const periodShared = useMemo(
     () =>
-      transactions.filter((txn) => {
-        if (!isShared(txn) || txn.type === 'income') return false;
-        const y = Number(txn.date.slice(0, 4));
-        const m = Number(txn.date.slice(5, 7)) - 1;
-        if (y !== year) return false;
-        if (periodType === 'year') return true;
-        if (periodType === 'quarter') return Math.floor(m / 3) === quarter;
-        return m === month;
-      }),
-    [transactions, month, quarter, year, periodType],
+      transactions.filter(
+        (txn) => isShared(txn) && txn.type !== 'income' && inPeriod(txn.date),
+      ),
+    [transactions, inPeriod],
   );
 
   // Settlements of the visible period, for the all-items sheet. The BALANCE
   // still ignores periods entirely - a debt does not reset on the 1st.
   const periodSettlements = useMemo(
     () =>
-      settlements.filter((s) => {
-        if (!household.memberIds.includes(s.personId)) return false;
-        const y = Number(s.date.slice(0, 4));
-        const m = Number(s.date.slice(5, 7)) - 1;
-        if (y !== year) return false;
-        if (periodType === 'year') return true;
-        if (periodType === 'quarter') return Math.floor(m / 3) === quarter;
-        return m === month;
-      }),
-    [settlements, household, month, quarter, year, periodType],
+      settlements.filter((s) => household.memberIds.includes(s.personId) && inPeriod(s.date)),
+    [settlements, household, inPeriod],
   );
 
   const together = periodShared.reduce((sum, txn) => sum + homeAmount(txn, currency), 0);
@@ -243,6 +263,80 @@ export function SharedView({
 
   const balance = runningBalance(transactions, settlements, currency, household.memberIds);
   const owed = Math.round(balance * 100) / 100;
+
+  // Their changes as one list, newest first, whatever kind each one is - the
+  // question being answered is "what happened", and sorting by kind would make
+  // you read three lists to find out.
+  const newsRows = useMemo(() => {
+    if (!news) return [];
+    const rows = [
+      ...news.added.map((txn) => ({
+        key: txn.id, tag: 'new' as const, description: txn.description, date: txn.date,
+        amount: homeAmount(txn, currency), was: null as number | null,
+      })),
+      ...news.edited.map((txn) => {
+        const before = asWas(txn);
+        return {
+          key: txn.id, tag: 'updated' as const, description: txn.description, date: txn.date,
+          amount: homeAmount(txn, currency),
+          was: before ? homeAmount(before, currency) : null,
+        };
+      }),
+      ...news.removed.map((r) => ({
+        key: r.id, tag: 'removed' as const, description: r.description, date: r.date,
+        amount: homeAmount(r as unknown as Transaction, currency), was: null as number | null,
+      })),
+    ];
+    return rows.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
+  }, [news, currency]);
+
+  const newsHeadline = news
+    ? news.added.length === news.count
+      ? t(news.count === 1 ? 'shared.news.added.one' : 'shared.news.added.other', {
+          name: partner.name, n: String(news.count),
+        })
+      : t(news.count === 1 ? 'shared.news.changed.one' : 'shared.news.changed.other', {
+          name: partner.name, n: String(news.count),
+        })
+    : '';
+
+  // What it did to your numbers, which is the whole point of saying anything.
+  //
+  // Your share only appears when it actually moved: an item they marked as
+  // wholly theirs is news, but reporting "+0 in your August" beside it would
+  // be a line that says nothing twice.
+  const newsDetail = (() => {
+    if (!news) return '';
+    const parts: string[] = [];
+    const share = newsShareDelta(news, currency, inPeriod);
+    if (Math.abs(share) >= 0.005) {
+      parts.push(
+        t('shared.news.inYour', {
+          amt: `${share > 0 ? '+' : '-'}${formatAmountListView(Math.abs(share), currency, 2)}`,
+          period: periodShort,
+        }),
+      );
+    }
+    if (household.trackBalance) {
+      parts.push(
+        Math.abs(owed) < 0.005
+          ? t('shared.news.evenNow')
+          : t(owed > 0 ? 'shared.news.owesYouNow' : 'shared.news.youOweNow', {
+              name: partner.name,
+              amt: formatAmountListView(Math.abs(owed), currency, 2),
+            }),
+      );
+      const moved = newsBalanceDelta(news, currency);
+      if (Math.abs(moved) >= 0.005) {
+        parts.push(
+          t('shared.news.wasBal', {
+            amt: formatAmountListView(Math.abs(owed - moved), currency, 2),
+          }),
+        );
+      }
+    }
+    return parts.join(' · ');
+  })();
 
   const avatar = (name: string, color: string, size = 26) => (
     <span
@@ -395,6 +489,110 @@ export function SharedView({
         </div>
       </div>
 
+      {/* What they did while you were away.
+          The toast that used to be the only account of this was gone in 2.6
+          seconds and left the ledger looking like it had always said that.
+          This is the same news with somewhere to sit: it survives the app
+          being closed, it names what changed, and - the part a toast could
+          never do - it says what the change did to YOUR numbers, which is the
+          only reason any of it matters to the person reading.
+
+          Never a prompt: nothing here to approve or accept, only to close. */}
+      {newsRows.length > 0 && !newsDismissed && (
+        <div
+          className="mt-4 rounded-2xl px-5 pt-3.5 pb-2"
+          style={{ backgroundColor: 'var(--bg-card)', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}
+        >
+          <div className="flex items-start gap-2">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-1.5">
+                <span
+                  aria-hidden="true"
+                  style={{ width: 7, height: 7, borderRadius: 999, background: '#4F74F3', flexShrink: 0 }}
+                />
+                <span style={{ color: 'var(--ink-2)', fontSize: 11, fontWeight: 700, letterSpacing: '0.04em' }}>
+                  {t('shared.news.title').toUpperCase()}
+                </span>
+              </div>
+              {/* Batched: three entries are one sentence, not three lines. */}
+              <div className="mt-1.5" style={{ color: 'var(--ink)', fontSize: 14, fontWeight: 600 }}>
+                {newsHeadline}
+              </div>
+              {/* The balance always travels with the news, with what it was
+                  beside it - a new figure alone is a fact you cannot place. */}
+              {newsDetail && (
+                <div className="mt-0.5" style={{ color: 'var(--ink-2)', fontSize: 11.5 }}>{newsDetail}</div>
+              )}
+            </div>
+            <button
+              onClick={() => setNewsDismissed(true)}
+              aria-label={t('common.close')}
+              className="flex-shrink-0 -mr-1.5 -mt-1 w-8 h-8 flex items-center justify-center rounded-full active:opacity-60 transition-opacity"
+              style={{ WebkitTapHighlightColor: 'transparent' }}
+            >
+              <X className="w-3.5 h-3.5" style={{ color: 'var(--ghost)' }} strokeWidth={2.5} />
+            </button>
+          </div>
+          <div className="mt-2">
+            {newsRows.slice(0, NEWS_ROWS).map((row, i) => (
+              <div
+                key={row.key}
+                className="flex items-center gap-3 py-2"
+                style={i > 0 ? { borderTop: '1px solid var(--line-2)' } : undefined}
+              >
+                <div className="flex-1 min-w-0">
+                  <div
+                    className="truncate"
+                    style={{
+                      color: 'var(--ink)',
+                      fontSize: 13.5,
+                      // A deletion is shown struck rather than simply absent:
+                      // the point of the row is that the thing is gone.
+                      textDecoration: row.tag === 'removed' ? 'line-through' : undefined,
+                      opacity: row.tag === 'removed' ? 0.65 : 1,
+                    }}
+                  >
+                    {row.description}
+                  </div>
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <span
+                      style={{
+                        color: row.tag === 'removed' ? 'var(--ink-2)' : 'var(--accent-ink)',
+                        fontSize: 9.5,
+                        fontWeight: 700,
+                        letterSpacing: '0.04em',
+                      }}
+                    >
+                      {t(`shared.news.tag.${row.tag}`).toUpperCase()}
+                    </span>
+                    <span className="truncate" style={{ color: 'var(--ink-2)', fontSize: 11 }}>
+                      {formatFullDate(row.date)}
+                    </span>
+                  </div>
+                </div>
+                <div className="text-right flex-shrink-0">
+                  <div className="tabular-nums" style={{ color: 'var(--ink)', fontSize: 13.5, fontWeight: 700 }}>
+                    <AmountText amount={row.amount} currency={currency} decimals={row.amount % 1 ? 2 : 0} />
+                  </div>
+                  {/* The figure it replaced, so a correction reads as a
+                      correction instead of as a number that was always this. */}
+                  {row.was !== null && (
+                    <div className="tabular-nums" style={{ color: 'var(--ink-2)', fontSize: 10.5 }}>
+                      {t('shared.news.was', { amt: formatAmountListView(row.was, currency, row.was % 1 ? 2 : 0) })}
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+            {newsRows.length > NEWS_ROWS && (
+              <div className="py-2" style={{ borderTop: '1px solid var(--line-2)', color: 'var(--ink-2)', fontSize: 11.5 }}>
+                {t('shared.news.more', { n: String(newsRows.length - NEWS_ROWS) })}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* The balance - running, and deliberately outside the month's reach.
           One line of label+amount, one line of caption: this card holds a
           single number, and it was spending 125px of the screen to say it -
@@ -434,7 +632,15 @@ export function SharedView({
                   : t('shared.running')}
               </div>
             </div>
-            {owed > 0.005 && (
+            {/* Either direction. The button used to appear only when they owed
+                YOU, which left the other half of the feature with a number and
+                no way to act on it: the app told you that you owed 84€ and
+                offered nothing to close it. Everything under the button was
+                already two-way - handleSettle takes the signed balance and
+                swaps from/to, the amount is stored signed, the drilldown picks
+                the avatar off the sign - so this was the one place the
+                direction was assumed. */}
+            {Math.abs(owed) > 0.005 && (
               <button
                 onClick={() => setConfirmSettle(true)}
                 className="rounded-xl active:scale-[0.98] transition-transform flex-shrink-0"
@@ -680,7 +886,7 @@ export function SharedView({
       {confirmSettle && (
         <ConfirmDialog
           title={t('shared.settleTitle')}
-          message={t('shared.settleBody', {
+          message={t(owed > 0 ? 'shared.settleBody.them' : 'shared.settleBody.you', {
             name: partner.name,
             amt: formatAmountListView(Math.abs(owed), currency, 2),
           })}

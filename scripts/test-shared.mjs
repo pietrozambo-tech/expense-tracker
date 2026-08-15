@@ -51,6 +51,7 @@ import { homeAmount, mineAmount } from './utils/currency';
 import { byRecency, myShareOf, partnerSource, partnerSourceId, runningBalance, selectableSources, shareFraction } from './lib/shared';
 import { mergePayloads } from './lib/cloud';
 import { planSync, mapCategory, paidBy, paidByPartner, pairingChange, replicaId, sharedIdOf } from './lib/sharedSync';
+import { newsBalanceDelta, newsShareDelta, sharedNews, unseenKind } from './lib/shared';
 import { buildTransactionsCsv } from './lib/csv';
 
 let failed = 0;
@@ -540,6 +541,133 @@ eq('csv: unshared rows leave the shared columns empty', [
   cell(2, 'Shared Total (EUR)'), cell(2, 'Shared With'), cell(2, 'Paid By'), cell(2, 'Settled (EUR)'),
 ], ['', '', '', '']);
 eq('csv: unshared amount is untouched', cell(2, 'Amount (EUR)'), '-12.00');
+
+// The block scope keeps these fixtures from colliding with the names the
+// scenarios above already use - they are a different story about the same
+// module, and both want to call a thing 'row'.
+{
+// ── The change ledger: what they did while you were away ───────────────────
+// The whole of 7.7/7.8 rests on two questions the ledger has to answer by
+// itself - "was this them?" and "what did it say before?" - so both are
+// pinned here rather than left to the screens that ask them.
+
+const SEEN = '2026-08-10T12:00:00.000Z';
+const shared = (over) => Object.assign({
+  id: 't1', description: 'Conad', amount: 130, currency: 'EUR', type: 'expense',
+  date: '2026-08-09', category: { id: 'groceries', name: 'Spesa', icon: 'ShoppingCart' },
+  createdAt: '2026-08-01T09:00:00.000Z', updatedAt: '2026-08-12T09:00:00.000Z',
+  split: { mine: 65, paidByThem: true, updatedBy: 'them' },
+}, over);
+
+eq('unseen: their edit after you looked is an edit',
+  unseenKind(shared({}), SEEN, 'me'), 'edited');
+eq('unseen: a row born since you looked is new',
+  unseenKind(shared({ createdAt: '2026-08-12T09:00:00.000Z' }), SEEN, 'me'), 'new');
+eq('unseen: their edit BEFORE you looked is nothing',
+  unseenKind(shared({ updatedAt: '2026-08-09T09:00:00.000Z' }), SEEN, 'me'), null);
+eq('unseen: your own edit is never news to you',
+  unseenKind(shared({ split: { mine: 65, updatedBy: 'me' } }), SEEN, 'me'), null);
+eq('unseen: a row from before the field existed stays quiet',
+  unseenKind(shared({ split: { mine: 65 } }), SEEN, 'me'), null);
+eq('unseen: income is not a shared expense',
+  unseenKind(shared({ type: 'income' }), SEEN, 'me'), null);
+
+// planSync captures the figure the row USED to show, at the one moment it
+// still exists. Every case below is a different answer to "which before?".
+const cats = [{ id: 'groceries', name: 'Groceries', icon: 'ShoppingCart' }];
+const row = (over) => Object.assign({
+  id: 's1', household_id: 'h1', author_id: 'them', payer_id: 'them',
+  date: '2026-08-09', description: 'Conad', amount: 145, currency: 'EUR',
+  base_amount: null, category_key: 'groceries', category_name: 'Spesa',
+  category_icon: 'ShoppingCart', subcategory: null, author_share: 72.5,
+  updated_by: 'them', updated_at: '2026-08-14T09:00:00.000Z', deleted_at: null,
+}, over);
+const held = (over) => Object.assign({
+  id: 'shared-s1', fromShared: 's1', description: 'Conad', amount: 130,
+  currency: 'EUR', type: 'expense', date: '2026-08-09',
+  category: cats[0], createdAt: '2026-08-01T09:00:00.000Z',
+  updatedAt: '2026-08-12T09:00:00.000Z',
+  split: { mine: 65, paidByThem: true, updatedBy: 'them' },
+}, over);
+
+const afterEdit = planSync([held({})], [row({})], 'me', 'h1', cats, 'them', undefined, SEEN)
+  .transactions.find((x) => x.fromShared === 's1');
+eq('was: their correction records what it replaced',
+  afterEdit.split.was, { amount: 130, mine: 65, at: '2026-08-12T09:00:00.000Z' });
+eq('was: the row itself carries who wrote it', afterEdit.split.updatedBy, 'them');
+
+// A second correction before you have looked must still compare against the
+// figure YOU saw - not against the one you never did.
+const twice = planSync([afterEdit], [row({ amount: 160, author_share: 80, updated_at: '2026-08-14T10:00:00.000Z' })],
+  'me', 'h1', cats, 'them', undefined, SEEN)
+  .transactions.find((x) => x.fromShared === 's1');
+eq('was: two edits while away keep the baseline you last saw',
+  twice.split.was, { amount: 130, mine: 65, at: '2026-08-12T09:00:00.000Z' });
+
+// Once you HAVE looked, the next correction starts from what you just read.
+const afterLooking = planSync([afterEdit], [row({ amount: 160, author_share: 80, updated_at: '2026-08-14T10:00:00.000Z' })],
+  'me', 'h1', cats, 'them', undefined, '2026-08-14T09:30:00.000Z')
+  .transactions.find((x) => x.fromShared === 's1');
+eq('was: after you look, the baseline moves up',
+  afterLooking.split.was, { amount: 145, mine: 72.5, at: '2026-08-14T09:00:00.000Z' });
+
+const wordsOnly = planSync([held({})], [row({ amount: 130, author_share: 65, description: 'Conad Superstore' })],
+  'me', 'h1', cats, 'them', undefined, SEEN)
+  .transactions.find((x) => x.fromShared === 's1');
+eq('was: a description-only edit records no before/after', wordsOnly.split.was, undefined);
+
+const mine = planSync([held({})], [row({ updated_by: 'me' })], 'me', 'h1', cats, 'them', undefined, SEEN)
+  .transactions.find((x) => x.fromShared === 's1');
+eq('was: your own correction is not a before/after', mine.split.was, undefined);
+
+// A deletion has to carry out everything the screens will need, because the
+// row it describes is about to stop existing.
+const gone = planSync([held({})], [row({ deleted_at: '2026-08-14T11:00:00.000Z' })],
+  'me', 'h1', cats, 'them', undefined, SEEN).incoming[0];
+eq('removed: the tombstone carries your share, the day and who paid',
+  [gone.kind, gone.mine, gone.date, gone.paidByThem], ['removed', 65, '2026-08-09', true]);
+
+// ── What the news did to the numbers ───────────────────────────────────────
+// The summary states the balance delta in its own arithmetic, which is the
+// same arithmetic runningBalance uses. Two statements of one rule drift, so
+// the guard is that they must agree on a ledger that exercises all three
+// kinds at once.
+const addedTxn = { id: 'a1', description: 'Bar', amount: 40, currency: 'EUR', type: 'expense',
+  date: '2026-08-13', category: cats[0],
+  createdAt: '2026-08-13T18:00:00.000Z', updatedAt: '2026-08-13T18:00:00.000Z',
+  split: { mine: 20, paidByThem: true, updatedBy: 'them' } };
+const editedNow = { id: 'e1', description: 'Rent', amount: 120, currency: 'EUR', type: 'expense',
+  date: '2026-08-02', category: cats[0],
+  createdAt: '2026-08-02T08:00:00.000Z', updatedAt: '2026-08-13T19:00:00.000Z',
+  split: { mine: 60, paidByThem: true, updatedBy: 'them', was: { amount: 100, mine: 50, at: SEEN } } };
+const removedRow = { id: 'r1', description: 'Taxi', amount: 30, currency: 'EUR',
+  mine: 15, date: '2026-07-28', paidByThem: true, at: SEEN };
+const news = { added: [addedTxn], edited: [editedNow], removed: [removedRow], count: 3 };
+
+const before = [
+  { id: 'e1', description: 'Rent', amount: 100, currency: 'EUR', type: 'expense', date: '2026-08-02',
+    category: cats[0], split: { mine: 50, paidByThem: true } },
+  { id: 'r1', description: 'Taxi', amount: 30, currency: 'EUR', type: 'expense', date: '2026-07-28',
+    category: cats[0], split: { mine: 15, paidByThem: true } },
+];
+const after = [addedTxn, editedNow];
+const balBefore = runningBalance(before, [], 'EUR', ['p1']);
+const balAfter = runningBalance(after, [], 'EUR', ['p1']);
+eq('news: the balance delta matches two full balance runs',
+  newsBalanceDelta(news, 'EUR'), Math.round((balAfter - balBefore) * 100) / 100);
+
+const inAugust = (d) => d.slice(0, 7) === '2026-08';
+eq('news: your share counts only the period on screen',
+  newsShareDelta(news, 'EUR', inAugust), 30);
+eq('news: a period with none of it moves nothing',
+  newsShareDelta(news, 'EUR', (d) => d.slice(0, 7) === '2026-06'), 0);
+
+const counted = sharedNews([addedTxn, editedNow], [removedRow], SEEN, 'me');
+eq('news: added, edited and removed are counted together',
+  [counted.added.length, counted.edited.length, counted.removed.length, counted.count], [1, 1, 1, 3]);
+
+
+}
 
 if (failed) { console.error(\`\${failed} scenario(s) failed\`); process.exit(1); }
 console.log('all shared scenarios passed');

@@ -29,11 +29,20 @@ interface ExpenseItemProps {
   onDelete: (id: string) => void;
   currency: string; // fallback when the transaction has no currency of its own
   showDate?: boolean; // show the transaction date on the row (e.g. amount-sorted lists with no day headers)
+  /**
+   * The other household member touched this and you have not looked yet.
+   *
+   * Quiet on purpose - a tag in the line that already carries the category,
+   * not a coloured row or a badge with its own space. The row's job is still
+   * to show an expense; this only says the figure on it is newer than your
+   * memory of it. Opening the row is where the before and after live.
+   */
+  badge?: 'new' | 'updated' | null;
 }
 
 
 
-export function ExpenseItem({ expense, onTap, onDelete, currency, showDate = false }: ExpenseItemProps) {
+export function ExpenseItem({ expense, onTap, onDelete, currency, showDate = false, badge = null }: ExpenseItemProps) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const { ref, translateX, dragging, isOpen, close, handleTap, rowStyle } = useSwipeToDelete();
 
@@ -92,6 +101,12 @@ const creditStyle = isCredit ? { color: 'var(--tone-income)' } : undefined;
           <div className="flex-1 text-left min-w-0 pr-2">
             <p className="text-neutral-900 leading-tight truncate text-sm">{expense.description}</p>
             <p className="text-neutral-500 text-[11px] truncate mt-0.5 font-medium">
+              {badge && (
+                <span style={{ color: 'var(--accent-ink)', fontWeight: 700, letterSpacing: '0.03em' }}>
+                  {t(`shared.news.tag.${badge}`).toUpperCase()}
+                  {' · '}
+                </span>
+              )}
               {expense.category.name}
               {expense.subcategory && ` - ${expense.subcategory}`}
             </p>

@@ -583,6 +583,19 @@ so nobody has to re-derive it by reading both.
 - §8 the read funnel, with the guard in `test:shared`.
 - §9 sync, backup and CSV export carry the shared fields. Import does not, by
   decision.
+- §7.7 tiers 1–2 and §7.8, as one mechanism: a device-local "last looked"
+  instant plus `split.updatedBy` and `split.was` on the row. Off those three
+  facts hang the indigo dot on the switcher, the "new since you last looked"
+  group with its batched line ("Giulia made 3 changes · +15€ in your August ·
+  you owe her 50€ now · was 35€"), the NEW/UPDATED marks in Activity, and the
+  before → after on both her amount and your share when you open a marked row.
+  Deletions are the one kind held in their own short-lived store, because they
+  take away the row that would otherwise carry the mark. Tier 3 (push) remains
+  a separate post-launch project.
+- Settling in **both** directions. The record was always signed and
+  `handleSettle` always swapped `from`/`to` for a negative; only the button was
+  conditioned on them owing you, so a balance in their favour was a number you
+  could read and not act on.
 
 ### Deliberately different from the spec
 
@@ -615,8 +628,6 @@ so nobody has to re-derive it by reading both.
 | §4.2 step 2 | No saved mapping for her custom categories, and no "needs you" list. | Her invented categories land in the catch-all silently. |
 | §6.3 | Settlements are not checkpoints. A correction to an item from before a settlement moves the running balance with no adjustment line. | The *number* stays right; the *explanation* is missing. |
 | §7.5 | The item list is period-scoped, not month-grouped with per-month balance deltas, and it is reached from the category card rather than the balance card. | No reading of how the balance got where it is. |
-| §7.7 tiers 1–2 | Changes arrive as toasts. No dot on the switcher, no line above the budget bar, no "New since you last looked" group. | A change seen while the toast is gone leaves no trace. |
-| §7.8 | No UPDATED badge in Activity, no before/after. | Her correction changes a number on your screen with nothing marking it. |
 | §11 | Households are hard-capped at two, in the database. | As specced for v1. |
 
 ### Known issues, not yet decided
