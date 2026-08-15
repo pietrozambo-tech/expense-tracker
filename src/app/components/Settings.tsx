@@ -2088,7 +2088,10 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
         >
           {n}
         </div>
-        <p style={{ color: '#3A3A3C', fontSize: 14, lineHeight: 1.5 }}>{children}</p>
+        {/* --ink, not a literal. This was #3A3A3C: near-black, chosen against
+            the light card and never revisited, so in dark mode the three
+            steps that explain the whole feature were grey on grey. */}
+        <p style={{ color: 'var(--ink)', fontSize: 14, lineHeight: 1.5 }}>{children}</p>
       </div>
     );
 
@@ -2180,7 +2183,12 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
           <div style={{ backgroundColor: 'var(--chip-ink)', borderRadius: 14, padding: 14, maxHeight: 240, overflowY: 'auto' }}>
             <pre
               style={{
-                color: 'var(--line)',
+                // A fixed light ink, because the pane under it is dark in BOTH
+                // themes (--chip-ink). This read var(--line) - the hairline
+                // token - which happens to be light in light mode and so
+                // looked fine, and is #3E3E47 in dark mode against a #41414B
+                // pane: the prompt was three greys away from invisible.
+                color: 'rgba(255, 255, 255, 0.78)',
                 fontSize: 11.5,
                 lineHeight: 1.55,
                 whiteSpace: 'pre-wrap',
@@ -2192,7 +2200,14 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
               {importPrompt}
             </pre>
           </div>
-          <p style={{ color: 'var(--disabled)', fontSize: 12, lineHeight: 1.5, marginTop: 10 }}>
+          {/* --ink-3, the same token the two cards above use, and measured:
+              --disabled (what this was) reads 2.3:1 in light mode and --ink-2
+              only 3.0, both under the 4.5 floor for 12px prose. --ink-3 clears
+              it at 4.9 light / 8.0 dark. --disabled means a control you cannot
+              use; borrowing it for a caption made this the dimmest text on the
+              screen in BOTH themes, which is why the dark-mode report was the
+              first anyone noticed. */}
+          <p style={{ color: 'var(--ink-3)', fontSize: 12, lineHeight: 1.5, marginTop: 10 }}>
             {getLanguage() === 'it'
               ? <>Il prompt elenca già le <span style={{ fontWeight: 600 }}>tue</span> categorie, sottocategorie e conti attuali, così il file arriva pronto da importare.</>
               : <>The prompt already lists <span style={{ fontWeight: 600 }}>your</span> current categories, subcategories
