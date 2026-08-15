@@ -25,7 +25,7 @@ try {
   mkdirSync(join(tmp, 'lib'));
   mkdirSync(join(tmp, 'utils'));
   copyFileSync(join(root, 'src/app/types.ts'), join(tmp, 'types.ts'));
-  for (const f of ['usual.ts', 'dates.ts', 'fx.ts', 'currencyData.ts']) {
+  for (const f of ['usual.ts', 'budget.ts', 'dates.ts', 'fx.ts', 'currencyData.ts']) {
     copyFileSync(join(root, 'src/app/lib', f), join(tmp, 'lib', f));
   }
   copyFileSync(join(root, 'src/app/utils/currency.ts'), join(tmp, 'utils/currency.ts'));

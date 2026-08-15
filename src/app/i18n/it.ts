@@ -92,7 +92,7 @@ export const it: Record<keyof typeof en, string> = {
   'budget.dayLeft.one': '{n} giorno rimasto',
   'budget.dayLeft.other': '{n} giorni rimasti',
   'budget.perDayPre': 'Fino a',
-  'budget.perDayPost': 'al giorno per chiudere il mese entro il budget',
+  'budget.perDayPost': 'al giorno per restare nel budget',
   'budget.lastDay': 'Ultimo giorno',
   'budget.nudge.title': 'Imposta un budget mensile',
   'budget.nudge.body': 'Fissa un limite mensile per capire come stai andando',

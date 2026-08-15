@@ -4,6 +4,7 @@ import { formatAbbreviatedAmount, CURRENCIES } from '../utils/currency';
 import { t } from '../i18n';
 import { AmountText } from './AmountText';
 import { FitText } from './FitText';
+import { dailyAllowance } from '../lib/budget';
 
 // Softer than the iOS system colours the rest of the app uses for accents. A
 // full-width bar is a lot more pixels than an icon, so #FF3B30/#30D158 at full
@@ -171,25 +172,34 @@ export function BudgetBar({ spent, budget, currency, daysLeft, monthProgress, us
             </span>
           )}
         </div>
-        {/* The actionable number: what the remaining budget allows per day.
-            Shown only while following it is possible - it vanishes once the
-            month is over budget, on the last day (nothing left to pace), and
-            when the allowance falls under ~10% of the budget's own daily pace:
-            "spend up to 1EUR/day" is arithmetic wearing a straight face, and
-            the status chip already says how the month is going. Floored, not
-            rounded - advice that says "up to" must not overshoot. */}
+        {/* The actionable number: what the remaining budget allows per day,
+            when there is a point in saying it. Both the figure and that
+            judgement live in lib/budget.ts - see dailyAllowance for why it is
+            a band with two edges rather than a floor. */}
         {(() => {
-          if (!isLive || over || (daysLeft as number) < 1) return null;
-          const allowance = Math.floor((budget - spent) / (daysLeft as number));
-          const daysInMonth = Math.round((daysLeft as number) / (1 - (monthProgress as number)));
-          if (allowance < (budget / daysInMonth) * 0.1) return null;
+          if (!isLive) return null;
+          const allowance = dailyAllowance(spent, budget, daysLeft as number, monthProgress as number);
+          if (allowance === null) return null;
+          const line = `${t('budget.perDayPre')} ${formatAbbreviatedAmount(allowance, currency)} ${t('budget.perDayPost')}`;
           return (
-            <div style={{ marginTop: 8, fontSize: 12, color: 'var(--ink-2)' }}>
-              {t('budget.perDayPre')}{' '}
-              <span style={{ color: 'var(--ink)', fontWeight: 700 }}>
-                <AmountText amount={allowance} currency={currency} decimals={0} />
-              </span>{' '}
-              {t('budget.perDayPost')}
+            <div style={{ marginTop: 8 }}>
+              {/* One line, always. The old copy ran to two on a 390pt phone,
+                  which turned a footnote into a paragraph; it is shorter now,
+                  and measured on top of that so a long currency code or a
+                  wordier translation shrinks the sentence instead of wrapping
+                  it. */}
+              <FitText
+                max={12}
+                min={10.5}
+                compact={line}
+                style={{ color: 'var(--ink-2)' }}
+              >
+                {t('budget.perDayPre')}{' '}
+                <span style={{ color: 'var(--ink)', fontWeight: 700 }}>
+                  <AmountText amount={allowance} currency={currency} decimals={0} />
+                </span>{' '}
+                {t('budget.perDayPost')}
+              </FitText>
             </div>
           );
         })()}

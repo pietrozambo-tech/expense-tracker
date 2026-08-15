@@ -7,6 +7,7 @@
 // Run with:  pnpm test:usual   (add --before for the mean it replaced)
 
 import { usualCurve, median } from './lib/usual';
+import { dailyAllowance } from './lib/budget';
 
 const OLD = process.argv.includes('--before');
 
@@ -149,6 +150,51 @@ heading('7. median()');
   expect('an extreme value cannot drag it', median([1, 1, 1, 1, 1000]), 1);
   expect('empty', median([]), null);
 }
+
+// 8. The budget card's per-day allowance, and when it should keep quiet.
+//
+// A per-day figure is advice only inside a band. Below it the number is too
+// small to act on; above it there is nothing to act on, and the card starts
+// encouraging spending it has no business encouraging. The upper edge is the
+// one that bites in real use, because it opens up exactly as the month runs
+// out - which is when nobody is looking at this code.
+heading('8. dailyAllowance() - the band the advice has to fall inside');
+{
+  // The screenshot that started this: 3,200 budget, 1,630 spent, 15 days left
+  // in a 31-day month. 104/day against a 103/day pace - the case it exists for.
+  expect('mid-month, tracking the budget: shown',
+    dailyAllowance(1630, 3200, 15, 16 / 31), 104);
+
+  // Same budget, three days left, 690 still to go. 230/day at somebody whose
+  // budget implies 103 is not a limit they were going to reach.
+  expect('late month with room to burn: silent',
+    dailyAllowance(2510, 3200, 3, 28 / 31), null);
+  // ...but the same three days ON pace still says something useful.
+  expect('late month actually on pace: still shown',
+    dailyAllowance(2900, 3200, 3, 28 / 31), 100);
+
+  // The old lower edge, unchanged: a euro a day is arithmetic, not advice.
+  expect('almost nothing left: silent', dailyAllowance(3190, 3200, 3, 28 / 31), null);
+
+  // Exactly on each edge, so the comparisons cannot drift into being
+  // exclusive without a test noticing. Pace here is 3100/31 = 100.
+  expect('at twice the pace: still shown', dailyAllowance(1100, 3100, 10, 21 / 31), 200);
+  expect('a hair over twice the pace: silent', dailyAllowance(1090, 3100, 10, 21 / 31), null);
+
+  // Nothing to pace, or nothing to pace with.
+  expect('over budget: silent', dailyAllowance(3300, 3200, 5, 26 / 31), null);
+  expect('last day: silent', dailyAllowance(1000, 3200, 0, 30 / 31), null);
+  expect('no budget: silent', dailyAllowance(500, 0, 10, 21 / 31), null);
+  // A month reported as fully elapsed would divide by zero working its length
+  // back out; it must fail closed rather than print Infinity at anyone.
+  expect('a month with no time left in it: silent', dailyAllowance(1000, 3200, 5, 1), null);
+
+  // Floored, never rounded: 1500 over 9 days is 166.67, and a figure the card
+  // introduces with "up to" must not overshoot the budget it came from.
+  expect('the figure is floored, so following it cannot overshoot',
+    dailyAllowance(1600, 3100, 9, 22 / 31), 166);
+}
+
 
 console.log(
   failures === 0
