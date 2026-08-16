@@ -93,6 +93,16 @@ const COUNTRY_CURRENCY: Record<string, string> = (() => {
   return map;
 })();
 
+/**
+ * Every country the app can offer a currency for, sorted by ISO code.
+ *
+ * Exported for the developer screen's picker: the list of places worth
+ * pretending to be is exactly the list where the nudge could ever fire, so it
+ * is derived from the same map rather than typed out as a shortlist that would
+ * quietly disagree with it.
+ */
+export const KNOWN_COUNTRIES: string[] = Object.keys(COUNTRY_CURRENCY).sort();
+
 /** The currency of a country, or null when we do not know or do not carry it. */
 export function currencyOfCountry(cc: string | null): string | null {
   if (!cc) return null;

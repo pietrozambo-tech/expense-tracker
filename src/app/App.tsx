@@ -3036,7 +3036,7 @@ export default function App() {
             )}
             {currentTab === 'settings' && (
               <Settings
-                travelDiag={{
+                devDiag={{
                   zone: typeof Intl !== 'undefined' ? Intl.DateTimeFormat().resolvedOptions().timeZone : '',
                   detected: currentCountry(),
                   override: travelOverride,
@@ -3044,6 +3044,14 @@ export default function App() {
                   currency: currencyOfCountry(travelCountry),
                   history: travelCountries,
                   home: homeCountry(travelCountries),
+                  currencyCode: userCurrency,
+                  household: household ? (household.remoteId ? 'paired' : 'local only') : 'off',
+                  partnerName: partner?.name ?? null,
+                  signedIn: !!userId,
+                  txCount: expenses.length,
+                  ruleCount: recurringRules.length,
+                  sharedLastSeen,
+                  unseenCount: sharedNewsLive?.count ?? 0,
                   onOverride: (cc) => {
                     setTravelOverride(cc);
                     saveTravelOverride(cc);
@@ -3052,6 +3060,20 @@ export default function App() {
                     setTravelCountries([]);
                     saveTravelCountries([]);
                     setTravelDismissed(false);
+                  },
+                  // Clears only the refusals, leaving the learnt days alone -
+                  // the two go wrong independently and un-sticking one should
+                  // not throw away the other.
+                  onClearDismissals: () => {
+                    setTravelCountries((prev) => prev.map((v) => ({ ...v, dismissed: 0 })));
+                    setTravelDismissed(false);
+                  },
+                  // Rewinds the shared "last looked" clock so the news group and
+                  // the UPDATED badges can be made to fire again on demand.
+                  onRewindSharedSeen: () => {
+                    const long = new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString();
+                    setSharedLastSeen(long);
+                    saveSharedLastSeen(long);
                   },
                 }}
                 transactions={expenses}

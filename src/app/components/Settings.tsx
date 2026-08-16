@@ -24,6 +24,7 @@ import { SourcesManager } from './SourcesManager';
 import { TracklyLogo } from './TracklyLogo';
 import { ConfirmDialog } from './ConfirmDialog';
 import { CURRENCIES, MAIN_CURRENCY_CODES } from '../utils/currency';
+import { KNOWN_COUNTRIES, currencyOfCountry } from '../lib/travel';
 import { CurrencySearchList } from './CurrencySearchList';
 import { LegalScreen } from './LegalScreen';
 import { PRIVACY_POLICY, TERMS_OF_SERVICE, type LegalDoc } from '../lib/legalContent';
@@ -143,7 +144,7 @@ function RowIcon({ icon: Icon, tone }: { icon: LucideIcon; tone: { bg: string; f
 }
 
 /** Everything the developer screen reads and can change. */
-export interface TravelDiag {
+export interface DevDiag {
   zone: string;
   detected: string | null;
   override: string;
@@ -153,13 +154,23 @@ export interface TravelDiag {
   /** Which country the app currently reckons you live in - recomputed from the
    *  history, not a stored flag. The usual reason the nudge is silent. */
   home: string | null;
+  currencyCode: string;
+  household: string;
+  partnerName: string | null;
+  signedIn: boolean;
+  txCount: number;
+  ruleCount: number;
+  sharedLastSeen: string;
+  unseenCount: number;
   onOverride: (cc: string) => void;
   onForget: () => void;
+  onClearDismissals: () => void;
+  onRewindSharedSeen: () => void;
 }
 
 interface SettingsProps {
   /** Absent in any build that does not want the developer screen at all. */
-  travelDiag?: TravelDiag;
+  devDiag?: DevDiag;
   categories: any[];
   incomeCategories: any[];
   // First day of the week for day-of-week views: 1 Monday, 0 Sunday, 6 Saturday
@@ -248,7 +259,7 @@ interface SettingsProps {
 }
 
 export function Settings({
-  travelDiag,
+  devDiag,
   categories,
   incomeCategories,
   weekStartsOn = 1,
@@ -676,6 +687,35 @@ export function Settings({
     const sw = typeof navigator === 'undefined' || !('serviceWorker' in navigator)
       ? 'unsupported'
       : navigator.serviceWorker.controller ? 'active' : 'none';
+    const standalone = typeof window !== 'undefined'
+      && (window.matchMedia?.('(display-mode: standalone)').matches
+        || (window.navigator as unknown as { standalone?: boolean }).standalone === true);
+    const vw = typeof window !== 'undefined' ? `${window.innerWidth}x${window.innerHeight} @${window.devicePixelRatio}x` : '-';
+    const regionName = (cc: string) => {
+      try {
+        return new Intl.DisplayNames([language === 'it' ? 'it' : 'en'], { type: 'region' }).of(cc) ?? cc;
+      } catch {
+        return cc;
+      }
+    };
+    // Bytes this app is holding in localStorage, per key and in total. The
+    // cheap version of a quota investigation, and it needs no permission.
+    const keySizes = (() => {
+      const rows: { k: string; bytes: number }[] = [];
+      let total = 0;
+      try {
+        for (let i = 0; i < localStorage.length; i += 1) {
+          const k = localStorage.key(i);
+          if (!k || !k.startsWith('expense-tracker.')) continue;
+          const bytes = (localStorage.getItem(k) ?? '').length;
+          total += bytes;
+          rows.push({ k: k.replace('expense-tracker.v1.', ''), bytes });
+        }
+      } catch { /* storage unavailable */ }
+      return { rows: rows.sort((a, b) => b.bytes - a.bytes), total };
+    })();
+    const kb = (n: number) => (n >= 1024 ? `${(n / 1024).toFixed(1)} KB` : `${n} B`);
+
     const row = (label: string, value: string) => (
       <div key={label} className="flex items-baseline justify-between gap-3 py-1.5">
         <span style={{ color: 'var(--ink-2)', fontSize: 12.5 }}>{label}</span>
@@ -687,6 +727,26 @@ export function Settings({
     const CARD = { backgroundColor: 'var(--bg-card)', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' };
     const EYEBROW = { color: 'var(--ink-2)', fontSize: 11, fontWeight: 700, letterSpacing: '0.04em' };
     const NOTE = { color: 'var(--ink-3)', fontSize: 11.5, lineHeight: 1.5 };
+    const ACTION = {
+      padding: '7px 13px', fontSize: 12.5, fontWeight: 600,
+      backgroundColor: 'var(--bg-inset)', color: 'var(--ink-2)',
+      WebkitTapHighlightColor: 'transparent',
+    } as React.CSSProperties;
+
+    // Everything on screen, as text - so a tester can paste the whole state
+    // into a message instead of describing it or photographing it.
+    const diagnostics = () => [
+      `TracklyLab ${__APP_VERSION__} (${__BUILD_STAMP__})`,
+      `shell=${isNative() ? 'native' : standalone ? 'pwa' : 'browser'} sw=${sw} online=${typeof navigator !== 'undefined' && navigator.onLine}`,
+      `viewport=${vw} lang=${language} currency=${devDiag?.currencyCode ?? '?'}`,
+      `zone=${devDiag?.zone} detected=${devDiag?.detected} inUse=${devDiag?.country}->${devDiag?.currency}`,
+      `override=${devDiag?.override || 'none'} home=${devDiag?.home ?? 'none'}`,
+      `countries=${(devDiag?.history ?? []).map((v) => `${v.cc}:${v.days.length}d/${new Set(v.days.map((d) => d.slice(0, 7))).size}mo${v.dismissed ? `/${v.dismissed}x` : ''}`).join(' ') || 'none'}`,
+      `household=${devDiag?.household} partner=${devDiag?.partnerName ?? '-'} signedIn=${devDiag?.signedIn}`,
+      `tx=${devDiag?.txCount} rules=${devDiag?.ruleCount} unseen=${devDiag?.unseenCount}`,
+      `storage=${kb(keySizes.total)}`,
+    ].join('\n');
+
     return (
       <div className="flex flex-col" style={SUBPAGE_STYLE}>
         <div style={{ backgroundColor: 'var(--bg-page)' }}>
@@ -709,95 +769,184 @@ export function Settings({
             buttons sat 65px BELOW the floating dock's top edge - under the
             dock, where a tap never reaches them. */}
         <div className="flex-1 overflow-y-auto px-6" style={{ paddingBottom: DOCK_CLEARANCE }}>
-          {/* First card, because it answers the question that disguises itself
-              as every other bug: is this device running the build you think? */}
+          {/* First, because it answers the question that disguises itself as
+              every other bug: is this device running the build you think? */}
           <div className="rounded-2xl px-5 py-4 mb-4" style={CARD}>
             <div className="mb-2" style={EYEBROW}>BUILD</div>
             {row('Version', __APP_VERSION__)}
             {row('Built', __BUILD_STAMP__)}
-            {row('Shell', isNative() ? 'native (Capacitor)' : 'web')}
+            {row('Shell', isNative() ? 'native (Capacitor)' : standalone ? 'installed PWA' : 'browser tab')}
             {row('Service worker', sw)}
             {row('Online', typeof navigator !== 'undefined' && navigator.onLine ? 'yes' : 'no')}
-            {row('Language', language)}
+            <p className="mt-2" style={NOTE}>
+              If "Built" is older than the last deploy, this device is still
+              serving a cached bundle and no amount of testing will show new
+              work. Forcing an update drops the service worker and reloads.
+            </p>
+            <button
+              data-dev-update
+              onClick={async () => {
+                try {
+                  const regs = await navigator.serviceWorker?.getRegistrations?.() ?? [];
+                  await Promise.all(regs.map((r) => r.unregister()));
+                  if (typeof caches !== 'undefined') {
+                    const names = await caches.keys();
+                    await Promise.all(names.map((n) => caches.delete(n)));
+                  }
+                } catch { /* nothing to drop */ }
+                window.location.reload();
+              }}
+              className="mt-2.5 rounded-xl active:scale-95 transition-transform"
+              style={ACTION}
+            >
+              Force update &amp; reload
+            </button>
           </div>
 
-          {travelDiag && (
+          <div className="rounded-2xl px-5 py-4 mb-4" style={CARD}>
+            <div className="mb-2" style={EYEBROW}>DEVICE &amp; LOCALE</div>
+            {row('Viewport', vw)}
+            {row('Language', language)}
+            {row('Main currency', devDiag?.currencyCode ?? '-')}
+            {row('Signed in', devDiag?.signedIn ? 'yes' : 'guest')}
+            {row('Storage used', kb(keySizes.total))}
+          </div>
+
+          {devDiag && (
             <div className="rounded-2xl px-5 py-4 mb-4" style={CARD}>
               <div className="mb-2" style={EYEBROW}>LOCATION</div>
-              {row('Timezone', travelDiag.zone || '-')}
-              {row('Detected country', travelDiag.detected ?? 'unknown')}
-              {row('In use', `${travelDiag.country ?? 'unknown'} -> ${travelDiag.currency ?? 'no currency'}`)}
-              {row('Source', travelDiag.override ? 'forced below' : 'device timezone')}
-              <p className="mt-2" style={NOTE}>
+              {row('Timezone', devDiag.zone || '-')}
+              {row('Detected country', devDiag.detected ? `${devDiag.detected} - ${regionName(devDiag.detected)}` : 'unknown')}
+              {row('In use', `${devDiag.country ?? 'unknown'} -> ${devDiag.currency ?? 'no currency'}`)}
+              {row('Source', devDiag.override ? 'forced below' : 'device timezone')}
+              <p className="mt-2 mb-2" style={NOTE}>
                 Forcing a country replaces the timezone lookup and nothing else,
                 so what you see afterwards is exactly what a traveller sees.
                 Then open Add - the chip sits under the amount.
               </p>
-              <div className="mt-2.5 flex flex-wrap gap-1.5">
-                {['', 'PH', 'US', 'GB', 'JP', 'CH', 'MA', 'TH', 'AE', 'BR'].map((cc) => (
-                  <button
-                    key={cc || 'off'}
-                    data-dev-country={cc || 'real'}
-                    onClick={() => travelDiag.onOverride(cc)}
-                    className="rounded-full active:scale-95 transition-transform"
-                    style={{
-                      padding: '5px 11px', fontSize: 12.5, fontWeight: 600,
-                      backgroundColor: travelDiag.override === cc ? 'var(--wash-accent)' : 'var(--bg-inset)',
-                      color: travelDiag.override === cc ? 'var(--accent-ink)' : 'var(--ink-2)',
-                      WebkitTapHighlightColor: 'transparent',
-                    }}
-                  >
-                    {cc || 'Real'}
-                  </button>
+              {/* A native select rather than a row of chips: this is every
+                  country the app can offer a currency for, which is far more
+                  than fits on screen, and iOS gives a real picker wheel for
+                  free. */}
+              <select
+                data-dev-country
+                value={devDiag.override}
+                onChange={(e) => devDiag.onOverride(e.target.value)}
+                className="w-full rounded-xl outline-none"
+                style={{
+                  backgroundColor: 'var(--bg-inset)', color: 'var(--ink)',
+                  // 16px, or iOS zooms the page in on focus.
+                  fontSize: 16, padding: '10px 12px', border: 'none',
+                }}
+              >
+                <option value="">Real location ({devDiag.detected ?? 'unknown'})</option>
+                {KNOWN_COUNTRIES.map((cc) => (
+                  <option key={cc} value={cc}>
+                    {`${regionName(cc)} - ${currencyOfCountry(cc)}`}
+                  </option>
                 ))}
-              </div>
+              </select>
             </div>
           )}
 
-          {/* The reason the nudge is silent is nearly always written here: a
-              country marked home, or three refusals already spent. */}
-          {travelDiag && (
+          {/* The reason the nudge is silent is nearly always written here: the
+              country is home, or three refusals are already spent. */}
+          {devDiag && (
             <div className="rounded-2xl px-5 py-4 mb-4" style={CARD}>
               <div className="mb-2" style={EYEBROW}>COUNTRIES LEARNT</div>
-              {travelDiag.history.length === 0 ? (
+              {devDiag.history.length === 0 ? (
                 <div style={{ color: 'var(--ink-2)', fontSize: 12.5 }}>Nothing yet</div>
               ) : (
-                travelDiag.history.map((v) =>
-                  row(v.cc, [
-                    `${v.days.length} day${v.days.length === 1 ? '' : 's'}`,
-                    `${new Set(v.days.map((d) => d.slice(0, 7))).size} mo`,
-                    v.cc === travelDiag.home ? 'HOME' : null,
+                devDiag.history.map((v) =>
+                  row(`${v.cc} - ${regionName(v.cc)}`, [
+                    `${v.days.length}d`,
+                    `${new Set(v.days.map((d) => d.slice(0, 7))).size}mo`,
+                    v.cc === devDiag.home ? 'HOME' : null,
                     v.dismissed ? `${v.dismissed} dismissed` : null,
                   ].filter(Boolean).join(' - ')),
                 )
               )}
-              <button
-                data-dev-forget
-                onClick={() => {
-                  travelDiag.onForget();
-                  toast.success('Travel history forgotten', { duration: 1600 });
-                }}
-                className="mt-3 rounded-xl active:scale-95 transition-transform"
-                style={{ padding: '7px 13px', fontSize: 12.5, fontWeight: 600, backgroundColor: 'var(--bg-inset)', color: 'var(--ink-2)' }}
-              >
-                Forget travel history
-              </button>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button
+                  data-dev-forget
+                  onClick={() => {
+                    devDiag.onForget();
+                    toast.success('Travel history forgotten', { duration: 1600 });
+                  }}
+                  className="rounded-xl active:scale-95 transition-transform"
+                  style={ACTION}
+                >
+                  Forget history
+                </button>
+                <button
+                  data-dev-undismiss
+                  onClick={() => {
+                    devDiag.onClearDismissals();
+                    toast.success('Dismissals cleared', { duration: 1600 });
+                  }}
+                  className="rounded-xl active:scale-95 transition-transform"
+                  style={ACTION}
+                >
+                  Clear dismissals
+                </button>
+              </div>
               <p className="mt-2" style={NOTE}>
                 Home is whichever country has been seen in the most separate
-                months, first-seen breaking a tie - so it moves as the history
-                grows rather than being fixed by wherever you happened to open
-                the app first. Home is never nudged.
+                months, first-seen breaking a tie, and home is never nudged.
+                Three refusals in one country also silence it there.
+              </p>
+            </div>
+          )}
+
+          {devDiag && (
+            <div className="rounded-2xl px-5 py-4 mb-4" style={CARD}>
+              <div className="mb-2" style={EYEBROW}>SHARED</div>
+              {row('Household', devDiag.household)}
+              {row('Partner', devDiag.partnerName ?? '-')}
+              {row('Unseen changes', String(devDiag.unseenCount))}
+              {row('Last looked', devDiag.sharedLastSeen ? devDiag.sharedLastSeen.slice(0, 16).replace('T', ' ') : 'never')}
+              <button
+                data-dev-rewind
+                onClick={() => {
+                  devDiag.onRewindSharedSeen();
+                  toast.success('Marked as not looked at', { duration: 1600 });
+                }}
+                className="mt-3 rounded-xl active:scale-95 transition-transform"
+                style={ACTION}
+              >
+                Rewind &quot;last looked&quot;
+              </button>
+              <p className="mt-2" style={NOTE}>
+                Rewinding makes anything the other member already changed count
+                as unread again, so the dot, the news group and the UPDATED
+                badges can be made to fire without a second phone.
               </p>
             </div>
           )}
 
           <div className="rounded-2xl px-5 py-4 mb-4" style={CARD}>
             <div className="mb-2" style={EYEBROW}>DATA</div>
-            {row('Transactions', String(transactions?.length ?? 0))}
+            {row('Transactions', String(devDiag?.txCount ?? 0))}
             {row('Categories', `${categories.length} + ${incomeCategories.length} income`)}
-            {row('Schedules', String(recurringRules?.length ?? 0))}
-            {row('Household', household ? (household.remoteId ? 'paired' : 'local only') : 'off')}
+            {row('Schedules', String(devDiag?.ruleCount ?? 0))}
+            {keySizes.rows.slice(0, 8).map((r) => row(r.k, kb(r.bytes)))}
           </div>
+
+          <button
+            data-dev-copy
+            onClick={async () => {
+              try {
+                await navigator.clipboard.writeText(diagnostics());
+                toast.success('Diagnostics copied', { duration: 1600 });
+              } catch {
+                toast.error('Could not copy');
+              }
+            }}
+            className="w-full rounded-xl mb-6 active:scale-[0.98] transition-transform"
+            style={{ ...ACTION, padding: '11px 13px', fontSize: 13.5 }}
+          >
+            Copy diagnostics
+          </button>
         </div>
       </div>
     );
@@ -2951,10 +3100,35 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
           </button>
         </div>
 
-        {devAsking && !devUnlocked && (
-          <div className="mt-3 flex justify-center">
+
+
+      </div>
+
+      {/* The code, as a dialog rather than a field at the foot of the page.
+          Inline, it rendered where the page had already run out: the keyboard
+          opened over it and the floating dock covered the rest, so the one
+          input you had to see was the one thing you could not. A centred
+          overlay is above both, and carries data-overlay so the dock's
+          mis-tap guard lets its taps through. */}
+      {devAsking && !devUnlocked && (
+        <div
+          data-overlay
+          className="fixed inset-0 bg-black/50 z-50 flex items-start justify-center p-6"
+          style={{ paddingTop: '18vh' }}
+          onClick={() => { setDevAsking(false); setDevCode(''); }}
+        >
+          <div
+            className="rounded-2xl p-6 max-w-sm w-full shadow-xl"
+            style={{ backgroundColor: 'var(--bg-card)' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 style={{ color: 'var(--ink)', fontSize: 17, fontWeight: 600, marginBottom: 4 }}>Developer</h3>
+            <p style={{ color: 'var(--ink-2)', fontSize: 12.5, marginBottom: 14 }}>
+              Enter the access code.
+            </p>
             <input
               autoFocus
+              data-dev-code
               type="text"
               inputMode="numeric"
               maxLength={4}
@@ -2963,7 +3137,7 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
                 const v = e.target.value.replace(/\D/g, '');
                 setDevCode(v);
                 // Opens on the fourth digit rather than behind a button: there
-                // is exactly one correct answer and no reason to confirm it.
+                // is one correct answer and nothing to confirm about it.
                 if (v === '4700') {
                   setDevUnlocked(true);
                   saveDevUnlocked(true);
@@ -2975,19 +3149,24 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
                 }
               }}
               placeholder="••••"
-              className="text-center rounded-xl outline-none tabular-nums"
+              className="w-full text-center rounded-xl outline-none tabular-nums"
               style={{
-                width: 108, padding: '8px 0', border: '1px solid var(--line)',
-                backgroundColor: 'var(--bg-card)', color: 'var(--ink)',
+                backgroundColor: 'var(--bg-field)', color: 'var(--ink)',
                 // 16px, or iOS zooms the page in on focus - the form-control
                 // floor the rest of the app already keeps to.
-                fontSize: 16, letterSpacing: '0.3em',
+                fontSize: 22, padding: '12px 0', letterSpacing: '0.4em',
               }}
             />
+            <button
+              onClick={() => { setDevAsking(false); setDevCode(''); }}
+              className="w-full mt-4 px-4 py-3 rounded-xl font-medium active:bg-neutral-200"
+              style={{ backgroundColor: 'var(--bg-inset)', color: 'var(--ink)' }}
+            >
+              {t('common.cancel')}
+            </button>
           </div>
-        )}
-
-      </div>
+        </div>
+      )}
 
       {confirmAction === 'demo' && (
         <ConfirmDialog
