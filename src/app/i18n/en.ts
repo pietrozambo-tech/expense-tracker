@@ -425,7 +425,7 @@ export const en = {
   'set.title': 'Settings',
   'set.subGuest': 'Guest - your data stays on this device',
   'set.subBacked': 'Backed up as {email}',
-  'set.here': 'currently in {flag} {country}',
+  'set.here': 'Currently in {flag} {country}',
   'set.signIn': 'Sign in to back up & sync',
   'set.signInSub': 'Keep your data safe across devices',
   'set.signOut': 'Sign out',
