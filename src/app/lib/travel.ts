@@ -114,6 +114,21 @@ export function flagOfCurrency(code: string): string {
   return CURRENCY_DEFS.find((c) => c.code === code)?.flag ?? '';
 }
 
+/**
+ * The flag of a country, built from its ISO code.
+ *
+ * Not the same thing as the flag of its currency: Spain's currency flies the
+ * European flag, and "currently in 🇪🇺 Spain" reads like a mistake. Flag emoji
+ * are just the two letters of the code written as regional indicators, so the
+ * country always has one even when we carry no currency for it.
+ */
+export function flagOfCountry(cc: string | null): string {
+  if (!cc || !/^[A-Za-z]{2}$/.test(cc)) return '';
+  return [...cc.toUpperCase()]
+    .map((ch) => String.fromCodePoint(ch.charCodeAt(0) - 65 + 0x1f1e6))
+    .join('');
+}
+
 /** The country this device is in right now, from its own clock settings. */
 export function currentCountry(
   zone: string | null = typeof Intl !== 'undefined'

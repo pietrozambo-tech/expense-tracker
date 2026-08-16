@@ -31,6 +31,9 @@ export interface BackupFile {
   household?: Household | null;
   people?: Person[];
   settlements?: Settlement[];
+  /** Where each of THEIR categories lands in mine. Restoring without it puts
+   *  every one of those decisions back on the user. */
+  sharedCatMap?: Record<string, string>;
 }
 
 export function buildBackup(data: {
@@ -49,6 +52,7 @@ export function buildBackup(data: {
   household?: Household | null;
   people?: Person[];
   settlements?: Settlement[];
+  sharedCatMap?: Record<string, string>;
 }): BackupFile {
   return {
     app: 'tracklylab',
@@ -71,6 +75,7 @@ export function buildBackup(data: {
     household: data.household ?? null,
     people: data.people ?? [],
     settlements: data.settlements ?? [],
+    sharedCatMap: data.sharedCatMap ?? {},
   };
 }
 

@@ -15,6 +15,10 @@ export interface SyncPayload {
   household?: Household | null;
   people?: Person[];
   settlements?: Settlement[];
+  /** Where each of THEIR categories lands in mine. A decision about my own
+   *  filing rather than a fact about this device, so it travels with the
+   *  data - lose it and every one of those choices has to be made again. */
+  sharedCatMap?: Record<string, string>;
   settings: {
     onboarded: boolean;
     userName: string;
@@ -470,10 +474,20 @@ export function mergePayloads(
       const household = mergeHousehold();
       const people = mergeList(base?.people, local.people, remote.people);
       const settlements = mergeList(base?.settlements, local.settlements, remote.settlements);
+      // A map, not a list, so mergeList cannot help: the union of both sides,
+      // with this device's choice winning a genuine disagreement - it is the
+      // one that just made a decision. Nothing ever removes a key (re-filing
+      // replaces it), so a union can never resurrect something deliberately
+      // deleted, which is the usual hazard with this shape. When this device
+      // has lost its copy entirely, the server's is the truth.
+      const l = local.sharedCatMap ?? {};
+      const r = remote.sharedCatMap ?? {};
+      const sharedCatMap = localCopyMissing ? { ...l, ...r } : { ...r, ...l };
       return {
         ...(household ? { household } : {}),
         ...(people.length ? { people } : {}),
         ...(settlements.length ? { settlements } : {}),
+        ...(Object.keys(sharedCatMap).length ? { sharedCatMap } : {}),
       };
     })(),
   };

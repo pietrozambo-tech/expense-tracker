@@ -610,6 +610,7 @@ export default function App() {
     household,
     people,
     settlements,
+    sharedCatMap,
     settings: {
       onboarded: hasCompletedOnboarding,
       userName,
@@ -636,6 +637,7 @@ export default function App() {
     setHousehold(p.household ?? null);
     setPeople(p.people ?? []);
     setSettlements(p.settlements ?? []);
+    setSharedCatMap(p.sharedCatMap ?? {});
     const s = p.settings ?? ({} as SyncPayload['settings']);
     setHasCompletedOnboarding(!!s.onboarded);
     setUserName(s.userName ?? '');
@@ -2507,6 +2509,7 @@ export default function App() {
           household,
           people,
           settlements,
+          sharedCatMap,
         })
       );
       track('data_exported', { count: expenses.length });
@@ -2586,6 +2589,7 @@ export default function App() {
     setHousehold(b.household && typeof b.household === 'object' ? { ...b.household, updatedAt: restoredAt } : null);
     setPeople(Array.isArray(b.people) ? b.people : []);
     setSettlements(Array.isArray(b.settlements) ? b.settlements : []);
+    setSharedCatMap(b.sharedCatMap && typeof b.sharedCatMap === 'object' ? b.sharedCatMap : {});
     if (b.settings) {
       if (typeof b.settings.currency === 'string') setUserCurrency(b.settings.currency);
       setMonthlyBudget(typeof b.settings.monthlyBudget === 'number' ? b.settings.monthlyBudget : undefined);

@@ -25,7 +25,7 @@ import { TracklyLogo } from './TracklyLogo';
 import { ConfirmDialog } from './ConfirmDialog';
 import { BalanceHistory } from './BalanceHistory';
 import { CURRENCIES, MAIN_CURRENCY_CODES } from '../utils/currency';
-import { KNOWN_COUNTRIES, currencyOfCountry } from '../lib/travel';
+import { KNOWN_COUNTRIES, currencyOfCountry, currentCountry, flagOfCountry } from '../lib/travel';
 import { CurrencySearchList } from './CurrencySearchList';
 import { LegalScreen } from './LegalScreen';
 import { PRIVACY_POLICY, TERMS_OF_SERVICE, type LegalDoc } from '../lib/legalContent';
@@ -361,6 +361,17 @@ export function Settings({
   // for.
   const [showDev, setShowDev] = useState(false);
   const [showBalance, setShowBalance] = useState(false);
+  /** The country this device is in, named and flagged, or null if unplaceable. */
+  const here = (() => {
+    const cc = devDiag?.country ?? currentCountry();
+    if (!cc) return null;
+    try {
+      const name = new Intl.DisplayNames([language === 'it' ? 'it' : 'en'], { type: 'region' }).of(cc);
+      return name ? { name, flag: flagOfCountry(cc) } : null;
+    } catch {
+      return null;
+    }
+  })();
   const [showTheirCats, setShowTheirCats] = useState(false);
   const [filing, setFiling] = useState<string | null>(null);
   const [devAsking, setDevAsking] = useState(false);
@@ -2915,6 +2926,22 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
         <h1 style={{ color: 'var(--ink)', fontSize: '30px', fontWeight: '800', letterSpacing: '-1px' }}>{t('set.title')}</h1>
         <p style={{ color: 'var(--ink-2)', fontSize: '13px', marginTop: '4px' }}>
           {userEmail ? t('set.subBacked', { email: userEmail }) : t('set.subGuest')}
+          {/* Where the app reckons you are, from the timezone it already reads
+              for the travel nudge. Costs nothing, and it is the honest thing
+              to show: the app is quietly using this, so it should say so
+              somewhere a person can find it rather than only in a screen
+              behind a code.
+
+              Silent when the zone maps to nothing - a header that says
+              "currently in unknown" is worse than one that says nothing. */}
+          {here && (
+            <>
+              {' · '}
+              <span data-here style={{ whiteSpace: 'nowrap' }}>
+                {t('set.here', { flag: here.flag, country: here.name })}
+              </span>
+            </>
+          )}
         </p>
       </div>
 
