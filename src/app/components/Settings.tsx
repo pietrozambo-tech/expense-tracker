@@ -189,6 +189,10 @@ interface SettingsProps {
   household?: import('../types').Household | null;
   /** For the balance history reached from the Shared screen (spec 7.6). */
   settlements?: import('../types').Settlement[];
+  /** Their categories that have nowhere of ours to go (spec 4.2 step 2). */
+  unmappedCategories?: { key: string; name: string; icon?: string; count: number }[];
+  /** File one of theirs under one of mine, for everything past and future. */
+  onMapCategory?: (key: string, categoryId: string) => void;
   partner?: import('../types').Person | null;
   onEnableShared?: (name: string) => void;
   onUpdateHousehold?: (patch: Partial<import('../types').Household>) => void;
@@ -264,6 +268,8 @@ interface SettingsProps {
 export function Settings({
   devDiag,
   settlements = [],
+  unmappedCategories = [],
+  onMapCategory,
   categories,
   incomeCategories,
   weekStartsOn = 1,
@@ -355,6 +361,8 @@ export function Settings({
   // for.
   const [showDev, setShowDev] = useState(false);
   const [showBalance, setShowBalance] = useState(false);
+  const [showTheirCats, setShowTheirCats] = useState(false);
+  const [filing, setFiling] = useState<string | null>(null);
   const [devAsking, setDevAsking] = useState(false);
   const [devCode, setDevCode] = useState('');
   const [devUnlocked, setDevUnlocked] = useState(() => loadDevUnlocked());
@@ -695,6 +703,115 @@ export function Settings({
           partner={partner}
           onClose={() => setShowBalance(false)}
         />
+      </div>
+    );
+  }
+
+  // Where THEIR invented categories should land in mine (spec 4.2 step 2).
+  //
+  // Until this, a category she made up landed in my catch-all and said
+  // nothing about it: the money was never lost, but "Others" quietly became
+  // the biggest thing I spend on and no screen could explain why.
+  if (showTheirCats && partner) {
+    const expenseCats = categories.filter((c) => c.type !== 'income');
+    return (
+      <div className="flex flex-col" style={SUBPAGE_STYLE}>
+        <div style={{ backgroundColor: 'var(--bg-page)' }}>
+          <div className="px-6 pb-4 pt-0">
+            <div className="flex items-center justify-center relative">
+              <button
+                onClick={() => navTransition('back', () => { setShowTheirCats(false); setFiling(null); })}
+                aria-label={t('common.close')}
+                className="absolute left-0 -ml-2 px-2 py-1 rounded-lg active:bg-neutral-200 transition-colors"
+              >
+                <ChevronLeft size={24} style={{ color: 'var(--accent-ink)' }} />
+              </button>
+              <h1 style={{ color: 'var(--ink)', fontSize: 20, fontWeight: 600, letterSpacing: '-0.3px' }}>
+                {t('shared.cat.title', { name: partner.name })}
+              </h1>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-6" style={{ paddingBottom: DOCK_CLEARANCE }}>
+          {unmappedCategories.length === 0 ? (
+            <div className="py-10 text-center" style={{ color: 'var(--ink-2)', fontSize: 13.5 }}>
+              {t('shared.cat.empty', { name: partner.name })}
+            </div>
+          ) : (
+            <>
+              <p style={{ color: 'var(--ink-2)', fontSize: 12.5, lineHeight: 1.45, marginBottom: 12 }}>
+                {t('shared.cat.intro')}
+              </p>
+              {unmappedCategories.map((u) => {
+                const Icon = getCategoryIcon(u.icon ?? 'MoreHorizontal');
+                const open = filing === u.key;
+                return (
+                  <div
+                    key={u.key}
+                    data-unmapped={u.key}
+                    className="rounded-2xl mb-3 overflow-hidden"
+                    style={{ backgroundColor: 'var(--bg-card)', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}
+                  >
+                    <button
+                      onClick={() => setFiling(open ? null : u.key)}
+                      className="w-full flex items-center gap-3 px-4 py-3.5 text-left active:opacity-60 transition-opacity"
+                    >
+                      <span
+                        className="w-8 h-8 rounded-[10px] flex items-center justify-center flex-shrink-0"
+                        style={{ backgroundColor: 'var(--bg-inset)' }}
+                      >
+                        <Icon className="w-4 h-4" style={{ color: 'var(--ink-2)' }} strokeWidth={2} />
+                      </span>
+                      <span className="flex-1 min-w-0">
+                        <span className="block truncate" style={{ color: 'var(--ink)', fontSize: 15, fontWeight: 500 }}>
+                          {u.name}
+                        </span>
+                        <span className="block" style={{ color: 'var(--ink-2)', fontSize: 12 }}>
+                          {t(u.count === 1 ? 'shared.cat.count.one' : 'shared.cat.count.other', { n: String(u.count) })}
+                        </span>
+                      </span>
+                      <ChevronRight
+                        className="w-4 h-4 flex-shrink-0 transition-transform"
+                        style={{ color: 'var(--ghost)', transform: open ? 'rotate(90deg)' : undefined }}
+                      />
+                    </button>
+                    {/* The choice, inline. A sheet would be one more layer for
+                        a decision that is a single tap once you can see the
+                        options. */}
+                    {open && (
+                      <div className="px-4 pb-3" style={{ borderTop: '1px solid var(--line-2)' }}>
+                        <p className="pt-2.5 pb-1.5" style={{ color: 'var(--ink-3)', fontSize: 11.5 }}>
+                          {t('shared.cat.choose')}
+                        </p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {expenseCats.map((c) => (
+                            <button
+                              key={c.id}
+                              data-file-as={c.id}
+                              onClick={() => {
+                                onMapCategory?.(u.key, c.id);
+                                setFiling(null);
+                              }}
+                              className="rounded-full active:scale-95 transition-transform"
+                              style={{
+                                padding: '5px 11px', fontSize: 12.5, fontWeight: 500,
+                                backgroundColor: 'var(--bg-inset)', color: 'var(--ink-2)',
+                                WebkitTapHighlightColor: 'transparent',
+                              }}
+                            >
+                              {c.name}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </>
+          )}
+        </div>
       </div>
     );
   }
@@ -1229,6 +1346,36 @@ export function Settings({
                   {t('shared.set.trackBalanceDesc')}
                 </p>
               </div>
+
+              {/* Her categories that have nowhere of mine to go. Only shown
+                  once there is something to decide - an empty list is a row
+                  that promises work and then reports none. */}
+              {unmappedCategories.length > 0 && (
+                <div className="px-6 mt-5">
+                  <div className="rounded-2xl shadow-sm overflow-hidden" style={{ backgroundColor: 'var(--bg-card)' }}>
+                    <button
+                      data-their-cats
+                      onClick={() => navTransition('forward', () => setShowTheirCats(true))}
+                      className="w-full flex items-center gap-3 px-4 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
+                      style={{ height: 52 }}
+                    >
+                      <RowIcon icon={Layers} tone={TILE.shared} />
+                      <span className="flex-1 text-left" style={{ color: 'var(--ink)', fontSize: 15 }}>
+                        {t('shared.cat.row', { name: partner?.name ?? '' })}
+                      </span>
+                      <span style={{ color: 'var(--accent-ink)', fontSize: 14, fontWeight: 600 }}>
+                        {t(unmappedCategories.length === 1 ? 'shared.cat.need.one' : 'shared.cat.need.other', {
+                          n: String(unmappedCategories.length),
+                        })}
+                      </span>
+                      <ChevronRight className="w-4 h-4" style={{ color: 'var(--ghost)' }} />
+                    </button>
+                  </div>
+                  <p style={{ color: 'var(--ink-2)', fontSize: 12.5, marginTop: 8, lineHeight: 1.45 }}>
+                    {t('shared.cat.hint', { name: partner?.name ?? '' })}
+                  </p>
+                </div>
+              )}
 
               {/* The account of the balance, which is where spec 7.6 asks for
                   settlement history. Only offered while a balance is being

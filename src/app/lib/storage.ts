@@ -80,6 +80,10 @@ const KEYS = {
   // flag, not data: never synced, never in a backup, and re-earned with the
   // code after an erase.
   devUnlocked: key('dev-unlocked'),
+  // Where each of THEIR categories should land in mine. A decision I made
+  // about my own filing, so it syncs and backs up with the rest of the data
+  // rather than living on one device.
+  sharedCatMap: key('shared-cat-map'),
 };
 
 /**
@@ -166,6 +170,9 @@ export const saveSharedRemovals = (rows: SharedRemoval[]) => write(KEYS.sharedRe
 
 export const loadTravelCountries = () => read<CountryVisit[]>(KEYS.travelCountries, []);
 export const saveTravelCountries = (rows: CountryVisit[]) => write(KEYS.travelCountries, rows);
+
+export const loadSharedCatMap = () => read<Record<string, string>>(KEYS.sharedCatMap, {});
+export const saveSharedCatMap = (map: Record<string, string>) => write(KEYS.sharedCatMap, map);
 
 export const loadDevUnlocked = () => getItem(KEYS.devUnlocked) === 'true';
 export const saveDevUnlocked = (on: boolean) => {

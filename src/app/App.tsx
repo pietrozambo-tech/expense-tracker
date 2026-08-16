@@ -40,6 +40,8 @@ import {
   saveSharedRemovals,
   loadTravelCountries,
   saveTravelCountries,
+  loadSharedCatMap,
+  saveSharedCatMap,
   loadTravelOverride,
   saveTravelOverride,
 } from './lib/storage';
@@ -51,7 +53,7 @@ import { myShareOf, newHousehold, partnerSource, partnerSourceId, selectableSour
 import { acceptCountry, currencyOfCountry, currentCountry, dismissCountry, homeCountry, observeCountry, travelSuggestion } from './lib/travel';
 import type { CountryVisit } from './lib/travel';
 import type { SharedNews } from './lib/shared';
-import { paidByPartner, pairingChange, planSync, sharedIdOf } from './lib/sharedSync';
+import { paidByPartner, pairingChange, planSync, sharedIdOf, unmappedCategories } from './lib/sharedSync';
 import {
   SCHEMA_MISSING,
   SCHEMA_OUTDATED,
@@ -315,6 +317,10 @@ export default function App() {
   // here because Settings reaches the same screen - the spec puts settlement
   // history there, and two copies of it would be two things to keep in step.
   const [showBalanceHistory, setShowBalanceHistory] = useState(false);
+  // Where each of their categories lands in mine. Synced with the rest of the
+  // data, unlike the device-local memories above: it is a decision about my
+  // own filing, and it should follow me to a new phone.
+  const [sharedCatMap, setSharedCatMap] = useState<Record<string, string>>(() => loadSharedCatMap());
   // A country forced from the hidden developer panel. Empty for everyone who
   // has not gone looking for it, and it feeds the SAME path as real detection
   // rather than a parallel one - a test rig that bypasses the code under test
@@ -474,6 +480,9 @@ export default function App() {
   useEffect(() => {
     saveTravelCountries(travelCountries);
   }, [travelCountries]);
+  useEffect(() => {
+    saveSharedCatMap(sharedCatMap);
+  }, [sharedCatMap]);
   // One observation per launch. Idempotent within a day, so a phone left open
   // over midnight simply records the new date the next time it wakes.
   useEffect(() => {
@@ -1225,6 +1234,10 @@ export default function App() {
   // every visit to the shared tab kick off a network sync.
   const sharedLastSeenRef = useRef<string>(sharedLastSeen);
   sharedLastSeenRef.current = sharedLastSeen;
+  // Mirrored for the same reason: choosing where one of her categories goes
+  // must not kick off a network sync.
+  const sharedCatMapRef = useRef<Record<string, string>>(sharedCatMap);
+  sharedCatMapRef.current = sharedCatMap;
   // Whether Postgres is pushing changes to us. False = poll harder.
   const [sharedLive, setSharedLive] = useState(false);
 
@@ -1326,7 +1339,8 @@ export default function App() {
       // effect that called us and spin forever.
       const rows = await fetchSharedItems(hid);
       const plan = planSync(expenses, rows, uid, hid, categories, other?.userId,
-        partner ? partnerSourceId(partner.id) : undefined, sharedLastSeenRef.current);
+        partner ? partnerSourceId(partner.id) : undefined, sharedLastSeenRef.current,
+        sharedCatMapRef.current);
       if (plan.push.length) await pushSharedItems(plan.push);
       if (plan.patch.length) await patchSharedItems(plan.patch);
       if (plan.changed) setExpenses(plan.transactions);
@@ -1662,6 +1676,39 @@ export default function App() {
     if (!travelHint) return;
     setTravelDismissed(true);
     setTravelCountries((prev) => dismissCountry(prev, travelHint.cc));
+  };
+
+  /**
+   * File one of their categories under one of mine, for good.
+   *
+   * Two effects, and the second is the one that makes it feel like a decision
+   * rather than a setting: the mapping is remembered for everything that
+   * arrives later, and every row already sitting in the catch-all because of
+   * that category moves now. Re-filing one row at a time was always possible;
+   * what was missing was doing it once.
+   */
+  /** Their categories with nowhere of mine to go, recomputed as either list
+   *  changes - see unmappedCategories for why it is derived, not flagged. */
+  const sharedUnmapped = useMemo(
+    () => (household && partner ? unmappedCategories(expenses, categories, sharedCatMap) : []),
+    [household, partner, expenses, categories, sharedCatMap],
+  );
+
+  const handleMapCategory = (key: string, categoryId: string) => {
+    const target = categories.find((c) => c.id === categoryId);
+    if (!target) return;
+    setSharedCatMap((prev) => ({ ...prev, [key]: categoryId }));
+    setExpenses((prev) =>
+      prev.map((e) =>
+        e.split?.theirCategory?.key === key
+          // updatedAt is deliberately NOT touched: this is my filing decision
+          // about her row, not an edit of her expense, and bumping the stamp
+          // would push it back at her as a change she did not make.
+          ? { ...e, category: target }
+          : e,
+      ),
+    );
+    toast.success(t('shared.cat.filed', { name: target.name }), { duration: 1800 });
   };
 
   const handleSettle = (amount: number) => {
@@ -3107,6 +3154,8 @@ export default function App() {
                 household={household}
                 partner={partner}
                 settlements={settlements}
+                unmappedCategories={sharedUnmapped}
+                onMapCategory={handleMapCategory}
                 onEnableShared={handleEnableShared}
                 onUpdateHousehold={handleUpdateHousehold}
                 onRenamePartner={handleRenamePartner}

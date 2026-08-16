@@ -50,7 +50,7 @@ const SCENARIOS = `
 import { homeAmount, mineAmount } from './utils/currency';
 import { byRecency, myShareOf, partnerSource, partnerSourceId, runningBalance, selectableSources, shareFraction } from './lib/shared';
 import { mergePayloads } from './lib/cloud';
-import { planSync, mapCategory, paidBy, paidByPartner, pairingChange, replicaId, sharedIdOf } from './lib/sharedSync';
+import { planSync, mapCategory, resolveCategory, unmappedCategories, paidBy, paidByPartner, pairingChange, replicaId, sharedIdOf } from './lib/sharedSync';
 import { newsBalanceDelta, newsShareDelta, sharedNews, unseenKind } from './lib/shared';
 import { balanceStory } from './lib/balanceStory';
 import { buildTransactionsCsv } from './lib/csv';
@@ -720,6 +720,73 @@ eq('story: splits from a former household are left out',
   balanceStory([...ledger, ...foreign], settled2, 'EUR', ['p1']).length, story.length);
 eq('story: nothing shared at all is an empty story',
   balanceStory([], [], 'EUR', ['p1']).length, 0);
+}
+
+
+// ── Her categories, and where they land ────────────────────────────────────
+// A category she invented has no id of mine to match, so it fell to the
+// catch-all and said nothing about it: the money was never lost, but "Others"
+// quietly became the biggest thing I spend on and no screen could explain why.
+{
+const mine = [
+  { id: 'groceries', name: 'Groceries', icon: 'ShoppingCart', type: 'expense' },
+  { id: 'sport', name: 'Sport', icon: 'Dumbbell', type: 'expense' },
+  { id: 'others', name: 'Others', icon: 'MoreHorizontal', type: 'expense' },
+];
+const hers = (key, icon) => ({
+  id: 's1', household_id: 'h1', author_id: 'them', payer_id: 'them',
+  date: '2026-08-09', description: 'x', amount: 10, currency: 'EUR',
+  base_amount: null, category_key: key, category_name: 'Palestra',
+  category_icon: icon ?? null, subcategory: null, author_share: 5,
+  updated_by: 'them', updated_at: '2026-08-09T10:00:00Z', deleted_at: null,
+});
+
+// The rungs, in order of certainty.
+eq('category: a shared seed id matches whatever it is called',
+  resolveCategory(hers('groceries', 'Anything'), mine).by, 'id');
+eq('category: my saved choice beats an icon guess',
+  resolveCategory(hers('cat-99', 'Dumbbell'), mine, { 'cat-99': 'groceries' }).category.id, 'groceries');
+eq('category: with no choice made, the icon is the best guess there is',
+  resolveCategory(hers('cat-99', 'Dumbbell'), mine).category.id, 'sport');
+eq('category: and with neither, the catch-all - so money is never lost',
+  resolveCategory(hers('cat-99', 'Rocket'), mine).by, 'fallback');
+
+// Her category rides along on the replica, which is what makes any of the
+// above answerable after the fact.
+const plan = planSync([], [hers('cat-99', 'Rocket')], 'me', 'h1', mine, 'them');
+const replica = plan.transactions[0];
+eq('replica: carries the category SHE used',
+  [replica.split.theirCategory.key, replica.split.theirCategory.name], ['cat-99', 'Palestra']);
+eq('replica: while displaying one of mine', replica.category.id, 'others');
+// My own rows have no "their category" - there is no one else's decision on
+// them to record.
+const own = planSync([], [{ ...hers('cat-99', 'Rocket'), author_id: 'me' }], 'me', 'h1', mine, 'them');
+eq('my own row records nobody else’s category', own.transactions[0].split.theirCategory, undefined);
+
+// And the list that offers to fix it. Only the catch-all rung counts: a row
+// her icon placed sensibly is not a question, and neither is one she genuinely
+// filed under Others - which look identical once they are both sitting there.
+const ledger = [
+  { id: 'a', amount: 10, currency: 'EUR', type: 'expense', date: '2026-08-01', description: 'a',
+    category: mine[2], split: { mine: 5, theirCategory: { key: 'cat-99', name: 'Palestra', icon: 'Rocket' } } },
+  { id: 'b', amount: 10, currency: 'EUR', type: 'expense', date: '2026-08-02', description: 'b',
+    category: mine[2], split: { mine: 5, theirCategory: { key: 'cat-99', name: 'Palestra', icon: 'Rocket' } } },
+  { id: 'c', amount: 10, currency: 'EUR', type: 'expense', date: '2026-08-03', description: 'c',
+    category: mine[1], split: { mine: 5, theirCategory: { key: 'cat-77', name: 'Palestra2', icon: 'Dumbbell' } } },
+  { id: 'd', amount: 10, currency: 'EUR', type: 'expense', date: '2026-08-04', description: 'd',
+    category: mine[2], split: { mine: 5, theirCategory: { key: 'others', name: 'Altro' } } },
+  { id: 'e', amount: 10, currency: 'EUR', type: 'expense', date: '2026-08-05', description: 'e',
+    category: mine[0], split: { mine: 5 } },
+];
+const needs = unmappedCategories(ledger, mine);
+eq('needs-you: only the ones that fell all the way through',
+  needs.map((u) => u.key), ['cat-99']);
+eq('needs-you: counted, so the worst offender sorts first', needs[0].count, 2);
+eq('needs-you: an icon match is not a question', needs.some((u) => u.key === 'cat-77'), false);
+eq('needs-you: nor is a category she really did file under Others',
+  needs.some((u) => u.key === 'others'), false);
+eq('needs-you: deciding one clears it from the list',
+  unmappedCategories(ledger, mine, { 'cat-99': 'sport' }).length, 0);
 }
 
 

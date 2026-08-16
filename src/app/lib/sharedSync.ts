@@ -129,24 +129,101 @@ function toRow(
   };
 }
 
+/** Her category id -> mine, as chosen once and remembered. */
+export type CategoryMap = Record<string, string>;
+
 /**
- * Where one of her items lands in MY categories.
+ * How one of her items resolves into MY categories, and by which rung.
  *
- * Exact id first: her starter categories carry the same ids as mine even in
- * another language. Then the lucide icon name, which is language-independent
- * too and is the best guess for a category she invented. Then a catch-all, so
- * money never goes missing from my totals while I decide.
+ * Four steps, most certain first:
+ *
+ *  - `id`: her starter categories carry the same seed ids as mine even in
+ *    another language, so 'groceries' finds 'groceries' whatever it is called.
+ *  - `saved`: a mapping I chose myself for a category she invented. Above the
+ *    icon guess deliberately - a decision beats an inference.
+ *  - `icon`: the lucide name, language-independent too, and the best guess
+ *    available for something nobody has filed yet.
+ *  - `fallback`: the catch-all, so money never goes missing from my totals
+ *    while I make up my mind.
+ *
+ * The rung is returned, not just the answer, because 'fallback' is the one
+ * that means "nobody has decided this" - which is exactly the list the Shared
+ * settings offers to fix, and the only way to tell a category she invented
+ * from one she deliberately filed under Others.
  */
-export function mapCategory(row: SharedItemRow, categories: Category[]): Category | null {
+export function resolveCategory(
+  row: SharedItemRow,
+  categories: Category[],
+  saved: CategoryMap = {},
+): { category: Category | null; by: 'id' | 'saved' | 'icon' | 'fallback' } {
   if (row.category_key) {
     const exact = categories.find((c) => c.id === row.category_key);
-    if (exact) return exact;
+    if (exact) return { category: exact, by: 'id' };
+    const chosen = saved[row.category_key];
+    if (chosen) {
+      const mine = categories.find((c) => c.id === chosen);
+      if (mine) return { category: mine, by: 'saved' };
+    }
   }
   if (row.category_icon) {
     const byIcon = categories.find((c) => c.icon === row.category_icon);
-    if (byIcon) return byIcon;
+    if (byIcon) return { category: byIcon, by: 'icon' };
   }
-  return categories.find((c) => c.id === 'others') ?? categories[0] ?? null;
+  return { category: categories.find((c) => c.id === 'others') ?? categories[0] ?? null, by: 'fallback' };
+}
+
+/** Just the answer, for callers that do not care how it was reached. */
+export function mapCategory(
+  row: SharedItemRow,
+  categories: Category[],
+  saved: CategoryMap = {},
+): Category | null {
+  return resolveCategory(row, categories, saved).category;
+}
+
+/** One of her categories that has nowhere of mine to go. */
+export interface UnmappedCategory {
+  /** Her category id, which is what a mapping is keyed on. */
+  key: string;
+  /** Her name for it, to show in the list. */
+  name: string;
+  icon?: string;
+  /** How many of her expenses are sitting in my catch-all because of it. */
+  count: number;
+}
+
+/**
+ * Her categories that landed in my catch-all, worst first.
+ *
+ * Derived rather than flagged at sync time: the answer depends on MY category
+ * list and MY saved mappings, both of which change after the row arrived, so a
+ * flag written once would be stale the moment I added a category that suits it.
+ *
+ * Only the fallback rung counts. A row her icon placed sensibly is not a
+ * question, and neither is one she genuinely filed under Others - which is
+ * exactly the distinction `theirCategory` exists to preserve, since both look
+ * identical once the row is sitting in my catch-all.
+ */
+export function unmappedCategories(
+  transactions: Transaction[],
+  categories: Category[],
+  saved: CategoryMap = {},
+): UnmappedCategory[] {
+  const found = new Map<string, UnmappedCategory>();
+  for (const t of transactions) {
+    const theirs = t.split?.theirCategory;
+    if (!theirs) continue;
+    const { by } = resolveCategory(
+      { category_key: theirs.key, category_icon: theirs.icon ?? null } as SharedItemRow,
+      categories,
+      saved,
+    );
+    if (by !== 'fallback') continue;
+    const seen = found.get(theirs.key);
+    if (seen) seen.count += 1;
+    else found.set(theirs.key, { key: theirs.key, name: theirs.name, icon: theirs.icon, count: 1 });
+  }
+  return [...found.values()].sort((a, b) => b.count - a.count);
 }
 
 export interface IncomingChange {
@@ -244,6 +321,8 @@ function toTransaction(
   partnerSourceId?: string,
   /** The instant the shared view was last opened, for the `was` baseline. */
   lastSeen = '',
+  /** Her categories, as I have filed them. */
+  saved: CategoryMap = {},
 ): Transaction {
   const authorIsMe = row.author_id === myUserId;
   // Two people: whatever is not the author's half is the other's. Clamped, so
@@ -257,7 +336,7 @@ function toTransaction(
     amount: Number(row.amount),
     // A category I already chose for this row is mine to keep: re-mapping on
     // every pull would undo a deliberate re-filing on the next sync.
-    category: (prior?.category ?? mapCategory(row, categories)) as Category,
+    category: (prior?.category ?? mapCategory(row, categories, saved)) as Category,
     subcategory: row.subcategory ?? undefined,
     date: row.date,
     type: 'expense',
@@ -278,6 +357,22 @@ function toTransaction(
     split: {
       mine,
       paidByThem: row.payer_id !== myUserId,
+      // Her own category, kept on my copy of the row.
+      //
+      // Not for display - the row shows MY category, which is the whole point
+      // of mapping - but because without it nothing on this device can tell
+      // that "Others" was a guess rather than her decision, or which of her
+      // categories a re-filing should apply to next time. The name and icon
+      // ride along so the settings list can show what it is offering to map.
+      ...(!authorIsMe && row.category_key
+        ? {
+            theirCategory: {
+              key: row.category_key,
+              name: row.category_name ?? row.category_key,
+              ...(row.category_icon ? { icon: row.category_icon } : {}),
+            },
+          }
+        : {}),
       // Both are omitted rather than written as undefined: planSync compares
       // the produced row against the held one with JSON.stringify to decide
       // whether anything changed, and an explicit `undefined` key is not the
@@ -327,6 +422,8 @@ export function planSync(
   /** When the shared view was last opened. Only used as the baseline for the
    *  `was` snapshots; nothing about WHAT syncs depends on it. */
   lastSeen = '',
+  /** Her categories, as I have filed them - see resolveCategory. */
+  saved: CategoryMap = {},
 ): SyncPlan {
   const stamp = new Date().toISOString();
   const byId = new Map(remote.map((r) => [r.id, r]));
@@ -372,7 +469,7 @@ export function planSync(
       }
     } else if (at(r.updated_at) > localStamp) {
       // The server holds the newer statement: take it.
-      const next = toTransaction(r, myUserId, categories, t, partnerSourceId, lastSeen);
+      const next = toTransaction(r, myUserId, categories, t, partnerSourceId, lastSeen, saved);
       if (JSON.stringify(next) !== JSON.stringify(t)) {
         changed = true;
         if (r.updated_by && r.updated_by !== myUserId) {
@@ -395,7 +492,7 @@ export function planSync(
   // Rows this device has never seen.
   for (const r of remote) {
     if (seen.has(r.id) || r.deleted_at) continue;
-    const fresh = toTransaction(r, myUserId, categories, undefined, partnerSourceId, lastSeen);
+    const fresh = toTransaction(r, myUserId, categories, undefined, partnerSourceId, lastSeen, saved);
     out.push(fresh);
     changed = true;
     if (r.author_id !== myUserId) {

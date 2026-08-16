@@ -597,6 +597,10 @@ so nobody has to re-derive it by reading both.
   rather than filtered out of it, and the running figure carried beside every
   row. Reached from the balance card - where the question occurs to somebody -
   and from Settings › Shared, which is where the spec files it.
+- §4.2 step 2: her category rides along on the replica, a saved mapping sits
+  between the seed-id match and the icon guess, and Settings › Shared raises
+  the ones that fell all the way through. Choosing a home files every expense
+  already stuck behind that category, not just the ones still to come.
 - Settling in **both** directions. The record was always signed and
   `handleSettle` always swapped `from`/`to` for a negative; only the button was
   conditioned on them owing you, so a balance in their favour was a number you
@@ -630,7 +634,6 @@ so nobody has to re-derive it by reading both.
 |---|---|---|
 | §5.2 | *This entry*, *the recurring rule* and *the category* decide; the **source** rung does not exist. | Case C (joint card overrides a personal category) cannot happen. |
 | §5.5 | No joint-card Source with a paired-avatar tile. | Follows from the above; sharing is category- or entry-driven only. |
-| §4.2 step 2 | No saved mapping for her custom categories, and no "needs you" list. | Her invented categories land in the catch-all silently. |
 | §6.3 adjustments | Settlements now record what they retired, but a correction to an item from *before* one still posts no adjustment line. | The *number* stays right; that one *explanation* is still missing. |
 | §11 | Households are hard-capped at two, in the database. | As specced for v1. |
 

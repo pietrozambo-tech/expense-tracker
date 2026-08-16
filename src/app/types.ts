@@ -252,6 +252,17 @@ export interface Transaction {
      * rather than against the intermediate you never did.
      */
     was?: { amount: number; mine: number; at: string };
+    /**
+     * The category the OTHER member filed this under, on their side.
+     *
+     * Present only on replicas. The row displays MY category - that is what
+     * mapping is for - and this is the record of where it came from, without
+     * which nothing can tell a category she invented (and that fell into my
+     * catch-all) from one she deliberately filed under Others. It is also what
+     * a re-filing keys on, so choosing a home for "Palestra" once moves every
+     * row she ever filed there.
+     */
+    theirCategory?: { key: string; name: string; icon?: string };
   };
   /** Set on a REPLICA of the other member's shared expense: the id of the
    *  shared_items row it mirrors. Its presence means they paid, not you -
