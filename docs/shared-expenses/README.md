@@ -592,6 +592,11 @@ so nobody has to re-derive it by reading both.
   Deletions are the one kind held in their own short-lived store, because they
   take away the row that would otherwise carry the mark. Tier 3 (push) remains
   a separate post-launch project.
+- §7.5 and §7.6 as one screen: a Balance history, all-time and month-grouped,
+  with each month stating what it did on balance, settlements in the stream
+  rather than filtered out of it, and the running figure carried beside every
+  row. Reached from the balance card - where the question occurs to somebody -
+  and from Settings › Shared, which is where the spec files it.
 - Settling in **both** directions. The record was always signed and
   `handleSettle` always swapped `from`/`to` for a negative; only the button was
   conditioned on them owing you, so a balance in their favour was a number you
@@ -626,8 +631,7 @@ so nobody has to re-derive it by reading both.
 | §5.2 | *This entry*, *the recurring rule* and *the category* decide; the **source** rung does not exist. | Case C (joint card overrides a personal category) cannot happen. |
 | §5.5 | No joint-card Source with a paired-avatar tile. | Follows from the above; sharing is category- or entry-driven only. |
 | §4.2 step 2 | No saved mapping for her custom categories, and no "needs you" list. | Her invented categories land in the catch-all silently. |
-| §6.3 | Settlements are not checkpoints. A correction to an item from before a settlement moves the running balance with no adjustment line. | The *number* stays right; the *explanation* is missing. |
-| §7.5 | The item list is period-scoped, not month-grouped with per-month balance deltas, and it is reached from the category card rather than the balance card. | No reading of how the balance got where it is. |
+| §6.3 adjustments | Settlements now record what they retired, but a correction to an item from *before* one still posts no adjustment line. | The *number* stays right; that one *explanation* is still missing. |
 | §11 | Households are hard-capped at two, in the database. | As specced for v1. |
 
 ### Known issues, not yet decided
@@ -644,8 +648,8 @@ so nobody has to re-derive it by reading both.
   Every consumer - the balance, the hero's two columns, the item list, the CSV -
   goes through one `paidByPartner()` helper. With nothing said the author paid,
   so every row written before this reads exactly as it did.
-- **Settlement history** appears only in the whole-period item sheet. There is no
-  standalone list, and none in Settings (§7.6 asks for one).
+- ~~**Settlement history** appears only in the whole-period item sheet.~~
+  **Fixed.** See the Balance history above.
 
 ---
 

@@ -124,6 +124,17 @@ export interface Settlement {
   /** Positive: they paid you. Negative: you paid them. In the home currency
    *  at the time it was recorded. */
   amount: number;
+  /**
+   * The balance this settlement was recorded against.
+   *
+   * Redundant while settling always clears the whole balance - it equals
+   * `amount` - and kept anyway, because it is the only record of what was true
+   * at the time. Correct an expense from BEFORE a settlement and replaying the
+   * ledger gives a different figure than the one both people agreed on that
+   * evening; without this, nothing on the device can tell that the two ever
+   * differed. Absent on settlements recorded before it existed.
+   */
+  balanceAt?: number;
   updatedAt?: string;
 }
 

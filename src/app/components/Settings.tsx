@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react';
-import { ChevronRight, ChevronLeft, Wrench, UserCircle, Wallet, HelpCircle, ShieldCheck, ScrollText, Layers, FlaskConical, Trash2, Landmark, Cloud, LogOut, Upload, Copy, Download, FileSpreadsheet, Palmtree, UserX, Mail, LifeBuoy, CheckCircle2, Globe, CalendarClock, Sparkles, Palette, Sun, Moon, SunMoon, Split, Plus, Eraser } from 'lucide-react';
+import { ChevronRight, ChevronLeft, Wrench, ArrowLeftRight, UserCircle, Wallet, HelpCircle, ShieldCheck, ScrollText, Layers, FlaskConical, Trash2, Landmark, Cloud, LogOut, Upload, Copy, Download, FileSpreadsheet, Palmtree, UserX, Mail, LifeBuoy, CheckCircle2, Globe, CalendarClock, Sparkles, Palette, Sun, Moon, SunMoon, Split, Plus, Eraser } from 'lucide-react';
 import { getCategoryIcon } from './categoryIcons';
 import { sendSupportMessage, supportLimitReached } from '../lib/support';
 import { switchGlow } from './categoryColors';
@@ -23,6 +23,7 @@ import type { RecurringRule } from '../types';
 import { SourcesManager } from './SourcesManager';
 import { TracklyLogo } from './TracklyLogo';
 import { ConfirmDialog } from './ConfirmDialog';
+import { BalanceHistory } from './BalanceHistory';
 import { CURRENCIES, MAIN_CURRENCY_CODES } from '../utils/currency';
 import { KNOWN_COUNTRIES, currencyOfCountry } from '../lib/travel';
 import { CurrencySearchList } from './CurrencySearchList';
@@ -186,6 +187,8 @@ interface SettingsProps {
   // Shared expenses. household === null means off, and turning it off must
   // leave every other screen exactly as it was.
   household?: import('../types').Household | null;
+  /** For the balance history reached from the Shared screen (spec 7.6). */
+  settlements?: import('../types').Settlement[];
   partner?: import('../types').Person | null;
   onEnableShared?: (name: string) => void;
   onUpdateHousehold?: (patch: Partial<import('../types').Household>) => void;
@@ -260,6 +263,7 @@ interface SettingsProps {
 
 export function Settings({
   devDiag,
+  settlements = [],
   categories,
   incomeCategories,
   weekStartsOn = 1,
@@ -350,6 +354,7 @@ export function Settings({
   // phone with no cable and no console, which is the whole situation it exists
   // for.
   const [showDev, setShowDev] = useState(false);
+  const [showBalance, setShowBalance] = useState(false);
   const [devAsking, setDevAsking] = useState(false);
   const [devCode, setDevCode] = useState('');
   const [devUnlocked, setDevUnlocked] = useState(() => loadDevUnlocked());
@@ -676,6 +681,24 @@ export function Settings({
             };
 
   // Shared expenses setup. Setup ONLY - the balance and the household view
+  // The balance's account, as a Settings sub-page. Spec 7.6 puts settlement
+  // history here; the same screen also opens from the shared view's balance
+  // card, which is where the question usually occurs to somebody.
+  if (showBalance && household && partner) {
+    return (
+      <div style={SUBPAGE_STYLE}>
+        <BalanceHistory
+          transactions={transactions ?? []}
+          settlements={settlements}
+          memberIds={household.memberIds}
+          currency={userCurrency}
+          partner={partner}
+          onClose={() => setShowBalance(false)}
+        />
+      </div>
+    );
+  }
+
   // Everything a developer needs on a device with no console attached.
   //
   // It exists because of a specific failure mode: the travel nudge renders
@@ -1206,6 +1229,31 @@ export function Settings({
                   {t('shared.set.trackBalanceDesc')}
                 </p>
               </div>
+
+              {/* The account of the balance, which is where spec 7.6 asks for
+                  settlement history. Only offered while a balance is being
+                  kept: with tracking off there is no story to tell. */}
+              {household.trackBalance && (
+                <div className="px-6 mt-5">
+                  <div className="rounded-2xl shadow-sm overflow-hidden" style={{ backgroundColor: 'var(--bg-card)' }}>
+                    <button
+                      data-balance-history
+                      onClick={() => navTransition('forward', () => setShowBalance(true))}
+                      className="w-full flex items-center gap-3 px-4 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
+                      style={{ height: 52 }}
+                    >
+                      <RowIcon icon={ArrowLeftRight} tone={TILE.shared} />
+                      <span className="flex-1 text-left" style={{ color: 'var(--ink)', fontSize: 15 }}>
+                        {t('shared.set.history')}
+                      </span>
+                      <ChevronRight className="w-4 h-4" style={{ color: 'var(--ghost)' }} />
+                    </button>
+                  </div>
+                  <p style={{ color: 'var(--ink-2)', fontSize: 12.5, marginTop: 8, lineHeight: 1.45 }}>
+                    {t('shared.set.historyHint')}
+                  </p>
+                </div>
+              )}
 
               <div className="px-6 mt-5">
                 <div className="rounded-2xl shadow-sm overflow-hidden" style={{ backgroundColor: 'var(--bg-card)' }}>

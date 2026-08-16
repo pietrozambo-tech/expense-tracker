@@ -195,6 +195,9 @@ interface DashboardProps {
   /** Entering the shared view IS reading the news, so App is told - it stamps
    *  the clock and takes the snapshot. */
   onSharedModeChange?: (on: boolean) => void;
+  /** Open the balance's account. Owned by the parent so the same screen can be
+   *  reached from Settings, which is where the spec puts settlement history. */
+  onOpenBalanceHistory?: () => void;
 }
 
 // The header's way between the personal and household lenses. One avatar -
@@ -442,7 +445,7 @@ function StatChip({ label, value, tone }: { label: React.ReactNode; value: strin
 // starting from it means the first render already draws at the right scale.
 let lastChartWidth = 0;
 
-export function Dashboard({ expenses, categories, incomeCategories, sources = [], userName, currency, onEditExpense, onDeleteExpense, view = 'overview', onShowOverview, initialPeriod, viewStateRef, trendStateRef, monthlyBudget, budgetNudgeDismissed, insightsEnabled = true, onDisableInsights, onModalOpenChange, onSetMonthlyBudget, onDismissBudgetNudge, onAddFirstExpense, onLoadDemoData, weekStartsOn = 1, recurringRules = [], onManageRecurring, household = null, partner = null, settlements = [], onSettle, sharedNewsCount = 0, sharedNews = null, onSharedModeChange }: DashboardProps) {
+export function Dashboard({ expenses, categories, incomeCategories, sources = [], userName, currency, onEditExpense, onDeleteExpense, view = 'overview', onShowOverview, initialPeriod, viewStateRef, trendStateRef, monthlyBudget, budgetNudgeDismissed, insightsEnabled = true, onDisableInsights, onModalOpenChange, onSetMonthlyBudget, onDismissBudgetNudge, onAddFirstExpense, onLoadDemoData, weekStartsOn = 1, recurringRules = [], onManageRecurring, household = null, partner = null, settlements = [], onSettle, sharedNewsCount = 0, sharedNews = null, onSharedModeChange, onOpenBalanceHistory }: DashboardProps) {
   // Restore the previous view (period + drilldown) unless a Trend->Overview
   // link supplied an explicit period - that must win and start clean.
   // Subscribing here does two jobs: it re-renders the Dashboard the instant the
@@ -2378,6 +2381,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
           currency={currency}
           userName={userName ?? ''}
           onSettle={(amount) => onSettle?.(amount)}
+          onOpenHistory={() => onOpenBalanceHistory?.()}
           news={sharedNews}
           period={{ type: timePeriodType, year: selectedYear, month: selectedMonth, quarter: selectedQuarter }}
           periodLabel={getPeriodDisplayName()}

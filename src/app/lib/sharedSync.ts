@@ -421,6 +421,20 @@ export function planSync(
  *
  * Deliberately not month-scoped: a debt does not reset on the 1st.
  */
+/**
+ * Is this split one of THIS household's?
+ *
+ * Unstamped rows count in: they predate per-household attribution, and the
+ * backfill in App.tsx claims them for the household in hand. Exported so the
+ * balance and anything that explains the balance apply one rule - two copies
+ * of this test is how a total and its own breakdown come to disagree.
+ */
+export function belongsToHousehold(t: Transaction, memberIds: string[]): boolean {
+  const ids = t.split?.withIds;
+  if (!ids || ids.length === 0) return true;
+  return ids.some((id) => memberIds.includes(id));
+}
+
 export function balanceFrom(
   transactions: Transaction[],
   settlements: Settlement[],
@@ -440,11 +454,7 @@ export function balanceFrom(
   // Unstamped rows are counted in: they predate per-household attribution, and
   // the backfill in App.tsx claims them for the household in hand. This only
   // covers the instant before that runs.
-  const ofThisHousehold = (t: Transaction) => {
-    const ids = t.split?.withIds;
-    if (!ids || ids.length === 0) return true;
-    return ids.some((id) => memberIds.includes(id));
-  };
+  const ofThisHousehold = (t: Transaction) => belongsToHousehold(t, memberIds);
   const fronted = transactions.reduce((sum, t) => {
     if (!t.split || t.type === 'income' || !ofThisHousehold(t)) return sum;
     const owedOnIt = homeValue(t) - shareValue(t);

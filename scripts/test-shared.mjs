@@ -52,6 +52,7 @@ import { byRecency, myShareOf, partnerSource, partnerSourceId, runningBalance, s
 import { mergePayloads } from './lib/cloud';
 import { planSync, mapCategory, paidBy, paidByPartner, pairingChange, replicaId, sharedIdOf } from './lib/sharedSync';
 import { newsBalanceDelta, newsShareDelta, sharedNews, unseenKind } from './lib/shared';
+import { balanceStory } from './lib/balanceStory';
 import { buildTransactionsCsv } from './lib/csv';
 
 let failed = 0;
@@ -669,6 +670,59 @@ eq('news: added, edited and removed are counted together',
 
 }
 
+// ── The balance, as a story ────────────────────────────────────────────────
+// A running figure beside every row is a third statement of the same rule the
+// balance already computes twice. The guard is that the last one must equal a
+// full runningBalance() run over the same data - if the account of how the
+// number got there disagrees with the number, the account is the thing people
+// will believe.
+{
+const shared2 = (id, date, amount, mine, theyPaid) => ({
+  id, date, amount, currency: 'EUR', type: 'expense', description: id,
+  category: { id: 'groceries', name: 'G', icon: 'ShoppingCart' },
+  split: { mine, paidByThem: !!theyPaid },
+});
+const ledger = [
+  shared2('a', '2026-06-04', 100, 50),          // you fronted: +50
+  shared2('b', '2026-06-20', 40, 20, true),     // she fronted: -20
+  shared2('c', '2026-07-11', 60, 30),           // +30
+  shared2('d', '2026-08-02', 200, 100, true),   // -100
+];
+const settled2 = [
+  { id: 's1', personId: 'p1', date: '2026-06-30', amount: 30, balanceAt: 30 },
+];
+const story = balanceStory(ledger, settled2, 'EUR', ['p1']);
+
+eq('story: months come back newest first',
+  story.map((m) => m.key), ['2026-08', '2026-07', '2026-06']);
+// June: +50 -20 -30(settled) = 0
+eq('story: a month states what it did on balance', story[2].delta, 0);
+eq('story: and is marked where a settlement cut it', story[2].settled, true);
+eq('story: a month with no settlement is not marked', story[1].settled, false);
+// The whole point: the last running figure IS the balance.
+eq('story: the running total ends where the balance is',
+  story[0].entries[0].running,
+  runningBalance(ledger, settled2, 'EUR', ['p1']));
+// Newest first inside a month too, matching every other list in the app.
+eq('story: entries read newest first', story[2].entries.map((e) => e.id), ['s1', 'b', 'a']);
+// A settlement moves the balance the OPPOSITE way to its own sign: paying you
+// 30 brings a +30 balance down to zero.
+eq('story: a settlement retires rather than adds', story[2].entries[0].delta, -30);
+eq('story: and carries what it was recorded against', story[2].entries[0].balanceAt, 30);
+// The arithmetic each row has to be able to state.
+eq('story: an expense you fronted carries its full figure and your share',
+  [story[2].entries[2].full, story[2].entries[2].mine, story[2].entries[2].delta], [100, 50, 50]);
+eq('story: one they fronted moves it by YOUR share, the other way',
+  [story[2].entries[1].full, story[2].entries[1].mine, story[2].entries[1].delta], [40, 20, -20]);
+// Another household's rows are not this household's story.
+const foreign = [{ ...shared2('x', '2026-08-09', 80, 40), split: { mine: 40, withIds: ['p9'] } }];
+eq('story: splits from a former household are left out',
+  balanceStory([...ledger, ...foreign], settled2, 'EUR', ['p1']).length, story.length);
+eq('story: nothing shared at all is an empty story',
+  balanceStory([], [], 'EUR', ['p1']).length, 0);
+}
+
+
 if (failed) { console.error(\`\${failed} scenario(s) failed\`); process.exit(1); }
 console.log('all shared scenarios passed');
 `;
@@ -679,7 +733,7 @@ try {
   mkdirSync(join(tmp, 'utils'));
   mkdirSync(join(tmp, 'i18n'));
   copyFileSync(join(root, 'src/app/types.ts'), join(tmp, 'types.ts'));
-  for (const f of ['shared.ts', 'sharedSync.ts', 'cloud.ts', 'csv.ts', 'fx.ts', 'currencyData.ts', 'supabase.ts']) {
+  for (const f of ['shared.ts', 'sharedSync.ts', 'balanceStory.ts', 'cloud.ts', 'csv.ts', 'fx.ts', 'currencyData.ts', 'supabase.ts']) {
     copyFileSync(join(root, 'src/app/lib', f), join(tmp, 'lib', f));
   }
   copyFileSync(join(root, 'src/app/utils/currency.ts'), join(tmp, 'utils/currency.ts'));

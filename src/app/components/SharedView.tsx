@@ -61,6 +61,9 @@ export interface SharedViewProps {
   userName: string;
   /** Record a settlement of the current balance. */
   onSettle: (amount: number) => void;
+  /** Open the account of how the balance got here. Tapping the number is the
+   *  obvious way to ask, and until now it did nothing. */
+  onOpenHistory: () => void;
   /**
    * What they changed while you were away, frozen by App on the way in.
    *
@@ -97,6 +100,7 @@ export function SharedView({
   currency,
   userName,
   onSettle,
+  onOpenHistory,
   news = null,
   period,
   periodLabel,
@@ -609,7 +613,12 @@ export function SharedView({
           style={{ backgroundColor: 'var(--bg-card)', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}
         >
           <div className="flex items-center gap-3">
-            <div className="flex-1 min-w-0">
+            <button
+              onClick={onOpenHistory}
+              aria-label={t('bal.title')}
+              className="flex-1 min-w-0 text-left active:opacity-60 transition-opacity"
+              style={{ WebkitTapHighlightColor: 'transparent' }}
+            >
               <div className="flex items-baseline gap-2 flex-wrap">
                 <span style={{ color: 'var(--ink-2)', fontSize: 13 }}>
                   {Math.abs(owed) < 0.005
@@ -631,7 +640,7 @@ export function SharedView({
                     : t('shared.balance.dinnerYou')
                   : t('shared.running')}
               </div>
-            </div>
+            </button>
             {/* Either direction. The button used to appear only when they owed
                 YOU, which left the other half of the feature with a number and
                 no way to act on it: the app told you that you owed 84€ and

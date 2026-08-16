@@ -76,6 +76,7 @@ import { buildTransactionsCsv, downloadTransactionsCsv } from './lib/csv';
 import { buildDescriptionSuggestions, type DescriptionSuggestion } from './lib/suggestions';
 import { Activity } from './components/Activity';
 import { AmountInput } from './components/AmountInput';
+import { BalanceHistory } from './components/BalanceHistory';
 import { DateInput } from './components/DateInput';
 import { CategorySelector } from './components/CategorySelector';
 import { SaveButton } from './components/SaveButton';
@@ -310,6 +311,10 @@ export default function App() {
   // of the user's whereabouts, so it never syncs and never enters a backup.
   const [travelCountries, setTravelCountries] = useState<CountryVisit[]>(() => loadTravelCountries());
   const [travelDismissed, setTravelDismissed] = useState(false);
+  // The balance's account, opened from the shared view's balance card. Owned
+  // here because Settings reaches the same screen - the spec puts settlement
+  // history there, and two copies of it would be two things to keep in step.
+  const [showBalanceHistory, setShowBalanceHistory] = useState(false);
   // A country forced from the hidden developer panel. Empty for everyone who
   // has not gone looking for it, and it feeds the SAME path as real detection
   // rather than a parallel one - a test rig that bypasses the code under test
@@ -538,6 +543,14 @@ export default function App() {
   // transaction but not leaving the tab. Editing routes through 'add' and comes straight back, so 'add' is not
   // a departure - landing on any other tab is, and drops the snapshot so the
   // next visit starts unfiltered.
+  // Leaving the tab closes the balance history. It is a layer over the
+  // Dashboard rather than a tab of its own, so without this it stayed mounted
+  // on top of whatever you switched to - the dock took you to Settings and the
+  // history was still covering it.
+  useEffect(() => {
+    if (currentTab !== 'dashboard') setShowBalanceHistory(false);
+  }, [currentTab]);
+
   useEffect(() => {
     if (currentTab !== 'activity' && currentTab !== 'add') activityViewRef.current = null;
     // Same rule for Trend: a deliberate tab change resets it to Expense, an
@@ -1659,7 +1672,11 @@ export default function App() {
     const value = Math.round(amount * 100) / 100;
     setSettlements((prev) => [
       ...prev,
-      { id, personId: partner.id, date: dateStr, amount: value, updatedAt: new Date().toISOString() },
+      // balanceAt records what was outstanding at this moment. It equals the
+      // amount today, since settling clears the whole balance - but it is the
+      // only witness to what both of you agreed on, and a later correction to
+      // an older expense would otherwise rewrite that silently.
+      { id, personId: partner.id, date: dateStr, amount: value, balanceAt: value, updatedAt: new Date().toISOString() },
     ]);
     // Push it so her device sees the balance close too. Fire and forget: the
     // local record already stands, and the next sync re-pushes if this failed.
@@ -3008,6 +3025,7 @@ export default function App() {
                 partner={partner}
                 settlements={settlements}
                 onSettle={handleSettle}
+                onOpenBalanceHistory={() => setShowBalanceHistory(true)}
                 sharedNewsCount={sharedNewsLive?.count ?? 0}
                 sharedNews={sharedNewsShown}
                 onSharedModeChange={handleSharedModeChange}
@@ -3088,6 +3106,7 @@ export default function App() {
                 recurringRules={recurringRules}
                 household={household}
                 partner={partner}
+                settlements={settlements}
                 onEnableShared={handleEnableShared}
                 onUpdateHousehold={handleUpdateHousehold}
                 onRenamePartner={handleRenamePartner}
@@ -3327,6 +3346,33 @@ export default function App() {
             </div>
           </>,
           document.body,
+        )}
+
+        {/* How the balance got here. A layer rather than a swap, so the
+            Dashboard keeps its state underneath and closing this returns you
+            to the shared view you were reading, not the personal one. */}
+        {showBalanceHistory && household && partner && (
+          <div
+            // z-20 keeps it UNDER the dock (z-40), unlike the Add sheet: this
+            // is a drill-down, not a modal, and covering the dock left no way
+            // out but the back chevron - the tab bar is how people leave a
+            // screen they wandered into. Its scroller pays the dock clearance
+            // instead, the way every Settings sub-page does.
+            className="fixed inset-0 z-20 flex flex-col max-w-[430px] mx-auto overflow-hidden"
+            style={{ backgroundColor: 'var(--bg-page)' }}
+          >
+            <div className="app-top-inset flex-shrink-0" style={{ backgroundColor: 'var(--bg-page)' }} />
+            <div className="flex-1 min-h-0">
+              <BalanceHistory
+                transactions={expenses}
+                settlements={settlements}
+                memberIds={household.memberIds}
+                currency={userCurrency}
+                partner={partner}
+                onClose={() => setShowBalanceHistory(false)}
+              />
+            </div>
+          </div>
         )}
 
         {/* Full Screen Add Expense Modal */}
