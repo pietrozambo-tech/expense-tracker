@@ -554,7 +554,10 @@ eq('csv: unshared amount is untouched', cell(2, 'Amount (EUR)'), '-12.00');
 
 const SEEN = '2026-08-10T12:00:00.000Z';
 const shared = (over) => Object.assign({
-  id: 't1', description: 'Conad', amount: 130, currency: 'EUR', type: 'expense',
+  // fromShared is what makes this THEIR row. Without it these fixtures said
+  // "a row I authored that they edited" while asserting it read as new, which
+  // is the bug they were meant to guard against.
+  id: 't1', fromShared: 's1', description: 'Conad', amount: 130, currency: 'EUR', type: 'expense',
   date: '2026-08-09', category: { id: 'groceries', name: 'Spesa', icon: 'ShoppingCart' },
   createdAt: '2026-08-01T09:00:00.000Z', updatedAt: '2026-08-12T09:00:00.000Z',
   split: { mine: 65, paidByThem: true, updatedBy: 'them' },
@@ -633,7 +636,7 @@ eq('removed: the tombstone carries your share, the day and who paid',
 // same arithmetic runningBalance uses. Two statements of one rule drift, so
 // the guard is that they must agree on a ledger that exercises all three
 // kinds at once.
-const addedTxn = { id: 'a1', description: 'Bar', amount: 40, currency: 'EUR', type: 'expense',
+const addedTxn = { id: 'a1', fromShared: 'sa1', description: 'Bar', amount: 40, currency: 'EUR', type: 'expense',
   date: '2026-08-13', category: cats[0],
   createdAt: '2026-08-13T18:00:00.000Z', updatedAt: '2026-08-13T18:00:00.000Z',
   split: { mine: 20, paidByThem: true, updatedBy: 'them' } };
@@ -787,6 +790,61 @@ eq('needs-you: nor is a category she really did file under Others',
   needs.some((u) => u.key === 'others'), false);
 eq('needs-you: deciding one clears it from the list',
   unmappedCategories(ledger, mine, { 'cat-99': 'sport' }).length, 0);
+}
+
+
+// ── Whose row was it, and what did they do to it ───────────────────────────
+// Reported from two real phones: user 2 corrected an expense user 1 had
+// entered, and user 1 was told user 2 had ADDED one - with no before/after and
+// the whole amount counted into the month rather than the difference.
+{
+const cats2 = [{ id: 'food', name: 'Food', icon: 'Utensils' }];
+const SEEN2 = '2026-08-15T09:00:00.000Z';
+const I_ADDED = '2026-08-16T10:00:00.000Z';   // after my last look: I typed it and stayed put
+const THEY_EDITED = '2026-08-16T11:00:00.000Z';
+
+const myRow = {
+  id: 'x1', description: 'Conad', amount: 100, currency: 'EUR', type: 'expense',
+  date: '2026-08-16', category: cats2[0], createdAt: I_ADDED, updatedAt: I_ADDED,
+  split: { mine: 50, withIds: ['p1'] },
+};
+const theirEditOfMine = [{
+  id: 'x1', household_id: 'h1', author_id: 'me', payer_id: 'me',
+  date: '2026-08-16', description: 'Conad', amount: 130, currency: 'EUR',
+  base_amount: null, category_key: 'food', category_name: 'Food',
+  category_icon: 'Utensils', subcategory: null, author_share: 65,
+  updated_by: 'them', updated_at: THEY_EDITED, deleted_at: null,
+}];
+
+const afterEdit2 = planSync([myRow], theirEditOfMine, 'me', 'h1', cats2, 'them', undefined, SEEN2)
+  .transactions.find((t) => t.id === 'x1');
+
+// The report, in one line. Authorship decides this, not arrival time: they
+// cannot have ADDED a row I wrote, however recently I wrote it.
+eq('their correction of MY row is an edit, not an addition',
+  unseenKind(afterEdit2, SEEN2, 'me'), 'edited');
+eq('and the figure it replaced was captured all along',
+  afterEdit2.split.was, { amount: 100, mine: 50, at: I_ADDED });
+
+// Which means the summary reports the DIFFERENCE, not the whole expense - the
+// third thing the misfiling broke, and the one nobody would have noticed.
+const news2 = sharedNews([afterEdit2], [], SEEN2, 'me');
+eq('the summary counts what changed, not what the expense costs',
+  newsShareDelta(news2, 'EUR', () => true), 15);
+eq('and the balance moves by the same difference',
+  newsBalanceDelta(news2, 'EUR'), 15);
+
+// A row THEY authored and I have never seen is still genuinely new - and stays
+// new, because a before/after of a figure I never read means nothing.
+const brandNew = planSync([], [{ ...theirEditOfMine[0], id: 's9', author_id: 'them' }],
+  'me', 'h1', cats2, 'them', undefined, SEEN2)
+  .transactions.find((t) => t.fromShared === 's9');
+eq('a row of theirs I have never seen is new', unseenKind(brandNew, SEEN2, 'me'), 'new');
+
+// ...and once I have looked, their next correction to it reads as one.
+const seenTheirs = { ...brandNew, createdAt: '2026-08-14T10:00:00.000Z' };
+eq('their correction of a row I HAD seen is an edit',
+  unseenKind(seenTheirs, SEEN2, 'me'), 'edited');
 }
 
 

@@ -142,9 +142,19 @@ export function selectableSources(sources: Source[], household: Household | null
  * stored "unread" flag would be a second copy of that to keep in step, and it
  * would need clearing from four screens instead of one timestamp being moved.
  *
- * "new" vs "edited" is the same comparison twice: a row that came into
- * existence since you last looked is news in itself; one that was already here
- * and got rewritten is a correction to something you have already read.
+ * "new" vs "edited" turns on WHOSE row it is, not on when it appeared. A row
+ * you authored can only ever have been edited by them - they cannot add your
+ * own expense - so it is always a correction, however recently you typed it.
+ * Only a replica can be genuinely new, and then only if it arrived since you
+ * last looked.
+ *
+ * Asking the arrival question of every row was wrong in the commonest case
+ * there is: add an expense, do not open the shared view (why would you, you
+ * just typed it), and have them correct it an hour later. Its createdAt is
+ * newer than your last look, so the app announced "they added a shared
+ * expense" about your own - and, worse, filed it as an addition, which threw
+ * away the before/after it had correctly captured and counted the whole amount
+ * into "what changed in your month" instead of just the difference.
  *
  * Never true for your own edits, even from your other device. It reports what
  * SOMEONE ELSE did while you were away, and being told about your own typing
@@ -161,6 +171,7 @@ export function unseenKind(
   if (!Number.isFinite(changedAt)) return null;
   const seenAt = Date.parse(lastSeen);
   if (Number.isFinite(seenAt) && changedAt <= seenAt) return null;
+  if (!t.fromShared) return 'edited';
   const born = Date.parse(t.createdAt ?? '');
   return Number.isFinite(born) && Number.isFinite(seenAt) && born <= seenAt ? 'edited' : 'new';
 }
