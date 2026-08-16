@@ -71,6 +71,15 @@ const KEYS = {
   // this phone's whereabouts, and it has no business on anyone's server or in
   // a backup file.
   travelCountries: key('travel-countries'),
+  // A country forced by hand from the hidden developer panel, so the travel
+  // nudge can be seen without flying anywhere. Device-local and never synced,
+  // like everything else about whereabouts; absent for everyone who has not
+  // gone looking for it.
+  travelOverride: key('travel-override'),
+  // Whether the developer screen has been unlocked on this device. An access
+  // flag, not data: never synced, never in a backup, and re-earned with the
+  // code after an erase.
+  devUnlocked: key('dev-unlocked'),
 };
 
 /**
@@ -157,6 +166,18 @@ export const saveSharedRemovals = (rows: SharedRemoval[]) => write(KEYS.sharedRe
 
 export const loadTravelCountries = () => read<CountryVisit[]>(KEYS.travelCountries, []);
 export const saveTravelCountries = (rows: CountryVisit[]) => write(KEYS.travelCountries, rows);
+
+export const loadDevUnlocked = () => getItem(KEYS.devUnlocked) === 'true';
+export const saveDevUnlocked = (on: boolean) => {
+  if (on) setItem(KEYS.devUnlocked, 'true');
+  else removeItem(KEYS.devUnlocked);
+};
+
+export const loadTravelOverride = () => getItem(KEYS.travelOverride) ?? '';
+export const saveTravelOverride = (cc: string) => {
+  if (cc) setItem(KEYS.travelOverride, cc);
+  else removeItem(KEYS.travelOverride);
+};
 
 // ── Guest mode ──────────────────────────────────────────────────────────────
 

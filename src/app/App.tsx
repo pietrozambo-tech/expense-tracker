@@ -40,13 +40,15 @@ import {
   saveSharedRemovals,
   loadTravelCountries,
   saveTravelCountries,
+  loadTravelOverride,
+  saveTravelOverride,
 } from './lib/storage';
 import { DEFAULT_SOURCES, DEFAULT_SOURCE_EXPENSE, DEFAULT_SOURCE_INCOME } from './components/sources';
 import { SourceLogo } from './components/SourceLogo';
 import { SourceSelectorModal } from './components/SourceSelectorModal';
 import { getDemoTransactions } from './lib/demoData';
 import { myShareOf, newHousehold, partnerSource, partnerSourceId, selectableSources, sharedNews, unseenKind } from './lib/shared';
-import { acceptCountry, currentCountry, dismissCountry, observeCountry, travelSuggestion } from './lib/travel';
+import { acceptCountry, currencyOfCountry, currentCountry, dismissCountry, observeCountry, travelSuggestion } from './lib/travel';
 import type { CountryVisit } from './lib/travel';
 import type { SharedNews } from './lib/shared';
 import { paidByPartner, pairingChange, planSync, sharedIdOf } from './lib/sharedSync';
@@ -308,6 +310,12 @@ export default function App() {
   // of the user's whereabouts, so it never syncs and never enters a backup.
   const [travelCountries, setTravelCountries] = useState<CountryVisit[]>(() => loadTravelCountries());
   const [travelDismissed, setTravelDismissed] = useState(false);
+  // A country forced from the hidden developer panel. Empty for everyone who
+  // has not gone looking for it, and it feeds the SAME path as real detection
+  // rather than a parallel one - a test rig that bypasses the code under test
+  // proves nothing.
+  const [travelOverride, setTravelOverride] = useState<string>(() => loadTravelOverride());
+  const travelCountry = travelOverride || currentCountry();
   // Per-entry override on the Add screen: 'auto' follows the category default,
   // the other two are this entry's explicit choice. Reset when the sheet closes.
   const [shareChoice, setShareChoice] = useState<'auto' | 'on' | 'off'>('auto');
@@ -466,8 +474,11 @@ export default function App() {
   useEffect(() => {
     const today = new Date();
     const iso = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-    setTravelCountries((prev) => observeCountry(prev, currentCountry(), iso));
-  }, []);
+    setTravelCountries((prev) => observeCountry(prev, travelCountry, iso));
+    // Re-runs when the override moves, so switching country in the panel
+    // records the new one straight away instead of on the next launch.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [travelCountry]);
   // Start each tab from the top when switching in the nav bar, rather than
   // inheriting the previous tab's scroll position. Reset both the shared
   // scroll container and the window (whichever actually scrolls).
@@ -1621,9 +1632,9 @@ export default function App() {
   const travelHint = useMemo(
     () =>
       currentTab === 'add' && !editingExpenseId && !travelDismissed
-        ? travelSuggestion(travelCountries, selectedTransactionCurrency)
+        ? travelSuggestion(travelCountries, selectedTransactionCurrency, travelCountry)
         : null,
-    [currentTab, editingExpenseId, travelDismissed, travelCountries, selectedTransactionCurrency],
+    [currentTab, editingExpenseId, travelDismissed, travelCountries, selectedTransactionCurrency, travelCountry],
   );
 
   /** Taken: this entry is in pesos from now, and the refusals are forgiven. */
@@ -3025,6 +3036,23 @@ export default function App() {
             )}
             {currentTab === 'settings' && (
               <Settings
+                travelDiag={{
+                  zone: typeof Intl !== 'undefined' ? Intl.DateTimeFormat().resolvedOptions().timeZone : '',
+                  detected: currentCountry(),
+                  override: travelOverride,
+                  country: travelCountry,
+                  currency: currencyOfCountry(travelCountry),
+                  history: travelCountries,
+                  onOverride: (cc) => {
+                    setTravelOverride(cc);
+                    saveTravelOverride(cc);
+                  },
+                  onForget: () => {
+                    setTravelCountries([]);
+                    saveTravelCountries([]);
+                    setTravelDismissed(false);
+                  },
+                }}
                 transactions={expenses}
                 insightsEnabled={insightsEnabled}
                 onSetInsightsEnabled={setInsightsEnabled}

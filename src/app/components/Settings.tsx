@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react';
-import { ChevronRight, ChevronLeft, UserCircle, Wallet, HelpCircle, ShieldCheck, ScrollText, Layers, FlaskConical, Trash2, Landmark, Cloud, LogOut, Upload, Copy, Download, FileSpreadsheet, Palmtree, UserX, Mail, LifeBuoy, CheckCircle2, Globe, CalendarClock, Sparkles, Palette, Sun, Moon, SunMoon, Split, Plus, Eraser } from 'lucide-react';
+import { ChevronRight, ChevronLeft, Wrench, UserCircle, Wallet, HelpCircle, ShieldCheck, ScrollText, Layers, FlaskConical, Trash2, Landmark, Cloud, LogOut, Upload, Copy, Download, FileSpreadsheet, Palmtree, UserX, Mail, LifeBuoy, CheckCircle2, Globe, CalendarClock, Sparkles, Palette, Sun, Moon, SunMoon, Split, Plus, Eraser } from 'lucide-react';
 import { getCategoryIcon } from './categoryIcons';
 import { sendSupportMessage, supportLimitReached } from '../lib/support';
 import { switchGlow } from './categoryColors';
@@ -13,6 +13,8 @@ import { SUBPAGE_STYLE, DOCK_CLEARANCE } from './subpageLayout';
 import { useEdgeSwipeBack } from '../lib/useEdgeSwipeBack';
 import { navTransition } from '../lib/navTransition';
 import { loadThemeMode, setThemeMode, type ThemeMode } from '../lib/themeMode';
+import { loadDevUnlocked, saveDevUnlocked } from '../lib/storage';
+import { isNative } from '../lib/platform';
 import { toast } from 'sonner';
 import { Categories } from './Categories';
 import { ScheduledManager, type ScheduleDraft } from './ScheduledManager';
@@ -140,7 +142,21 @@ function RowIcon({ icon: Icon, tone }: { icon: LucideIcon; tone: { bg: string; f
   );
 }
 
+/** Everything the developer screen reads and can change. */
+export interface TravelDiag {
+  zone: string;
+  detected: string | null;
+  override: string;
+  country: string | null;
+  currency: string | null;
+  history: { cc: string; days: string[]; home?: boolean; dismissed?: number }[];
+  onOverride: (cc: string) => void;
+  onForget: () => void;
+}
+
 interface SettingsProps {
+  /** Absent in any build that does not want the developer screen at all. */
+  travelDiag?: TravelDiag;
   categories: any[];
   incomeCategories: any[];
   // First day of the week for day-of-week views: 1 Monday, 0 Sunday, 6 Saturday
@@ -229,6 +245,7 @@ interface SettingsProps {
 }
 
 export function Settings({
+  travelDiag,
   categories,
   incomeCategories,
   weekStartsOn = 1,
@@ -313,6 +330,15 @@ export function Settings({
   const [showLanguage, setShowLanguage] = useState(false);
   const [showAppearance, setShowAppearance] = useState(false);
   const [showShared, setShowShared] = useState(false);
+  // The developer screen, and the way in. A code rather than a hidden gesture:
+  // a tap count is found by accident, impossible to describe over a message,
+  // and gives no way to say "no". The screen has to be openable on a real
+  // phone with no cable and no console, which is the whole situation it exists
+  // for.
+  const [showDev, setShowDev] = useState(false);
+  const [devAsking, setDevAsking] = useState(false);
+  const [devCode, setDevCode] = useState('');
+  const [devUnlocked, setDevUnlocked] = useState(() => loadDevUnlocked());
   const [sharedName, setSharedName] = useState('');
   // Which half of the setup you are on: the fork, or naming somebody who is
   // not in the app. Reset whenever the Shared page is left, so it never opens
@@ -636,6 +662,143 @@ export function Settings({
             };
 
   // Shared expenses setup. Setup ONLY - the balance and the household view
+  // Everything a developer needs on a device with no console attached.
+  //
+  // It exists because of a specific failure mode: the travel nudge renders
+  // NOTHING when it has nothing to say, so "I changed my timezone and saw no
+  // chip" is indistinguishable from "the feature is broken" - and from "this
+  // phone is still serving last week's cached bundle". Each card below turns
+  // one of those guesses into a fact.
+  if (showDev) {
+    const sw = typeof navigator === 'undefined' || !('serviceWorker' in navigator)
+      ? 'unsupported'
+      : navigator.serviceWorker.controller ? 'active' : 'none';
+    const row = (label: string, value: string) => (
+      <div key={label} className="flex items-baseline justify-between gap-3 py-1.5">
+        <span style={{ color: 'var(--ink-2)', fontSize: 12.5 }}>{label}</span>
+        <span className="text-right" style={{ color: 'var(--ink)', fontSize: 12.5, fontWeight: 600, wordBreak: 'break-word' }}>
+          {value}
+        </span>
+      </div>
+    );
+    const CARD = { backgroundColor: 'var(--bg-card)', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' };
+    const EYEBROW = { color: 'var(--ink-2)', fontSize: 11, fontWeight: 700, letterSpacing: '0.04em' };
+    const NOTE = { color: 'var(--ink-3)', fontSize: 11.5, lineHeight: 1.5 };
+    return (
+      <div className="flex flex-col" style={SUBPAGE_STYLE}>
+        <div style={{ backgroundColor: 'var(--bg-page)' }}>
+          <div className="px-6 pb-4 pt-0">
+            <div className="flex items-center justify-center relative">
+              <button
+                onClick={() => navTransition('back', () => setShowDev(false))}
+                className="absolute left-0 -ml-2 px-2 py-1 rounded-lg active:bg-neutral-200 transition-colors"
+                aria-label="Back"
+              >
+                <ChevronLeft size={24} style={{ color: 'var(--accent-ink)' }} />
+              </button>
+              <h1 style={{ color: 'var(--ink)', fontSize: '20px', fontWeight: '600', letterSpacing: '-0.3px' }}>Developer</h1>
+            </div>
+          </div>
+        </div>
+
+        {/* A real scrolling sub-page with the dock's clearance. The first
+            version of this was a panel at the foot of Settings, and its own
+            buttons sat 65px BELOW the floating dock's top edge - under the
+            dock, where a tap never reaches them. */}
+        <div className="flex-1 overflow-y-auto px-6" style={{ paddingBottom: DOCK_CLEARANCE }}>
+          {/* First card, because it answers the question that disguises itself
+              as every other bug: is this device running the build you think? */}
+          <div className="rounded-2xl px-5 py-4 mb-4" style={CARD}>
+            <div className="mb-2" style={EYEBROW}>BUILD</div>
+            {row('Version', __APP_VERSION__)}
+            {row('Built', __BUILD_STAMP__)}
+            {row('Shell', isNative() ? 'native (Capacitor)' : 'web')}
+            {row('Service worker', sw)}
+            {row('Online', typeof navigator !== 'undefined' && navigator.onLine ? 'yes' : 'no')}
+            {row('Language', language)}
+          </div>
+
+          {travelDiag && (
+            <div className="rounded-2xl px-5 py-4 mb-4" style={CARD}>
+              <div className="mb-2" style={EYEBROW}>LOCATION</div>
+              {row('Timezone', travelDiag.zone || '-')}
+              {row('Detected country', travelDiag.detected ?? 'unknown')}
+              {row('In use', `${travelDiag.country ?? 'unknown'} -> ${travelDiag.currency ?? 'no currency'}`)}
+              {row('Source', travelDiag.override ? 'forced below' : 'device timezone')}
+              <p className="mt-2" style={NOTE}>
+                Forcing a country replaces the timezone lookup and nothing else,
+                so what you see afterwards is exactly what a traveller sees.
+                Then open Add - the chip sits under the amount.
+              </p>
+              <div className="mt-2.5 flex flex-wrap gap-1.5">
+                {['', 'PH', 'US', 'GB', 'JP', 'CH', 'MA', 'TH', 'AE', 'BR'].map((cc) => (
+                  <button
+                    key={cc || 'off'}
+                    data-dev-country={cc || 'real'}
+                    onClick={() => travelDiag.onOverride(cc)}
+                    className="rounded-full active:scale-95 transition-transform"
+                    style={{
+                      padding: '5px 11px', fontSize: 12.5, fontWeight: 600,
+                      backgroundColor: travelDiag.override === cc ? 'var(--wash-accent)' : 'var(--bg-inset)',
+                      color: travelDiag.override === cc ? 'var(--accent-ink)' : 'var(--ink-2)',
+                      WebkitTapHighlightColor: 'transparent',
+                    }}
+                  >
+                    {cc || 'Real'}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* The reason the nudge is silent is nearly always written here: a
+              country marked home, or three refusals already spent. */}
+          {travelDiag && (
+            <div className="rounded-2xl px-5 py-4 mb-4" style={CARD}>
+              <div className="mb-2" style={EYEBROW}>COUNTRIES LEARNT</div>
+              {travelDiag.history.length === 0 ? (
+                <div style={{ color: 'var(--ink-2)', fontSize: 12.5 }}>Nothing yet</div>
+              ) : (
+                travelDiag.history.map((v) =>
+                  row(v.cc, [
+                    `${v.days.length} day${v.days.length === 1 ? '' : 's'}`,
+                    v.home ? 'home' : null,
+                    v.dismissed ? `${v.dismissed} dismissed` : null,
+                  ].filter(Boolean).join(' - ')),
+                )
+              )}
+              <button
+                data-dev-forget
+                onClick={() => {
+                  travelDiag.onForget();
+                  toast.success('Travel history forgotten', { duration: 1600 });
+                }}
+                className="mt-3 rounded-xl active:scale-95 transition-transform"
+                style={{ padding: '7px 13px', fontSize: 12.5, fontWeight: 600, backgroundColor: 'var(--bg-inset)', color: 'var(--ink-2)' }}
+              >
+                Forget travel history
+              </button>
+              <p className="mt-2" style={NOTE}>
+                Forgetting makes the next country seen count as home again -
+                which is also the trap: whichever country you are in when a
+                fresh install first opens becomes home, and home is never
+                nudged.
+              </p>
+            </div>
+          )}
+
+          <div className="rounded-2xl px-5 py-4 mb-4" style={CARD}>
+            <div className="mb-2" style={EYEBROW}>DATA</div>
+            {row('Transactions', String(transactions?.length ?? 0))}
+            {row('Categories', `${categories.length} + ${incomeCategories.length} income`)}
+            {row('Schedules', String(recurringRules?.length ?? 0))}
+            {row('Household', household ? (household.remoteId ? 'paired' : 'local only') : 'off')}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // live on the Dashboard behind the avatar switcher; this screen holds what
   // you configure once: who, the default split, which categories always
   // share, whether a balance is kept, and the way out.
@@ -2755,13 +2918,70 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
           )}
         </div>
 
-        {/* Signature */}
-        <div className="mt-8 mb-1 text-center">
+        {/* Signature, and the way into the developer screen.
+
+            The button is the quietest thing on the page - a hairline wrench at
+            the faint token, in the dead space beside the signature. It has to
+            be reachable without a cable but must not read as a feature: a
+            tester needs it, and nobody else should ever wonder what it does.
+            The code is what actually keeps it shut; the placement only keeps
+            it from being noticed. */}
+        <div className="mt-8 mb-1 text-center relative">
           <p style={{ color: 'var(--faint)', fontSize: '12px', fontWeight: 500 }}>TracklyLab · v{__APP_VERSION__}</p>
           <p style={{ color: 'var(--faint)', fontSize: '12px', fontStyle: 'italic', marginTop: '2px' }}>
             {t('set.signature')}
           </p>
+          <button
+            data-dev-entry
+            aria-label="Developer"
+            onClick={() => {
+              // Unlocked once, open from then on: retyping a code every visit
+              // is a toll on the only person who ever pays it.
+              if (devUnlocked) navTransition('forward', () => setShowDev(true));
+              else setDevAsking((v) => !v);
+            }}
+            className="absolute right-2 bottom-0 w-9 h-9 flex items-center justify-center rounded-full active:scale-90 transition-transform"
+            style={{ WebkitTapHighlightColor: 'transparent' }}
+          >
+            <Wrench className="w-3.5 h-3.5" style={{ color: 'var(--faint)', opacity: 0.5 }} strokeWidth={2} />
+          </button>
         </div>
+
+        {devAsking && !devUnlocked && (
+          <div className="mt-3 flex justify-center">
+            <input
+              autoFocus
+              type="text"
+              inputMode="numeric"
+              maxLength={4}
+              value={devCode}
+              onChange={(e) => {
+                const v = e.target.value.replace(/\D/g, '');
+                setDevCode(v);
+                // Opens on the fourth digit rather than behind a button: there
+                // is exactly one correct answer and no reason to confirm it.
+                if (v === '4700') {
+                  setDevUnlocked(true);
+                  saveDevUnlocked(true);
+                  setDevAsking(false);
+                  setDevCode('');
+                  navTransition('forward', () => setShowDev(true));
+                } else if (v.length === 4) {
+                  setDevCode('');
+                }
+              }}
+              placeholder="••••"
+              className="text-center rounded-xl outline-none tabular-nums"
+              style={{
+                width: 108, padding: '8px 0', border: '1px solid var(--line)',
+                backgroundColor: 'var(--bg-card)', color: 'var(--ink)',
+                // 16px, or iOS zooms the page in on focus - the form-control
+                // floor the rest of the app already keeps to.
+                fontSize: 16, letterSpacing: '0.3em',
+              }}
+            />
+          </div>
+        )}
 
       </div>
 
