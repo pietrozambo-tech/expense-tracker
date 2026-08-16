@@ -33,11 +33,9 @@ export interface CountryVisit {
   cc: string;
   /** Distinct YYYY-MM-DD seen in this country, oldest first. */
   days: string[];
-  /** True for the first country ever seen, which is taken as home on the
-   *  spot. People install an app at home far more often than on holiday, and
-   *  the alternative - nudging until a week has accumulated - would be wrong
-   *  every single time for every new user. Someone who does install abroad
-   *  gets no nudge on that trip and correct behaviour ever after. */
+  /** Was the flag that marked the first country ever seen as home, for good.
+   *  Retired: see homeCountry() for why a single observation must not be
+   *  permanent. Still declared so histories written before the change parse. */
   home?: boolean;
   /** Consecutive dismissals here. Cleared the moment one is accepted. */
   dismissed?: number;
@@ -128,20 +126,49 @@ export function observeCountry(
 ): CountryVisit[] {
   if (!cc) return history;
   const known = history.find((v) => v.cc === cc);
-  if (!known) {
-    return [...history, { cc, days: [today], ...(history.length === 0 ? { home: true } : {}) }];
-  }
+  if (!known) return [...history, { cc, days: [today] }];
   if (known.days.includes(today)) return history;
   const days = [...known.days, today].sort().slice(-DAY_CAP);
   return history.map((v) => (v.cc === cc ? { ...v, days } : v));
 }
 
-/** Somewhere you live, rather than somewhere you went. */
+/** How many separate calendar months this country has been seen in. */
+const monthsOf = (v: CountryVisit) => new Set(v.days.map((d) => d.slice(0, 7))).size;
+
+/**
+ * Where you live, as far as the app can tell.
+ *
+ * The country seen in the most separate MONTHS, and the first-seen one wins a
+ * tie. Months rather than days on purpose: a trip is a block of days squeezed
+ * into one or two months, while a home keeps reappearing across them - so
+ * counting days would hand the title to a fortnight's holiday the moment it
+ * out-numbered a home the app had only been opened in three times.
+ *
+ * This used to be a flag stamped on the first country ever seen and never
+ * revisited, which is how somebody who opened the app for the first time in
+ * Manila was told, permanently, that they lived in the Philippines: every
+ * other country nudged correctly and that one never would again. One
+ * observation is not a life, so the answer is recomputed from the whole
+ * history each time instead of being decided once.
+ */
+export function homeCountry(history: CountryVisit[]): string | null {
+  let best: CountryVisit | null = null;
+  let bestMonths = -1;
+  // In order, with a strict >, so the earliest-seen country keeps a tie.
+  for (const v of history) {
+    const months = monthsOf(v);
+    if (months > bestMonths) {
+      best = v;
+      bestMonths = months;
+    }
+  }
+  return best?.cc ?? null;
+}
+
+/** A second address: not where you mostly are, but not somewhere you went. */
 export function isUsual(visit: CountryVisit | undefined): boolean {
   if (!visit) return false;
-  if (visit.home) return true;
-  const months = new Set(visit.days.map((d) => d.slice(0, 7)));
-  return visit.days.length >= USUAL_DAYS && months.size >= USUAL_MONTHS;
+  return visit.days.length >= USUAL_DAYS && monthsOf(visit) >= USUAL_MONTHS;
 }
 
 /** Record that the nudge was turned down here. */
@@ -173,7 +200,7 @@ export interface TravelSuggestion {
  * Every condition below is a way of staying quiet:
  *
  * - we cannot place the timezone, or carry no currency for that country;
- * - the country is somewhere you live, by the learned test above;
+ * - it is where you live, or a second address, by the two tests above;
  * - you have already turned it down here three times running;
  * - the local currency is the one already selected, so there is nothing to
  *   offer - which is also why hopping around the eurozone says nothing.
@@ -187,6 +214,7 @@ export function travelSuggestion(
   cc: string | null = currentCountry(),
 ): TravelSuggestion | null {
   if (!cc) return null;
+  if (cc === homeCountry(history)) return null;
   const visit = history.find((v) => v.cc === cc);
   if (isUsual(visit)) return null;
   if ((visit?.dismissed ?? 0) >= MAX_DISMISSALS) return null;

@@ -8,7 +8,7 @@
 
 import { usualCurve, median } from './lib/usual';
 import { dailyAllowance } from './lib/budget';
-import { acceptCountry, currencyOfCountry, dismissCountry, observeCountry, travelSuggestion } from './lib/travel';
+import { acceptCountry, currencyOfCountry, dismissCountry, homeCountry, observeCountry, travelSuggestion } from './lib/travel';
 import { countryOfZone } from './lib/zones';
 
 const OLD = process.argv.includes('--before');
@@ -210,13 +210,26 @@ heading('9. travelSuggestion() - somewhere you are vs somewhere you live');
   const days = (n: number, from = 1, month = '2026-08') =>
     Array.from({ length: n }, (_, i) => `${month}-${String(from + i).padStart(2, '0')}`);
 
-  // The country the app first sees is taken as home on the spot. People
-  // install an app at home; waiting a week to believe it would nudge every
-  // new user in their own kitchen.
+  // The only country known is home, so a new user is never nudged in their
+  // own kitchen - but it is a computed answer, not a stamp.
   {
     const h = observeCountry([], 'AE', '2026-08-01');
-    expect('the first country seen is home immediately', h[0].home, true);
+    expect('the only country known is home', homeCountry(h), 'AE');
     expect('and is never nudged', travelSuggestion(h, 'EUR', 'AE'), null);
+  }
+
+  // The bug this rule replaced: opening the app for the first time in Manila
+  // used to stamp the Philippines as home for good, so every other country
+  // nudged correctly and that one never would again. Home is recomputed, so
+  // a country the app has simply been open in for longer takes over.
+  {
+    let h = observeCountry([], 'PH', '2026-08-16');
+    expect('a first launch abroad is still silent that day', travelSuggestion(h, 'EUR', 'PH'), null);
+    // Home again, using the app across a month boundary.
+    for (const d of ['2026-08-20', '2026-08-27', '2026-09-03']) h = observeCountry(h, 'IT', d);
+    expect('the country seen across more months takes the title', homeCountry(h), 'IT');
+    expect('and the old one is a place you visited again',
+      travelSuggestion(h, 'EUR', 'PH')?.currency, 'PHP');
   }
 
   // The case that shaped the whole design: living in Dubai, accounting in
@@ -234,27 +247,32 @@ heading('9. travelSuggestion() - somewhere you are vs somewhere you live');
   // A fortnight away is a holiday, not an address: the day count alone must
   // not promote it, or the nudge would go quiet halfway through every trip.
   {
+    // The home country is only three opens old; the holiday is fourteen days.
+    // Counting days would hand the title to the holiday, which is exactly why
+    // the rule counts months instead.
     const h = [
-      { cc: 'AE', days: ['2026-01-01'], home: true },
+      { cc: 'AE', days: ['2026-01-01', '2026-01-09', '2026-01-20'] },
       { cc: 'PH', days: days(14) },
     ];
+    expect('a fortnight away cannot outrank a barely-used home',
+      homeCountry(h), 'AE');
     expect('two weeks in one month is still a trip',
       travelSuggestion(h, 'EUR', 'PH')?.currency, 'PHP');
   }
   // Spread across months, it is somewhere you live.
   {
     const h = [
-      { cc: 'AE', days: ['2026-01-01'], home: true },
+      { cc: 'AE', days: [...days(3, 1, '2026-01'), ...days(3, 1, '2026-02'), ...days(3, 1, '2026-03')] },
       { cc: 'PH', days: [...days(5, 1, '2026-07'), ...days(5, 1, '2026-08')] },
     ];
-    expect('the same days spread over two months is an address',
+    expect('the same days spread over two months is a second address',
       travelSuggestion(h, 'EUR', 'PH'), null);
   }
 
   // The fast path out, for an actual move: three refusals in a row and it
   // stops asking, long before the slow test above would catch up.
   {
-    let h: any = [{ cc: 'IT', days: ['2026-01-01'], home: true }, { cc: 'AE', days: days(3) }];
+    let h: any = [{ cc: 'IT', days: days(3, 1, '2026-01') }, { cc: 'AE', days: days(3) }];
     expect('first refusal does not silence it', travelSuggestion(h = dismissCountry(h, 'AE'), 'EUR', 'AE')?.currency, 'AED');
     expect('nor the second', travelSuggestion(h = dismissCountry(h, 'AE'), 'EUR', 'AE')?.currency, 'AED');
     expect('the third does', travelSuggestion(dismissCountry(h, 'AE'), 'EUR', 'AE'), null);
@@ -266,7 +284,7 @@ heading('9. travelSuggestion() - somewhere you are vs somewhere you live');
 
   // Nothing to offer is not a nudge.
   {
-    const h = [{ cc: 'IT', days: ['2026-01-01'], home: true }, { cc: 'FR', days: ['2026-08-12'] }];
+    const h = [{ cc: 'IT', days: days(3, 1, '2026-01') }, { cc: 'FR', days: ['2026-08-12'] }];
     expect('a eurozone hop offers nothing, because nothing would change',
       travelSuggestion(h, 'EUR', 'FR'), null);
     expect('an unplaceable timezone says nothing', travelSuggestion(h, 'EUR', null), null);
@@ -280,6 +298,7 @@ heading('9. travelSuggestion() - somewhere you are vs somewhere you live');
     h = observeCountry(h, 'IT', '2026-08-01');
     h = observeCountry(h, 'IT', '2026-08-02');
     expect('a day is recorded once however often the app is opened', h[0].days.length, 2);
+    expect('and nothing is stamped permanently', h[0].home, undefined);
   }
 
   // The country -> currency map, including the half derived from the flags

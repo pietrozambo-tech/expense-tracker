@@ -149,7 +149,10 @@ export interface TravelDiag {
   override: string;
   country: string | null;
   currency: string | null;
-  history: { cc: string; days: string[]; home?: boolean; dismissed?: number }[];
+  history: { cc: string; days: string[]; dismissed?: number }[];
+  /** Which country the app currently reckons you live in - recomputed from the
+   *  history, not a stored flag. The usual reason the nudge is silent. */
+  home: string | null;
   onOverride: (cc: string) => void;
   onForget: () => void;
 }
@@ -762,7 +765,8 @@ export function Settings({
                 travelDiag.history.map((v) =>
                   row(v.cc, [
                     `${v.days.length} day${v.days.length === 1 ? '' : 's'}`,
-                    v.home ? 'home' : null,
+                    `${new Set(v.days.map((d) => d.slice(0, 7))).size} mo`,
+                    v.cc === travelDiag.home ? 'HOME' : null,
                     v.dismissed ? `${v.dismissed} dismissed` : null,
                   ].filter(Boolean).join(' - ')),
                 )
@@ -779,10 +783,10 @@ export function Settings({
                 Forget travel history
               </button>
               <p className="mt-2" style={NOTE}>
-                Forgetting makes the next country seen count as home again -
-                which is also the trap: whichever country you are in when a
-                fresh install first opens becomes home, and home is never
-                nudged.
+                Home is whichever country has been seen in the most separate
+                months, first-seen breaking a tie - so it moves as the history
+                grows rather than being fixed by wherever you happened to open
+                the app first. Home is never nudged.
               </p>
             </div>
           )}

@@ -48,7 +48,7 @@ import { SourceLogo } from './components/SourceLogo';
 import { SourceSelectorModal } from './components/SourceSelectorModal';
 import { getDemoTransactions } from './lib/demoData';
 import { myShareOf, newHousehold, partnerSource, partnerSourceId, selectableSources, sharedNews, unseenKind } from './lib/shared';
-import { acceptCountry, currencyOfCountry, currentCountry, dismissCountry, observeCountry, travelSuggestion } from './lib/travel';
+import { acceptCountry, currencyOfCountry, currentCountry, dismissCountry, homeCountry, observeCountry, travelSuggestion } from './lib/travel';
 import type { CountryVisit } from './lib/travel';
 import type { SharedNews } from './lib/shared';
 import { paidByPartner, pairingChange, planSync, sharedIdOf } from './lib/sharedSync';
@@ -3043,6 +3043,7 @@ export default function App() {
                   country: travelCountry,
                   currency: currencyOfCountry(travelCountry),
                   history: travelCountries,
+                  home: homeCountry(travelCountries),
                   onOverride: (cc) => {
                     setTravelOverride(cc);
                     saveTravelOverride(cc);
@@ -3440,17 +3441,22 @@ export default function App() {
                   {travelHint && (
                     <span
                       className="inline-flex items-center rounded-full"
-                      style={{ backgroundColor: 'var(--wash-accent)', color: 'var(--accent-ink)', fontSize: 12.5, fontWeight: 600 }}
+                      style={{ backgroundColor: 'var(--wash-accent)', color: 'var(--accent-ink)', fontSize: 11.5, fontWeight: 600 }}
                     >
                       <button
                         type="button"
                         data-travel-chip
                         onClick={acceptTravelHint}
                         aria-label={t('travel.useAria', { code: travelHint.currency })}
-                        className="inline-flex items-center gap-1.5 rounded-full active:scale-95 transition-transform"
-                        style={{ padding: '5px 4px 5px 10px', WebkitTapHighlightColor: 'transparent' }}
+                        className="inline-flex items-center gap-1 rounded-full active:scale-95 transition-transform"
+                        // The size lives HERE, not only on the wrapper: a
+                        // <button> does not inherit font-size from its parent,
+                        // so the chip had been rendering at the UA's 16px while
+                        // the style beside it said 12.5 - which is exactly why
+                        // it towered over the share chip it sits next to.
+                        style={{ padding: '3.5px 3px 3.5px 8px', fontSize: 11.5, fontWeight: 600, color: 'inherit', WebkitTapHighlightColor: 'transparent' }}
                       >
-                        <span aria-hidden="true" style={{ fontSize: 13, lineHeight: 1 }}>{travelHint.flag}</span>
+                        <span aria-hidden="true" style={{ fontSize: 11.5, lineHeight: 1 }}>{travelHint.flag}</span>
                         <span>{t('travel.use', { code: travelHint.currency })}</span>
                       </button>
                       {/* Its own button, not part of the offer: tapping the
@@ -3461,9 +3467,9 @@ export default function App() {
                         onClick={dismissTravelHint}
                         aria-label={t('travel.dismissAria')}
                         className="inline-flex items-center rounded-full active:scale-95 transition-transform"
-                        style={{ padding: '5px 9px 5px 5px', WebkitTapHighlightColor: 'transparent' }}
+                        style={{ padding: '3.5px 7px 3.5px 4px', fontSize: 11.5, color: 'inherit', WebkitTapHighlightColor: 'transparent' }}
                       >
-                        <X className="w-3 h-3" style={{ opacity: 0.55 }} strokeWidth={2.5} />
+                        <X className="w-2.5 h-2.5" style={{ opacity: 0.55 }} strokeWidth={3} />
                       </button>
                     </span>
                   )}
