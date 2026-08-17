@@ -1,6 +1,5 @@
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type ComponentType } from 'react';
 import { toast } from 'sonner';
-import { Toaster } from './components/ui/sonner';
 import { createPortal } from 'react-dom';
 import { BarChart3, Plus, List, X, Settings as SettingsIcon, TrendingUp, ChevronDown, Repeat, Split, Undo2 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
@@ -45,6 +44,7 @@ import {
   loadTravelOverride,
   saveTravelOverride,
 } from './lib/storage';
+import { STORAGE_BROKEN_EVENT, isStorageBroken } from './lib/kv';
 import { DEFAULT_SOURCES, DEFAULT_SOURCE_EXPENSE, DEFAULT_SOURCE_INCOME } from './components/sources';
 import { SourceLogo } from './components/SourceLogo';
 import { SourceSelectorModal } from './components/SourceSelectorModal';
@@ -448,6 +448,30 @@ export default function App() {
     shared: boolean;
     paidByThem: boolean;
   } | null>(null);
+
+  // The storage layer found it cannot write and there is no durable store
+  // behind it (disk full, storage blocked). Everything on screen still works,
+  // which is exactly the danger: the user keeps typing into an app that will
+  // reopen on yesterday's data. Say so once, while a backup or a sign-in can
+  // still save the ledger. Ten seconds, not the usual two: this is the one
+  // toast whose whole value is being read.
+  //
+  // Declared ABOVE the persistence effects, and that placement is load-
+  // bearing: effects run in declaration order, so the listener exists before
+  // the mount-time saves below make the first write that could fail. The
+  // isStorageBroken() check covers failures from even earlier - language and
+  // analytics write before React mounts. The kv latch fires the event at most
+  // once, so exactly one of these paths warns.
+  useEffect(() => {
+    const warn = () =>
+      toast.error(t('toast.storageBroken'), {
+        description: t('toast.storageBrokenDesc'),
+        duration: 10000,
+      });
+    if (isStorageBroken()) warn();
+    window.addEventListener(STORAGE_BROKEN_EVENT, warn);
+    return () => window.removeEventListener(STORAGE_BROKEN_EVENT, warn);
+  }, []);
 
   // Persist app data whenever it changes
   useEffect(() => {
@@ -2964,7 +2988,6 @@ export default function App() {
     // descendant; the only language-dependent useMemo (the Dashboard's insight
     // sentences) now lists language in its deps instead.
     <div className="min-h-screen bg-[#F6F5F2] md:bg-[#ECEAE6]">
-      <Toaster position="top-center" />
       {importSummary && (
         <ImportSummaryDialog
           result={importSummary}

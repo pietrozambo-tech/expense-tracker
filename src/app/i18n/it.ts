@@ -408,6 +408,8 @@ export const it: Record<keyof typeof en, string> = {
   'toast.nothingImportedFile': 'Nessuna transazione trovata nel file',
   'toast.nothingAdded': 'Non è stato aggiunto nulla',
   'toast.offline': 'Sei offline',
+  'toast.storageBroken': 'Questo dispositivo non sta salvando i dati',
+  'toast.storageBrokenDesc': 'La memoria è piena o bloccata: alla prossima apertura le modifiche potrebbero essere perse. Esporta un backup o accedi subito per metterle al sicuro.',
   'toast.offlineEraseDesc': 'Cancellare i dati azzera anche il backup cloud e serve una connessione. Riprova quando torni online.',
   'toast.eraseCloudFailed': 'Impossibile cancellare i dati cloud',
   'toast.checkConnection': 'Controlla la connessione e riprova.',

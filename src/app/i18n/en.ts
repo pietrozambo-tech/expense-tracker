@@ -407,6 +407,8 @@ export const en = {
   'toast.nothingImportedFile': 'No transactions found in the file',
   'toast.nothingAdded': 'Nothing was added',
   'toast.offline': "You're offline",
+  'toast.storageBroken': "This device isn't saving your data",
+  'toast.storageBrokenDesc': 'Storage is full or blocked, so changes may be gone next time you open the app. Export a backup or sign in now to keep them safe.',
   'toast.offlineEraseDesc': 'Erasing also clears your cloud backup, which needs a connection. Try again when back online.',
   'toast.eraseCloudFailed': "Couldn't erase your cloud data",
   'toast.checkConnection': 'Check your connection and try again.',

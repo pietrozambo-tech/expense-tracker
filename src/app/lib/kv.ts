@@ -41,11 +41,39 @@ function localGet(key: string): string | null {
   }
 }
 
+// Fired at most once, the first time a write is refused with no durable store
+// behind it. A refused write is silent data loss on the next launch: the user
+// keeps using an app that looks fine and reopens it to yesterday. The app
+// cannot fix a full disk, but it can say so while there is still time to
+// export a backup or sign in - staying quiet here turns a recoverable
+// situation into a lost ledger.
+export const STORAGE_BROKEN_EVENT = 'tracklylab:storage-broken';
+let storageBroken = false;
+
+/**
+ * Whether a write has already been refused. The event alone is not enough:
+ * language and analytics writes happen before React mounts, so the first
+ * refusal can fire before anything is listening - the UI checks this on mount
+ * and catches up.
+ */
+export function isStorageBroken(): boolean {
+  return storageBroken;
+}
+
+function announceBrokenStorage(): void {
+  // On native the durable store is UserDefaults; a localStorage failure there
+  // costs nothing (hydrate() trusts whichever copy is newer), so only a device
+  // with no other store gets the warning.
+  if (storageBroken || mirrorReady) return;
+  storageBroken = true;
+  if (typeof window !== 'undefined') window.dispatchEvent(new Event(STORAGE_BROKEN_EVENT));
+}
+
 function localSet(key: string, value: string): void {
   try {
     localStorage.setItem(key, value);
   } catch {
-    /* full or unavailable */
+    announceBrokenStorage();
   }
 }
 
@@ -173,4 +201,5 @@ export function __resetForTests(): void {
   mirrorReady = false;
   pending.clear();
   draining = null;
+  storageBroken = false;
 }

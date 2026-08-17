@@ -2,6 +2,7 @@ import { createRoot } from "react-dom/client";
 import App from "./app/App.tsx";
 import { AuthProvider } from "./app/auth/AuthProvider.tsx";
 import { AppErrorBoundary } from "./app/components/AppErrorBoundary.tsx";
+import { Toaster } from "./app/components/ui/sonner.tsx";
 import { initAnalytics } from "./app/lib/analytics.ts";
 import { initFx } from "./app/lib/fx.ts";
 import { initThemeMode } from "./app/lib/themeMode.ts";
@@ -52,6 +53,17 @@ if ('serviceWorker' in navigator) {
   });
 }
 
+// Ask the browser to take this origin's storage out of the eviction pool. A
+// guest's ledger lives only here: Chrome treats un-persisted origins as "best
+// effort" and evicts them under disk pressure, and Safari clears a plain
+// browser tab's storage after seven days without a visit (installed
+// home-screen apps are exempt, which is why the README pushes installing).
+// One call, no prompt on the browsers we care about; a denial changes nothing
+// and costs nothing, so there is no need to look at the answer.
+if (typeof navigator !== 'undefined' && navigator.storage?.persist) {
+  void navigator.storage.persist().catch(() => {});
+}
+
 // App.tsx reads settings, transactions and categories synchronously in its
 // useState initialisers, so the durable store has to be in memory before the
 // first render. On the web this resolves in the same microtask (localStorage is
@@ -68,6 +80,14 @@ void hydrateStorage().catch(() => {}).then(() => {
   setLanguage(s.language === 'it' ? 'it' : s.onboarded ? 'en' : deviceLanguageGuess());
   createRoot(document.getElementById("root")!).render(
     <AppErrorBoundary>
+      {/* At the root, and BEFORE App, both deliberately. Inside App's main
+          return the toaster only existed once auth had resolved and the full
+          UI rendered - a toast fired from the sign-in screen, or from App's
+          own mount effects (the storage-broken warning is one), had no
+          toaster subscribed and vanished. Sonner does not replay what nobody
+          was listening to. First in tree order means its subscription effect
+          runs before any App effect can speak. */}
+      <Toaster position="top-center" />
       <AuthProvider>
         <App />
       </AuthProvider>
