@@ -122,3 +122,5 @@ App data lives in localStorage under versioned keys (`expense-tracker.v1.*`) wit
 Ideas parked with the thinking already done - costings, blockers, decisions not to build something - live in `ROADMAP.md`.
 
 Brought to you by **Zambop** · © TracklyLab
+
+**Not open source.** This repository is readable so anyone using the app can see how it handles their money and their data — but the code is proprietary and may not be copied, reused, or redistributed. See [LICENSE](LICENSE).
