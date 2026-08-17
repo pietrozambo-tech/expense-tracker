@@ -48,7 +48,7 @@ if (!esbuild) {
 
 const SCENARIOS = `
 import { homeAmount, mineAmount } from './utils/currency';
-import { byRecency, myShareOf, partnerSource, partnerSourceId, runningBalance, selectableSources, shareFraction } from './lib/shared';
+import { byRecency, filterableSources, myShareOf, partnerSource, partnerSourceId, runningBalance, selectableSources, shareFraction } from './lib/shared';
 import { mergePayloads } from './lib/cloud';
 import { planSync, mapCategory, resolveCategory, unmappedCategories, paidBy, paidByPartner, pairingChange, replicaId, sharedIdOf } from './lib/sharedSync';
 import { newsBalanceDelta, newsShareDelta, sharedNews, unseenKind } from './lib/shared';
@@ -408,6 +408,27 @@ eq('source: re-pairing with the same person puts hers back',
 // Real banks are never touched by any of this.
 eq('source: an ordinary source is never retired',
   selectableSources([bank], null).length, 1);
+
+// Activity's filter sits between picking and displaying: a retired source
+// stays on the filter menu while rows still wear it, and leaves with the last
+// one. Without the second half, every dissolved test pairing left a name in
+// the filter offering rows that cannot exist.
+{
+  const herRow = { id: 'f1', date: '2026-03-01', amount: 10, currency: 'EUR', type: 'expense',
+    description: 'Gym', category: { id: 'others', name: 'Others' }, sourceId: SRC };
+  const cashRow = { ...herRow, id: 'f2', sourceId: 'cash' };
+  eq('filter: a retired source with rows is still offered',
+    filterableSources(shelf, null, [herRow]).map((x) => x.id).join(','), 'revolut,' + SRC);
+  eq('filter: and gone once nothing references it',
+    filterableSources(shelf, null, [cashRow]).map((x) => x.id).join(','), 'revolut');
+  eq('filter: a live partner is offered even before her first row',
+    filterableSources(shelf, sharingOn, []).map((x) => x.id).join(','), 'revolut,' + SRC);
+  eq('filter: an ordinary source needs no rows to be offered',
+    filterableSources([bank], null, []).length, 1);
+  eq('filter: rows with no source at all prune nothing they should not',
+    filterableSources(shelf, null, [{ ...herRow, sourceId: undefined }])
+      .map((x) => x.id).join(','), 'revolut');
+}
 
 // ── Your share is summed, never halved ─────────────────────────────────────
 // The hero prints it beside the household total, and "usually half" is not

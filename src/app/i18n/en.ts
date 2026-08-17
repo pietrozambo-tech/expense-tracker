@@ -147,6 +147,8 @@ export const en = {
   'trend.monthlyAverage': 'Monthly Average',
   'trend.thisMonth': 'This month',
   'trend.months': '{n} months',
+  'trend.fullMonths.one': '{n} full month',
+  'trend.fullMonths.other': '{n} full months',
   'trend.tx.one': '{n} transaction',
   'trend.tx.other': '{n} transactions',
   'trend.noIncome': 'No income recorded',

@@ -134,6 +134,33 @@ export function selectableSources(sources: Source[], household: Household | null
 }
 
 /**
+ * The sources worth offering as a FILTER over the ledger.
+ *
+ * Between picking (selectableSources - live sources only) and displaying (the
+ * full list, so old rows always resolve) sits a third surface: Activity's
+ * source filter. It picks, but it picks over history, so a retired partner
+ * source must stay exactly as long as rows still wear it - filter "her card"
+ * away and months of real spending become unreachable by filter.
+ *
+ * The moment nothing references it, though, it is pure noise: a name from a
+ * dissolved pairing offering to filter for rows that cannot exist. That decay
+ * is why this is derived per render rather than cleaned up once at unpairing -
+ * the last referencing row can be deleted years later, and the option should
+ * disappear that day, not need a second cleanup pass nobody will run.
+ */
+export function filterableSources(
+  sources: Source[],
+  household: Household | null,
+  transactions: Transaction[],
+): Source[] {
+  const live = new Set((household?.memberIds ?? []).map(partnerSourceId));
+  const used = new Set(transactions.map((t) => t.sourceId).filter(Boolean));
+  return sources.filter(
+    (s) => !s.id.startsWith(PARTNER_SOURCE_PREFIX) || live.has(s.id) || used.has(s.id),
+  );
+}
+
+/**
  * Their change to this row, if you have not looked since - else null.
  *
  * Derived, not stored: every fact it needs is already on the transaction

@@ -148,6 +148,8 @@ export const it: Record<keyof typeof en, string> = {
   'trend.monthlyAverage': 'Media Mensile',
   'trend.thisMonth': 'Questo mese',
   'trend.months': '{n} mesi',
+  'trend.fullMonths.one': '{n} mese completo',
+  'trend.fullMonths.other': '{n} mesi completi',
   'trend.tx.one': '{n} transazione',
   'trend.tx.other': '{n} transazioni',
   'trend.noIncome': 'Nessuna entrata registrata',

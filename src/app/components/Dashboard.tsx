@@ -444,6 +444,8 @@ function StatChip({ label, value, tone }: { label: React.ReactNode; value: strin
 // module scope: this is how wide the phone is, which no remount changes, and
 // starting from it means the first render already draws at the right scale.
 let lastChartWidth = 0;
+// Same idea for the Trend tab's monthly line chart, which has its own box.
+let lastTrendWidth = 0;
 
 export function Dashboard({ expenses, categories, incomeCategories, sources = [], userName, currency, onEditExpense, onDeleteExpense, view = 'overview', onShowOverview, initialPeriod, viewStateRef, trendStateRef, monthlyBudget, budgetNudgeDismissed, insightsEnabled = true, onDisableInsights, onModalOpenChange, onSetMonthlyBudget, onDismissBudgetNudge, onAddFirstExpense, onLoadDemoData, weekStartsOn = 1, recurringRules = [], onManageRecurring, household = null, partner = null, settlements = [], onSettle, sharedNewsCount = 0, sharedNews = null, onSharedModeChange, onOpenBalanceHistory }: DashboardProps) {
   // Restore the previous view (period + drilldown) unless a Trend->Overview
@@ -497,6 +499,37 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
     } else {
       window.addEventListener('resize', measure);
       chartBoxCleanup.current = () => window.removeEventListener('resize', measure);
+    }
+  }, []);
+  // The Trend monthly chart drew in a fixed 320-unit viewBox with width:100%,
+  // and "meet" scaling made that wrong in both directions at once: a box
+  // narrower than 320 squeezed the drawing to ~80% height, so the gridlines
+  // sat visibly above the y-axis labels beside them; a box wider than 320
+  // (iPad, desktop) pinned the drawing left at 320px while the month labels
+  // spread across the full row, so the line ended under the wrong month.
+  // Measured for real - same pattern as above - the viewBox IS the box and
+  // every fraction the labels use maps 1:1.
+  const [trendWidth, setTrendWidth] = useState(lastTrendWidth);
+  const trendBoxCleanup = useRef<(() => void) | null>(null);
+  const trendBoxRef = useCallback((el: HTMLDivElement | null) => {
+    trendBoxCleanup.current?.();
+    trendBoxCleanup.current = null;
+    if (!el) return;
+    const measure = () => {
+      const w = el.clientWidth;
+      if (w > 0) {
+        lastTrendWidth = w;
+        setTrendWidth(w);
+      }
+    };
+    measure();
+    if (typeof ResizeObserver !== 'undefined') {
+      const ro = new ResizeObserver(measure);
+      ro.observe(el);
+      trendBoxCleanup.current = () => ro.disconnect();
+    } else {
+      window.addEventListener('resize', measure);
+      trendBoxCleanup.current = () => window.removeEventListener('resize', measure);
     }
   }, []);
   const [expandedCategory, setExpandedCategory] = useState<string | null>(savedView?.expandedCategory ?? null);
@@ -4171,9 +4204,13 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
         // Same array the trend rows were labelled from - slotX is an indexOf
         // against these labels, so the two must speak the same language.
         const MONTH_SLOTS = monthsShort();
-        const slotX = (m: string) => (MONTH_SLOTS.indexOf(m) / 11) * 320;
+        // The measured box width, which is also the viewBox width, so one
+        // drawing unit is one CSS pixel and the percentage-positioned month
+        // labels land exactly on their slots.
+        const trendW = trendWidth || 320;
+        const slotX = (m: string) => (MONTH_SLOTS.indexOf(m) / 11) * trendW;
         const chartX = (item: { month: string }, index: number) =>
-          showPrevYear ? slotX(item.month) : trendData.length > 1 ? (index / (trendData.length - 1)) * 320 : 160;
+          showPrevYear ? slotX(item.month) : trendData.length > 1 ? (index / (trendData.length - 1)) * trendW : trendW / 2;
 
         // Calculate Y-axis range - handle negative values for savings.
         // The benchmark's own values count: it must fit inside the plot.
@@ -4266,6 +4303,14 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
           const d = parseLocalDate(t.date);
           return avgMonthKeys.has(`${d.getFullYear()}-${d.getMonth()}`);
         });
+
+        // Total says "8 months", the averages divide by 7 - both are right (a
+        // total may count the month in progress; an average must not) but the
+        // reader multiplying one by the other gets a mismatch with no
+        // explanation. This label, on every average tile, is the explanation.
+        const fullMonths = completeMonths.length > 0
+          ? t(monthsWithData.length === 1 ? 'trend.fullMonths.one' : 'trend.fullMonths.other', { n: monthsWithData.length })
+          : t('trend.thisMonth');
 
 
         const totalSpent = trendData.reduce((sum, t) => sum + t.amount, 0);
@@ -4460,7 +4505,17 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                 // The saving rate is averaged across months rather than taken
                 // over the totals, so one unusually fat month cannot speak for
                 // all the others.
-                const monthlySavingRates: number[] = [];
+                //
+                // Over the SAME months as the euro figure beside it - the
+                // complete ones. This used to fold the running month in, and
+                // mid-August - salary not yet arrived, half a month of
+                // spending already there - its ratio dragged the average to
+                // -5% while the euro average, correctly excluding it, sat
+                // green at 280. One tile, two colours, and the red one was
+                // built from a month that had not happened yet. (Verified on
+                // the field data: complete months alone read +3.7%.)
+                const completeRates: number[] = [];
+                const allRates: number[] = [];
                 // Totals over the whole period, for the overall rate on the
                 // Total Saved card - one number for the year, alongside the
                 // per-month average alongside it.
@@ -4470,12 +4525,12 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                 trendData.forEach(month => {
                   const monthStart = new Date(month.year, getMonthNumber(month.month), 1);
                   const monthEnd = new Date(month.year, getMonthNumber(month.month) + 1, 0, 23, 59, 59, 999);
-                  
+
                   const monthExpenses = expenses.filter(expense => {
                     const expenseDate = parseLocalDate(expense.date);
                     return expenseDate >= monthStart && expenseDate <= monthEnd;
                   });
-                  
+
                   const monthIncome = monthExpenses.filter(e => e.type === 'income').reduce((sum, e) => sum + mineAmount(e, currency), 0);
                   const monthSpending = monthExpenses.filter(e => e.type !== 'income').reduce((sum, e) => sum + mineAmount(e, currency), 0);
 
@@ -4487,11 +4542,14 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                     // month holding 50EUR of income against a full month of
                     // spending is real and belongs in the average, but its raw
                     // ratio (-4,400%) would poison the year's figure for good.
-                    monthlySavingRates.push(
-                      Math.max(-100, ((monthIncome - monthSpending) / monthIncome) * 100),
-                    );
+                    const rate = Math.max(-100, ((monthIncome - monthSpending) / monthIncome) * 100);
+                    allRates.push(rate);
+                    if (!isRunningMonth(month)) completeRates.push(rate);
                   }
                 });
+                // Same fallback as averageBase: a first-month user is better
+                // served by a partial figure than by none.
+                const monthlySavingRates = completeRates.length > 0 ? completeRates : allRates;
 
                 // Overall rate: totals over the period, not an average of
                 // monthly rates - this one SHOULD let a fat month speak,
@@ -4532,6 +4590,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                       compact={formatAbbreviatedAmount(avgAmount, currency)}
                       compactNode={<AmountText amount={avgAmount} currency={currency} decimals={0} abbreviate="fit" />}
                       valueColor={savingsColor(avgAmount)}
+                      corner={fullMonths}
                       // A rate needs income to divide by. With none recorded there
                       // is nothing to report, and "0%" would read as "you saved
                       // nothing" - which is a different statement entirely.
@@ -4563,7 +4622,13 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                 const isExpense = transactionType === "expense";
                 const months = trendData.length === 1 ? t('trend.thisMonth') : t('trend.months', { n: trendData.length });
                 const txCount = trendData.reduce((sum, month) => sum + month.count, 0);
-                const avgTxCount = trendData.length > 0 ? Math.round(txCount / trendData.length) : 0;
+                // The typical month's count divides by the same months the
+                // average amount does - the complete ones. Dividing by every
+                // month including the running one made the two numbers on this
+                // tile disagree about what a "month" is.
+                const avgTxCount = monthsWithData.length > 0
+                  ? Math.round(monthsWithData.reduce((sum, month) => sum + month.count, 0) / monthsWithData.length)
+                  : 0;
                 const transactions = (n: number) => t(n === 1 ? 'trend.tx.one' : 'trend.tx.other', { n });
 
                 return (
@@ -4580,7 +4645,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                       value={<AmountText amount={avgAmount} currency={currency} decimals={0} />}
                       compact={formatAbbreviatedAmount(avgAmount, currency)}
                       compactNode={<AmountText amount={avgAmount} currency={currency} decimals={0} abbreviate="fit" />}
-                      footnote={isExpense ? transactions(avgTxCount) : undefined}
+                      footnote={isExpense ? `${fullMonths} · ${transactions(avgTxCount)}` : fullMonths}
                     />
                   </div>
                 );
@@ -4611,12 +4676,13 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                       <AmountText amount={yMin} currency={currency} decimals={0} abbreviate="fit" />
                     </div>
                     
-                    {/* Chart container */}
-                    <div className="ml-14 mr-2" style={{ height: '96px' }}>
-                      <svg 
-                        width="100%" 
-                        height="96" 
-                        viewBox="0 0 320 96"
+                    {/* Chart container. The ref feeds the measured width back
+                        into trendW, so the viewBox below is never a guess. */}
+                    <div ref={trendBoxRef} className="ml-14 mr-2" style={{ height: '96px' }}>
+                      <svg
+                        width="100%"
+                        height="96"
+                        viewBox={`0 0 ${trendW} 96`}
                         className="overflow-visible"
                         preserveAspectRatio="xMinYMin meet"
                       >
@@ -4628,18 +4694,18 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                         </defs>
                         <g transform="translate(0, 4)">
                           {/* Grid lines - minimized prominence */}
-                          <line x1="0" y1="0" x2="320" y2="0" stroke="var(--line-2)" strokeWidth="0.5" />
-                          <line x1="0" y1="44" x2="320" y2="44" stroke="var(--line-2)" strokeWidth="0.5" />
-                          <line x1="0" y1="88" x2="320" y2="88" stroke="var(--line-2)" strokeWidth="0.5" />
+                          <line x1="0" y1="0" x2={trendW} y2="0" stroke="var(--line-2)" strokeWidth="0.5" />
+                          <line x1="0" y1="44" x2={trendW} y2="44" stroke="var(--line-2)" strokeWidth="0.5" />
+                          <line x1="0" y1="88" x2={trendW} y2="88" stroke="var(--line-2)" strokeWidth="0.5" />
                           
                           {/* Average line (dashed, discreet) */}
                           {avgAmount > 0 && yRange > 0 && (() => {
                             const avgY = 88 - ((avgAmount - yMin) / yRange) * 88;
                             return (
-                              <line 
-                                x1="0" 
+                              <line
+                                x1="0"
                                 y1={avgY}
-                                x2="320" 
+                                x2={trendW}
                                 y2={avgY}
                                 stroke="#A3A3A3" 
                                 strokeWidth="1" 

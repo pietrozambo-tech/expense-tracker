@@ -49,7 +49,7 @@ import { DEFAULT_SOURCES, DEFAULT_SOURCE_EXPENSE, DEFAULT_SOURCE_INCOME } from '
 import { SourceLogo } from './components/SourceLogo';
 import { SourceSelectorModal } from './components/SourceSelectorModal';
 import { getDemoTransactions } from './lib/demoData';
-import { myShareOf, newHousehold, partnerSource, partnerSourceId, selectableSources, sharedNews, unseenKind } from './lib/shared';
+import { filterableSources, myShareOf, newHousehold, partnerSource, partnerSourceId, selectableSources, sharedNews, unseenKind } from './lib/shared';
 import { acceptCountry, currencyOfCountry, currentCountry, dismissCountry, homeCountry, observeCountry, travelSuggestion } from './lib/travel';
 import type { CountryVisit } from './lib/travel';
 import type { SharedNews } from './lib/shared';
@@ -1187,6 +1187,13 @@ export default function App() {
   // Sources on offer for a new entry. Everywhere a source is DISPLAYED keeps
   // the full list - see selectableSources for why retiring is not deleting.
   const pickableSources = useMemo(() => selectableSources(sources, household), [sources, household]);
+  // Activity's filter sits between picking and displaying: it must offer a
+  // retired partner source while rows still wear it, and stop the day the
+  // last one goes - see filterableSources.
+  const activitySources = useMemo(
+    () => filterableSources(sources, household, expenses),
+    [sources, household, expenses]
+  );
 
   /**
    * They fronted this one, so it did not leave any account of mine.
@@ -3061,7 +3068,7 @@ export default function App() {
             categories={categories}
             incomeCategories={incomeCategories}
             currency={userCurrency}
-            sources={sources}
+            sources={activitySources}
           />
         ) : (
           // Other tabs - Parent scrollable
