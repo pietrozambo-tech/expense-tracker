@@ -29,7 +29,7 @@ try {
   mkdirSync(join(tmp, 'lib'));
   mkdirSync(join(tmp, 'components'));
   copyFileSync(join(root, 'src/app/types.ts'), join(tmp, 'types.ts'));
-  for (const f of ['storage.ts', 'kv.ts', 'platform.ts']) {
+  for (const f of ['storage.ts', 'kv.ts', 'platform.ts', 'nudges.ts']) {
     copyFileSync(join(root, 'src/app/lib', f), join(tmp, 'lib', f));
   }
   for (const f of ['categories.ts', 'sources.ts']) {

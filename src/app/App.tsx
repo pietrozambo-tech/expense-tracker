@@ -3,7 +3,7 @@ import { toast } from 'sonner';
 import { createPortal } from 'react-dom';
 import { BarChart3, Plus, List, X, Settings as SettingsIcon, TrendingUp, ChevronDown, Repeat, Split, Undo2 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
-import { CURRENCIES, convertAmount, BASE_CURRENCY, formatAmountListView, homeAmount } from './utils/currency';
+import { CURRENCIES, convertAmount, BASE_CURRENCY, formatAmountListView, formatAbbreviatedAmount, homeAmount, mineAmount } from './utils/currency';
 import type { Transaction, Source, RecurringRule, Category, Household, Person, Settlement, SharedRemoval } from './types';
 import {
   clearAllData,
@@ -40,11 +40,15 @@ import {
   loadTravelCountries,
   saveTravelCountries,
   loadSharedCatMap,
+  loadNudges,
+  saveNudges,
   saveSharedCatMap,
   loadTravelOverride,
   saveTravelOverride,
 } from './lib/storage';
 import { STORAGE_BROKEN_EVENT, isStorageBroken } from './lib/kv';
+import { dueNudge, monthKey, prevMonthKey, runningEnv, untouched, type NudgePrefs } from './lib/nudges';
+import { NudgeCenter, type RecapFacts } from './components/NudgeCenter';
 import { DEFAULT_SOURCES, DEFAULT_SOURCE_EXPENSE, DEFAULT_SOURCE_INCOME } from './components/sources';
 import { SourceLogo } from './components/SourceLogo';
 import { SourceSelectorModal } from './components/SourceSelectorModal';
@@ -321,6 +325,8 @@ export default function App() {
   // data, unlike the device-local memories above: it is a decision about my
   // own filing, and it should follow me to a new phone.
   const [sharedCatMap, setSharedCatMap] = useState<Record<string, string>>(() => loadSharedCatMap());
+  // Nudge preferences and dismissals - device-local, see lib/nudges.ts.
+  const [nudgePrefs, setNudgePrefs] = useState<NudgePrefs>(() => loadNudges());
   // A country forced from the hidden developer panel. Empty for everyone who
   // has not gone looking for it, and it feeds the SAME path as real detection
   // rather than a parallel one - a test rig that bypasses the code under test
@@ -507,6 +513,9 @@ export default function App() {
   useEffect(() => {
     saveSharedCatMap(sharedCatMap);
   }, [sharedCatMap]);
+  useEffect(() => {
+    saveNudges(nudgePrefs);
+  }, [nudgePrefs]);
   // One observation per launch. Idempotent within a day, so a phone left open
   // over midnight simply records the new date the next time it wakes.
   useEffect(() => {
@@ -678,6 +687,79 @@ export default function App() {
     // Italian.
     adoptLanguage(s.language === 'it' ? 'it' : 'en');
   }, [adoptLanguage]);
+
+  // Start the customize nudge's two-day clock. One effect covers both lives:
+  // a fresh onboarding flips hasCompletedOnboarding and stamps now, and a
+  // device upgrading to this build backfills now on first launch - its clock
+  // starts honestly from the upgrade instead of firing on the spot.
+  useEffect(() => {
+    if (hasCompletedOnboarding) {
+      setNudgePrefs((p) => (p.onboardedAt ? p : { ...p, onboardedAt: new Date().toISOString() }));
+    }
+  }, [hasCompletedOnboarding]);
+
+  // The one nudge worth the Dashboard's attention right now, if any.
+  const activeNudge = useMemo(() => {
+    if (!hasCompletedOnboarding) return null;
+    const env = runningEnv();
+    const prev = prevMonthKey(new Date());
+    // Seeds come in two languages, and "untouched" must mean untouched in
+    // EITHER: a user who switched app language without ever editing a
+    // category still deserves the tip (their list matches the other seed).
+    const catsUntouched = (['en', 'it'] as const).some(
+      (l) => untouched(categories, defaultCategoriesFor(l)) && untouched(incomeCategories, defaultIncomeCategoriesFor(l))
+    );
+    const sourcesUntouched = (['en', 'it'] as const).some((l) => untouched(sources, defaultSourcesFor(l)));
+    return dueNudge({
+      prefs: nudgePrefs,
+      now: new Date(),
+      standalone: env.standalone,
+      mobile: env.mobile,
+      hasPrevMonthActivity: expenses.some((e) => (e.date ?? '').startsWith(prev)),
+      catsUntouched,
+      sourcesUntouched,
+    });
+  }, [hasCompletedOnboarding, nudgePrefs, categories, incomeCategories, sources, expenses]);
+
+  // Last month, told as one line. Amounts pre-formatted here so the card
+  // stays free of money arithmetic; negative savings are simply not claimed
+  // (the month is still summarised by what was spent).
+  const recapFacts = useMemo<RecapFacts | null>(() => {
+    if (activeNudge !== 'recap') return null;
+    const now = new Date();
+    const prev = prevMonthKey(now);
+    const rows = expenses.filter((e) => (e.date ?? '').startsWith(prev));
+    const spentRows = rows.filter((r) => r.type !== 'income');
+    const spent = spentRows.reduce((sum, r) => sum + mineAmount(r, userCurrency), 0);
+    const income = rows.filter((r) => r.type === 'income').reduce((sum, r) => sum + mineAmount(r, userCurrency), 0);
+    const byCat = new Map<string, number>();
+    spentRows.forEach((r) => byCat.set(r.category.name, (byCat.get(r.category.name) ?? 0) + mineAmount(r, userCurrency)));
+    const top = [...byCat.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
+    const d = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const raw = new Intl.DateTimeFormat(language === 'it' ? 'it-IT' : 'en-GB', { month: 'long' }).format(d);
+    const saved = income - spent;
+    return {
+      month: raw.charAt(0).toUpperCase() + raw.slice(1),
+      spent: formatAbbreviatedAmount(spent, userCurrency),
+      saved: income > 0 && saved > 0 ? formatAbbreviatedAmount(saved, userCurrency) : null,
+      topCategory: top,
+    };
+  }, [activeNudge, expenses, userCurrency, language]);
+
+  const dismissNudge = () => {
+    if (!activeNudge) return;
+    setNudgePrefs((p) =>
+      activeNudge === 'recap' ? { ...p, recapSeen: monthKey(new Date()) }
+      : activeNudge === 'install' ? { ...p, installDismissed: true }
+      : { ...p, customizeDismissed: true }
+    );
+  };
+  // Taking the tip consumes it, same as declining - either way it was heard.
+  const actOnNudge = () => {
+    if (activeNudge === 'recap') setCurrentTab('trend');
+    else if (activeNudge === 'customize') setCurrentTab('settings');
+    dismissNudge();
+  };
 
   // Keep the ref holding current local state fresh, for the listeners below
   // that are registered once and never see a later render's closure.
@@ -2658,6 +2740,7 @@ export default function App() {
     const realSkips = res.skipped.filter((sk) => sk.reason !== 'zero amount');
     track('data_imported', {
       count: res.added,
+      alreadyImported: res.alreadyImported,
       uncategorized: res.uncategorized,
       skipped: res.skipped.length,
       proposed: res.proposedSubcategories.length,
@@ -2670,8 +2753,10 @@ export default function App() {
       setImportSummary(res);
     } else {
       toast.success(t(res.added === 1 ? 'toast.imported.one' : 'toast.imported.other', { n: res.added }), {
-        description: t('toast.importedDesc'),
-        duration: 2200,
+        description: res.alreadyImported > 0
+          ? t('toast.importedDedupe', { n: res.alreadyImported })
+          : t('toast.importedDesc'),
+        duration: res.alreadyImported > 0 ? 3200 : 2200,
       });
       // The import may have dropped a year of one-offs behind series that
       // already exist - offer to fold them in. When the summary dialog is up
@@ -2693,10 +2778,18 @@ export default function App() {
       restoreBackup(p);
       return { added: 0, defaulted: 0, skipped: [] };
     }
-    const res = buildImport(payload, categories, incomeCategories, userCurrency);
+    const res = buildImport(payload, categories, incomeCategories, userCurrency, expenses);
     const realSkips = res.skipped.filter((sk) => sk.reason !== 'zero amount');
     if (res.added === 0) {
       if (realSkips.length) setImportSummary(res);
+      else if (res.alreadyImported > 0)
+        // The whole file was imported before. Not an error - the dedupe doing
+        // exactly its job - and saying so is what makes re-importing safe to
+        // do casually.
+        toast.success(t('toast.nothingNew'), {
+          description: t('toast.nothingNewDesc', { n: res.alreadyImported }),
+          duration: 3200,
+        });
       else toast.error(t('toast.nothingImported'), { description: t('toast.nothingImportedFile'), duration: 2200 });
       return res;
     }
@@ -3073,6 +3166,16 @@ export default function App() {
         ) : (
           // Other tabs - Parent scrollable
           <div ref={mainScrollRef} className="flex-1 overflow-y-auto pb-32">
+            {/* At most one quiet card of advice, above the Dashboard proper -
+                which one (if any) is lib/nudges.ts's decision. */}
+            {currentTab === 'dashboard' && activeNudge && (
+              <NudgeCenter
+                nudge={activeNudge}
+                recap={recapFacts ?? undefined}
+                onDismiss={dismissNudge}
+                onAction={actOnNudge}
+              />
+            )}
             <Suspense fallback={tabFallback}>
             {currentTab === 'dashboard' && (
               <Dashboard
@@ -3230,6 +3333,8 @@ export default function App() {
                 onEraseAllData={handleEraseAllData}
                 onEraseDemoData={handleEraseDemoData}
                 onClearTransactions={handleClearTransactions}
+                nudgePrefs={{ tips: nudgePrefs.tips, recap: nudgePrefs.recap }}
+                onSetNudgePref={(patch) => setNudgePrefs((p) => ({ ...p, ...patch }))}
                 hasDemoData={hasDemoData}
                 onImportData={handleImportData}
                 onExportData={handleExportData}

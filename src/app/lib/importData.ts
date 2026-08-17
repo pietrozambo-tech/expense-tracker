@@ -41,6 +41,11 @@ export const proposalKey = (p: { type: TransactionType; categoryId: string; name
 export interface ImportResult {
   transactions: Transaction[]; // new transactions, ready to prepend
   added: number;
+  // Rows the ledger already holds from an earlier import - same date, type,
+  // amount, currency and description. Counted, not listed: a re-imported
+  // statement can be hundreds of rows, and the one thing the user needs to
+  // know is that none of them double-counted.
+  alreadyImported: number;
   defaulted: number; // rows whose category didn't match and fell back to a catch-all
   // Rows that ended up in the catch-all bucket HOWEVER they got there - the
   // app's own fallback, or an AI that pre-mapped them to "Others" before the
@@ -55,6 +60,38 @@ export interface ImportResult {
 
 // A category name that acts as the catch-all bucket for anything unmatched.
 const CATCHALL_RE = /^(other|others|miscellaneous|misc|uncategori[sz]ed)$/i;
+
+/**
+ * The stable identity of an imported row, for dedupe across imports.
+ *
+ * Bank exports overlap - "last 3 months" in October shares two months with the
+ * same export pulled in September - and one-step imports invite pulling the
+ * same file twice. The fields are the ones every export format carries;
+ * description is case- and whitespace-folded, then FNV-hashed so a long memo
+ * does not bloat every stored row.
+ *
+ * The occurrence counter is what keeps this honest for REAL duplicates: two
+ * identical coffees on the same day in one file are two coffees (the second
+ * hashes with "#2"), but re-importing that file finds both hashes taken and
+ * skips both. Manual entries never carry a hash, so hand-typed rows can never
+ * block an import - across-door dedupe is a harder problem than same-door,
+ * and guessing at it would silently drop real spending.
+ */
+export function importHashOf(
+  date: string,
+  type: TransactionType,
+  amount: number,
+  currency: string,
+  description: string,
+): string {
+  const desc = description.trim().toLowerCase().replace(/\s+/g, ' ');
+  let h = 0x811c9dc5;
+  for (let i = 0; i < desc.length; i++) {
+    h ^= desc.charCodeAt(i);
+    h = Math.imul(h, 0x01000193) >>> 0;
+  }
+  return `${date}|${type}|${amount}|${currency}|${h.toString(36)}`;
+}
 
 function uid() {
   return `imp-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 9)}`;
@@ -122,7 +159,10 @@ export function buildImport(
   payload: ImportPayload,
   expenseCats: Category[],
   incomeCats: Category[],
-  fallbackCurrency: string
+  fallbackCurrency: string,
+  // The ledger as it stands, for dedupe. Only rows that carry an importHash
+  // participate - see importHashOf.
+  existing: Transaction[] = []
 ): ImportResult {
   const findCat = (name: string, type: TransactionType) => {
     const list = type === 'income' ? incomeCats : expenseCats;
@@ -139,6 +179,11 @@ export function buildImport(
   const skipped: { record: ImportRecord; reason: string }[] = [];
   let defaulted = 0;
   let uncategorized = 0;
+  let alreadyImported = 0;
+  const existingHashes = new Set(existing.map((t) => t.importHash).filter(Boolean));
+  // How many times each base hash has appeared in THIS file, for the
+  // occurrence counter.
+  const fileSeen = new Map<string, number>();
   // One stamp for the whole batch: "this import" is a thing the user can
   // find again as a group.
   const importedAt = new Date().toISOString();
@@ -180,6 +225,23 @@ export function buildImport(
       skipped.push({ record: rec, reason: 'zero amount' });
       continue;
     }
+    // Per-row currency wins over the file's; an unrecognised code on either
+    // falls through to the user's own, rather than being stored as-is and
+    // leaving a transaction the app cannot price or format. Resolved before
+    // dedupe because the currency is part of a row's identity.
+    const rowCurrency = normaliseCurrency(rec.currency) || fileCurrency || fallbackCurrency;
+
+    // Dedupe against earlier imports, before any category work: a duplicate
+    // is a duplicate whatever it would have been filed as.
+    const baseHash = importHashOf(date, type, amount, rowCurrency, rec.description || '');
+    const n = (fileSeen.get(baseHash) ?? 0) + 1;
+    fileSeen.set(baseHash, n);
+    const rowHash = n === 1 ? baseHash : `${baseHash}#${n}`;
+    if (existingHashes.has(rowHash)) {
+      alreadyImported++;
+      continue;
+    }
+
     // Resolve the category. If the name doesn't match one of the user's
     // categories, fall back to a catch-all ("Others") rather than dropping the
     // row — and remember the original label as a subcategory so the intent
@@ -216,11 +278,6 @@ export function buildImport(
       }
     }
 
-    // Per-row currency wins over the file's; an unrecognised code on either
-    // falls through to the user's own, rather than being stored as-is and
-    // leaving a transaction the app cannot price or format.
-    const rowCurrency = normaliseCurrency(rec.currency) || fileCurrency || fallbackCurrency;
-
     transactions.push({
       id: uid(),
       description: (rec.description || '').trim(),
@@ -234,6 +291,7 @@ export function buildImport(
       recurrence: 'Never repeat',
       sourceId: rec.source || undefined,
       importedAt,
+      importHash: rowHash,
       updatedAt: importedAt,
       // Everything in one file arrives together; within a day they keep the
       // order the file had.
@@ -244,6 +302,7 @@ export function buildImport(
   return {
     transactions,
     added: transactions.length,
+    alreadyImported,
     defaulted,
     uncategorized,
     skipped,

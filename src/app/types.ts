@@ -204,6 +204,12 @@ export interface Transaction {
   // big import can be reviewed in bulk from Activity's filter. Absent on
   // everything added by hand.
   importedAt?: string;
+  // The row's identity within its import file (date|type|amount|currency|
+  // desc-hash, plus "#n" for the nth identical row in one file). What lets a
+  // later, overlapping import recognise it and skip it instead of
+  // double-counting. Absent on everything added by hand - hand-typed rows
+  // must never block an import (see importHashOf in lib/importData.ts).
+  importHash?: string;
   // When this transaction was created or last edited, stamped by the device
   // that did it. Sync uses it to decide which of two copies is newer - the
   // only signal that stays true even when one device runs an older build.

@@ -58,6 +58,13 @@ export function ImportSummaryDialog({
               </p>
             </>
           )}
+          {(result.alreadyImported ?? 0) > 0 && (
+            // Reassurance, not a warning: the dedupe recognised rows an
+            // earlier import already brought in, and nothing double-counted.
+            <p className="text-neutral-500 text-[13px] leading-relaxed">
+              {t(result.alreadyImported === 1 ? 'imp.already.one' : 'imp.already.other', { n: result.alreadyImported })}
+            </p>
+          )}
           {realSkips.length > 0 && (
             <p className="text-neutral-400 text-xs leading-relaxed">
               {t(realSkips.length === 1 ? 'imp.skipped.one' : 'imp.skipped.other', { n: realSkips.length })}

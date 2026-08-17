@@ -10,6 +10,7 @@ import {
 } from '../components/sources';
 import { getItem, hydrate, removeItem, setItem } from './kv';
 import type { CountryVisit } from './travel';
+import { DEFAULT_NUDGE_PREFS, type NudgePrefs } from './nudges';
 
 // Versioned keys so a future schema change can migrate (or ignore) old data.
 const key = (name: string) => `expense-tracker.v1.${name}`;
@@ -84,6 +85,12 @@ const KEYS = {
   // about my own filing, so it syncs and backs up with the rest of the data
   // rather than living on one device.
   sharedCatMap: key('shared-cat-map'),
+  // Nudge preferences and dismissals (lib/nudges.ts). Device-local on
+  // purpose: the install banner is about THIS device, the recap is "did this
+  // screen already show it", and the toggles mirror how notification
+  // permissions actually work - per device. At worst a second device shows a
+  // card once more.
+  nudges: key('nudges'),
 };
 
 /**
@@ -173,6 +180,12 @@ export const saveTravelCountries = (rows: CountryVisit[]) => write(KEYS.travelCo
 
 export const loadSharedCatMap = () => read<Record<string, string>>(KEYS.sharedCatMap, {});
 export const saveSharedCatMap = (map: Record<string, string>) => write(KEYS.sharedCatMap, map);
+
+export const loadNudges = (): NudgePrefs => ({
+  ...DEFAULT_NUDGE_PREFS,
+  ...read<Partial<NudgePrefs>>(KEYS.nudges, {}),
+});
+export const saveNudges = (prefs: NudgePrefs) => write(KEYS.nudges, prefs);
 
 export const loadDevUnlocked = () => getItem(KEYS.devUnlocked) === 'true';
 export const saveDevUnlocked = (on: boolean) => {

@@ -232,6 +232,34 @@ function scenarioProposalEdges() {
 }
 
 console.log('\n================================================================');
+
+function scenarioDedupe() {
+  heading('9. Overlapping exports never double-count');
+  const file = [
+    row({ description: 'Coffee' }),
+    row({ description: 'Coffee' }), // a real second coffee, same day
+    row({ date: '2026-07-11', amount: 55, description: 'Dinner' }),
+  ];
+  const first = buildImport({ version: 1, transactions: file } as any, EXP, INC, 'EUR', []);
+  expect('two identical rows in ONE file are two real coffees', String(first.added), '3');
+  expect('and each carries its own identity',
+    String(new Set(first.transactions.map((t) => t.importHash)).size), '3');
+  const again = buildImport({ version: 1, transactions: file } as any, EXP, INC, 'EUR', first.transactions);
+  expect('the same file again adds nothing', String(again.added), '0');
+  expect('and says why', String(again.alreadyImported), '3');
+  const wider = [...file, row({ date: '2026-08-01', amount: 12, description: 'Cinema' })];
+  const overlap = buildImport({ version: 1, transactions: wider } as any, EXP, INC, 'EUR', first.transactions);
+  expect('a wider export adds only what is genuinely new', `${overlap.added}/${overlap.alreadyImported}`, '1/3');
+  // A hand-typed twin never blocks the import - across-door dedupe would
+  // silently drop real spending on a guess.
+  const manual = [{ ...first.transactions[2], id: 'manual', importHash: undefined, importedAt: undefined }];
+  const vsManual = buildImport({ version: 1, transactions: [file[2]] } as any, EXP, INC, 'EUR', manual as any);
+  expect('a hand-typed twin does not block the row', `${vsManual.added}/${vsManual.alreadyImported}`, '1/0');
+  // Case and spacing noise in a bank's description is still the same row.
+  const noisy = buildImport({ version: 1, transactions: [row({ description: '  COFFEE ' })] } as any, EXP, INC, 'EUR', first.transactions);
+  expect('description case/whitespace noise is still a duplicate', String(noisy.alreadyImported), '1');
+}
+
 console.log(` Import file handling   [${OLD ? 'BEFORE validation' : 'AFTER validation'}]`);
 console.log(' (running the real src/app/lib/importData.ts)');
 console.log('================================================================');
@@ -243,6 +271,8 @@ scenarioNothingSilent();
 scenarioTotalsStayFinite();
 scenarioProposals();
 scenarioProposalEdges();
+// Dedupe exists only in the current build - nothing to compare --before.
+if (!OLD) scenarioDedupe();
 console.log('\n================================================================');
 console.log(failures === 0 ? ' All checks passed.' : ` ${failures} check(s) FAILED.`);
 console.log('================================================================\n');

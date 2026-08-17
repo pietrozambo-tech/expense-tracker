@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react';
-import { ChevronRight, ChevronLeft, Wrench, ArrowLeftRight, UserCircle, Wallet, HelpCircle, ShieldCheck, ScrollText, Layers, FlaskConical, Trash2, Landmark, Cloud, LogOut, Upload, Copy, Download, FileSpreadsheet, Palmtree, UserX, Mail, LifeBuoy, CheckCircle2, Globe, CalendarClock, Sparkles, Palette, Sun, Moon, SunMoon, Split, Plus, Eraser } from 'lucide-react';
+import { Bell, Lightbulb, ChevronRight, ChevronLeft, Wrench, ArrowLeftRight, UserCircle, Wallet, HelpCircle, ShieldCheck, ScrollText, Layers, FlaskConical, Trash2, Landmark, Cloud, LogOut, Upload, Copy, Download, FileSpreadsheet, Palmtree, UserX, Mail, LifeBuoy, CheckCircle2, Globe, CalendarClock, Sparkles, Palette, Sun, Moon, SunMoon, Split, Plus, Eraser } from 'lucide-react';
 import { getCategoryIcon } from './categoryIcons';
 import { sendSupportMessage, supportLimitReached } from '../lib/support';
 import { switchGlow } from './categoryColors';
@@ -38,8 +38,8 @@ import { isBackupFile } from '../lib/backup';
 
 // One row of the Profile card with an iOS-style switch. Budget and insights
 // share it, so the two toggles cannot drift apart visually.
-function SwitchRow({ label, on, divider, onToggle }: {
-  label: string; on: boolean; divider?: boolean; onToggle: () => void;
+function SwitchRow({ label, sub, icon, on, divider, onToggle }: {
+  label: string; sub?: string; icon?: React.ReactNode; on: boolean; divider?: boolean; onToggle: () => void;
 }) {
   return (
     <button
@@ -47,9 +47,13 @@ function SwitchRow({ label, on, divider, onToggle }: {
       role="switch"
       aria-checked={on}
       className="w-full flex items-center gap-3 px-4"
-      style={{ height: 52, borderBottom: divider ? '1px solid var(--bg-inset)' : 'none' }}
+      style={{ minHeight: 52, paddingTop: sub ? 8 : 0, paddingBottom: sub ? 8 : 0, borderBottom: divider ? '1px solid var(--bg-inset)' : 'none' }}
     >
-      <span className="flex-1 text-left" style={{ color: 'var(--ink)', fontSize: 15 }}>{label}</span>
+      {icon}
+      <span className="flex-1 text-left">
+        <span style={{ color: 'var(--ink)', fontSize: 15, display: 'block' }}>{label}</span>
+        {sub && <span style={{ color: 'var(--ink-2)', fontSize: 12.5, display: 'block', marginTop: 1 }}>{sub}</span>}
+      </span>
       <span
         className="relative flex-shrink-0 rounded-full transition-colors"
         style={{ width: 46, height: 28, backgroundColor: on ? '#4F74F3' : 'var(--bg-off)' }}
@@ -103,6 +107,7 @@ const TILE = {
   demo:     { bg: '#F5F0FE', fg: '#7C3AED' },
   danger:   { bg: '#FEECEC', fg: '#DC2626' },
   appearance:{ bg: '#EDEBFF', fg: '#5B54D6' },
+  notify:   { bg: '#FFF1E8', fg: '#EA580C' },
   shared:   { bg: '#EEF1FE', fg: '#4F74F3' },
   neutral:  { bg: '#EFEFF4', fg: '#6B7280' },
 } as const;
@@ -262,6 +267,10 @@ interface SettingsProps {
   isGuest?: boolean;
   onSignOut?: () => void;
   onDeleteAccount?: () => Promise<{ error: string | null }>;
+  // Nudge toggles (lib/nudges.ts). Device-local prefs, like notification
+  // permissions everywhere else.
+  nudgePrefs?: { tips: boolean; recap: boolean };
+  onSetNudgePref?: (patch: Partial<{ tips: boolean; recap: boolean }>) => void;
   onSignInToSync?: () => void;
 }
 
@@ -338,6 +347,8 @@ export function Settings({
   isGuest,
   onSignOut,
   onDeleteAccount,
+  nudgePrefs = { tips: true, recap: true },
+  onSetNudgePref,
   onSignInToSync
 }: SettingsProps) {
   // Falls back to the name initial if the avatar image can't be loaded.
@@ -3076,6 +3087,35 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
             <ChevronRight className="w-4 h-4" style={{ color: 'var(--ghost)' }} />
           </button>
         </div>
+
+        {/* Notifications live between the set-once rows above and the money
+            rows below: preferences, but ones the nudges themselves point at.
+            The push line under the card is the honest version of a promise:
+            these toggles govern in-app cards today and will govern push when
+            the App Store build brings it. */}
+        <p className="mt-5 mb-1.5 px-1" style={{ color: 'var(--ink-2)', fontSize: '13px' }}>
+          {t('set.notifications')}
+        </p>
+        <div className="bg-white rounded-2xl shadow-sm overflow-hidden" data-notifications>
+          <SwitchRow
+            icon={<RowIcon icon={Lightbulb} tone={TILE.notify} />}
+            label={t('set.tips')}
+            sub={t('set.tipsSub')}
+            on={nudgePrefs.tips}
+            divider
+            onToggle={() => onSetNudgePref?.({ tips: !nudgePrefs.tips })}
+          />
+          <SwitchRow
+            icon={<RowIcon icon={Bell} tone={TILE.notify} />}
+            label={t('set.recapToggle')}
+            sub={t('set.recapToggleSub')}
+            on={nudgePrefs.recap}
+            onToggle={() => onSetNudgePref?.({ recap: !nudgePrefs.recap })}
+          />
+        </div>
+        <p className="px-1" style={{ color: 'var(--faint)', fontSize: 12, marginTop: 8, lineHeight: 1.45 }}>
+          {t('set.notifPush')}
+        </p>
 
         {/* What your transactions are built from. Its own card because these
             are the rows you come BACK to - categories shift as your spending
