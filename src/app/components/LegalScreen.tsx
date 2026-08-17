@@ -33,7 +33,7 @@ export function LegalScreen({ doc, onBack }: LegalScreenProps) {
           <p style={{ color: 'var(--ink-2)', fontSize: 12, marginBottom: 14 }}>Last updated {doc.updated}</p>
 
           <div className="bg-white rounded-2xl shadow-sm px-5 py-5">
-            <p style={{ color: '#3A3A3C', fontSize: 15, lineHeight: 1.55 }}>{doc.intro}</p>
+            <p style={{ color: 'var(--ink-2)', fontSize: 15, lineHeight: 1.55 }}>{doc.intro}</p>
 
             {doc.sections.map((section) => (
               <div key={section.heading} className="mt-6">

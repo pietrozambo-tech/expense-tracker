@@ -110,10 +110,10 @@ function AddIllustration() {
 
       {/* Date + recurrence chips */}
       <div className="flex items-center gap-2 mb-3">
-        <span className="flex items-center gap-1.5 rounded-full px-2.5 py-1.5 text-xs font-medium" style={{ background: '#F2F2F5', color: '#3C3C43' }}>
+        <span className="flex items-center gap-1.5 rounded-full px-2.5 py-1.5 text-xs font-medium" style={{ background: 'var(--bg-inset)', color: 'var(--ink-2)' }}>
           <Calendar className="w-3.5 h-3.5" style={{ color: 'var(--ink-2)' }} /> {t('date.today')}
         </span>
-        <span className="flex items-center gap-1.5 rounded-full px-2.5 py-1.5 text-xs font-medium" style={{ background: '#F2F2F5', color: '#3C3C43' }}>
+        <span className="flex items-center gap-1.5 rounded-full px-2.5 py-1.5 text-xs font-medium" style={{ background: 'var(--bg-inset)', color: 'var(--ink-2)' }}>
           <Repeat className="w-3.5 h-3.5" style={{ color: 'var(--ink-2)' }} /> {getLanguage() === 'it' ? 'Mensile' : 'Monthly'}
           <ChevronDown className="w-3 h-3" style={{ color: 'var(--ink-2)' }} />
         </span>
@@ -123,7 +123,7 @@ function AddIllustration() {
       <div className="grid grid-cols-2 gap-2">
         {cats.slice(0, 2).map(({ name, Icon, bg, fg, on }) => (
           <div key={name} className="flex items-center gap-2 rounded-xl px-2.5 py-2"
-            style={{ background: on ? '#FFFFFF' : '#FAFAFB', boxShadow: on ? '0 0 0 2px #4F74F3' : 'inset 0 0 0 1px #ECECEF' }}>
+            style={{ background: 'var(--bg-card)', boxShadow: on ? '0 0 0 2px #4F74F3' : 'inset 0 0 0 1px var(--line-2)' }}>
             <span className="flex items-center justify-center flex-shrink-0" style={{ width: 26, height: 26, borderRadius: 8, background: bg }}>
               <Icon className="w-4 h-4" style={{ color: fg }} />
             </span>
@@ -135,14 +135,14 @@ function AddIllustration() {
         <div className="col-span-2 rounded-xl px-3 py-2.5" style={{ background: 'var(--bg-card)', border: '1px solid var(--line-2)', boxShadow: '0 1px 4px rgba(0,0,0,0.05)' }}>
           <div className="text-[10px] font-semibold mb-1.5" style={{ color: 'var(--ink-2)', letterSpacing: '0.06em' }}>{t('add.subcategory')}</div>
           <div className="flex gap-2">
-            <span className="rounded-lg px-2.5 py-1 text-xs border" style={{ background: 'var(--wash-accent2)', color: '#3D5BE0', borderColor: '#BFDBFE' }}>{getLanguage() === 'it' ? 'Supermercato' : 'Supermarket'}</span>
-            <span className="rounded-lg px-2.5 py-1 text-xs border" style={{ background: 'var(--bg-card)', color: '#4B5563', borderColor: '#E5E7EB' }}>{getLanguage() === 'it' ? 'Mercato' : 'Market'}</span>
+            <span className="rounded-lg px-2.5 py-1 text-xs border" style={{ background: 'var(--wash-accent2)', color: 'var(--accent-ink)', borderColor: 'var(--wash-accent3)' }}>{getLanguage() === 'it' ? 'Supermercato' : 'Supermarket'}</span>
+            <span className="rounded-lg px-2.5 py-1 text-xs border" style={{ background: 'var(--bg-card)', color: 'var(--ink-2)', borderColor: 'var(--line-2)' }}>{getLanguage() === 'it' ? 'Mercato' : 'Market'}</span>
           </div>
         </div>
 
         {cats.slice(2).map(({ name, Icon, bg, fg, on }) => (
           <div key={name} className="flex items-center gap-2 rounded-xl px-2.5 py-2"
-            style={{ background: on ? '#FFFFFF' : '#FAFAFB', boxShadow: on ? '0 0 0 2px #4F74F3' : 'inset 0 0 0 1px #ECECEF' }}>
+            style={{ background: 'var(--bg-card)', boxShadow: on ? '0 0 0 2px #4F74F3' : 'inset 0 0 0 1px var(--line-2)' }}>
             <span className="flex items-center justify-center flex-shrink-0" style={{ width: 26, height: 26, borderRadius: 8, background: bg }}>
               <Icon className="w-4 h-4" style={{ color: fg }} />
             </span>

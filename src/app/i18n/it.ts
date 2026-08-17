@@ -459,7 +459,7 @@ export const it: Record<keyof typeof en, string> = {
   'set.title': 'Impostazioni',
   'set.subGuest': 'Ospite - i dati restano su questo dispositivo',
   'set.subBacked': 'Backup attivo come {email}',
-  'set.here': 'Ora in {flag} {country}',
+  'set.here': 'Ora in {country} {flag}',
   'set.signIn': 'Accedi per backup e sync',
   'set.signInSub': 'Tieni i tuoi dati al sicuro su tutti i dispositivi',
   'set.signOut': 'Esci',
