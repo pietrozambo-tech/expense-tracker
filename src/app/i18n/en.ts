@@ -450,6 +450,7 @@ export const en = {
   'nudge.customizeBody': 'Your categories and payment sources are still the starter set. Shaping them around your life makes every chart sharper.',
   'nudge.customizeCta': 'Open Settings',
   'set.notifications': 'Notifications & tips',
+  'set.notifRow': 'Notifications',
   'set.tips': 'Setup tips',
   'set.tipsSub': 'The install banner and one-time setup suggestions',
   'set.recapToggle': 'Monthly recap',

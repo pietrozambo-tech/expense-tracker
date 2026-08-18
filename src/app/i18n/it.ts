@@ -451,6 +451,7 @@ export const it: Record<keyof typeof en, string> = {
   'nudge.customizeBody': 'Categorie e conti sono ancora quelli di partenza. Adattarli alla tua vita rende ogni grafico più preciso.',
   'nudge.customizeCta': 'Apri Impostazioni',
   'set.notifications': 'Notifiche e consigli',
+  'set.notifRow': 'Notifiche',
   'set.tips': 'Consigli iniziali',
   'set.tipsSub': 'Il banner di installazione e i suggerimenti una tantum',
   'set.recapToggle': 'Riepilogo mensile',

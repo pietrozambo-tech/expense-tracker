@@ -364,6 +364,7 @@ export function Settings({
   const [showCurrencySelector, setShowCurrencySelector] = useState(false);
   const [showLanguage, setShowLanguage] = useState(false);
   const [showAppearance, setShowAppearance] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
   const [showShared, setShowShared] = useState(false);
   // The developer screen, and the way in. A code rather than a hidden gesture:
   // a tap count is found by accident, impossible to describe over a message,
@@ -478,7 +479,7 @@ export function Settings({
   // coming back should not find a half-typed code waiting.
   const anySubpageOpen =
     showCategories || showSources || showScheduled || showAbout || showImport ||
-    showCurrencySelector || showLanguage || showAppearance || showShared ||
+    showCurrencySelector || showLanguage || showAppearance || showNotifications || showShared ||
     showNameEditor || showSupport || !!legalDoc;
   const closeSubpage = useCallback(() => {
     if (legalDoc) return setLegalDoc(null);
@@ -494,6 +495,7 @@ export function Settings({
       return;
     }
     if (showAppearance) return setShowAppearance(false);
+    if (showNotifications) return setShowNotifications(false);
     if (showLanguage) return setShowLanguage(false);
     if (showImport) return setShowImport(false);
     if (showAbout) return setShowAbout(false);
@@ -501,7 +503,7 @@ export function Settings({
     if (showSources) return setShowSources(false);
     if (showCategories) return setShowCategories(false);
   }, [legalDoc, showCurrencySelector, showSupport, showNameEditor, showShared,
-      showAppearance, showLanguage, showImport, showAbout, showScheduled,
+      showAppearance, showNotifications, showLanguage, showImport, showAbout, showScheduled,
       showSources, showCategories, household, setupStep]);
   useEdgeSwipeBack(anySubpageOpen, useCallback(() => navTransition('back', closeSubpage), [closeSubpage]));
 
@@ -1848,6 +1850,56 @@ export function Settings({
   // three are all "how the app presents itself", where Profile is who you are
   // and what your money rules are. Every OS and every app of this shape puts
   // the theme switch on that shelf, which is where people look for it.
+  // Notifications live behind their own row, like Appearance: the root menu
+  // stays a table of contents, and controls sit one level in.
+  if (showNotifications) {
+    return (
+      <div className="flex flex-col" style={SUBPAGE_STYLE}>
+        <div style={{ backgroundColor: 'var(--bg-page)' }}>
+          <div className="px-6 pb-4 pt-0">
+            <div className="flex items-center justify-center relative">
+              <button
+                onClick={() => navTransition('back', () => setShowNotifications(false))}
+                className="absolute left-0 -ml-2 px-2 py-1 rounded-lg active:bg-neutral-200 transition-colors"
+              >
+                <ChevronLeft size={24} style={{ color: 'var(--accent-ink)' }} />
+              </button>
+              <h1 style={{ color: 'var(--ink)', fontSize: '20px', fontWeight: '600', letterSpacing: '-0.3px' }}>{t('set.notifications')}</h1>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto" style={{ paddingBottom: DOCK_CLEARANCE }}>
+          <div className="px-6">
+            <div className="rounded-2xl shadow-sm overflow-hidden" data-notifications style={{ backgroundColor: 'var(--bg-card)' }}>
+              <SwitchRow
+                icon={<RowIcon icon={Lightbulb} tone={TILE.notify} />}
+                label={t('set.tips')}
+                sub={t('set.tipsSub')}
+                on={nudgePrefs.tips}
+                divider
+                onToggle={() => onSetNudgePref?.({ tips: !nudgePrefs.tips })}
+              />
+              <SwitchRow
+                icon={<RowIcon icon={Bell} tone={TILE.notify} />}
+                label={t('set.recapToggle')}
+                sub={t('set.recapToggleSub')}
+                on={nudgePrefs.recap}
+                onToggle={() => onSetNudgePref?.({ recap: !nudgePrefs.recap })}
+              />
+            </div>
+            {/* The honest version of a promise: these toggles govern in-app
+                cards today and will govern push when the App Store build
+                brings it. */}
+            <p className="px-1 mt-4" style={{ color: 'var(--faint)', fontSize: 12, lineHeight: 1.45 }}>
+              {t('set.notifPush')}
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (showAppearance) {
     const OPTIONS = [
       { mode: 'system' as const, icon: SunMoon, label: t('theme.system'), hint: t('theme.systemHint') },
@@ -3078,6 +3130,7 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
           <button
             onClick={() => navTransition('forward', () => setShowAppearance(true))}
             className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
+            style={{ borderBottom: '1px solid var(--bg-inset)' }}
           >
             <RowIcon icon={Palette} tone={TILE.appearance} />
             <span className="flex-1 text-left" style={{ color: 'var(--ink)', fontSize: '15px' }}>{t('set.theme')}</span>
@@ -3086,36 +3139,16 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
             </span>
             <ChevronRight className="w-4 h-4" style={{ color: 'var(--ghost)' }} />
           </button>
-        </div>
 
-        {/* Notifications live between the set-once rows above and the money
-            rows below: preferences, but ones the nudges themselves point at.
-            The push line under the card is the honest version of a promise:
-            these toggles govern in-app cards today and will govern push when
-            the App Store build brings it. */}
-        <p className="mt-5 mb-1.5 px-1" style={{ color: 'var(--ink-2)', fontSize: '13px' }}>
-          {t('set.notifications')}
-        </p>
-        <div className="bg-white rounded-2xl shadow-sm overflow-hidden" data-notifications>
-          <SwitchRow
-            icon={<RowIcon icon={Lightbulb} tone={TILE.notify} />}
-            label={t('set.tips')}
-            sub={t('set.tipsSub')}
-            on={nudgePrefs.tips}
-            divider
-            onToggle={() => onSetNudgePref?.({ tips: !nudgePrefs.tips })}
-          />
-          <SwitchRow
-            icon={<RowIcon icon={Bell} tone={TILE.notify} />}
-            label={t('set.recapToggle')}
-            sub={t('set.recapToggleSub')}
-            on={nudgePrefs.recap}
-            onToggle={() => onSetNudgePref?.({ recap: !nudgePrefs.recap })}
-          />
+          <button
+            onClick={() => navTransition('forward', () => setShowNotifications(true))}
+            className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
+          >
+            <RowIcon icon={Bell} tone={TILE.notify} />
+            <span className="flex-1 text-left" style={{ color: 'var(--ink)', fontSize: '15px' }}>{t('set.notifRow')}</span>
+            <ChevronRight className="w-4 h-4" style={{ color: 'var(--ghost)' }} />
+          </button>
         </div>
-        <p className="px-1" style={{ color: 'var(--faint)', fontSize: 12, marginTop: 8, lineHeight: 1.45 }}>
-          {t('set.notifPush')}
-        </p>
 
         {/* What your transactions are built from. Its own card because these
             are the rows you come BACK to - categories shift as your spending
