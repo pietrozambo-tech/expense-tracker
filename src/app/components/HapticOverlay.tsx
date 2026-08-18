@@ -4,9 +4,19 @@ import { isIOSWeb } from '../lib/haptics';
 //
 // Apple removed programmatic web haptics in iOS 26.5; what survives - on
 // every iOS since 17.4 - is the system tick a native switch plays when a
-// FINGER toggles it. So the key tap targets render one of these on top of
+// FINGER toggles it. So a few tap targets render one of these on top of
 // themselves: the tap lands on the switch (haptic, by the platform's own
 // hand), and the click bubbles on to the control's real handler underneath.
+//
+// HARD RULE: only on surfaces that do not scroll. A native iOS switch
+// toggles by SLIDING as well as tapping, so on a scrollable surface a
+// vertical scroll that merely starts on the control reads as an
+// interaction and the click bubbles into the handler. That is exactly what
+// happened when the Add screen's category chips wore one: scrolling the
+// grid kept selecting categories. Today the overlay lives on the dock (the
+// tabs and the +) and the dev panel's Tap-me diagnostic - nothing else.
+// Chips, list rows and settings switches stay bare; on iOS they simply
+// have no haptic, which beats a control that fires while you scroll.
 //
 // The host element must be position:relative. Deliberately kept native in
 // appearance (appearance:none might unhook the very behaviour we are here

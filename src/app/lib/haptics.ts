@@ -15,12 +15,17 @@
 //
 // So iOS haptics are split by WHEN they happen:
 //
-//   Tap moments (a tab, a chip, a toggle) get a real switch rendered
-//   invisibly OVER the control - components/HapticOverlay.tsx. The finger
-//   genuinely toggles it (haptic, every iOS version), and the click bubbles
-//   on to the control's own handler. fire() therefore does NOT attempt
-//   programmatic iOS output for 'select'/'tick': the overlay owns those, and
-//   attempting both double-buzzed every device still on <=26.4.
+//   Tap moments on NON-SCROLLING surfaces (the dock's tabs and +) get a
+//   real switch rendered invisibly OVER the control -
+//   components/HapticOverlay.tsx. The finger genuinely toggles it (haptic,
+//   every iOS version), and the click bubbles on to the control's own
+//   handler. The overlay is banned from anything that scrolls: a native
+//   switch also toggles by SLIDING, so on a scrollable grid or list a
+//   vertical scroll starting on the control becomes a selection (the Add
+//   screen's category chips proved it). fire() does NOT attempt
+//   programmatic iOS output for 'select'/'tick': where the overlay exists
+//   it owns those, attempting both double-buzzed devices still on <=26.4,
+//   and where it does not, iOS stays silent by design.
 //
 //   Outcome moments (saved, settled, imported, deleted) cannot be a tap -
 //   they happen after validation, sometimes with no tap at all. For these,

@@ -51,10 +51,9 @@ function SwitchRow({ label, sub, icon, on, divider, onToggle }: {
       }}
       role="switch"
       aria-checked={on}
-      className="relative w-full flex items-center gap-3 px-4"
+      className="w-full flex items-center gap-3 px-4"
       style={{ minHeight: 52, paddingTop: sub ? 8 : 0, paddingBottom: sub ? 8 : 0, borderBottom: divider ? '1px solid var(--bg-inset)' : 'none' }}
     >
-      <HapticOverlay />
       {icon}
       <span className="flex-1 text-left">
         <span style={{ color: 'var(--ink)', fontSize: 15, display: 'block' }}>{label}</span>
@@ -1140,7 +1139,7 @@ export function Settings({
               Tap me - overlay haptic
             </button>
             <p className="mt-1.5 mb-2.5" style={{ color: 'var(--faint)', fontSize: 11, lineHeight: 1.4 }}>
-              Your finger toggles an invisible real switch. This is what the dock, chips and toggles use - works on every iOS since 17.4.
+              Your finger toggles an invisible real switch. This is what the dock uses - works on every iOS since 17.4. Never placed on scrolling surfaces: a switch also toggles when slid over.
             </p>
             <div className="flex items-center justify-between rounded-lg px-3" style={{ backgroundColor: 'var(--bg-inset)', height: 44 }}>
               <span style={{ color: 'var(--ink)', fontSize: 13 }}>Native switch (visible)</span>

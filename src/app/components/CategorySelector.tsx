@@ -1,5 +1,4 @@
 import { Fragment } from 'react';
-import { HapticOverlay } from './HapticOverlay';
 import { t } from '../i18n';
 import { X } from 'lucide-react';
 import { getCategoryIcon } from './categoryIcons';
@@ -62,7 +61,7 @@ export function CategorySelector({
             <Fragment key={category.id}>
               <button
                 onClick={() => onSelectCategory(category.id)}
-                className={`relative flex items-center gap-3 py-2.5 px-3 rounded-xl min-h-[52px] ${
+                className={`flex items-center gap-3 py-2.5 px-3 rounded-xl min-h-[52px] ${
                   isSelected
                     ? 'bg-neutral-50 ring-2 ring-blue-500'
                     : 'bg-neutral-50/50 hover:bg-neutral-100'
@@ -74,9 +73,6 @@ export function CategorySelector({
                   backfaceVisibility: 'hidden'
                 }}
               >
-                {/* iOS: the pick's haptic is the finger toggling a real
-                    switch - see HapticOverlay. */}
-                <HapticOverlay />
                 <div
                   className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
                     isSelected ? category.selectedBg : category.bgColor
