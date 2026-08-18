@@ -10,7 +10,8 @@ const isValidEmail = (e: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e.trim());
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { SUBPAGE_STYLE, DOCK_CLEARANCE } from './subpageLayout';
-import { useEdgeSwipeBack } from '../lib/useEdgeSwipeBack';
+import { useSwipeBackDrag } from '../lib/useSwipeBackDrag';
+import { SwipeLayer } from './SwipeLayer';
 import { navTransition } from '../lib/navTransition';
 import { loadThemeMode, setThemeMode, type ThemeMode } from '../lib/themeMode';
 import { loadDevUnlocked, saveDevUnlocked } from '../lib/storage';
@@ -469,12 +470,12 @@ export function Settings({
   const [confirmAction, setConfirmAction] = useState<'demo' | 'erase' | 'erase-demo' | 'clear-txns' | 'restore' | 'delete-account' | null>(null);
   const [pendingBackup, setPendingBackup] = useState<ImportPayload | null>(null);
 
-  // Opening a Settings sub-screen (Categories, Sources, Currency, About,
-  // Import, Profile) should start it at the top rather than inheriting the
-  // scroll position of the main Settings list.
-  useEffect(() => {
-    window.scrollTo(0, 0);
-  }, [showCategories, showSources, showScheduled, showAbout, showImport, showCurrencySelector, showLanguage, showNameEditor, showSupport, legalDoc]);
+  // No scroll-to-top on sub-screen changes any more, and its absence is the
+  // point: sub-pages are LAYERS now, each with its own scroller that mounts
+  // at the top by construction, while the window scroll belongs to the root
+  // list underneath. The old reset - needed when sub-pages replaced the root
+  // inside one shared scroller - was what made every return visibly re-settle
+  // the list.
 
   // Drag in from the left edge to leave a sub-page, the way iOS does it. The
   // chevron is in the far corner; the thumb holding the phone is not.
@@ -488,6 +489,9 @@ export function Settings({
     showCurrencySelector || showLanguage || showAppearance || showNotifications || showShared ||
     showNameEditor || showSupport || !!legalDoc;
   const closeSubpage = useCallback(() => {
+    if (showBalance) return setShowBalance(false);
+    if (showTheirCats) { setShowTheirCats(false); setFiling(null); return; }
+    if (showDev) return setShowDev(false);
     if (legalDoc) return setLegalDoc(null);
     if (showCurrencySelector) return setShowCurrencySelector(false);
     if (showSupport) return closeSupport();
@@ -508,10 +512,24 @@ export function Settings({
     if (showScheduled) return setShowScheduled(false);
     if (showSources) return setShowSources(false);
     if (showCategories) return setShowCategories(false);
-  }, [legalDoc, showCurrencySelector, showSupport, showNameEditor, showShared,
+  }, [showBalance, showTheirCats, showDev, legalDoc, showCurrencySelector, showSupport, showNameEditor, showShared,
       showAppearance, showNotifications, showLanguage, showImport, showAbout, showScheduled,
       showSources, showCategories, household, setupStep]);
-  useEdgeSwipeBack(anySubpageOpen, useCallback(() => navTransition('back', closeSubpage), [closeSubpage]));
+  // The drag needs the three screens the old flag list never covered.
+  const anyLayerOpen = anySubpageOpen || showBalance || showTheirCats || showDev;
+  const swipeDrag = useSwipeBackDrag(anyLayerOpen, closeSubpage);
+  // Freeze the window while any layer is open: the window scroll belongs to
+  // the root list, the layers scroll internally, and the absolute layers are
+  // anchored at the scroll position they opened over. overflow:hidden keeps
+  // the current offset, so the list is exactly where it was on return.
+  useEffect(() => {
+    if (!anyLayerOpen) return;
+    const prev = document.documentElement.style.overflow;
+    document.documentElement.style.overflow = 'hidden';
+    return () => {
+      document.documentElement.style.overflow = prev;
+    };
+  }, [anyLayerOpen]);
 
   const openSupport = () => {
     setSupportSent(false);
@@ -722,7 +740,7 @@ export function Settings({
   // The balance's account, as a Settings sub-page. Spec 7.6 puts settlement
   // history here; the same screen also opens from the shared view's balance
   // card, which is where the question usually occurs to somebody.
-  if (showBalance && household && partner) {
+  const balanceLayer = (showBalance && household && partner) ? (() => {
     return (
       <div style={SUBPAGE_STYLE}>
         <BalanceHistory
@@ -735,14 +753,14 @@ export function Settings({
         />
       </div>
     );
-  }
+  })() : null;
 
   // Where THEIR invented categories should land in mine (spec 4.2 step 2).
   //
   // Until this, a category she made up landed in my catch-all and said
   // nothing about it: the money was never lost, but "Others" quietly became
   // the biggest thing I spend on and no screen could explain why.
-  if (showTheirCats && partner) {
+  const theirCatsLayer = (showTheirCats && partner) ? (() => {
     const expenseCats = categories.filter((c) => c.type !== 'income');
     return (
       <div className="flex flex-col" style={SUBPAGE_STYLE}>
@@ -844,7 +862,7 @@ export function Settings({
         </div>
       </div>
     );
-  }
+  })() : null;
 
   // Everything a developer needs on a device with no console attached.
   //
@@ -853,7 +871,7 @@ export function Settings({
   // chip" is indistinguishable from "the feature is broken" - and from "this
   // phone is still serving last week's cached bundle". Each card below turns
   // one of those guesses into a fact.
-  if (showDev) {
+  const devLayer = (showDev) ? (() => {
     const sw = typeof navigator === 'undefined' || !('serviceWorker' in navigator)
       ? 'unsupported'
       : navigator.serviceWorker.controller ? 'active' : 'none';
@@ -1170,12 +1188,12 @@ export function Settings({
         </div>
       </div>
     );
-  }
+  })() : null;
 
   // live on the Dashboard behind the avatar switcher; this screen holds what
   // you configure once: who, the default split, which categories always
   // share, whether a balance is kept, and the way out.
-  if (showShared) {
+  const sharedLayer = (showShared) ? (() => {
     const sharedCats: string[] = household?.sharedCategoryIds ?? [];
     const subMap: Record<string, string[]> = household?.sharedSubcategories ?? {};
     // Tri-state per category: wholly shared, partially (some subcategories), off.
@@ -1900,7 +1918,7 @@ export function Settings({
         )}
       </div>
     );
-  }
+  })() : null;
 
   // Appearance lives beside Language and Currency, not inside Profile: those
   // three are all "how the app presents itself", where Profile is who you are
@@ -1908,7 +1926,7 @@ export function Settings({
   // the theme switch on that shelf, which is where people look for it.
   // Notifications live behind their own row, like Appearance: the root menu
   // stays a table of contents, and controls sit one level in.
-  if (showNotifications) {
+  const notificationsLayer = (showNotifications) ? (() => {
     return (
       <div className="flex flex-col" style={SUBPAGE_STYLE}>
         <div style={{ backgroundColor: 'var(--bg-page)' }}>
@@ -1954,9 +1972,9 @@ export function Settings({
         </div>
       </div>
     );
-  }
+  })() : null;
 
-  if (showAppearance) {
+  const appearanceLayer = (showAppearance) ? (() => {
     const OPTIONS = [
       { mode: 'system' as const, icon: SunMoon, label: t('theme.system'), hint: t('theme.systemHint') },
       { mode: 'light' as const,  icon: Sun,     label: t('theme.light'),  hint: t('theme.lightHint') },
@@ -2023,11 +2041,11 @@ export function Settings({
         </div>
       </div>
     );
-  }
+  })() : null;
 
   // Show Language subpage — same shape as the currency picker: a list you
   // choose from, not a control sitting open on the root menu.
-  if (showLanguage) {
+  const languageLayer = (showLanguage) ? (() => {
     return (
       <div className="flex flex-col" style={SUBPAGE_STYLE}>
         <div style={{ backgroundColor: 'var(--bg-page)' }}>
@@ -2097,10 +2115,10 @@ export function Settings({
         </div>
       </div>
     );
-  }
+  })() : null;
 
   // Show Currency Selector
-  if (showCurrencySelector) {
+  const currencyLayer = (showCurrencySelector) ? (() => {
     return (
       <div className="flex flex-col" style={SUBPAGE_STYLE}>
         {/* Fixed Header Section */}
@@ -2204,10 +2222,10 @@ export function Settings({
         </div>
       </div>
     );
-  }
+  })() : null;
 
   // Show Name Editor
-  if (showNameEditor) {
+  const nameEditorLayer = (showNameEditor) ? (() => {
     return (
       <div className="flex flex-col" style={SUBPAGE_STYLE}>
         {/* Header */}
@@ -2370,10 +2388,10 @@ export function Settings({
         </div>
       </div>
     );
-  }
+  })() : null;
 
   // Show Categories subpage
-  if (showCategories) {
+  const categoriesLayer = (showCategories) ? (() => {
     return (
       <div className="flex flex-col overflow-hidden" style={SUBPAGE_STYLE}>
         {/* Fixed Header Section */}
@@ -2446,16 +2464,16 @@ export function Settings({
         </div>
       </div>
     );
-  }
+  })() : null;
 
   // Show a legal document. Checked before About so that closing it lands back
   // on the About screen the link was tapped from.
-  if (legalDoc) {
+  const legalLayer = (legalDoc) ? (() => {
     return <LegalScreen doc={legalDoc} onBack={() => navTransition('back', () => setLegalDoc(null))} />;
-  }
+  })() : null;
 
   // Show About subpage
-  if (showAbout) {
+  const aboutLayer = (showAbout) ? (() => {
     return (
       <div className="flex flex-col" style={SUBPAGE_STYLE}>
         <div style={{ backgroundColor: 'var(--bg-page)' }}>
@@ -2528,11 +2546,11 @@ export function Settings({
         </div>
       </div>
     );
-  }
+  })() : null;
 
   // Show Import subpage — guides the user to turn their own spreadsheet into
   // TracklyLab's import format using an AI assistant, then pick the file.
-  if (showImport) {
+  const importLayer = (showImport) ? (() => {
     // One formatter for both directions: income categories carry subcategories
     // too (imports create them), and the assistant can only match what it is
     // shown - otherwise it invents a near-duplicate of one you already have.
@@ -2879,10 +2897,10 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
         </div>
       </div>
     );
-  }
+  })() : null;
 
   // Show Sources subpage
-  if (showSources) {
+  const sourcesLayer = (showSources) ? (() => {
     return (
       <SourcesManager
         sources={sources}
@@ -2895,9 +2913,9 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
         onDeleteSource={onDeleteSource}
       />
     );
-  }
+  })() : null;
 
-  if (showScheduled) {
+  const scheduledLayer = (showScheduled) ? (() => {
     return (
       <div className="flex flex-col overflow-hidden" style={SUBPAGE_STYLE}>
         <div className="flex-shrink-0" style={{ backgroundColor: 'var(--bg-page)' }}>
@@ -2936,10 +2954,10 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
         </div>
       </div>
     );
-  }
+  })() : null;
 
   // Show Contacts subpage — a form that sends a message straight from the app.
-  if (showSupport) {
+  const supportLayer = (showSupport) ? (() => {
     return (
       <div className="flex flex-col" style={SUBPAGE_STYLE}>
         <div style={{ backgroundColor: 'var(--bg-page)' }}>
@@ -3032,10 +3050,10 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
         )}
       </div>
     );
-  }
+  })() : null;
 
   // Show Settings list
-  return (
+  const rootScreen = (
     // No min-h-screen here: the page ends just below the signature. The small
     // negative margin trims the parent scroll area's nav padding for this tab
     // only (other tabs keep it), so the signature sits snug above the nav bar.
@@ -3578,5 +3596,31 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
         />
       )}
     </div>
+  );
+
+  // The open layers, bottom of the visual stack first: the reverse of the
+  // old early-return chain, so what used to WIN the chain now renders LAST
+  // and sits on top. Stacking is DOM order on purpose - the layers carry no
+  // z-index (see SwipeLayer for why a z-index would bury their sheets under
+  // the dock), so the root comes FIRST, wrapped in isolation:isolate to keep
+  // any z-indexed element inside it from bleeding above the layers. The root
+  // is inert while anything covers it, so nothing taps through a mid-drag
+  // gap; only the topmost layer holds the live drag.
+  const stack = [
+    supportLayer, scheduledLayer, sourcesLayer, importLayer, aboutLayer, legalLayer,
+    categoriesLayer, nameEditorLayer, currencyLayer, languageLayer, appearanceLayer,
+    notificationsLayer, sharedLayer, devLayer, theirCatsLayer, balanceLayer,
+  ].filter(Boolean);
+  return (
+    <>
+      <div style={{ isolation: 'isolate' }} {...(stack.length > 0 ? ({ inert: '' } as object) : {})}>
+        {rootScreen}
+      </div>
+      {stack.map((node, i) => (
+        <SwipeLayer key={i} drag={i === stack.length - 1 ? swipeDrag : null}>
+          {node}
+        </SwipeLayer>
+      ))}
+    </>
   );
 }

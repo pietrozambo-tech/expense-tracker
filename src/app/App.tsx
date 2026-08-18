@@ -3154,7 +3154,7 @@ export default function App() {
       {/* iPhone 14 Container — Activity needs an exact viewport height so only
           its transaction list scrolls; other tabs scroll as a whole page */}
       <div
-        className={`max-w-[430px] mx-auto flex flex-col md:shadow-[0_0_40px_rgba(0,0,0,0.07)] ${currentTab === 'activity' ? 'overflow-hidden' : 'min-h-screen'}`}
+        className={`relative max-w-[430px] mx-auto flex flex-col md:shadow-[0_0_40px_rgba(0,0,0,0.07)] ${currentTab === 'activity' ? 'overflow-hidden' : 'min-h-screen'}`}
         style={{ backgroundColor: 'var(--bg-page)', ...(currentTab === 'activity' ? { height: '100dvh' } : {}) }}
       >
         {/* Status Bar Space — clears the iOS status bar when installed, minimal in a browser tab */}
