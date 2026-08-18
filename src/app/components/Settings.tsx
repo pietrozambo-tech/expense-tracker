@@ -26,7 +26,8 @@ import { ConfirmDialog } from './ConfirmDialog';
 import { BalanceHistory } from './BalanceHistory';
 import { CURRENCIES, MAIN_CURRENCY_CODES } from '../utils/currency';
 import { KNOWN_COUNTRIES, currencyOfCountry, currentCountry, flagOfCountry } from '../lib/travel';
-import { hapticHeavy, hapticSelect, hapticSuccess, hapticTick } from '../lib/haptics';
+import { hapticTest, iosVersion, isIOSWeb, switchSupported, hapticTick } from '../lib/haptics';
+import { HapticOverlay } from './HapticOverlay';
 import { CurrencySearchList } from './CurrencySearchList';
 import { LegalScreen } from './LegalScreen';
 import { PRIVACY_POLICY, TERMS_OF_SERVICE, type LegalDoc } from '../lib/legalContent';
@@ -50,9 +51,10 @@ function SwitchRow({ label, sub, icon, on, divider, onToggle }: {
       }}
       role="switch"
       aria-checked={on}
-      className="w-full flex items-center gap-3 px-4"
+      className="relative w-full flex items-center gap-3 px-4"
       style={{ minHeight: 52, paddingTop: sub ? 8 : 0, paddingBottom: sub ? 8 : 0, borderBottom: divider ? '1px solid var(--bg-inset)' : 'none' }}
     >
+      <HapticOverlay />
       {icon}
       <span className="flex-1 text-left">
         <span style={{ color: 'var(--ink)', fontSize: 15, display: 'block' }}>{label}</span>
@@ -1100,32 +1102,53 @@ export function Settings({
             {keySizes.rows.slice(0, 8).map((r) => row(r.k, kb(r.bytes)))}
           </div>
 
-          {/* Feel-test: the four semantic levels, pressed on a real phone.
-              On iOS-web all four play the same system tick (that is all the
-              platform offers); on Android the durations differ; on the future
-              native build they map to distinct generator styles. */}
+          {/* Haptics diagnosis. Three experiments, weakest claim to
+              strongest: the programmatic buttons (Apple killed this path in
+              iOS 26.5), the overlay tap (a finger toggling an invisible real
+              switch - works on every iOS >= 17.4), and a visible native
+              switch (if even THAT is silent, System Haptics is off or the
+              device cannot do this at all). */}
           <div className="rounded-xl mb-3 px-3 py-2.5" style={{ backgroundColor: 'var(--bg-card)' }}>
             <div className="text-[11px] font-semibold mb-2" style={{ color: 'var(--ink-2)', letterSpacing: '0.05em' }}>HAPTICS</div>
+            {isIOSWeb() && (
+              <p className="mb-2" style={{ color: 'var(--ink-2)', fontSize: 12 }}>
+                {`iOS ${iosVersion() ?? '?'} · switch control ${switchSupported() ? 'supported' : 'NOT supported'}`}
+              </p>
+            )}
             <div className="grid grid-cols-4 gap-2">
-              {([
-                ['Select', hapticSelect],
-                ['Tick', hapticTick],
-                ['Success', hapticSuccess],
-                ['Heavy', hapticHeavy],
-              ] as const).map(([label, fn]) => (
+              {(['select', 'tick', 'success', 'heavy'] as const).map((kind) => (
                 <button
-                  key={label}
-                  data-dev-haptic={label.toLowerCase()}
-                  onClick={fn}
-                  className="rounded-lg active:scale-[0.96] transition-transform"
+                  key={kind}
+                  data-dev-haptic={kind}
+                  onClick={() => hapticTest(kind)}
+                  className="rounded-lg active:scale-[0.96] transition-transform capitalize"
                   style={{ backgroundColor: 'var(--bg-inset)', color: 'var(--ink)', padding: '9px 0', fontSize: 12.5, fontWeight: 600 }}
                 >
-                  {label}
+                  {kind}
                 </button>
               ))}
             </div>
-            <p className="mt-2" style={{ color: 'var(--faint)', fontSize: 11, lineHeight: 1.4 }}>
-              iOS plays one system tick for all four (needs iOS 17.4+ and System Haptics on); Android varies the length.
+            <p className="mt-1.5 mb-2.5" style={{ color: 'var(--faint)', fontSize: 11, lineHeight: 1.4 }}>
+              Script-triggered. Apple removed this path in iOS 26.5 - silence there is expected. Android varies the length.
+            </p>
+            <button
+              data-dev-tapme
+              className="relative w-full rounded-lg active:scale-[0.98] transition-transform"
+              style={{ backgroundColor: 'var(--wash-accent)', color: 'var(--accent-ink)', padding: '10px 0', fontSize: 13, fontWeight: 600 }}
+            >
+              <HapticOverlay />
+              Tap me - overlay haptic
+            </button>
+            <p className="mt-1.5 mb-2.5" style={{ color: 'var(--faint)', fontSize: 11, lineHeight: 1.4 }}>
+              Your finger toggles an invisible real switch. This is what the dock, chips and toggles use - works on every iOS since 17.4.
+            </p>
+            <div className="flex items-center justify-between rounded-lg px-3" style={{ backgroundColor: 'var(--bg-inset)', height: 44 }}>
+              <span style={{ color: 'var(--ink)', fontSize: 13 }}>Native switch (visible)</span>
+              {/* @ts-expect-error Safari's switch flavour */}
+              <input type="checkbox" switch="" data-dev-switch style={{ transform: 'scale(0.9)' }} />
+            </div>
+            <p className="mt-1.5" style={{ color: 'var(--faint)', fontSize: 11, lineHeight: 1.4 }}>
+              If even this one is silent, check Settings &gt; Sounds &amp; Haptics &gt; System Haptics.
             </p>
           </div>
 

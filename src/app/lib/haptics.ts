@@ -1,23 +1,38 @@
-// Haptics for a web app, honestly.
+// Haptics for a web app, honestly - second edition, after a real iPhone
+// stayed silent.
 //
-// There is no official vibration API on iOS Safari - navigator.vibrate has
-// never existed there. What DOES exist, since iOS 17.4, is the system haptic
-// that fires when a native switch control toggles: programmatically clicking
-// a hidden <input type="checkbox" switch> inside a tap's call stack plays the
-// light system tick, in Safari and installed PWAs alike. One flavour only, no
-// intensity control, silently inert on older iOS, and it respects the
-// system-level "System Haptics" setting - which is exactly the etiquette a
-// web app should have.
+// The full picture, learned the hard way:
 //
-// Android Chrome has the real API, with durations, so the semantic levels
-// genuinely differ there. On iOS they all collapse into the one tick - which
-// is why call sites speak in MEANING (select/tick/success/heavy), never in
-// milliseconds: when the Capacitor build lands, these four route to the real
-// UIImpactFeedbackGenerator styles without touching a single caller.
+//   * iOS Safari has no vibration API and never has.
+//   * Since iOS 17.4 a native switch control - <input type="checkbox" switch>
+//     - plays the system tick when TOGGLED BY A FINGER. That is platform
+//     behaviour and works on every version since, in Safari and installed
+//     PWAs, respecting the system-level haptics setting.
+//   * Programmatically clicking a hidden label around such a switch also
+//     played the tick from iOS 17.4 until Apple patched it in iOS 26.5.
+//     On current iPhones, JavaScript alone can no longer reach the Taptic
+//     Engine. Full stop.
 //
-// Every fire also dispatches a DOM event, because the sandbox this code is
-// tested in has no motor to feel: checks subscribe to the event, and the
-// developer panel shows the last one fired.
+// So iOS haptics are split by WHEN they happen:
+//
+//   Tap moments (a tab, a chip, a toggle) get a real switch rendered
+//   invisibly OVER the control - components/HapticOverlay.tsx. The finger
+//   genuinely toggles it (haptic, every iOS version), and the click bubbles
+//   on to the control's own handler. fire() therefore does NOT attempt
+//   programmatic iOS output for 'select'/'tick': the overlay owns those, and
+//   attempting both double-buzzed every device still on <=26.4.
+//
+//   Outcome moments (saved, settled, imported, deleted) cannot be a tap -
+//   they happen after validation, sometimes with no tap at all. For these,
+//   fire() clicks the hidden label: felt on 17.4-26.4, silent on 26.5+,
+//   which is the most any web app can do there.
+//
+// Android has the real API, so every level vibrates with its own duration.
+// When the Capacitor build lands, these semantic levels route to the real
+// UIImpactFeedbackGenerator styles without touching a caller.
+//
+// Every attempted output also dispatches a DOM event carrying which engine
+// ran - the sandbox has no motor, so the checks listen instead of feeling.
 
 export type HapticKind = 'select' | 'tick' | 'success' | 'heavy';
 
@@ -31,56 +46,83 @@ const PATTERNS: Record<HapticKind, number | number[]> = {
   heavy: [35, 60, 35],
 };
 
-const isIOS = () =>
+/** Levels the programmatic iOS path may attempt. Tap-shaped levels are the
+ *  overlay's job; attempting both double-buzzed devices still on <=26.4. */
+const IOS_PROGRAMMATIC: Record<HapticKind, boolean> = {
+  select: false,
+  tick: false,
+  success: true,
+  heavy: true,
+};
+
+export const isIOSWeb = () =>
   typeof navigator !== 'undefined' && /iPhone|iPad|iPod/.test(navigator.userAgent ?? '');
 
-// The hidden switch, created once on first use and reused - building DOM on
-// every haptic would cost more than the haptic. Visually hidden rather than
-// display:none: iOS has been inconsistent about firing the haptic for
-// controls it considers not rendered.
-let switchEl: HTMLInputElement | null = null;
-function iosSwitchPulse(): void {
-  if (!switchEl || !switchEl.isConnected) {
-    switchEl = document.createElement('input');
-    switchEl.type = 'checkbox';
-    switchEl.setAttribute('switch', '');
-    switchEl.setAttribute('aria-hidden', 'true');
-    switchEl.tabIndex = -1;
-    Object.assign(switchEl.style, {
-      position: 'fixed',
-      top: '0',
-      left: '-100px',
-      width: '1px',
-      height: '1px',
-      opacity: '0',
-      pointerEvents: 'none',
-    });
-    document.body.appendChild(switchEl);
-  }
-  switchEl.click();
+/** Whether this browser knows the switch flavour of checkbox at all. */
+export function switchSupported(): boolean {
+  if (typeof document === 'undefined') return false;
+  const probe = document.createElement('input');
+  probe.type = 'checkbox';
+  return 'switch' in probe;
 }
 
-function fire(kind: HapticKind): void {
+/** The iOS major.minor from the UA, or null - the developer screen shows it
+ *  because 26.5 is the line where programmatic haptics died. */
+export function iosVersion(): string | null {
+  const m = typeof navigator !== 'undefined' ? navigator.userAgent.match(/OS (\d+)[._](\d+)/) : null;
+  return m ? `${m[1]}.${m[2]}` : null;
+}
+
+// The hidden label-wrapped switch for programmatic pulses, created once.
+// Label + display:none is the canonical recipe the working libraries use;
+// clicking the LABEL is what tickled the engine on 17.4-26.4.
+let labelEl: HTMLLabelElement | null = null;
+function iosLabelPulse(): void {
+  if (!labelEl || !labelEl.isConnected) {
+    labelEl = document.createElement('label');
+    labelEl.setAttribute('aria-hidden', 'true');
+    labelEl.style.display = 'none';
+    const input = document.createElement('input');
+    input.type = 'checkbox';
+    input.setAttribute('switch', '');
+    labelEl.appendChild(input);
+    document.body.appendChild(labelEl);
+  }
+  labelEl.click();
+}
+
+function announce(kind: HapticKind, engine: 'ios-click' | 'vibrate'): void {
+  window.dispatchEvent(new CustomEvent(HAPTIC_EVENT, { detail: { kind, engine } }));
+}
+
+function fire(kind: HapticKind, forceIOS = false): void {
   if (typeof window === 'undefined') return;
   try {
-    if (isIOS()) {
-      // One intensity is all iOS-web offers; the semantic level survives in
-      // the event for the day the native engine can honour it.
-      iosSwitchPulse();
+    if (isIOSWeb()) {
+      if (forceIOS || IOS_PROGRAMMATIC[kind]) {
+        iosLabelPulse();
+        announce(kind, 'ios-click');
+      }
     } else if (typeof navigator.vibrate === 'function') {
       navigator.vibrate(PATTERNS[kind]);
+      announce(kind, 'vibrate');
     }
   } catch {
     // A haptic must never be the reason anything breaks.
   }
-  window.dispatchEvent(new CustomEvent(HAPTIC_EVENT, { detail: kind }));
 }
 
-/** Picking one thing among peers - a category chip. The lightest level. */
+/** Picking one thing among peers - a category chip. The lightest level.
+ *  On iOS this is the overlay's job; programmatically it only vibrates
+ *  Android. */
 export const hapticSelect = () => fire('select');
-/** A small state change - a tab switch, a toggle flipping. */
+/** A small state change - a tab switch, a toggle flipping. Same split. */
 export const hapticTick = () => fire('tick');
 /** A commit moment - a transaction saved, a settlement recorded. */
 export const hapticSuccess = () => fire('success');
 /** Something destructive completed - a row deleted. */
 export const hapticHeavy = () => fire('heavy');
+
+/** The developer screen's feel-tester: always attempts output, so the levels
+ *  can be pressed and judged on a real phone regardless of the routing table. */
+export const hapticTest = (kind: HapticKind) => fire(kind, true);

@@ -50,6 +50,7 @@ import { STORAGE_BROKEN_EVENT, isStorageBroken } from './lib/kv';
 import { dueNudge, monthKey, prevMonthKey, runningEnv, untouched, type NudgePrefs } from './lib/nudges';
 import { NudgeCenter, type RecapFacts } from './components/NudgeCenter';
 import { hapticHeavy, hapticSelect, hapticSuccess, hapticTick } from './lib/haptics';
+import { HapticOverlay } from './components/HapticOverlay';
 import { DEFAULT_SOURCES, DEFAULT_SOURCE_EXPENSE, DEFAULT_SOURCE_INCOME } from './components/sources';
 import { SourceLogo } from './components/SourceLogo';
 import { SourceSelectorModal } from './components/SourceSelectorModal';
@@ -233,9 +234,13 @@ function DockTab({
       // wobble it noticed. Filling the grid cell makes it one object that
       // MOVES. The cell is 69.2px, and the longest label in either language
       // ("Impostazioni", 58.1px) leaves 5.5px of breathing room inside it.
-      className="flex flex-col items-center justify-center gap-1 h-[46px] w-full rounded-2xl transition-colors duration-200 pointer-events-auto"
+      className="relative flex flex-col items-center justify-center gap-1 h-[46px] w-full rounded-2xl transition-colors duration-200 pointer-events-auto"
       style={{ backgroundColor: active ? 'rgba(255, 255, 255, 0.13)' : 'transparent' }}
     >
+      {/* iOS: the haptic is the finger toggling a real switch (see
+          HapticOverlay). Only when inactive - re-tapping the current tab
+          moves nothing and must say nothing. */}
+      {!active && <HapticOverlay />}
       {/* Fixed ink, not var(--ink-2): the pill is DARK IN BOTH THEMES, so a
           token that darkens for light mode moves the label toward the pill -
           measured 2.1:1 after the light token was corrected for pages. #AAAAB4
@@ -3511,8 +3516,13 @@ export default function App() {
                   setCurrentTab('add');
                 }}
                 aria-label={t('add.aria')}
-                className="flex flex-col items-center pointer-events-auto justify-self-center"
+                className="relative flex flex-col items-center pointer-events-auto justify-self-center"
               >
+                {/* Unconditional: the dock is not rendered while Add is
+                    open, so this can never re-buzz an open Add screen -
+                    the type system proves it (currentTab excludes 'add'
+                    here). */}
+                <HapticOverlay />
                 <div
                   className="w-[46px] h-[46px] rounded-[16px] flex items-center justify-center transition-transform active:scale-95"
                   style={{
