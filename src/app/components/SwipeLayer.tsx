@@ -19,14 +19,23 @@ import type { SwipeBackRef } from '../lib/useSwipeBackDrag';
 // make a context - but only while a drag is live, and the gesture refuses to
 // start with a dialog open, so the two never coincide.)
 //
-// Where the layer sits is MEASURED, never computed from window.scrollY. The
-// first version placed it at `scrollY + 8` and a real iPhone showed a band of
-// the page above the sub-page: on a device with a status bar, a rubber-banding
-// scroll, or a standalone display mode, that arithmetic is not where the page
-// content actually starts. So the layer asks the page: the top inset's bottom
-// edge is the content line, its own offset parent gives the column origin, and
-// the difference is the answer on any device. Re-measured a frame later, when
-// a bouncing scroll has settled.
+// It covers THE WHOLE VIEWPORT, and that is the point of this file.
+//
+// Two earlier versions each tried to be clever about where the page area
+// begins - `window.scrollY + 8`, then the top inset's measured bottom - and a
+// real iPhone showed the Settings list bleeding through a band along the top
+// of every sub-page. Any formula that reasons about scroll offsets, safe
+// areas or status bars is a formula that can be wrong on a device I cannot
+// hold. So there is no formula: the layer's top edge is pinned to viewport y
+// = 0 (expressed in its offset parent's coordinates, since it is absolute)
+// and its height is the viewport's. Covering the 8px top inset as well costs
+// nothing - it is the same background colour - and in exchange a gap is not
+// something this component can express.
+//
+// Re-measured whenever the geometry it depends on could have changed: a frame
+// later (a bouncing scroll settling), on resize and orientation change, and
+// on scroll - so even if some engine moves the page under an open layer, the
+// layer follows instead of drifting.
 export function SwipeLayer({
   dragRef,
   children,
@@ -42,10 +51,10 @@ export function SwipeLayer({
       const el = hostRef.current;
       const parent = el?.offsetParent as HTMLElement | null;
       if (!el || !parent) return;
-      const inset = document.querySelector('.app-top-inset');
-      const startY = inset ? inset.getBoundingClientRect().bottom : 8;
-      const top = startY - parent.getBoundingClientRect().top;
-      const height = Math.max(0, window.innerHeight - startY);
+      // Where viewport y=0 falls inside the offset parent. Negative parent
+      // top (a scrolled page) becomes a positive offset, and vice versa.
+      const top = -parent.getBoundingClientRect().top;
+      const height = window.innerHeight;
       setBox((prev) =>
         prev && Math.abs(prev.top - top) < 0.5 && Math.abs(prev.height - height) < 0.5
           ? prev
@@ -56,10 +65,12 @@ export function SwipeLayer({
     const raf = requestAnimationFrame(measure);
     window.addEventListener('resize', measure);
     window.addEventListener('orientationchange', measure);
+    window.addEventListener('scroll', measure, { passive: true });
     return () => {
       cancelAnimationFrame(raf);
       window.removeEventListener('resize', measure);
       window.removeEventListener('orientationchange', measure);
+      window.removeEventListener('scroll', measure);
     };
   }, []);
 
@@ -72,8 +83,13 @@ export function SwipeLayer({
       }}
       className="absolute left-0 right-0"
       style={{
-        top: box?.top ?? 8,
-        height: box ? box.height : 'calc(100dvh - 8px)',
+        top: box?.top ?? 0,
+        height: box ? box.height : '100dvh',
+        // The background reaches viewport y=0 so no gap can exist; the
+        // CONTENT still starts 8px down, exactly where .app-top-inset put it
+        // before, so nothing shifts under the status bar.
+        paddingTop: 8,
+        boxSizing: 'border-box',
         backgroundColor: 'var(--bg-page)',
         // The page beneath must not scroll while this covers it: contained
         // overscroll is what replaces the old html-level scroll freeze, which
