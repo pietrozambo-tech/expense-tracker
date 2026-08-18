@@ -1,66 +1,87 @@
-import { useRef, type ReactNode } from 'react';
-import { SETTLE_MS, type SwipeBackDrag } from '../lib/useSwipeBackDrag';
+import { useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import type { SwipeBackRef } from '../lib/useSwipeBackDrag';
 
 // One level of the Settings navigation stack, as a real layer.
 //
 // The sub-pages used to REPLACE the root - one screen mounted at a time,
-// which made the back gesture necessarily a cut, and made every return
-// re-settle the root's scroll. Now the root stays mounted underneath and
-// each open sub-page is one of these: fixed over the page area, below the
-// dock, carrying the drag the finger is making.
+// which made the back gesture necessarily a cut and made every return
+// re-settle the root's scroll. Now the root stays mounted underneath and each
+// open sub-page is one of these.
 //
-// Only the TOPMOST layer receives `drag`; the ones beneath hold still, which
-// is exactly what a stack under a page being peeled away should do.
+// ABSOLUTE, and carrying no z-index. Both deliberate, both for the same
+// reason: position:fixed creates a stacking context unconditionally, which
+// traps the sheets a sub-page opens (z-50, z-80) inside the layer and caps
+// them BELOW the dock - the add-source sheet became untappable exactly where
+// it overlaps the dock band. An absolute box at z-auto creates no context: the
+// layer paints by DOM order (after the isolated root), the dock's z-40 still
+// floats over it, and inner fixed sheets keep beating the dock from the root
+// context, exactly as they did when sub-pages were in-flow. (A transform DOES
+// make a context - but only while a drag is live, and the gesture refuses to
+// start with a dialog open, so the two never coincide.)
 //
-// The transform is applied ONLY while the drag is live. A transformed
-// ancestor becomes the containing block for position:fixed descendants, and
-// the sheets and dialogs these pages open are fixed to the VIEWPORT - so at
-// rest the layer must carry no transform at all. The drag hook already
-// refuses to start over an open dialog, so the two states never overlap.
+// Where the layer sits is MEASURED, never computed from window.scrollY. The
+// first version placed it at `scrollY + 8` and a real iPhone showed a band of
+// the page above the sub-page: on a device with a status bar, a rubber-banding
+// scroll, or a standalone display mode, that arithmetic is not where the page
+// content actually starts. So the layer asks the page: the top inset's bottom
+// edge is the content line, its own offset parent gives the column origin, and
+// the difference is the answer on any device. Re-measured a frame later, when
+// a bouncing scroll has settled.
 export function SwipeLayer({
-  drag,
+  dragRef,
   children,
 }: {
-  drag: SwipeBackDrag | null;
+  dragRef: SwipeBackRef | null;
   children: ReactNode;
 }) {
-  const live = drag && drag.phase !== 'idle';
-  // Anchored where the window was scrolled when the layer opened. The window
-  // is what scrolls the root list, and it is frozen (html overflow:hidden)
-  // for as long as any layer is open, so this is stable for the layer's
-  // whole life - and it is what keeps the root's scroll position untouched
-  // underneath.
-  const top = useRef<number | null>(null);
-  if (top.current === null) top.current = Math.round(window.scrollY) + 8;
+  const hostRef = useRef<HTMLDivElement | null>(null);
+  const [box, setBox] = useState<{ top: number; height: number } | null>(null);
+
+  useLayoutEffect(() => {
+    const measure = () => {
+      const el = hostRef.current;
+      const parent = el?.offsetParent as HTMLElement | null;
+      if (!el || !parent) return;
+      const inset = document.querySelector('.app-top-inset');
+      const startY = inset ? inset.getBoundingClientRect().bottom : 8;
+      const top = startY - parent.getBoundingClientRect().top;
+      const height = Math.max(0, window.innerHeight - startY);
+      setBox((prev) =>
+        prev && Math.abs(prev.top - top) < 0.5 && Math.abs(prev.height - height) < 0.5
+          ? prev
+          : { top, height }
+      );
+    };
+    measure();
+    const raf = requestAnimationFrame(measure);
+    window.addEventListener('resize', measure);
+    window.addEventListener('orientationchange', measure);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener('resize', measure);
+      window.removeEventListener('orientationchange', measure);
+    };
+  }, []);
+
   return (
     <div
       data-swipe-layer
-      // ABSOLUTE, not fixed, and with NO z-index - both deliberate, both for
-      // the same reason: in Blink and WebKit position:fixed creates a
-      // stacking context even at z-index:auto, which capped every sheet
-      // inside a layer below the dock (z-40) - the add-source sheet became
-      // untappable exactly where it overlaps the dock band. An absolute box
-      // at z-auto creates no context in any engine: the layer stacks by DOM
-      // order (after the isolated root), the dock's z-40 still floats over
-      // it, and its inner fixed sheets keep their z-50+ in the ROOT context,
-      // above the dock, exactly as they did when sub-pages were in-flow.
-      // Anchoring inside the app column also stops layers spanning the whole
-      // window on desktop, which the fixed version quietly did.
+      ref={(el) => {
+        hostRef.current = el;
+        dragRef?.(el);
+      }}
       className="absolute left-0 right-0"
       style={{
-        top: top.current,
-        height: 'calc(100dvh - 8px)',
+        top: box?.top ?? 8,
+        height: box ? box.height : 'calc(100dvh - 8px)',
         backgroundColor: 'var(--bg-page)',
-        ...(live
-          ? {
-              transform: `translateX(${drag.x}px)`,
-              transition:
-                drag.phase === 'dragging' ? 'none' : `transform ${SETTLE_MS}ms cubic-bezier(0.32, 0.72, 0, 1)`,
-              // The peeled page casts onto what it is revealing.
-              boxShadow: '-8px 0 24px rgba(0, 0, 0, 0.18)',
-              willChange: 'transform',
-            }
-          : {}),
+        // The page beneath must not scroll while this covers it: contained
+        // overscroll is what replaces the old html-level scroll freeze, which
+        // iOS honoured by snapping the page to the top.
+        overscrollBehavior: 'contain',
+        // Nothing else here: the drag writes transform, transition, shadow and
+        // will-change straight onto this node (see useSwipeBackDrag) so a
+        // moving finger never re-renders React.
       }}
     >
       {children}

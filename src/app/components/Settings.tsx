@@ -517,19 +517,15 @@ export function Settings({
       showSources, showCategories, household, setupStep]);
   // The drag needs the three screens the old flag list never covered.
   const anyLayerOpen = anySubpageOpen || showBalance || showTheirCats || showDev;
-  const swipeDrag = useSwipeBackDrag(anyLayerOpen, closeSubpage);
-  // Freeze the window while any layer is open: the window scroll belongs to
-  // the root list, the layers scroll internally, and the absolute layers are
-  // anchored at the scroll position they opened over. overflow:hidden keeps
-  // the current offset, so the list is exactly where it was on return.
-  useEffect(() => {
-    if (!anyLayerOpen) return;
-    const prev = document.documentElement.style.overflow;
-    document.documentElement.style.overflow = 'hidden';
-    return () => {
-      document.documentElement.style.overflow = prev;
-    };
-  }, [anyLayerOpen]);
+  const swipeDragRef = useSwipeBackDrag(anyLayerOpen, closeSubpage);
+  // No scroll freeze, deliberately. Pinning the window with
+  // overflow:hidden looks harmless on desktop but iOS Safari snaps the page
+  // to the top while window.scrollY keeps reporting the old offset - which
+  // left the layer positioned for a scroll that was no longer there, showing
+  // a band of the page above every sub-page. A layer covers the viewport and
+  // contains its own overscroll (see SwipeLayer), so the window cannot
+  // scroll while one is open and its position is preserved by simply not
+  // being touched.
 
   const openSupport = () => {
     setSupportSent(false);
@@ -3617,7 +3613,7 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
         {rootScreen}
       </div>
       {stack.map((node, i) => (
-        <SwipeLayer key={i} drag={i === stack.length - 1 ? swipeDrag : null}>
+        <SwipeLayer key={i} dragRef={i === stack.length - 1 ? swipeDragRef : null}>
           {node}
         </SwipeLayer>
       ))}

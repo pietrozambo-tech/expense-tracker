@@ -1,46 +1,42 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 
-// The edge swipe, grown up: the page under the finger MOVES.
+// The edge swipe, as a drag the finger actually carries.
 //
-// The first version of this gesture (useEdgeSwipeBack) fired the close the
-// moment the finger had travelled 70px - a trigger, not a drag. Stopping
-// mid-gesture showed nothing, finishing it produced an instant cut, and the
-// cut ended with the list visibly re-settling its scroll. The fix for all
-// three is the same fix: the sub-page follows the finger over a still-mounted
-// parent, exactly like every native iOS screen.
+// Two things this must get right, and the second one is why it does not use
+// React state for the position:
 //
-// The gesture rules are inherited unchanged from the first version, because
-// they were right: start within EDGE px of the left edge, declare a direction
-// only after DEADZONE px, flatter than 45 degrees or it is a scroll, one
-// decision per touch, and a dialog over the page owns its own gestures.
+//   1. The page follows the finger, stops where it stops, and on release
+//      either completes or glides home. Rules inherited from the trigger
+//      version because they were right: start within EDGE px of the left
+//      edge, declare a direction only after DEADZONE px, flatter than 45
+//      degrees or it is a scroll, one decision per touch, and a dialog over
+//      the page owns its own gestures. Velocity is new: a fast flick
+//      completes from anywhere.
 //
-// What is new is what happens after: the hook publishes x (how far the page
-// has been dragged) and a phase. While 'dragging', the SwipeLayer places the
-// page at x with no transition and this hook cancels the browser's own
-// scrolling (the touchmove listener is passive:false for exactly that).
-// On release, past THRESHOLD_FRACTION of the screen - or flicked faster than
-// FLICK px/ms - the phase turns 'closing': the layer glides off, and after
-// the glide the close lands as a plain state change, no view transition on
-// top of an animation that already happened. Short of the threshold it turns
-// 'cancelling' and glides home. Reduced motion skips the glides.
+//   2. It must not stutter. The first version put x in React state, so every
+//      touchmove re-rendered the whole Settings tree - a component with
+//      sixteen sub-screens and several thousand elements - sixty times a
+//      second. That is the lag. The transform is now written STRAIGHT to the
+//      node through a ref, coalesced into one write per animation frame, and
+//      React renders exactly twice per gesture: not at all while dragging,
+//      and once when a completed gesture closes the layer.
+//
+// translate3d, not translateX: it promotes the layer to its own compositor
+// layer, so each frame is a GPU transform of an already-painted surface
+// rather than a repaint of a full-screen page.
 
 const EDGE = 28;
 const DEADZONE = 10;
 const THRESHOLD_FRACTION = 0.35;
-const FLICK = 0.5; // px per ms, measured over the last move
-export const SETTLE_MS = 240;
+const FLICK = 0.5; // px per ms over the last move
+export const SETTLE_MS = 260;
+const EASE = 'cubic-bezier(0.32, 0.72, 0, 1)';
 
-export type SwipePhase = 'idle' | 'dragging' | 'closing' | 'cancelling';
+/** Attach to the layer that should follow the finger; null for the rest. */
+export type SwipeBackRef = (el: HTMLDivElement | null) => void;
 
-export interface SwipeBackDrag {
-  x: number;
-  phase: SwipePhase;
-}
-
-export function useSwipeBackDrag(active: boolean, onClose: () => void): SwipeBackDrag {
-  const [x, setX] = useState(0);
-  const [phase, setPhase] = useState<SwipePhase>('idle');
-  // The latest closer, so the release handler never closes yesterday's layer.
+export function useSwipeBackDrag(active: boolean, onClose: () => void): SwipeBackRef {
+  const elRef = useRef<HTMLDivElement | null>(null);
   const closeRef = useRef(onClose);
   closeRef.current = onClose;
 
@@ -49,29 +45,50 @@ export function useSwipeBackDrag(active: boolean, onClose: () => void): SwipeBac
 
     let startX = 0;
     let startY = 0;
-    let tracking = false; // touch began at the edge, not yet declared
+    let tracking = false; // began at the edge, direction not yet declared
     let dragging = false; // declared horizontal: the page is in hand
     let lastX = 0;
     let lastT = 0;
     let velocity = 0;
+    let frame = 0;
+    let pendingX = 0;
     let settleTimer = 0;
 
     const reduced =
       typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+    const paint = () => {
+      frame = 0;
+      const el = elRef.current;
+      if (el) el.style.transform = `translate3d(${pendingX}px,0,0)`;
+    };
+
+    const clearStyles = () => {
+      const el = elRef.current;
+      if (!el) return;
+      el.style.transform = '';
+      el.style.transition = '';
+      el.style.boxShadow = '';
+      el.style.willChange = '';
+    };
+
     const settle = (closing: boolean) => {
+      const el = elRef.current;
+      if (frame) { cancelAnimationFrame(frame); frame = 0; }
       const finish = () => {
+        // Order matters: clear the inline styles BEFORE React unmounts the
+        // layer, so a cancelled gesture leaves no transform behind on a node
+        // that stays on screen.
+        clearStyles();
         if (closing) closeRef.current();
-        setPhase('idle');
-        setX(0);
       };
-      if (reduced) {
+      if (!el || reduced) {
         finish();
         return;
       }
-      setPhase(closing ? 'closing' : 'cancelling');
-      setX(closing ? window.innerWidth : 0);
-      settleTimer = window.setTimeout(finish, SETTLE_MS + 40);
+      el.style.transition = `transform ${SETTLE_MS}ms ${EASE}`;
+      el.style.transform = closing ? `translate3d(${window.innerWidth}px,0,0)` : 'translate3d(0,0,0)';
+      settleTimer = window.setTimeout(finish, SETTLE_MS + 30);
     };
 
     const onStart = (e: TouchEvent) => {
@@ -89,6 +106,7 @@ export function useSwipeBackDrag(active: boolean, onClose: () => void): SwipeBac
       startY = touch.clientY;
       lastX = startX;
       lastT = e.timeStamp;
+      velocity = 0;
       tracking = startX <= EDGE;
       dragging = false;
     };
@@ -107,7 +125,12 @@ export function useSwipeBackDrag(active: boolean, onClose: () => void): SwipeBac
           return;
         }
         dragging = true;
-        setPhase('dragging');
+        const el = elRef.current;
+        if (el) {
+          el.style.transition = 'none';
+          el.style.willChange = 'transform';
+          el.style.boxShadow = '-10px 0 28px rgba(0, 0, 0, 0.16)';
+        }
       }
 
       // The page is in hand: the browser must not also scroll it.
@@ -116,7 +139,8 @@ export function useSwipeBackDrag(active: boolean, onClose: () => void): SwipeBac
       if (now > lastT) velocity = (touch.clientX - lastX) / (now - lastT);
       lastX = touch.clientX;
       lastT = now;
-      setX(Math.max(0, dx));
+      pendingX = Math.max(0, dx);
+      if (!frame) frame = requestAnimationFrame(paint);
     };
 
     const onEnd = () => {
@@ -136,15 +160,17 @@ export function useSwipeBackDrag(active: boolean, onClose: () => void): SwipeBac
     window.addEventListener('touchend', onEnd, { passive: true });
     window.addEventListener('touchcancel', onEnd, { passive: true });
     return () => {
+      if (frame) cancelAnimationFrame(frame);
       window.clearTimeout(settleTimer);
       window.removeEventListener('touchstart', onStart);
       window.removeEventListener('touchmove', onMove);
       window.removeEventListener('touchend', onEnd);
       window.removeEventListener('touchcancel', onEnd);
-      setPhase('idle');
-      setX(0);
+      clearStyles();
     };
   }, [active]);
 
-  return { x, phase };
+  return useCallback((el: HTMLDivElement | null) => {
+    elRef.current = el;
+  }, []);
 }
