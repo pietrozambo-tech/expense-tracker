@@ -26,6 +26,7 @@ import { ConfirmDialog } from './ConfirmDialog';
 import { BalanceHistory } from './BalanceHistory';
 import { CURRENCIES, MAIN_CURRENCY_CODES } from '../utils/currency';
 import { KNOWN_COUNTRIES, currencyOfCountry, currentCountry, flagOfCountry } from '../lib/travel';
+import { hapticHeavy, hapticSelect, hapticSuccess, hapticTick } from '../lib/haptics';
 import { CurrencySearchList } from './CurrencySearchList';
 import { LegalScreen } from './LegalScreen';
 import { PRIVACY_POLICY, TERMS_OF_SERVICE, type LegalDoc } from '../lib/legalContent';
@@ -43,7 +44,10 @@ function SwitchRow({ label, sub, icon, on, divider, onToggle }: {
 }) {
   return (
     <button
-      onClick={onToggle}
+      onClick={() => {
+        hapticTick();
+        onToggle();
+      }}
       role="switch"
       aria-checked={on}
       className="w-full flex items-center gap-3 px-4"
@@ -1094,6 +1098,35 @@ export function Settings({
             {row('Categories', `${categories.length} + ${incomeCategories.length} income`)}
             {row('Schedules', String(devDiag?.ruleCount ?? 0))}
             {keySizes.rows.slice(0, 8).map((r) => row(r.k, kb(r.bytes)))}
+          </div>
+
+          {/* Feel-test: the four semantic levels, pressed on a real phone.
+              On iOS-web all four play the same system tick (that is all the
+              platform offers); on Android the durations differ; on the future
+              native build they map to distinct generator styles. */}
+          <div className="rounded-xl mb-3 px-3 py-2.5" style={{ backgroundColor: 'var(--bg-card)' }}>
+            <div className="text-[11px] font-semibold mb-2" style={{ color: 'var(--ink-2)', letterSpacing: '0.05em' }}>HAPTICS</div>
+            <div className="grid grid-cols-4 gap-2">
+              {([
+                ['Select', hapticSelect],
+                ['Tick', hapticTick],
+                ['Success', hapticSuccess],
+                ['Heavy', hapticHeavy],
+              ] as const).map(([label, fn]) => (
+                <button
+                  key={label}
+                  data-dev-haptic={label.toLowerCase()}
+                  onClick={fn}
+                  className="rounded-lg active:scale-[0.96] transition-transform"
+                  style={{ backgroundColor: 'var(--bg-inset)', color: 'var(--ink)', padding: '9px 0', fontSize: 12.5, fontWeight: 600 }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <p className="mt-2" style={{ color: 'var(--faint)', fontSize: 11, lineHeight: 1.4 }}>
+              iOS plays one system tick for all four (needs iOS 17.4+ and System Haptics on); Android varies the length.
+            </p>
           </div>
 
           <button

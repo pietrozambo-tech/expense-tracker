@@ -49,6 +49,7 @@ import {
 import { STORAGE_BROKEN_EVENT, isStorageBroken } from './lib/kv';
 import { dueNudge, monthKey, prevMonthKey, runningEnv, untouched, type NudgePrefs } from './lib/nudges';
 import { NudgeCenter, type RecapFacts } from './components/NudgeCenter';
+import { hapticHeavy, hapticSelect, hapticSuccess, hapticTick } from './lib/haptics';
 import { DEFAULT_SOURCES, DEFAULT_SOURCE_EXPENSE, DEFAULT_SOURCE_INCOME } from './components/sources';
 import { SourceLogo } from './components/SourceLogo';
 import { SourceSelectorModal } from './components/SourceSelectorModal';
@@ -221,7 +222,10 @@ function DockTab({
 }) {
   return (
     <button
-      onClick={onClick}
+      onClick={() => {
+        if (!active) hapticTick();
+        onClick();
+      }}
       // One width for all four, not snug to each label. Snug was honest to
       // the text and bad to look at: "Trend" got a 38.7px lozenge next to
       // "Impostazioni" at 70.9px, and since the pill moves between tabs the
@@ -1122,6 +1126,7 @@ export default function App() {
   }, [recurrenceReady, runRecurrence, offerSeriesCleanup]);
 
   const handleCategorySelect = (categoryId: string) => {
+    hapticSelect();
     setSelectedCategory(categoryId);
     setSelectedSubcategory(null); // Reset subcategory when category changes
   };
@@ -1828,6 +1833,7 @@ export default function App() {
 
   const handleSettle = (amount: number) => {
     if (!partner) return;
+    hapticSuccess();
     const today = new Date();
     const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
     const id = `settle-${Date.now().toString(36)}`;
@@ -2011,6 +2017,7 @@ export default function App() {
       const formattedToastAmount = `${amount}${sep}${currencyData.symbol}`;
 
 
+      hapticSuccess();
       toast.success(t('toast.saved', { amt: formattedToastAmount, cat: categoryName ?? '' }), {
         duration: 1400,
       });
@@ -2204,6 +2211,7 @@ export default function App() {
   };
 
   const handleDeleteExpense = (id: string) => {
+    hapticHeavy();
     const txn = expenses.find((e) => e.id === id);
     // A shared expense exists on the server too, so deleting it here has to
     // say so out loud. Absence is never read as a deletion by the sync (that
@@ -2717,6 +2725,7 @@ export default function App() {
     setRefreshKey((prev) => prev + 1);
     setCurrentTab('dashboard');
     track('backup_restored', { count });
+    hapticSuccess();
     toast.success(t('toast.backupRestored'), {
       description: t(count === 1 ? 'toast.backupRestoredDesc.one' : 'toast.backupRestoredDesc.other', { n: count }),
       duration: 2000,
@@ -2752,6 +2761,7 @@ export default function App() {
       // guard is bookkeeping, not news.
       setImportSummary(res);
     } else {
+      hapticSuccess();
       toast.success(t(res.added === 1 ? 'toast.imported.one' : 'toast.imported.other', { n: res.added }), {
         description: res.alreadyImported > 0
           ? t('toast.importedDedupe', { n: res.alreadyImported })
@@ -3496,7 +3506,10 @@ export default function App() {
                 onClick={() => setCurrentTab('activity')}
               />
               <button
-                onClick={() => setCurrentTab('add')}
+                onClick={() => {
+                  hapticTick();
+                  setCurrentTab('add');
+                }}
                 aria-label={t('add.aria')}
                 className="flex flex-col items-center pointer-events-auto justify-self-center"
               >
