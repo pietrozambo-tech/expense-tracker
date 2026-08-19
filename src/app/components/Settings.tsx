@@ -2,6 +2,7 @@ import type { LucideIcon } from 'lucide-react';
 import { Bell, Lightbulb, ChevronRight, ChevronLeft, Wrench, ArrowLeftRight, UserCircle, Wallet, HelpCircle, ShieldCheck, ScrollText, Layers, FlaskConical, Trash2, Landmark, Cloud, LogOut, Upload, Copy, Download, FileSpreadsheet, Palmtree, UserX, Mail, LifeBuoy, CheckCircle2, Globe, CalendarClock, Sparkles, Palette, Sun, Moon, SunMoon, Split, Plus, Eraser } from 'lucide-react';
 import { getCategoryIcon } from './categoryIcons';
 import { composeSupportMessage, sendSupportMessage, supportLimitReached, type SupportTopic } from '../lib/support';
+import { fetchAdminStats, type AdminStats } from '../lib/adminStats';
 import { switchGlow } from './categoryColors';
 
 // Where messages from Settings > Contacts go. Easy to swap when the domain changes.
@@ -377,6 +378,11 @@ export function Settings({
   // phone with no cable and no console, which is the whole situation it exists
   // for.
   const [showDev, setShowDev] = useState(false);
+  // Loaded on demand from the dev screen - a network call nobody wants firing
+  // every time the panel opens.
+  const [adminStats, setAdminStats] = useState<AdminStats | null>(null);
+  const [adminError, setAdminError] = useState<string | null>(null);
+  const [loadingAdmin, setLoadingAdmin] = useState(false);
   const [showBalance, setShowBalance] = useState(false);
   /** The country this device is in, named and flagged, or null if unplaceable. */
   const here = (() => {
@@ -970,6 +976,67 @@ export function Settings({
               style={ACTION}
             >
               Force update &amp; reload
+            </button>
+          </div>
+
+          {/* Who is out there, by day - so the Instagram push can be judged
+              without opening PostHog. Accounts only: guests never sign up and
+              are invisible here, which the note says out loud. */}
+          <div className="rounded-2xl px-5 py-4 mb-4" style={CARD}>
+            <div className="mb-2" style={EYEBROW}>USERS</div>
+            {adminStats && (
+              <>
+                {row('Accounts', String(adminStats.totals.accounts))}
+                {row('New, last 7 days', String(adminStats.totals.signups7))}
+                {row('New, last 30 days', String(adminStats.totals.signups30))}
+                {row('Seen, last 7 days', String(adminStats.totals.active7))}
+                <div className="mt-3 pt-3" style={{ borderTop: '1px solid var(--line-2)' }}>
+                  {adminStats.days.filter((d) => d.signups > 0 || d.active > 0).length === 0 ? (
+                    <p style={NOTE}>No sign-ups or sign-ins in the last 30 days.</p>
+                  ) : (
+                    adminStats.days
+                      .filter((d) => d.signups > 0 || d.active > 0)
+                      .map((d) => (
+                        <div key={d.date} data-dev-user-day={d.date} className="py-1.5">
+                          <div className="flex items-baseline justify-between gap-3">
+                            <span style={{ color: 'var(--ink-2)', fontSize: 12.5 }}>{d.date}</span>
+                            <span className="text-right" style={{ color: 'var(--ink)', fontSize: 12.5, fontWeight: 600 }}>
+                              {[d.signups > 0 ? `+${d.signups} new` : null,
+                                d.active > 0 ? `${d.active} seen` : null]
+                                .filter(Boolean).join(' · ')}
+                            </span>
+                          </div>
+                          {d.emails.length > 0 && (
+                            <p style={{ color: 'var(--ink-3)', fontSize: 11.5, lineHeight: 1.5, wordBreak: 'break-word' }}>
+                              {d.emails.join(', ')}
+                            </p>
+                          )}
+                        </div>
+                      ))
+                  )}
+                </div>
+              </>
+            )}
+            {adminError && <p data-dev-users-error style={{ ...NOTE, color: '#E5484D' }}>{adminError}</p>}
+            <p className="mt-2 mb-2" style={NOTE}>
+              Accounts, not visitors: everyone using the app as a guest is
+              missing from these numbers, and "seen" counts each account only
+              on its most recent sign-in. PostHog still holds the traffic story.
+            </p>
+            <button
+              data-dev-users-load
+              onClick={async () => {
+                setLoadingAdmin(true);
+                setAdminError(null);
+                const { stats, error } = await fetchAdminStats();
+                setAdminStats(stats);
+                setAdminError(error);
+                setLoadingAdmin(false);
+              }}
+              className="rounded-xl active:scale-95 transition-transform"
+              style={ACTION}
+            >
+              {loadingAdmin ? 'Loading…' : adminStats ? 'Refresh' : 'Load user stats'}
             </button>
           </div>
 

@@ -119,6 +119,18 @@ pnpm preview    # serve the production build
 
 App data lives in localStorage under versioned keys (`expense-tracker.v1.*`) with optional cloud sync to Supabase (one JSON record per user, RLS-protected). Storage layer: `src/app/lib/storage.ts` · types: `src/app/types.ts` · backup format: `src/app/lib/backup.ts` · recurrence engine: `src/app/lib/recurrence.ts` · FX engine: `src/app/lib/fx.ts`.
 
+### Edge Functions
+
+Three live in `supabase/functions/`, deployed with `supabase functions deploy <name>`:
+
+| Function | What it does | Secrets |
+| --- | --- | --- |
+| `send-support` | Emails the in-app Contacts form via Resend | `RESEND_API_KEY` (plus optional `SUPPORT_TO` / `SUPPORT_FROM`) |
+| `delete-account` | Erases the caller's data row and auth identity | none |
+| `admin-stats` | Daily sign-up / sign-in counts for the developer screen | `ADMIN_EMAILS` |
+
+`ADMIN_EMAILS` is a comma-separated allow-list checked against the caller's own JWT: `supabase secrets set ADMIN_EMAILS="you@example.com"`. Until it is set the function answers 403 to everyone, including you — it fails closed, because the failure it is guarding against is publishing a user list. The developer screen's unlock code gates a screen, never this data.
+
 Ideas parked with the thinking already done - costings, blockers, decisions not to build something - live in `ROADMAP.md`.
 
 Brought to you by **Zambop** · © TracklyLab
