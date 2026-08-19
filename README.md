@@ -131,7 +131,9 @@ Three live in `supabase/functions/`, deployed with `supabase functions deploy <n
 
 `ADMIN_EMAILS` is a comma-separated allow-list checked against the caller's own JWT: `supabase secrets set ADMIN_EMAILS="you@example.com"`. Until it is set the function answers 403 to everyone, including you — it fails closed, because the failure it is guarding against is publishing a user list. The developer screen's unlock code gates a screen, never this data.
 
-All three are called from a browser, so each handles the CORS preflight itself and each must have the platform's **Verify JWT** setting **off**. The gateway check runs ahead of the function and answers the preflight — which carries no `Authorization` header, by specification — with a bare 401 lacking CORS headers; the browser then abandons the real request, which surfaces as a network error with no invocation logged. The functions authenticate their own callers instead: `delete-account` and `admin-stats` resolve the user from the JWT and refuse without one, and `admin-stats` additionally checks the allow-list.
+All three are called from a browser and handle the CORS preflight themselves. The platform's **Verify JWT** setting can stay on — it only asks whether the token is valid for the project, which is true of every guest of the app — so the functions authenticate their own callers: `delete-account` and `admin-stats` resolve the user from the JWT and refuse without one, and `admin-stats` additionally checks the allow-list.
+
+A function is reachable at `/functions/v1/<slug>`, where the slug is fixed when it is created and cannot be renamed afterwards. Opening that URL in a browser is the quickest way to tell a missing deployment (`404`) from a live one (`405`, from the POST-only guard).
 
 Ideas parked with the thinking already done - costings, blockers, decisions not to build something - live in `ROADMAP.md`.
 

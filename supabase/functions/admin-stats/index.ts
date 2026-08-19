@@ -24,14 +24,11 @@
 //
 // Deploy:  supabase functions deploy admin-stats
 //
-// TURN THE PLATFORM'S "Verify JWT" SETTING OFF for this function. That sounds
-// backwards and is not: the gateway's check runs before the function does, and
-// it answers the browser's CORS preflight - which by specification carries no
-// Authorization header - with a bare 401 that has no CORS headers on it. The
-// browser then refuses to make the real request at all, so the call fails with
-// a network error and NOTHING is logged, because nothing ever reached here.
-// Authentication is not lost by turning it off: this function does its own,
-// below, from the caller's JWT, and refuses anyone it cannot place.
+// The platform's "Verify JWT" setting can be left on (send-support runs with
+// it on and is called from the same browsers): the gateway passes the CORS
+// preflight through, and every caller - guests included - holds a valid anon
+// token anyway, so that check never decides anything here. The decision is the
+// one below: who the JWT says you are, against the allow-list.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
