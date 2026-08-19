@@ -3,6 +3,7 @@ import { Bell, Lightbulb, ChevronRight, ChevronLeft, Wrench, ArrowLeftRight, Use
 import { getCategoryIcon } from './categoryIcons';
 import { composeSupportMessage, sendSupportMessage, supportLimitReached, type SupportTopic } from '../lib/support';
 import { fetchAdminStats, type AdminStats } from '../lib/adminStats';
+import { lastPing, pingCurrentUser, type PingInfo } from '../lib/activityPing';
 import { UserStats } from './UserStats';
 import { switchGlow } from './categoryColors';
 
@@ -388,6 +389,7 @@ export function Settings({
   // Off by default: the owner opens this app more than anyone, and counting
   // that would make the chart a mirror rather than a measurement.
   const [countSelf, setCountSelf] = useState(false);
+  const [ping, setPing] = useState<PingInfo | null>(null);
   const [showBalance, setShowBalance] = useState(false);
   /** The country this device is in, named and flagged, or null if unplaceable. */
   const here = (() => {
@@ -874,6 +876,12 @@ export function Settings({
       backgroundColor: 'var(--bg-inset)', color: 'var(--ink-2)',
       WebkitTapHighlightColor: 'transparent',
     } as React.CSSProperties;
+    const shown = ping ?? lastPing();
+    const pingLine = !shown
+      ? { text: 'No visit recorded from this device yet - it is written once a day, on launch, while signed in.', tone: 'var(--ink-3)' }
+      : shown.ok
+        ? { text: `Recorded at ${new Date(shown.at).toLocaleTimeString()}${shown.skipped ? ' (already counted today)' : ''}.`, tone: 'var(--ink-2)' }
+        : { text: `Last attempt failed: ${shown.error}`, tone: '#E5484D' };
     const load = async (self: boolean) => {
       setLoadingAdmin(true);
       setAdminError(null);
@@ -908,7 +916,30 @@ export function Settings({
             was created and cannot be backfilled.
             {adminStats && ` Your own account is ${adminStats.includeSelf ? 'included' : 'excluded'}.`}
           </p>
-          <div className="flex items-center gap-2">
+          {/* Did THIS device record its own visit? The ping swallows its
+              errors by design, so without this line an empty chart could mean
+              a missing table, a rejected insert, a bundle too old to contain
+              the ping at all, or simply nobody having opened the app - four
+              very different problems wearing the same blank face. */}
+          <div data-users-ping className="mt-3 rounded-xl px-3 py-2.5" style={{ backgroundColor: 'var(--bg-inset)' }}>
+            <div style={{ color: 'var(--ink-2)', fontSize: 11, fontWeight: 600, letterSpacing: 0.2 }}>THIS DEVICE</div>
+            <p className="mt-0.5" style={{ fontSize: 12, lineHeight: 1.45, color: pingLine.tone }}>
+              {pingLine.text}
+            </p>
+            <button
+              data-dev-ping-now
+              onClick={async () => {
+                const info = await pingCurrentUser(new Date(), { force: true });
+                setPing(info);
+              }}
+              className="mt-2 rounded-xl active:scale-95 transition-transform"
+              style={ACTION}
+            >
+              Record a visit now
+            </button>
+          </div>
+
+          <div className="flex items-center gap-2 mt-3">
             <button
               data-dev-users-load
               onClick={() => load(countSelf)}

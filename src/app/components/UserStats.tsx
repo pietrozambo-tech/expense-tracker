@@ -35,6 +35,14 @@ export function UserStats({ stats, dark }: { stats: AdminStats; dark: boolean })
   const days = [...stats.days].reverse(); // oldest -> newest, so time runs right
   const peak = Math.max(1, ...days.map((d) => d.active));
   const colour = (k: keyof typeof SERIES) => (dark ? SERIES[k].dark : SERIES[k].light);
+  // When the server answered. Without it a refresh that returns the same
+  // numbers is indistinguishable from a refresh that never happened.
+  const stamp = (() => {
+    const t = Date.parse(stats.generatedAt);
+    return Number.isFinite(t)
+      ? new Date(t).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+      : '';
+  })();
 
   // Geometry: a fixed viewBox the SVG scales into its box, so the card is the
   // same shape on a 320px phone and an iPad.
@@ -55,6 +63,17 @@ export function UserStats({ stats, dark }: { stats: AdminStats; dark: boolean })
         <Tile label="New, 30 days" value={stats.totals.new30} sub={`${stats.totals.accounts} accounts total`} />
       </div>
 
+      {/* Why a number might be smaller than expected, said out loud. An
+          allow-listed account is excluded by default - which includes any
+          second account of your own that you put on the list - and a blank
+          chart otherwise looks like a broken feature rather than a filter. */}
+      {!stats.includeSelf && stats.totals.excluded > 0 && (
+        <p data-users-excluded className="mb-2" style={{ fontSize: 11.5, lineHeight: 1.45, ...ink('--ink-3') }}>
+          Excluding {stats.totals.excluded} admin {stats.totals.excluded === 1 ? 'account' : 'accounts'} (yours).
+          Tap "Not counting you" to include {stats.totals.excluded === 1 ? 'it' : 'them'}.
+        </p>
+      )}
+
       {/* Legend - never colour alone. */}
       <div className="flex items-center gap-3 mb-1.5">
         {(['returning', 'new'] as const).map((k) => (
@@ -63,7 +82,9 @@ export function UserStats({ stats, dark }: { stats: AdminStats; dark: boolean })
             {SERIES[k].label}
           </span>
         ))}
-        <span className="ml-auto" style={{ fontSize: 11, ...ink('--ink-3') }}>peak {peak}</span>
+        <span className="ml-auto" data-users-stamp style={{ fontSize: 11, ...ink('--ink-3') }}>
+          peak {peak}{stamp ? ` · ${stamp}` : ''}
+        </span>
       </div>
 
       <svg
@@ -127,8 +148,10 @@ export function UserStats({ stats, dark }: { stats: AdminStats; dark: boolean })
       <div className="mt-3 pt-3" style={{ borderTop: '1px solid var(--line-2)' }}>
         {days.filter((d) => d.active > 0).length === 0 ? (
           <p style={{ fontSize: 11.5, lineHeight: 1.5, ...ink('--ink-3') }}>
-            No opens recorded yet. Days start filling in from the moment the
-            activity table exists - it cannot be backfilled.
+            No opens recorded yet. A device records one only when it is
+            running a build that includes activity tracking - an app still
+            serving a cached bundle writes nothing - and days cannot be
+            backfilled, so history starts at the first launch after that.
           </p>
         ) : (
           [...days].reverse().filter((d) => d.active > 0).map((d) => (
