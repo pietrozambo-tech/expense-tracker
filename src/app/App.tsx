@@ -3600,8 +3600,9 @@ export default function App() {
                   ? t('add.titleEdit')
                   : transactionType === 'income' ? t('add.titleNewIncome') : t('add.titleNewExpense')}
               </h3>
-              <button 
+              <button
                 onClick={handleCloseModal}
+                aria-label={t('common.close')}
                 className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-neutral-100 active:bg-neutral-200 transition-colors"
               >
                 <X size={20} className="text-neutral-600" />
