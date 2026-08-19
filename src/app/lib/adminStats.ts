@@ -6,31 +6,46 @@ import { supabase } from './supabase';
 // unlocks a screen, it does not grant access to other people's addresses.
 //
 // What the numbers mean, so the panel is never read as more than it is:
-//   signups  accounts created that day (auth.users.created_at)
-//   active   accounts whose most recent sign-in falls on that day. It counts
-//            each account ONCE, on its latest visit only - so it is a floor
-//            for "people who opened the app", not a session count, and older
-//            days thin out as people come back. PostHog remains the honest
-//            source for visitor traffic, which is mostly guests who never
-//            sign up at all.
+//   active   accounts that OPENED the app that day, counted once each. Real
+//            opens, recorded by the app itself (lib/activityPing.ts) - not
+//            sign-ins, which a months-long session never repeats.
+//   new      of those, the accounts created the same day. A subset of active,
+//            never a separate addition to it.
+//
+// Guests are absent by construction: they have no account to count. PostHog
+// remains the source for visitor traffic, most of which never signs up.
 
 export interface AdminDay {
   /** UTC calendar day, YYYY-MM-DD. */
   date: string;
-  signups: number;
+  /** Accounts that opened the app that day. */
   active: number;
+  /** Of those, the ones created the same day - a subset of active. */
+  new: number;
+  returning: number;
   emails: string[];
+  newEmails: string[];
 }
 
 export interface AdminStats {
   generatedAt: string;
-  totals: { accounts: number; signups7: number; signups30: number; active7: number };
+  /** Whether the owner's own account is counted in these numbers. */
+  includeSelf: boolean;
+  totals: {
+    accounts: number;
+    activeToday: number;
+    newToday: number;
+    active7: number;
+    new7: number;
+    new30: number;
+    excluded: number;
+  };
   days: AdminDay[];
 }
 
-export async function fetchAdminStats(): Promise<{ stats: AdminStats | null; error: string | null }> {
+export async function fetchAdminStats(includeSelf = false): Promise<{ stats: AdminStats | null; error: string | null }> {
   try {
-    const { data, error } = await supabase.functions.invoke('admin-stats', { body: {} });
+    const { data, error } = await supabase.functions.invoke('admin-stats', { body: { includeSelf } });
     if (error) {
       // Every failure arrives as the same sentence - "Edge Function returned a
       // non-2xx status code" - which says nothing about WHICH failure. The

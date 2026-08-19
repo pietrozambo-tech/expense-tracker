@@ -50,6 +50,7 @@ import { STORAGE_BROKEN_EVENT, isStorageBroken } from './lib/kv';
 import { dueNudge, monthKey, prevMonthKey, runningEnv, untouched, type NudgePrefs } from './lib/nudges';
 import { NudgeCenter, type RecapFacts } from './components/NudgeCenter';
 import { hapticHeavy, hapticSelect, hapticSuccess, hapticTick } from './lib/haptics';
+import { pingActivity } from './lib/activityPing';
 import { HapticOverlay } from './components/HapticOverlay';
 import { DEFAULT_SOURCES, DEFAULT_SOURCE_EXPENSE, DEFAULT_SOURCE_INCOME } from './components/sources';
 import { SourceLogo } from './components/SourceLogo';
@@ -487,6 +488,14 @@ export default function App() {
     window.addEventListener(STORAGE_BROKEN_EVENT, warn);
     return () => window.removeEventListener(STORAGE_BROKEN_EVENT, warn);
   }, []);
+
+  // Record that this account opened the app today - once a day, silently.
+  // It is the only way the developer screen can count daily actives; sessions
+  // outlive months of use, so sign-ins do not mark the days in between.
+  useEffect(() => {
+    if (!userId) return;
+    void pingActivity(userId);
+  }, [userId]);
 
   // Persist app data whenever it changes
   useEffect(() => {

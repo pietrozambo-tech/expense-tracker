@@ -31,6 +31,7 @@
 // one below: who the JWT says you are, against the allow-list.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { aggregate, windowDays } from './aggregate.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -44,10 +45,6 @@ function json(status: number, body: unknown): Response {
     headers: { ...corsHeaders, 'Content-Type': 'application/json' },
   });
 }
-
-/** Local calendar days are a lie across timezones; every bucket here is UTC. */
-const dayOf = (iso: string | null | undefined): string | null =>
-  iso && iso.length >= 10 ? iso.slice(0, 10) : null;
 
 // Bounds. A hobby project's user list is small, but the shape of this endpoint
 // should not depend on that staying true.
@@ -74,6 +71,13 @@ async function handle(req: Request): Promise<Response> {
 
   const authHeader = req.headers.get('Authorization');
   if (!authHeader) return json(401, { error: 'Sign in first - this reads account data.' });
+
+  // The only option the caller has: whether to count the owner's own account.
+  // A malformed or absent body simply means "no".
+  let payload: Record<string, unknown> = {};
+  try {
+    payload = (await req.json()) as Record<string, unknown>;
+  } catch { /* no body sent */ }
 
   const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? '';
   const ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
@@ -116,7 +120,7 @@ async function handle(req: Request): Promise<Response> {
 
   // Walk the account list. listUsers is paginated; stop at the last short page
   // or the page cap, whichever comes first.
-  type Row = { created_at?: string; last_sign_in_at?: string | null; email?: string | null };
+  type Row = { id: string; created_at?: string; email?: string | null };
   const users: Row[] = [];
   for (let page = 1; page <= MAX_PAGES; page += 1) {
     const { data, error } = await admin.auth.admin.listUsers({ page, perPage: PER_PAGE });
@@ -126,53 +130,46 @@ async function handle(req: Request): Promise<Response> {
     if (batch.length < PER_PAGE) break;
   }
 
-  // The window: the last MAX_DAYS calendar days, today included, so a quiet
-  // day shows as a zero instead of vanishing from the list.
   const today = new Date();
-  const days: string[] = [];
-  for (let i = 0; i < MAX_DAYS; i += 1) {
-    const d = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate() - i));
-    days.push(d.toISOString().slice(0, 10));
-  }
-  const inWindow = new Set(days);
+  const since = windowDays(today, MAX_DAYS)[MAX_DAYS - 1];
 
-  const signups = new Map<string, number>();
-  const actives = new Map<string, number>();
-  const emails = new Map<string, string[]>();
-  let total = 0;
-
-  for (const u of users) {
-    total += 1;
-    const born = dayOf(u.created_at);
-    if (born && inWindow.has(born)) {
-      signups.set(born, (signups.get(born) ?? 0) + 1);
-      const list = emails.get(born) ?? [];
-      if (list.length < MAX_EMAILS_PER_DAY && u.email) list.push(u.email);
-      emails.set(born, list);
-    }
-    const seen = dayOf(u.last_sign_in_at);
-    if (seen && inWindow.has(seen)) actives.set(seen, (actives.get(seen) ?? 0) + 1);
+  // The opens. A missing table is the one failure worth naming precisely:
+  // it means schema-activity.sql has not been run yet, and every number that
+  // depends on it would otherwise read as a flat, believable zero.
+  const { data: openRows, error: openErr } = await admin
+    .from('app_activity')
+    .select('user_id, day')
+    .gte('day', since);
+  if (openErr) {
+    const missing = /relation .* does not exist|could not find the table|schema cache/i.test(openErr.message);
+    return json(500, {
+      error: missing
+        ? 'No app_activity table yet - run supabase/schema-activity.sql in the SQL editor.'
+        : `Could not read activity: ${openErr.message}`,
+    });
   }
 
-  const rows = days.map((date) => ({
-    date,
-    signups: signups.get(date) ?? 0,
-    active: actives.get(date) ?? 0,
-    emails: emails.get(date) ?? [],
-  }));
+  // The owner's own account is excluded by default: a developer who opens the
+  // app forty times a day would otherwise BE the audience the chart reports.
+  const includeSelf = payload.includeSelf === true;
+  const excludeIds = new Set(
+    includeSelf ? [] : users.filter((u) => allowed.includes((u.email ?? '').toLowerCase())).map((u) => u.id),
+  );
 
-  const sum = (key: 'signups' | 'active', n: number) =>
-    rows.slice(0, n).reduce((acc, r) => acc + r[key], 0);
+  const { days, totals } = aggregate({
+    accounts: users.map((u) => ({ id: u.id, email: u.email ?? null, createdAt: u.created_at ?? null })),
+    opens: (openRows ?? []).map((r: { user_id: string; day: string }) => ({ userId: r.user_id, day: r.day })),
+    today,
+    days: MAX_DAYS,
+    excludeIds,
+    maxEmailsPerDay: MAX_EMAILS_PER_DAY,
+  });
 
   return json(200, {
     ok: true,
     generatedAt: new Date().toISOString(),
-    totals: {
-      accounts: total,
-      signups7: sum('signups', 7),
-      signups30: sum('signups', 30),
-      active7: sum('active', 7),
-    },
-    days: rows,
+    includeSelf,
+    totals,
+    days,
   });
 }

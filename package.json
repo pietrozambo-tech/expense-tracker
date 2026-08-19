@@ -14,6 +14,7 @@
     "site": "node scripts/build-site.mjs",
     "test:sync": "node scripts/test-sync.mjs",
     "test:nudges": "node scripts/test-nudges.mjs",
+    "test:adminstats": "node scripts/test-adminstats.mjs",
     "test:recurrence": "node scripts/test-recurrence.mjs",
     "test:import": "node scripts/test-import.mjs",
     "test:storage": "node scripts/test-storage.mjs",

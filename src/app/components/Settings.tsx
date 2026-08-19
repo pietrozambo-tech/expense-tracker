@@ -3,6 +3,7 @@ import { Bell, Lightbulb, ChevronRight, ChevronLeft, Wrench, ArrowLeftRight, Use
 import { getCategoryIcon } from './categoryIcons';
 import { composeSupportMessage, sendSupportMessage, supportLimitReached, type SupportTopic } from '../lib/support';
 import { fetchAdminStats, type AdminStats } from '../lib/adminStats';
+import { UserStats } from './UserStats';
 import { switchGlow } from './categoryColors';
 
 // Where messages from Settings > Contacts go. Easy to swap when the domain changes.
@@ -378,11 +379,15 @@ export function Settings({
   // phone with no cable and no console, which is the whole situation it exists
   // for.
   const [showDev, setShowDev] = useState(false);
+  const [showUsers, setShowUsers] = useState(false);
   // Loaded on demand from the dev screen - a network call nobody wants firing
   // every time the panel opens.
   const [adminStats, setAdminStats] = useState<AdminStats | null>(null);
   const [adminError, setAdminError] = useState<string | null>(null);
   const [loadingAdmin, setLoadingAdmin] = useState(false);
+  // Off by default: the owner opens this app more than anyone, and counting
+  // that would make the chart a mirror rather than a measurement.
+  const [countSelf, setCountSelf] = useState(false);
   const [showBalance, setShowBalance] = useState(false);
   /** The country this device is in, named and flagged, or null if unplaceable. */
   const here = (() => {
@@ -492,8 +497,9 @@ export function Settings({
   const anySubpageOpen =
     showCategories || showSources || showScheduled || showAbout || showImport ||
     showCurrencySelector || showLanguage || showAppearance || showNotifications || showShared ||
-    showNameEditor || showSupport || !!legalDoc;
+    showNameEditor || showSupport || showUsers || !!legalDoc;
   const closeSubpage = useCallback(() => {
+    if (showUsers) return setShowUsers(false);
     if (legalDoc) return setLegalDoc(null);
     if (showCurrencySelector) return setShowCurrencySelector(false);
     if (showSupport) return closeSupport();
@@ -514,7 +520,7 @@ export function Settings({
     if (showScheduled) return setShowScheduled(false);
     if (showSources) return setShowSources(false);
     if (showCategories) return setShowCategories(false);
-  }, [legalDoc, showCurrencySelector, showSupport, showNameEditor, showShared,
+  }, [showUsers, legalDoc, showCurrencySelector, showSupport, showNameEditor, showShared,
       showAppearance, showNotifications, showLanguage, showImport, showAbout, showScheduled,
       showSources, showCategories, household, setupStep]);
   useEdgeSwipeBack(anySubpageOpen, useCallback(() => navTransition('back', closeSubpage), [closeSubpage]));
@@ -859,7 +865,78 @@ export function Settings({
   // chip" is indistinguishable from "the feature is broken" - and from "this
   // phone is still serving last week's cached bundle". Each card below turns
   // one of those guesses into a fact.
+  // The user dashboard - its own screen, opened from the developer panel.
+  if (showUsers) {
+    const darkNow = typeof document !== 'undefined'
+      && document.documentElement.getAttribute('data-theme') === 'dark';
+    const ACTION = {
+      padding: '7px 13px', fontSize: 12.5, fontWeight: 600,
+      backgroundColor: 'var(--bg-inset)', color: 'var(--ink-2)',
+      WebkitTapHighlightColor: 'transparent',
+    } as React.CSSProperties;
+    const load = async (self: boolean) => {
+      setLoadingAdmin(true);
+      setAdminError(null);
+      const { stats, error } = await fetchAdminStats(self);
+      setAdminStats(stats);
+      setAdminError(error);
+      setLoadingAdmin(false);
+    };
+    return (
+      <div className="flex flex-col" style={SUBPAGE_STYLE}>
+        <div style={{ backgroundColor: 'var(--bg-page)' }}>
+          <div className="px-6 pb-4 pt-0">
+            <div className="flex items-center justify-center relative">
+              <button
+                onClick={() => navTransition('back', () => setShowUsers(false))}
+                className="absolute left-0 -ml-2 px-2 py-1 rounded-lg active:bg-neutral-200 transition-colors"
+              >
+                <ChevronLeft size={24} style={{ color: 'var(--accent-ink)' }} />
+              </button>
+              <h1 style={{ color: 'var(--ink)', fontSize: '20px', fontWeight: '600', letterSpacing: '-0.3px' }}>Users</h1>
+            </div>
+          </div>
+        </div>
+        <div className="flex-1 overflow-y-auto px-6" style={{ paddingBottom: DOCK_CLEARANCE }}>
+          {adminStats && <UserStats stats={adminStats} dark={darkNow} />}
+          {adminError && (
+            <p data-dev-users-error style={{ color: '#E5484D', fontSize: 11.5, lineHeight: 1.5 }}>{adminError}</p>
+          )}
+          <p className="mt-3 mb-2" style={{ color: 'var(--ink-3)', fontSize: 11.5, lineHeight: 1.5 }}>
+            Accounts only - guests never sign up, so PostHog still holds the
+            visitor story. Opens are recorded from the day the activity table
+            was created and cannot be backfilled.
+            {adminStats && ` Your own account is ${adminStats.includeSelf ? 'included' : 'excluded'}.`}
+          </p>
+          <div className="flex items-center gap-2">
+            <button
+              data-dev-users-load
+              onClick={() => load(countSelf)}
+              className="rounded-xl active:scale-95 transition-transform"
+              style={ACTION}
+            >
+              {loadingAdmin ? 'Loading…' : adminStats ? 'Refresh' : 'Load user stats'}
+            </button>
+            <button
+              data-dev-users-self
+              onClick={() => { setCountSelf((v) => !v); }}
+              className="rounded-xl active:scale-95 transition-transform"
+              style={ACTION}
+            >
+              {countSelf ? 'Counting you' : 'Not counting you'}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (showDev) {
+    // The chart picks its series steps per surface; themeMode.ts stamps the
+    // attribute, so reading it here is reading the truth rather than guessing
+    // from the preference (which can say "system").
+    const darkNow = typeof document !== 'undefined'
+      && document.documentElement.getAttribute('data-theme') === 'dark';
     const sw = typeof navigator === 'undefined' || !('serviceWorker' in navigator)
       ? 'unsupported'
       : navigator.serviceWorker.controller ? 'active' : 'none';
@@ -979,66 +1056,22 @@ export function Settings({
             </button>
           </div>
 
-          {/* Who is out there, by day - so the Instagram push can be judged
-              without opening PostHog. Accounts only: guests never sign up and
-              are invisible here, which the note says out loud. */}
-          <div className="rounded-2xl px-5 py-4 mb-4" style={CARD}>
-            <div className="mb-2" style={EYEBROW}>USERS</div>
-            {adminStats && (
-              <>
-                {row('Accounts', String(adminStats.totals.accounts))}
-                {row('New, last 7 days', String(adminStats.totals.signups7))}
-                {row('New, last 30 days', String(adminStats.totals.signups30))}
-                {row('Seen, last 7 days', String(adminStats.totals.active7))}
-                <div className="mt-3 pt-3" style={{ borderTop: '1px solid var(--line-2)' }}>
-                  {adminStats.days.filter((d) => d.signups > 0 || d.active > 0).length === 0 ? (
-                    <p style={NOTE}>No sign-ups or sign-ins in the last 30 days.</p>
-                  ) : (
-                    adminStats.days
-                      .filter((d) => d.signups > 0 || d.active > 0)
-                      .map((d) => (
-                        <div key={d.date} data-dev-user-day={d.date} className="py-1.5">
-                          <div className="flex items-baseline justify-between gap-3">
-                            <span style={{ color: 'var(--ink-2)', fontSize: 12.5 }}>{d.date}</span>
-                            <span className="text-right" style={{ color: 'var(--ink)', fontSize: 12.5, fontWeight: 600 }}>
-                              {[d.signups > 0 ? `+${d.signups} new` : null,
-                                d.active > 0 ? `${d.active} seen` : null]
-                                .filter(Boolean).join(' · ')}
-                            </span>
-                          </div>
-                          {d.emails.length > 0 && (
-                            <p style={{ color: 'var(--ink-3)', fontSize: 11.5, lineHeight: 1.5, wordBreak: 'break-word' }}>
-                              {d.emails.join(', ')}
-                            </p>
-                          )}
-                        </div>
-                      ))
-                  )}
-                </div>
-              </>
-            )}
-            {adminError && <p data-dev-users-error style={{ ...NOTE, color: '#E5484D' }}>{adminError}</p>}
-            <p className="mt-2 mb-2" style={NOTE}>
-              Accounts, not visitors: everyone using the app as a guest is
-              missing from these numbers, and "seen" counts each account only
-              on its most recent sign-in. PostHog still holds the traffic story.
-            </p>
-            <button
-              data-dev-users-load
-              onClick={async () => {
-                setLoadingAdmin(true);
-                setAdminError(null);
-                const { stats, error } = await fetchAdminStats();
-                setAdminStats(stats);
-                setAdminError(error);
-                setLoadingAdmin(false);
-              }}
-              className="rounded-xl active:scale-95 transition-transform"
-              style={ACTION}
-            >
-              {loadingAdmin ? 'Loading…' : adminStats ? 'Refresh' : 'Load user stats'}
-            </button>
-          </div>
+          {/* The user dashboard is a screen of its own: thirty days of
+              addresses would otherwise bury everything below it. */}
+          <button
+            data-dev-users-entry
+            onClick={() => navTransition('forward', () => setShowUsers(true))}
+            className="w-full rounded-2xl px-5 py-4 mb-4 flex items-center justify-between"
+            style={CARD}
+          >
+            <span className="text-left">
+              <span className="block" style={EYEBROW}>USERS</span>
+              <span className="block mt-0.5" style={{ color: 'var(--ink)', fontSize: 13.5, fontWeight: 600 }}>
+                Daily actives, new sign-ups, addresses
+              </span>
+            </span>
+            <ChevronRight size={18} style={{ color: 'var(--ink-3)' }} />
+          </button>
 
           <div className="rounded-2xl px-5 py-4 mb-4" style={CARD}>
             <div className="mb-2" style={EYEBROW}>DEVICE &amp; LOCALE</div>
