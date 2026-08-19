@@ -244,22 +244,27 @@ function ago(iso: string | null): string {
 }
 
 /** The moment itself. "3d ago" is scannable and "16 Aug, 14:22" is checkable;
- *  the roster carries both rather than making the reader pick. */
-const exact = (iso: string | null): string =>
-  iso ? new Date(iso).toLocaleString(undefined, {
-    day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
-  }) : '';
-
-/** What the timestamp is evidence OF. Only 'open' is a recorded launch; the
- *  others are the history that existed before the tracking did. */
-const SOURCE_LABEL: Record<'open' | 'sync' | 'signin', string> = {
-  open: '',
-  sync: 'last data change',
-  signin: 'last sign-in',
+ *  the roster carries both rather than making the reader pick. The year is
+ *  printed only when it is not this one - on a list where every row shares it,
+ *  it is four characters of nothing. */
+const exact = (iso: string | null): string => {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  const sameYear = d.getFullYear() === new Date().getFullYear();
+  return d.toLocaleString(undefined, {
+    day: 'numeric', month: 'short', ...(sameYear ? {} : { year: 'numeric' }),
+    hour: '2-digit', minute: '2-digit',
+  });
 };
 
-const joined = (iso: string | null) =>
-  iso ? new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : 'unknown';
+const joined = (iso: string | null) => {
+  if (!iso) return 'unknown';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return 'unknown';
+  const sameYear = d.getFullYear() === new Date().getFullYear();
+  return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', ...(sameYear ? {} : { year: 'numeric' }) });
+};
 
 /**
  * Every account, most recently active first.
@@ -272,51 +277,77 @@ const joined = (iso: string | null) =>
  * as an activity they do not have.
  */
 function Roster({ accounts, onBack }: { accounts: AdminAccount[]; onBack: () => void }) {
-  const seen = accounts.filter((a) => a.lastSeen);
-  const never = accounts.filter((a) => !a.lastSeen);
-  const backfilled = seen.filter((a) => a.lastSeenSource !== 'open').length;
-  const line = (a: AdminAccount, i: number) => (
-    <div key={`${a.email ?? 'anon'}-${i}`} data-roster-row className="py-2" style={{ borderTop: i === 0 ? 'none' : '1px solid var(--line-2)' }}>
-      <div className="flex items-baseline justify-between gap-3">
-        <span className="truncate" style={{ fontSize: 13, fontWeight: 500, ...ink('--ink') }}>
-          {a.email ?? '(no address)'}
-        </span>
-        <span className="flex-shrink-0" style={{ fontSize: 12, ...ink(a.lastSeen ? '--ink-2' : '--ink-3') }}>
-          {ago(a.lastSeen)}
-        </span>
+  // Grouped by how recently each account was around, because that is the
+  // question the list is read to answer: who is still here. Twenty-five lines
+  // sorted by date make the reader do that arithmetic themselves, one row at a
+  // time; four labelled bands answer it before they start.
+  const days = (a: AdminAccount): number => {
+    const t = a.lastSeen ? Date.parse(a.lastSeen) : NaN;
+    return Number.isFinite(t) ? (Date.now() - t) / 864e5 : Infinity;
+  };
+  const BANDS: { key: string; label: string; hint: string; has: (d: number) => boolean }[] = [
+    { key: 'week', label: 'ACTIVE THIS WEEK', hint: '', has: (d) => d <= 7 },
+    { key: 'month', label: 'ACTIVE THIS MONTH', hint: '', has: (d) => d > 7 && d <= 30 },
+    { key: 'dormant', label: 'DORMANT', hint: 'nothing for over a month', has: (d) => d > 30 && d < Infinity },
+    { key: 'never', label: 'NEVER SIGNED IN', hint: 'account created, never used', has: (d) => d === Infinity },
+  ];
+
+  const line = (a: AdminAccount, i: number) => {
+    // Only the weakest evidence is qualified. A recorded launch and a data
+    // change both mean the same thing to a reader - they were using the app -
+    // so labelling every row with which one it was (as this list did, 25 times
+    // over) is noise dressed as precision. A bare sign-in is different: it says
+    // they logged in and may have done nothing since, and that IS worth a word.
+    const weak = a.lastSeenSource === 'signin';
+    return (
+      <div key={`${a.email ?? 'anon'}-${i}`} data-roster-row className="py-2"
+        style={{ borderTop: i === 0 ? 'none' : '1px solid var(--line-2)' }}>
+        <div className="flex items-baseline justify-between gap-3">
+          <span className="truncate" style={{ fontSize: 13, fontWeight: 500, ...ink('--ink') }}>
+            {a.email ?? '(no address)'}
+          </span>
+          <span className="flex-shrink-0" style={{ fontSize: 12, fontWeight: 600, ...ink(a.lastSeen ? '--ink-2' : '--ink-3') }}>
+            {ago(a.lastSeen)}
+          </span>
+        </div>
+        <div style={{ fontSize: 11, ...ink('--ink-3') }}>
+          {a.lastSeen && <>{exact(a.lastSeen)}{weak ? ' · signed in only' : ''} · </>}
+          joined {joined(a.createdAt)}
+        </div>
       </div>
-      <div style={{ fontSize: 11, ...ink('--ink-3') }}>
-        {a.lastSeen && <>{exact(a.lastSeen)}
-          {a.lastSeenSource && SOURCE_LABEL[a.lastSeenSource] ? ` (${SOURCE_LABEL[a.lastSeenSource]})` : ''} · </>}
-        joined {joined(a.createdAt)}
-      </div>
-    </div>
-  );
+    );
+  };
+
   return (
     <div data-users-roster>
       <button data-users-roster-back onClick={onBack} className="flex items-center gap-1 mb-2 -ml-1 py-1">
         <ChevronLeft size={18} style={{ color: 'var(--accent-ink)' }} />
         <span style={{ color: 'var(--accent-ink)', fontSize: 13.5, fontWeight: 600 }}>Back to the chart</span>
       </button>
-      <p className="mb-1" style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.2, ...ink('--ink-2') }}>
-        {accounts.length} ACCOUNTS · LAST OPENED
+      <p className="mb-3" style={{ fontSize: 12, lineHeight: 1.4, ...ink('--ink-2') }}>
+        <span style={{ fontWeight: 600, ...ink('--ink') }}>{accounts.length} accounts</span>, grouped by when
+        they were last using the app.
       </p>
-      {seen.map(line)}
-      {never.length > 0 && (
-        <>
-          <p className="mt-4 mb-1" style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.2, ...ink('--ink-2') }}>
-            NO SIGN OF LIFE AT ALL ({never.length})
-          </p>
-          {never.map(line)}
-        </>
-      )}
-      <p className="mt-3" style={{ fontSize: 11, lineHeight: 1.45, ...ink('--ink-3') }}>
-        Launches have only been recorded since the activity table existed, so
-        older accounts fall back to when their data last changed on the server,
-        or failing that their last sign-in - both labelled, both weaker
-        evidence than a launch{backfilled > 0 ? `; ${backfilled} of these lines rest on one of them` : ''}. An
-        account with none of the three has never signed in since creating the
-        account.
+
+      {BANDS.map(({ key, label, hint, has }) => {
+        const rows = accounts.filter((a) => has(days(a)));
+        if (rows.length === 0) return null;
+        return (
+          <div key={key} data-roster-band={key} className="mb-4">
+            <p className="mb-0.5" style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.3, ...ink('--ink-2') }}>
+              {label} · {rows.length}
+            </p>
+            {hint && <p className="mb-0.5" style={{ fontSize: 10.5, ...ink('--ink-3') }}>{hint}</p>}
+            {rows.map(line)}
+          </div>
+        );
+      })}
+
+      <p style={{ fontSize: 10.5, lineHeight: 1.45, ...ink('--ink-3') }}>
+        "Last using" is the most recent of: opening the app (recorded only since
+        activity tracking began today), changing any data, or - where there is
+        nothing else - signing in, which those rows mark, since a sign-in alone
+        does not mean they used it.
       </p>
     </div>
   );
