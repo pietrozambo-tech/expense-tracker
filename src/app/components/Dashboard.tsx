@@ -975,18 +975,48 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
   // the list reads oldest first and runs forward to the period just before the
   // one on screen. Chronological throughout, including across year boundaries;
   // nothing is ever sorted by name.
-  const priorPeriods = () => {
+  // Which earlier periods hold anything, computed ONCE per ledger and
+  // selection rather than per question.
+  //
+  // This used to be a plain function, and baselineAmount called it for every
+  // category and every subcategory - three times each in the 'average' path.
+  // Each call scanned the whole ledger up to sixty times (one inRange pass per
+  // period), so a drill-down on a real ledger did millions of date parses to
+  // answer the same question about the same months over and over. That is the
+  // second of waiting the trend column used to cost.
+  const priorPeriodList = useMemo(() => {
     const out: { back: number; index: number; label: string }[] = [];
-    const earliest = earliestTransactionDate();
+    // Computed here rather than through earliestTransactionDate(): that helper
+    // is declared below this memo, and a const arrow cannot be reached from
+    // above it - the memo runs during render, not after.
+    let earliest: Date | null = null;
+    for (const e of expenses) {
+      const d = parseLocalDate(e.date);
+      if (!earliest || d < earliest) earliest = d;
+    }
+    // One pass to bucket the ledger by period, instead of one pass per period.
+    const typed = ofCurrentType(expenses);
+    const counts = new Map<number, number>();
+    for (const e of typed) {
+      const d = parseLocalDate(e.date);
+      for (let back = 1; back <= 60; back++) {
+        const r = periodRange(back);
+        if (d >= r.start && d <= r.end) { counts.set(back, (counts.get(back) ?? 0) + 1); break; }
+        if (d > r.end) break; // ranges walk backwards; nothing earlier can match
+      }
+    }
     for (let back = 1; back <= 60; back++) {
       const range = periodRange(back);
       if (earliest && range.end < earliest) break;
-      if (ofCurrentType(inRange(range)).length > 0) {
+      if ((counts.get(back) ?? 0) > 0) {
         out.push({ back, index: currentPeriodIndex() - back, label: periodLongLabel(back) });
       }
     }
     return out.reverse();
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [expenses, transactionType, timePeriodType, selectedYear, selectedMonth, selectedQuarter]);
+
+  const priorPeriods = () => priorPeriodList;
 
   // Oldest transaction on record - the point past which there is nothing left
   // to offer as a comparison.
@@ -1608,19 +1638,51 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
   // `truncate` false measures the WHOLE baseline period rather than the slice
   // matching the days elapsed - used to ask "did this category exist at all
   // back then", which is a question about existence, not about pace.
+  //
+  // Answered from an index rather than by scanning: every period the trend
+  // column can ask about is totalled per category and per subcategory in a
+  // single pass, so a question that used to filter and convert the whole
+  // ledger is now a map lookup. Same arithmetic - mineAmount over the same
+  // rows in the same ranges - just not repeated per row of the table.
+  const SUB_SEP = '\u0000';
+  const baselineIndex = useMemo(() => {
+    const backs = new Set<number>(priorPeriodList.map((p) => p.back));
+    backs.add(resolvedBack());
+    const typed = ofCurrentType(expenses);
+    const index = new Map<string, number>();
+    const bump = (key: string, v: number) => index.set(key, (index.get(key) ?? 0) + v);
+    for (const back of backs) {
+      const full = periodRange(back);
+      const trunc = truncateToElapsed(full);
+      for (const e of typed) {
+        const d = parseLocalDate(e.date);
+        if (d < full.start || d > full.end) continue;
+        const amount = mineAmount(e, currency);
+        const cat = e.category.name;
+        const sub = e.subcategory;
+        // 'f' = the whole period, 't' = the slice matching the days elapsed.
+        for (const scope of d <= trunc.end ? ['f', 't'] : ['f']) {
+          bump(`${scope}${back}${SUB_SEP}${cat}`, amount);
+          // Only real subcategory names get a key: a null would stringify
+          // into a bucket no caller ever asks for.
+          if (typeof sub === 'string') bump(`${scope}${back}${SUB_SEP}${cat}${SUB_SEP}${sub}`, amount);
+        }
+      }
+    }
+    return index;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [expenses, transactionType, timePeriodType, selectedYear, selectedMonth, selectedQuarter,
+      currency, comparisonBaseline, priorPeriodList]);
+
   const amountInPeriod = (
     back: number,
     categoryName: string,
     subcategoryName?: string,
     truncate = true,
   ) => {
-    const range = truncate ? truncateToElapsed(periodRange(back)) : periodRange(back);
-    return ofCurrentType(inRange(range))
-      .filter((e) =>
-        e.category.name === categoryName &&
-        (subcategoryName === undefined || e.subcategory === subcategoryName)
-      )
-      .reduce((sum, e) => sum + mineAmount(e, currency), 0);
+    const key = `${truncate ? 't' : 'f'}${back}${SUB_SEP}${categoryName}` +
+      (subcategoryName === undefined ? '' : `${SUB_SEP}${subcategoryName}`);
+    return baselineIndex.get(key) ?? 0;
   };
 
   // The number the trend column measures against, per the chosen baseline.
