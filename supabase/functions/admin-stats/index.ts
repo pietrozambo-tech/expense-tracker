@@ -97,9 +97,19 @@ export interface Totals {
   excluded: number;
 }
 
+/** One line of the account roster: who exists, and when they were last here. */
+export interface AccountLine {
+  email: string | null;
+  createdAt: string | null;
+  /** ISO timestamp of their most recent recorded open, or null if never. */
+  lastSeen: string | null;
+}
+
 export interface Aggregated {
   days: DayStat[];
   totals: Totals;
+  /** Every counted account, most recently active first, never-seen last. */
+  accounts: AccountLine[];
 }
 
 /** UTC day for a timestamp, or null. Local days would file one moment under
@@ -126,6 +136,9 @@ export function aggregate(args: {
    *  the app forty times a day does not read as an audience. */
   excludeIds?: Set<string>;
   maxEmailsPerDay?: number;
+  /** Most recent open per account, over ALL of history - the roster answers
+   *  "when were they last here", which a thirty-day window cannot. */
+  lastSeenById?: Map<string, string>;
 }): Aggregated {
   const { accounts, opens, today } = args;
   const exclude = args.excludeIds ?? new Set<string>();
@@ -181,8 +194,23 @@ export function aggregate(args: {
     }).length;
   };
 
+  // The roster: most recently active first, and accounts that have never been
+  // seen last, ordered by when they signed up. Sorting the never-seen among
+  // the seen by any fallback date would quietly claim an activity they do not
+  // have.
+  const lastSeen = args.lastSeenById ?? new Map<string, string>();
+  const roster: AccountLine[] = counted
+    .map((a) => ({ email: a.email, createdAt: a.createdAt, lastSeen: lastSeen.get(a.id) ?? null }))
+    .sort((x, y) => {
+      if (x.lastSeen && y.lastSeen) return x.lastSeen < y.lastSeen ? 1 : -1;
+      if (x.lastSeen) return -1;
+      if (y.lastSeen) return 1;
+      return (y.createdAt ?? '') < (x.createdAt ?? '') ? -1 : 1;
+    });
+
   return {
     days,
+    accounts: roster,
     totals: {
       accounts: counted.length,
       activeToday: days[0]?.active ?? 0,
@@ -308,13 +336,28 @@ async function handle(req: Request): Promise<Response> {
     includeSelf ? [] : users.filter((u) => allowed.includes((u.email ?? '').toLowerCase())).map((u) => u.id),
   );
 
-  const { days, totals } = aggregate({
+  // Latest open per account, over all of history rather than the chart's
+  // window: "last seen" is the roster's whole point, and a user who stopped
+  // coming two months ago is exactly the one worth seeing.
+  const { data: seenRows } = await admin
+    .from('app_activity')
+    .select('user_id, last_seen')
+    .order('last_seen', { ascending: false })
+    .limit(20000);
+  const lastSeenById = new Map<string, string>();
+  for (const r of (seenRows ?? []) as { user_id: string; last_seen: string }[]) {
+    // Rows arrive newest first, so the first sighting of a user is their last.
+    if (!lastSeenById.has(r.user_id)) lastSeenById.set(r.user_id, r.last_seen);
+  }
+
+  const { days, totals, accounts } = aggregate({
     accounts: users.map((u) => ({ id: u.id, email: u.email ?? null, createdAt: u.created_at ?? null })),
     opens: (openRows ?? []).map((r: { user_id: string; day: string }) => ({ userId: r.user_id, day: r.day })),
     today,
     days: MAX_DAYS,
     excludeIds,
     maxEmailsPerDay: MAX_EMAILS_PER_DAY,
+    lastSeenById,
   });
 
   return json(200, {
@@ -323,5 +366,6 @@ async function handle(req: Request): Promise<Response> {
     includeSelf,
     totals,
     days,
+    accounts,
   });
 }

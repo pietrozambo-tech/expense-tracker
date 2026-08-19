@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import type { AdminStats, AdminDay } from '../lib/adminStats';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
+import type { AdminStats, AdminDay, AdminAccount } from '../lib/adminStats';
 
 // The developer screen's user dashboard: a KPI row, thirty days of stacked
 // bars, and the addresses behind them.
@@ -31,6 +32,12 @@ export function UserStats({ stats, dark }: { stats: AdminStats; dark: boolean })
   // Tapping a bar names it, rather than hovering - this screen is read on a
   // phone, where there is no pointer to hover with.
   const [picked, setPicked] = useState<string | null>(null);
+  // The roster takes over the whole screen rather than unfolding under the
+  // chart: it is a list of every account, and inline it would bury the numbers
+  // the screen exists for.
+  const [roster, setRoster] = useState(false);
+
+  if (roster) return <Roster accounts={stats.accounts} onBack={() => setRoster(false)} />;
 
   const days = [...stats.days].reverse(); // oldest -> newest, so time runs right
   const peak = Math.max(1, ...days.map((d) => d.active));
@@ -60,7 +67,12 @@ export function UserStats({ stats, dark }: { stats: AdminStats; dark: boolean })
         <Tile label="Active today" value={stats.totals.activeToday} accent={colour('returning')} />
         <Tile label="New today" value={stats.totals.newToday} accent={colour('new')} />
         <Tile label="Active, 7 days" value={stats.totals.active7} sub="people, not visits" />
-        <Tile label="New, 30 days" value={stats.totals.new30} sub={`${stats.totals.accounts} accounts total`} />
+        <Tile
+          label="New, 30 days"
+          value={stats.totals.new30}
+          sub={`${stats.totals.accounts} accounts total`}
+          onClick={stats.accounts.length ? () => setRoster(true) : undefined}
+        />
       </div>
 
       {/* Why a number might be smaller than expected, said out loud. An
@@ -194,15 +206,97 @@ function DayLine({ day, colour }: { day: AdminDay; colour: (k: 'new' | 'returnin
   );
 }
 
-function Tile({ label, value, sub, accent }: { label: string; value: number; sub?: string; accent?: string }) {
-  return (
-    <div className="rounded-xl px-3 py-2.5" style={{ backgroundColor: 'var(--bg-inset)' }}>
+function Tile({ label, value, sub, accent, onClick }: {
+  label: string; value: number; sub?: string; accent?: string; onClick?: () => void;
+}) {
+  const body = (
+    <>
       <div className="flex items-center gap-1.5">
         {accent && <span style={{ width: 6, height: 6, borderRadius: 999, backgroundColor: accent }} />}
         <span style={{ fontSize: 11, ...ink('--ink-2') }}>{label}</span>
+        {onClick && <ChevronRight className="ml-auto w-3.5 h-3.5" style={{ color: 'var(--ink-3)' }} />}
       </div>
       <div style={{ fontSize: 22, fontWeight: 700, lineHeight: 1.15, ...ink('--ink') }}>{value}</div>
       {sub && <div style={{ fontSize: 10.5, ...ink('--ink-3') }}>{sub}</div>}
+    </>
+  );
+  const style = { backgroundColor: 'var(--bg-inset)' };
+  return onClick ? (
+    <button data-users-roster-open onClick={onClick} className="rounded-xl px-3 py-2.5 text-left active:scale-[0.98] transition-transform" style={style}>
+      {body}
+    </button>
+  ) : (
+    <div className="rounded-xl px-3 py-2.5" style={style}>{body}</div>
+  );
+}
+
+/** How long ago, in the coarsest unit that still says something useful. */
+function ago(iso: string | null): string {
+  if (!iso) return 'never opened';
+  const then = Date.parse(iso);
+  if (!Number.isFinite(then)) return 'unknown';
+  const mins = Math.max(0, Math.round((Date.now() - then) / 60000));
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.round(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.round(hours / 24);
+  if (days < 30) return `${days}d ago`;
+  return new Date(then).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+const joined = (iso: string | null) =>
+  iso ? new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : 'unknown';
+
+/**
+ * Every account, most recently active first.
+ *
+ * The list answers a different question from the chart above it - not "how
+ * many today" but "who are they, and are they still here" - so the two facts
+ * it carries are the address and how long ago that account last opened the
+ * app. Accounts that have never opened it sit at the bottom under their own
+ * heading rather than being sorted in by their sign-up date, which would read
+ * as an activity they do not have.
+ */
+function Roster({ accounts, onBack }: { accounts: AdminAccount[]; onBack: () => void }) {
+  const seen = accounts.filter((a) => a.lastSeen);
+  const never = accounts.filter((a) => !a.lastSeen);
+  const line = (a: AdminAccount, i: number) => (
+    <div key={`${a.email ?? 'anon'}-${i}`} data-roster-row className="py-2" style={{ borderTop: i === 0 ? 'none' : '1px solid var(--line-2)' }}>
+      <div className="flex items-baseline justify-between gap-3">
+        <span className="truncate" style={{ fontSize: 13, fontWeight: 500, ...ink('--ink') }}>
+          {a.email ?? '(no address)'}
+        </span>
+        <span className="flex-shrink-0" style={{ fontSize: 12, ...ink(a.lastSeen ? '--ink-2' : '--ink-3') }}>
+          {ago(a.lastSeen)}
+        </span>
+      </div>
+      <div style={{ fontSize: 11, ...ink('--ink-3') }}>joined {joined(a.createdAt)}</div>
+    </div>
+  );
+  return (
+    <div data-users-roster>
+      <button data-users-roster-back onClick={onBack} className="flex items-center gap-1 mb-2 -ml-1 py-1">
+        <ChevronLeft size={18} style={{ color: 'var(--accent-ink)' }} />
+        <span style={{ color: 'var(--accent-ink)', fontSize: 13.5, fontWeight: 600 }}>Back to the chart</span>
+      </button>
+      <p className="mb-1" style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.2, ...ink('--ink-2') }}>
+        {accounts.length} ACCOUNTS · LAST OPENED
+      </p>
+      {seen.map(line)}
+      {never.length > 0 && (
+        <>
+          <p className="mt-4 mb-1" style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.2, ...ink('--ink-2') }}>
+            NEVER OPENED SINCE TRACKING BEGAN ({never.length})
+          </p>
+          {never.map(line)}
+        </>
+      )}
+      <p className="mt-3" style={{ fontSize: 11, lineHeight: 1.45, ...ink('--ink-3') }}>
+        "Never opened" means no recorded visit - which includes everyone whose
+        last visit predates the activity table, since those days cannot be
+        recovered.
+      </p>
     </div>
   );
 }

@@ -27,6 +27,13 @@ export interface AdminDay {
   newEmails: string[];
 }
 
+export interface AdminAccount {
+  email: string | null;
+  createdAt: string | null;
+  /** Their most recent recorded open, across all of history. */
+  lastSeen: string | null;
+}
+
 export interface AdminStats {
   generatedAt: string;
   /** Whether the owner's own account is counted in these numbers. */
@@ -41,6 +48,7 @@ export interface AdminStats {
     excluded: number;
   };
   days: AdminDay[];
+  accounts: AdminAccount[];
 }
 
 export async function fetchAdminStats(includeSelf = false): Promise<{ stats: AdminStats | null; error: string | null }> {
@@ -108,6 +116,13 @@ function normalise(data: unknown): { stats: AdminStats | null; error: string | n
         accounts: num(t.accounts), activeToday: num(t.activeToday), newToday: num(t.newToday),
         active7: num(t.active7), new7: num(t.new7), new30: num(t.new30), excluded: num(t.excluded),
       },
+      accounts: Array.isArray(raw.accounts)
+        ? raw.accounts.map((a: Record<string, unknown>) => ({
+            email: typeof a?.email === 'string' ? a.email : null,
+            createdAt: typeof a?.createdAt === 'string' ? a.createdAt : null,
+            lastSeen: typeof a?.lastSeen === 'string' ? a.lastSeen : null,
+          }))
+        : [],
       days: raw.days.map((d: Record<string, unknown>) => ({
         date: typeof d?.date === 'string' ? d.date : '',
         active: num(d?.active), new: num(d?.new), returning: num(d?.returning),
