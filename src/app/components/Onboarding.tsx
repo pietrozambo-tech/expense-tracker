@@ -15,6 +15,16 @@ const LANGUAGE_OPTIONS: { code: Language; flag: string; label: string }[] = [
   { code: 'it', flag: '🇮🇹', label: 'Italiano' },
 ];
 
+// One border width whether a card is picked or not: swapping 1px for 2px on
+// selection resized the card's content box, so every tap nudged the row and
+// the grid twitched. The selected state is a colour and a ring instead.
+const pickStyle = (selected: boolean): React.CSSProperties => ({
+  backgroundColor: selected ? 'var(--bg-inset)' : 'var(--bg-card)',
+  border: `1px solid ${selected ? '#4F74F3' : 'var(--line)'}`,
+  boxShadow: selected ? '0 0 0 3px rgba(0, 122, 255, 0.10)' : '0 1px 3px rgba(0, 0, 0, 0.04)',
+  minHeight: 46,
+});
+
 export function Onboarding({ onComplete, initialName = '' }: OnboardingProps) {
   const [name, setName] = useState(initialName);
   const [currency, setCurrency] = useState('EUR');
@@ -37,20 +47,26 @@ export function Onboarding({ onComplete, initialName = '' }: OnboardingProps) {
     <div className="flex flex-col max-w-[430px] mx-auto" style={{ height: '100dvh', backgroundColor: 'var(--bg-page)' }}>
       {/* Content */}
       <div
-        className="flex-1 min-h-0 overflow-y-auto flex flex-col px-6"
-        style={{ paddingTop: 'max(32px, env(safe-area-inset-top))' }}
+        className="flex-1 min-h-0 overflow-y-auto flex flex-col px-5"
+        style={{ paddingTop: 'max(20px, env(safe-area-inset-top))' }}
       >
+        {/* Centred in whatever room is left rather than pinned to the top:
+            the form is short enough to fit a phone outright now, and pinned
+            it left a hand's width of dead space above the button. Auto
+            margins (not justify-center) so a small screen still scrolls from
+            the top instead of clipping the logo. */}
+        <div className="my-auto w-full">
         {/* The brand moment, on the true first screen. The tour used to open
             with a logo slide, which meant a second "Welcome" immediately after
             this one - two greetings for someone who had just typed their name
             here. The mark belongs where the app is first met. */}
-        <div className="flex items-center gap-3 mb-5">
-          <TracklyLogo size={44} />
+        <div className="flex items-center gap-2.5 mb-3.5">
+          <TracklyLogo size={36} />
           <div>
-            <div style={{ color: 'var(--ink)', fontSize: 19, fontWeight: 700, letterSpacing: '-0.02em' }}>
+            <div style={{ color: 'var(--ink)', fontSize: 17, fontWeight: 700, letterSpacing: '-0.02em', lineHeight: 1.15 }}>
               TracklyLab
             </div>
-            <div style={{ color: 'var(--accent-ink)', fontSize: 12.5, fontWeight: 600, letterSpacing: '0.02em' }}>
+            <div style={{ color: 'var(--accent-ink)', fontSize: 11.5, fontWeight: 600, letterSpacing: '0.02em' }}>
               Your Expense Lens
             </div>
           </div>
@@ -58,46 +74,41 @@ export function Onboarding({ onComplete, initialName = '' }: OnboardingProps) {
 
         <h1 style={{
           color: 'var(--ink)',
-          fontSize: '32px',
+          fontSize: '25px',
           fontWeight: '600',
-          letterSpacing: '-0.7px',
-          marginBottom: '8px'
+          letterSpacing: '-0.5px',
+          marginBottom: '4px',
+          lineHeight: 1.15,
         }}>
           {t('onboarding.title')}
         </h1>
-        <p style={{ color: 'var(--ink-2)', fontSize: '15px', lineHeight: '1.4' }}>
+        <p style={{ color: 'var(--ink-2)', fontSize: '13.5px', lineHeight: '1.35' }}>
           {t('onboarding.subtitle')}
         </p>
 
         {/* Language - first, so the rest of the setup already speaks it */}
-        <div className="mt-8">
+        <div className="mt-5">
           <label
-            className="block mb-2"
-            style={{ color: 'var(--ink)', fontSize: '15px', fontWeight: '600' }}
+            className="block mb-1.5"
+            style={{ color: 'var(--ink-2)', fontSize: 12, fontWeight: 600, letterSpacing: 0.2 }}
           >
             {t('onboarding.language')}
           </label>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-2">
             {LANGUAGE_OPTIONS.map((option) => {
               const isSelected = language === option.code;
               return (
                 <button
                   key={option.code}
                   onClick={() => setLanguage(option.code)}
-                  className="flex items-center gap-3 p-4 rounded-xl text-left outline-none transition-all"
-                  style={{
-                    backgroundColor: isSelected ? 'var(--bg-inset)' : 'var(--bg-card)',
-                    border: isSelected ? '2px solid #4F74F3' : '1px solid var(--line)',
-                    boxShadow: isSelected
-                      ? '0 0 0 3px rgba(0, 122, 255, 0.08)'
-                      : '0 1px 3px rgba(0, 0, 0, 0.04)'
-                  }}
+                  className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-left outline-none transition-all"
+                  style={pickStyle(isSelected)}
                 >
-                  <span style={{ fontSize: '22px' }}>{option.flag}</span>
+                  <span style={{ fontSize: '18px' }}>{option.flag}</span>
                   <span
                     style={{
                       color: isSelected ? '#4F74F3' : 'var(--ink)',
-                      fontSize: '15px',
+                      fontSize: '14px',
                       fontWeight: '600'
                     }}
                   >
@@ -110,10 +121,10 @@ export function Onboarding({ onComplete, initialName = '' }: OnboardingProps) {
         </div>
 
         {/* Name */}
-        <div className="mt-8">
+        <div className="mt-5">
           <label
-            className="block mb-2"
-            style={{ color: 'var(--ink)', fontSize: '15px', fontWeight: '600' }}
+            className="block mb-1.5"
+            style={{ color: 'var(--ink-2)', fontSize: 12, fontWeight: 600, letterSpacing: 0.2 }}
           >
             {t('onboarding.name')}
           </label>
@@ -123,7 +134,7 @@ export function Onboarding({ onComplete, initialName = '' }: OnboardingProps) {
             onChange={(e) => setName(e.target.value)}
             placeholder={t('onboarding.namePlaceholder')}
             autoComplete="given-name"
-            className="w-full px-4 py-4 rounded-xl text-base outline-none transition-all"
+            className="w-full px-3.5 py-3 rounded-xl text-base outline-none transition-all"
             style={{
               backgroundColor: 'var(--bg-card)',
               color: 'var(--ink)',
@@ -142,41 +153,38 @@ export function Onboarding({ onComplete, initialName = '' }: OnboardingProps) {
         </div>
 
         {/* Currency */}
-        <div className="mt-8">
+        <div className="mt-5">
           <label
-            className="block mb-2"
-            style={{ color: 'var(--ink)', fontSize: '15px', fontWeight: '600' }}
+            className="block mb-1.5"
+            style={{ color: 'var(--ink-2)', fontSize: 12, fontWeight: 600, letterSpacing: 0.2 }}
           >
             {t('onboarding.currency')}
           </label>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-2">
             {MAIN_CURRENCY_CODES.map((code) => CURRENCIES[code]).map((option) => {
               const isSelected = currency === option.code;
               return (
                 <button
                   key={option.code}
                   onClick={() => setCurrency(option.code)}
-                  className="flex items-center gap-3 p-4 rounded-xl text-left outline-none transition-all"
-                  style={{
-                    backgroundColor: isSelected ? 'var(--bg-inset)' : 'var(--bg-card)',
-                    border: isSelected ? '2px solid #4F74F3' : '1px solid var(--line)',
-                    boxShadow: isSelected
-                      ? '0 0 0 3px rgba(0, 122, 255, 0.08)'
-                      : '0 1px 3px rgba(0, 0, 0, 0.04)'
-                  }}
+                  className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-left outline-none transition-all"
+                  style={pickStyle(isSelected)}
                 >
-                  <span style={{ fontSize: '22px' }}>{option.flag}</span>
-                  <div className="flex flex-col">
+                  <span style={{ fontSize: '18px' }}>{option.flag}</span>
+                  <div className="flex flex-col min-w-0">
                     <span
                       style={{
                         color: isSelected ? '#4F74F3' : 'var(--ink)',
-                        fontSize: '15px',
-                        fontWeight: '600'
+                        fontSize: '14px',
+                        fontWeight: '600',
+                        lineHeight: 1.2,
                       }}
                     >
                       {option.code}
                     </span>
-                    <span style={{ color: 'var(--ink-2)', fontSize: '12px' }}>{option.name}</span>
+                    <span className="truncate" style={{ color: 'var(--ink-2)', fontSize: '11px', lineHeight: 1.25 }}>
+                      {option.name}
+                    </span>
                   </div>
                 </button>
               );
@@ -186,30 +194,25 @@ export function Onboarding({ onComplete, initialName = '' }: OnboardingProps) {
           {/* Every other currency, searchable */}
           <button
             onClick={() => setShowAllCurrencies(true)}
-            className="w-full flex items-center gap-3 p-4 mt-3 rounded-xl text-left outline-none transition-all"
-            style={{
-              backgroundColor: nonMainPick ? 'var(--bg-inset)' : 'var(--bg-card)',
-              border: nonMainPick ? '2px solid #4F74F3' : '1px solid var(--line)',
-              boxShadow: nonMainPick
-                ? '0 0 0 3px rgba(0, 122, 255, 0.08)'
-                : '0 1px 3px rgba(0, 0, 0, 0.04)'
-            }}
+            className="w-full flex items-center gap-2.5 px-3 py-2 mt-2 rounded-xl text-left outline-none transition-all"
+            style={pickStyle(!!nonMainPick)}
           >
             {nonMainPick ? (
               <>
-                <span style={{ fontSize: '22px' }}>{nonMainPick.flag}</span>
-                <div className="flex flex-col flex-1">
-                  <span style={{ color: 'var(--accent-ink)', fontSize: '15px', fontWeight: '600' }}>{nonMainPick.code}</span>
-                  <span style={{ color: 'var(--ink-2)', fontSize: '12px' }}>{nonMainPick.name}</span>
+                <span style={{ fontSize: '18px' }}>{nonMainPick.flag}</span>
+                <div className="flex flex-col flex-1 min-w-0">
+                  <span style={{ color: 'var(--accent-ink)', fontSize: '14px', fontWeight: '600', lineHeight: 1.2 }}>{nonMainPick.code}</span>
+                  <span className="truncate" style={{ color: 'var(--ink-2)', fontSize: '11px', lineHeight: 1.25 }}>{nonMainPick.name}</span>
                 </div>
               </>
             ) : (
-              <span className="flex-1" style={{ color: 'var(--ink)', fontSize: '15px', fontWeight: '600' }}>{t('onboarding.otherCurrencies')}</span>
+              <span className="flex-1 py-1" style={{ color: 'var(--ink)', fontSize: '14px', fontWeight: '600' }}>{t('onboarding.otherCurrencies')}</span>
             )}
-            <ChevronRight className="w-5 h-5" style={{ color: 'var(--ghost)' }} />
+            <ChevronRight className="w-4.5 h-4.5" style={{ color: 'var(--ghost)' }} />
           </button>
         </div>
-        <div className="h-6 flex-shrink-0" />
+        </div>
+        <div className="h-4 flex-shrink-0" />
       </div>
 
       {/* Full currency list - tall sheet so results clear the keyboard */}
@@ -239,13 +242,13 @@ export function Onboarding({ onComplete, initialName = '' }: OnboardingProps) {
       {/* The CTA keeps clear of the home indicator on a modern iPhone, where
           a flat pb-8 put it right on the bar. */}
       <div
-        className="px-6 pt-5 flex-shrink-0"
+        className="px-5 pt-3 flex-shrink-0"
         style={{ paddingBottom: 'max(24px, calc(env(safe-area-inset-bottom) + 12px))' }}
       >
         <button
           onClick={handleGetStarted}
           disabled={!name.trim()}
-          className="w-full py-4 rounded-xl font-medium text-base transition-all active:scale-[0.98]"
+          className="w-full py-3.5 rounded-xl font-medium text-base transition-all active:scale-[0.98]"
           style={{
             backgroundColor: !name.trim() ? 'var(--line)' : '#4F74F3',
             color: '#FFFFFF',
