@@ -23,6 +23,15 @@
 // alternative failure mode is publishing a user list.
 //
 // Deploy:  supabase functions deploy admin-stats
+//
+// TURN THE PLATFORM'S "Verify JWT" SETTING OFF for this function. That sounds
+// backwards and is not: the gateway's check runs before the function does, and
+// it answers the browser's CORS preflight - which by specification carries no
+// Authorization header - with a bare 401 that has no CORS headers on it. The
+// browser then refuses to make the real request at all, so the call fails with
+// a network error and NOTHING is logged, because nothing ever reached here.
+// Authentication is not lost by turning it off: this function does its own,
+// below, from the caller's JWT, and refuses anyone it cannot place.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
