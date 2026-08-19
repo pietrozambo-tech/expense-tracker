@@ -101,8 +101,18 @@ export interface Totals {
 export interface AccountLine {
   email: string | null;
   createdAt: string | null;
-  /** ISO timestamp of their most recent recorded open, or null if never. */
+  /** Their most recent sign of life, whatever it was. */
   lastSeen: string | null;
+  /** WHICH sign of life, because they are not equally strong evidence:
+   *    open    a recorded launch - the real thing, but only since the
+   *            activity table existed
+   *    sync    their data last changed on the server (user_data.updated_at) -
+   *            they were using the app, and this predates the tracking
+   *    signin  their last sign-in (auth.users) - weakest, since a session
+   *            outlives months of use, but it is a floor and it is historical
+   *  A roster that showed all three as one number would claim a precision it
+   *  does not have. */
+  lastSeenSource: 'open' | 'sync' | 'signin' | null;
 }
 
 export interface Aggregated {
@@ -136,9 +146,8 @@ export function aggregate(args: {
    *  the app forty times a day does not read as an audience. */
   excludeIds?: Set<string>;
   maxEmailsPerDay?: number;
-  /** Most recent open per account, over ALL of history - the roster answers
-   *  "when were they last here", which a thirty-day window cannot. */
-  lastSeenById?: Map<string, string>;
+  /** Most recent sign of life per account, with its provenance. */
+  lastSeenById?: Map<string, { at: string; source: 'open' | 'sync' | 'signin' }>;
 }): Aggregated {
   const { accounts, opens, today } = args;
   const exclude = args.excludeIds ?? new Set<string>();
@@ -198,9 +207,15 @@ export function aggregate(args: {
   // seen last, ordered by when they signed up. Sorting the never-seen among
   // the seen by any fallback date would quietly claim an activity they do not
   // have.
-  const lastSeen = args.lastSeenById ?? new Map<string, string>();
+  const lastSeen = args.lastSeenById ?? new Map<string, { at: string; source: 'open' | 'sync' | 'signin' }>();
   const roster: AccountLine[] = counted
-    .map((a) => ({ email: a.email, createdAt: a.createdAt, lastSeen: lastSeen.get(a.id) ?? null }))
+    .map((a) => {
+      const hit = lastSeen.get(a.id) ?? null;
+      return {
+        email: a.email, createdAt: a.createdAt,
+        lastSeen: hit?.at ?? null, lastSeenSource: hit?.source ?? null,
+      };
+    })
     .sort((x, y) => {
       if (x.lastSeen && y.lastSeen) return x.lastSeen < y.lastSeen ? 1 : -1;
       if (x.lastSeen) return -1;
@@ -300,7 +315,7 @@ async function handle(req: Request): Promise<Response> {
 
   // Walk the account list. listUsers is paginated; stop at the last short page
   // or the page cap, whichever comes first.
-  type Row = { id: string; created_at?: string; email?: string | null };
+  type Row = { id: string; created_at?: string; email?: string | null; last_sign_in_at?: string | null };
   const users: Row[] = [];
   for (let page = 1; page <= MAX_PAGES; page += 1) {
     const { data, error } = await admin.auth.admin.listUsers({ page, perPage: PER_PAGE });
@@ -344,10 +359,29 @@ async function handle(req: Request): Promise<Response> {
     .select('user_id, last_seen')
     .order('last_seen', { ascending: false })
     .limit(20000);
-  const lastSeenById = new Map<string, string>();
+  // Three signals, weakest first so the strongest overwrites it. Only the
+  // first is a recorded open; the other two are what history there is, and
+  // they matter because the activity table starts the day it was created -
+  // without them every account that predates it reads as "never opened",
+  // which is a claim about them rather than about the data.
+  const lastSeenById = new Map<string, { at: string; source: 'open' | 'sync' | 'signin' }>();
+  const note = (id: string, at: string | null | undefined, source: 'open' | 'sync' | 'signin') => {
+    if (!at) return;
+    const prev = lastSeenById.get(id);
+    if (!prev || prev.at < at) lastSeenById.set(id, { at, source });
+  };
+
+  for (const u of users) note(u.id, u.last_sign_in_at ?? null, 'signin');
+
+  // When their data last changed on the server: proof they were using the app,
+  // and it reaches back to the day they started.
+  const { data: syncRows } = await admin.from('user_data').select('user_id, updated_at').limit(20000);
+  for (const r of (syncRows ?? []) as { user_id: string; updated_at: string }[]) {
+    note(r.user_id, r.updated_at, 'sync');
+  }
+
   for (const r of (seenRows ?? []) as { user_id: string; last_seen: string }[]) {
-    // Rows arrive newest first, so the first sighting of a user is their last.
-    if (!lastSeenById.has(r.user_id)) lastSeenById.set(r.user_id, r.last_seen);
+    note(r.user_id, r.last_seen, 'open');
   }
 
   const { days, totals, accounts } = aggregate({

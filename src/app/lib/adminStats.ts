@@ -30,8 +30,11 @@ export interface AdminDay {
 export interface AdminAccount {
   email: string | null;
   createdAt: string | null;
-  /** Their most recent recorded open, across all of history. */
+  /** Their most recent sign of life, across all of history. */
   lastSeen: string | null;
+  /** What that sign of life was: a recorded launch, a data sync, or a
+   *  sign-in. They are not equal evidence, so the roster says which. */
+  lastSeenSource: 'open' | 'sync' | 'signin' | null;
 }
 
 export interface AdminStats {
@@ -121,6 +124,8 @@ function normalise(data: unknown): { stats: AdminStats | null; error: string | n
             email: typeof a?.email === 'string' ? a.email : null,
             createdAt: typeof a?.createdAt === 'string' ? a.createdAt : null,
             lastSeen: typeof a?.lastSeen === 'string' ? a.lastSeen : null,
+            lastSeenSource: a?.lastSeenSource === 'open' || a?.lastSeenSource === 'sync' || a?.lastSeenSource === 'signin'
+              ? a.lastSeenSource : null,
           }))
         : [],
       days: raw.days.map((d: Record<string, unknown>) => ({

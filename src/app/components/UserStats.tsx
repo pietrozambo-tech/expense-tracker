@@ -232,7 +232,7 @@ function Tile({ label, value, sub, accent, onClick }: {
 
 /** How long ago, in the coarsest unit that still says something useful. */
 function ago(iso: string | null): string {
-  if (!iso) return 'never opened';
+  if (!iso) return 'no sign of life';
   const then = Date.parse(iso);
   if (!Number.isFinite(then)) return 'unknown';
   const mins = Math.max(0, Math.round((Date.now() - then) / 60000));
@@ -240,10 +240,23 @@ function ago(iso: string | null): string {
   if (mins < 60) return `${mins}m ago`;
   const hours = Math.round(mins / 60);
   if (hours < 24) return `${hours}h ago`;
-  const days = Math.round(hours / 24);
-  if (days < 30) return `${days}d ago`;
-  return new Date(then).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+  return `${Math.round(hours / 24)}d ago`;
 }
+
+/** The moment itself. "3d ago" is scannable and "16 Aug, 14:22" is checkable;
+ *  the roster carries both rather than making the reader pick. */
+const exact = (iso: string | null): string =>
+  iso ? new Date(iso).toLocaleString(undefined, {
+    day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
+  }) : '';
+
+/** What the timestamp is evidence OF. Only 'open' is a recorded launch; the
+ *  others are the history that existed before the tracking did. */
+const SOURCE_LABEL: Record<'open' | 'sync' | 'signin', string> = {
+  open: '',
+  sync: 'last data change',
+  signin: 'last sign-in',
+};
 
 const joined = (iso: string | null) =>
   iso ? new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) : 'unknown';
@@ -261,6 +274,7 @@ const joined = (iso: string | null) =>
 function Roster({ accounts, onBack }: { accounts: AdminAccount[]; onBack: () => void }) {
   const seen = accounts.filter((a) => a.lastSeen);
   const never = accounts.filter((a) => !a.lastSeen);
+  const backfilled = seen.filter((a) => a.lastSeenSource !== 'open').length;
   const line = (a: AdminAccount, i: number) => (
     <div key={`${a.email ?? 'anon'}-${i}`} data-roster-row className="py-2" style={{ borderTop: i === 0 ? 'none' : '1px solid var(--line-2)' }}>
       <div className="flex items-baseline justify-between gap-3">
@@ -271,7 +285,11 @@ function Roster({ accounts, onBack }: { accounts: AdminAccount[]; onBack: () => 
           {ago(a.lastSeen)}
         </span>
       </div>
-      <div style={{ fontSize: 11, ...ink('--ink-3') }}>joined {joined(a.createdAt)}</div>
+      <div style={{ fontSize: 11, ...ink('--ink-3') }}>
+        {a.lastSeen && <>{exact(a.lastSeen)}
+          {a.lastSeenSource && SOURCE_LABEL[a.lastSeenSource] ? ` (${SOURCE_LABEL[a.lastSeenSource]})` : ''} · </>}
+        joined {joined(a.createdAt)}
+      </div>
     </div>
   );
   return (
@@ -287,15 +305,18 @@ function Roster({ accounts, onBack }: { accounts: AdminAccount[]; onBack: () => 
       {never.length > 0 && (
         <>
           <p className="mt-4 mb-1" style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.2, ...ink('--ink-2') }}>
-            NEVER OPENED SINCE TRACKING BEGAN ({never.length})
+            NO SIGN OF LIFE AT ALL ({never.length})
           </p>
           {never.map(line)}
         </>
       )}
       <p className="mt-3" style={{ fontSize: 11, lineHeight: 1.45, ...ink('--ink-3') }}>
-        "Never opened" means no recorded visit - which includes everyone whose
-        last visit predates the activity table, since those days cannot be
-        recovered.
+        Launches have only been recorded since the activity table existed, so
+        older accounts fall back to when their data last changed on the server,
+        or failing that their last sign-in - both labelled, both weaker
+        evidence than a launch{backfilled > 0 ? `; ${backfilled} of these lines rest on one of them` : ''}. An
+        account with none of the three has never signed in since creating the
+        account.
       </p>
     </div>
   );
