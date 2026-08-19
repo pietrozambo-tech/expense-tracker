@@ -141,7 +141,7 @@ A function is reachable at `/functions/v1/<slug>`, where the slug is fixed when 
 
 "Active" means **opened the app**, which `auth.users` cannot answer: `last_sign_in_at` holds one timestamp, and a session outlives months of daily use. So the app records it — one row per account per day in `public.app_activity`, written on launch by `src/app/lib/activityPing.ts` (once per device per day, failures swallowed). Run `supabase/schema-activity.sql` once to create the table; it cannot be backfilled, so history starts the day it exists.
 
-New users are a *subset* of that day's actives, never an addition, so the two bar segments sum to the day's total. The owner's own account is excluded by default — a developer opening the app all day would otherwise be the audience — with a toggle to count it. The arithmetic lives in `supabase/functions/admin-stats/aggregate.ts`, free of Deno and Supabase so `pnpm test:adminstats` can exercise it directly.
+New users are a *subset* of that day's actives, never an addition, so the two bar segments sum to the day's total. The owner's own account is excluded by default — a developer opening the app all day would otherwise be the audience — with a toggle to count it. The arithmetic lives inline in `supabase/functions/admin-stats/index.ts`, fenced between `#region aggregate` markers — the dashboard's function editor deploys exactly one file, so an import of a sibling module fails to bundle. `pnpm test:adminstats` lifts that region out and runs it, so the deployable file and the tested code are the same text.
 
 Ideas parked with the thinking already done - costings, blockers, decisions not to build something - live in `ROADMAP.md`.
 

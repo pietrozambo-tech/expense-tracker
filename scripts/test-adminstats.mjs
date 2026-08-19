@@ -3,10 +3,13 @@
 //
 //   pnpm exec node scripts/test-adminstats.mjs
 //
-// The aggregate module is deliberately free of Deno and Supabase so it can be
-// run here rather than by deploying and squinting at a chart.
+// The arithmetic lives inline in the Edge Function - the Supabase dashboard
+// editor deploys exactly one file, so an import of a sibling module fails to
+// bundle. It is fenced between "#region aggregate" markers, and this suite
+// lifts that region out and runs it directly: one source of truth, deployable
+// by paste and testable without a deploy.
 import { execFileSync } from 'node:child_process';
-import { copyFileSync, globSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { globSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -129,7 +132,14 @@ process.exit(failed ? 1 : 0);
 
 const tmp = mkdtempSync(join(tmpdir(), 'adminstats-test-'));
 try {
-  copyFileSync(join(root, 'supabase/functions/admin-stats/aggregate.ts'), join(tmp, 'aggregate.ts'));
+  const fn = readFileSync(join(root, 'supabase/functions/admin-stats/index.ts'), 'utf8');
+  const start = fn.indexOf('// #region aggregate');
+  const end = fn.indexOf('// #endregion aggregate');
+  if (start === -1 || end === -1) {
+    console.error('adminstats-test: the "#region aggregate" fence is gone from index.ts - the arithmetic it guards is no longer under test');
+    process.exit(1);
+  }
+  writeFileSync(join(tmp, 'aggregate.ts'), fn.slice(start, end));
   writeFileSync(join(tmp, 'scenarios.ts'), SCENARIOS);
   const bundle = join(tmp, 'scenarios.mjs');
   execFileSync(process.execPath, [
