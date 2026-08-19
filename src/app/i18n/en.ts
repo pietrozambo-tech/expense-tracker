@@ -22,6 +22,7 @@ export const en = {
   'onboarding.otherCurrencies': 'Others',
   'onboarding.selectCurrency': 'Select currency',
   'onboarding.cta': 'Get started',
+  'onboarding.haveAccount': 'I already have an account - sign in',
 
   // Settings
   'settings.language': 'Language',

@@ -23,6 +23,7 @@ export const it: Record<keyof typeof en, string> = {
   'onboarding.otherCurrencies': 'Altre',
   'onboarding.selectCurrency': 'Scegli la valuta',
   'onboarding.cta': 'Inizia',
+  'onboarding.haveAccount': 'Ho già un account - accedi',
 
   // Settings
   'settings.language': 'Lingua',

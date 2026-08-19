@@ -8,6 +8,8 @@ import { TracklyLogo } from './TracklyLogo';
 interface OnboardingProps {
   onComplete: (userName: string, currency: string, language: Language) => void;
   initialName?: string; // pre-fill (e.g. first name from a Google account)
+  /** Leave guest mode and return to sign-in. Absent when already signed in. */
+  onSignIn?: () => void;
 }
 
 const LANGUAGE_OPTIONS: { code: Language; flag: string; label: string }[] = [
@@ -22,10 +24,10 @@ const pickStyle = (selected: boolean): React.CSSProperties => ({
   backgroundColor: selected ? 'var(--bg-inset)' : 'var(--bg-card)',
   border: `1px solid ${selected ? '#4F74F3' : 'var(--line)'}`,
   boxShadow: selected ? '0 0 0 3px rgba(0, 122, 255, 0.10)' : '0 1px 3px rgba(0, 0, 0, 0.04)',
-  minHeight: 46,
+  minHeight: 52,
 });
 
-export function Onboarding({ onComplete, initialName = '' }: OnboardingProps) {
+export function Onboarding({ onComplete, initialName = '', onSignIn }: OnboardingProps) {
   const [name, setName] = useState(initialName);
   const [currency, setCurrency] = useState('EUR');
   const [showAllCurrencies, setShowAllCurrencies] = useState(false);
@@ -48,22 +50,22 @@ export function Onboarding({ onComplete, initialName = '' }: OnboardingProps) {
       {/* Content */}
       <div
         className="flex-1 min-h-0 overflow-y-auto flex flex-col px-5"
-        style={{ paddingTop: 'max(20px, env(safe-area-inset-top))' }}
+        style={{ paddingTop: 'max(28px, env(safe-area-inset-top))' }}
       >
-        {/* Centred in whatever room is left rather than pinned to the top:
-            the form is short enough to fit a phone outright now, and pinned
-            it left a hand's width of dead space above the button. Auto
-            margins (not justify-center) so a small screen still scrolls from
-            the top instead of clipping the logo. */}
-        <div className="my-auto w-full">
+        {/* Top-aligned, deliberately. Centring this block looked balanced in
+            a screenshot and wrong on a phone: the title is the first thing to
+            read, and floating it into the middle of the screen with dead
+            space above reads as a rendering accident. Space left over goes
+            below, where a fixed CTA already lives. */}
+        <div className="w-full">
         {/* The brand moment, on the true first screen. The tour used to open
             with a logo slide, which meant a second "Welcome" immediately after
             this one - two greetings for someone who had just typed their name
             here. The mark belongs where the app is first met. */}
-        <div className="flex items-center gap-2.5 mb-3.5">
-          <TracklyLogo size={36} />
+        <div className="flex items-center gap-2.5 mb-4">
+          <TracklyLogo size={40} />
           <div>
-            <div style={{ color: 'var(--ink)', fontSize: 17, fontWeight: 700, letterSpacing: '-0.02em', lineHeight: 1.15 }}>
+            <div style={{ color: 'var(--ink)', fontSize: 18, fontWeight: 700, letterSpacing: '-0.02em', lineHeight: 1.15 }}>
               TracklyLab
             </div>
             <div style={{ color: 'var(--accent-ink)', fontSize: 11.5, fontWeight: 600, letterSpacing: '0.02em' }}>
@@ -74,23 +76,23 @@ export function Onboarding({ onComplete, initialName = '' }: OnboardingProps) {
 
         <h1 style={{
           color: 'var(--ink)',
-          fontSize: '25px',
+          fontSize: '28px',
           fontWeight: '600',
           letterSpacing: '-0.5px',
-          marginBottom: '4px',
+          marginBottom: '6px',
           lineHeight: 1.15,
         }}>
           {t('onboarding.title')}
         </h1>
-        <p style={{ color: 'var(--ink-2)', fontSize: '13.5px', lineHeight: '1.35' }}>
+        <p style={{ color: 'var(--ink-2)', fontSize: '14.5px', lineHeight: '1.4' }}>
           {t('onboarding.subtitle')}
         </p>
 
         {/* Language - first, so the rest of the setup already speaks it */}
-        <div className="mt-5">
+        <div className="mt-6">
           <label
             className="block mb-1.5"
-            style={{ color: 'var(--ink-2)', fontSize: 12, fontWeight: 600, letterSpacing: 0.2 }}
+            style={{ color: 'var(--ink-2)', fontSize: 12.5, fontWeight: 600, letterSpacing: 0.2 }}
           >
             {t('onboarding.language')}
           </label>
@@ -101,14 +103,14 @@ export function Onboarding({ onComplete, initialName = '' }: OnboardingProps) {
                 <button
                   key={option.code}
                   onClick={() => setLanguage(option.code)}
-                  className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-left outline-none transition-all"
+                  className="flex items-center gap-2.5 px-3.5 py-3 rounded-xl text-left outline-none transition-all"
                   style={pickStyle(isSelected)}
                 >
-                  <span style={{ fontSize: '18px' }}>{option.flag}</span>
+                  <span style={{ fontSize: '20px' }}>{option.flag}</span>
                   <span
                     style={{
                       color: isSelected ? '#4F74F3' : 'var(--ink)',
-                      fontSize: '14px',
+                      fontSize: '15px',
                       fontWeight: '600'
                     }}
                   >
@@ -121,10 +123,10 @@ export function Onboarding({ onComplete, initialName = '' }: OnboardingProps) {
         </div>
 
         {/* Name */}
-        <div className="mt-5">
+        <div className="mt-6">
           <label
             className="block mb-1.5"
-            style={{ color: 'var(--ink-2)', fontSize: 12, fontWeight: 600, letterSpacing: 0.2 }}
+            style={{ color: 'var(--ink-2)', fontSize: 12.5, fontWeight: 600, letterSpacing: 0.2 }}
           >
             {t('onboarding.name')}
           </label>
@@ -134,7 +136,7 @@ export function Onboarding({ onComplete, initialName = '' }: OnboardingProps) {
             onChange={(e) => setName(e.target.value)}
             placeholder={t('onboarding.namePlaceholder')}
             autoComplete="given-name"
-            className="w-full px-3.5 py-3 rounded-xl text-base outline-none transition-all"
+            className="w-full px-3.5 py-3.5 rounded-xl text-base outline-none transition-all"
             style={{
               backgroundColor: 'var(--bg-card)',
               color: 'var(--ink)',
@@ -153,10 +155,10 @@ export function Onboarding({ onComplete, initialName = '' }: OnboardingProps) {
         </div>
 
         {/* Currency */}
-        <div className="mt-5">
+        <div className="mt-6">
           <label
             className="block mb-1.5"
-            style={{ color: 'var(--ink-2)', fontSize: 12, fontWeight: 600, letterSpacing: 0.2 }}
+            style={{ color: 'var(--ink-2)', fontSize: 12.5, fontWeight: 600, letterSpacing: 0.2 }}
           >
             {t('onboarding.currency')}
           </label>
@@ -167,22 +169,22 @@ export function Onboarding({ onComplete, initialName = '' }: OnboardingProps) {
                 <button
                   key={option.code}
                   onClick={() => setCurrency(option.code)}
-                  className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-left outline-none transition-all"
+                  className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-left outline-none transition-all"
                   style={pickStyle(isSelected)}
                 >
-                  <span style={{ fontSize: '18px' }}>{option.flag}</span>
+                  <span style={{ fontSize: '20px' }}>{option.flag}</span>
                   <div className="flex flex-col min-w-0">
                     <span
                       style={{
                         color: isSelected ? '#4F74F3' : 'var(--ink)',
-                        fontSize: '14px',
+                        fontSize: '15px',
                         fontWeight: '600',
-                        lineHeight: 1.2,
+                        lineHeight: 1.25,
                       }}
                     >
                       {option.code}
                     </span>
-                    <span className="truncate" style={{ color: 'var(--ink-2)', fontSize: '11px', lineHeight: 1.25 }}>
+                    <span className="truncate" style={{ color: 'var(--ink-2)', fontSize: '12px', lineHeight: 1.3 }}>
                       {option.name}
                     </span>
                   </div>
@@ -194,19 +196,19 @@ export function Onboarding({ onComplete, initialName = '' }: OnboardingProps) {
           {/* Every other currency, searchable */}
           <button
             onClick={() => setShowAllCurrencies(true)}
-            className="w-full flex items-center gap-2.5 px-3 py-2 mt-2 rounded-xl text-left outline-none transition-all"
+            className="w-full flex items-center gap-2.5 px-3.5 py-2.5 mt-2.5 rounded-xl text-left outline-none transition-all"
             style={pickStyle(!!nonMainPick)}
           >
             {nonMainPick ? (
               <>
-                <span style={{ fontSize: '18px' }}>{nonMainPick.flag}</span>
+                <span style={{ fontSize: '20px' }}>{nonMainPick.flag}</span>
                 <div className="flex flex-col flex-1 min-w-0">
-                  <span style={{ color: 'var(--accent-ink)', fontSize: '14px', fontWeight: '600', lineHeight: 1.2 }}>{nonMainPick.code}</span>
-                  <span className="truncate" style={{ color: 'var(--ink-2)', fontSize: '11px', lineHeight: 1.25 }}>{nonMainPick.name}</span>
+                  <span style={{ color: 'var(--accent-ink)', fontSize: '15px', fontWeight: '600', lineHeight: 1.25 }}>{nonMainPick.code}</span>
+                  <span className="truncate" style={{ color: 'var(--ink-2)', fontSize: '12px', lineHeight: 1.3 }}>{nonMainPick.name}</span>
                 </div>
               </>
             ) : (
-              <span className="flex-1 py-1" style={{ color: 'var(--ink)', fontSize: '14px', fontWeight: '600' }}>{t('onboarding.otherCurrencies')}</span>
+              <span className="flex-1 py-1" style={{ color: 'var(--ink)', fontSize: '15px', fontWeight: '600' }}>{t('onboarding.otherCurrencies')}</span>
             )}
             <ChevronRight className="w-4.5 h-4.5" style={{ color: 'var(--ghost)' }} />
           </button>
@@ -258,6 +260,23 @@ export function Onboarding({ onComplete, initialName = '' }: OnboardingProps) {
         >
           {t('onboarding.cta')}
         </button>
+        {/* The way back. A device in guest mode never sees the sign-in screen
+            again - the gate is "not signed in AND not a guest" - so someone
+            whose local state said guest, with an account holding all their
+            data, had no route to it from here. This is that route, and it is
+            deliberately on the first screen rather than buried in Settings,
+            which is on the other side of an onboarding they should not have
+            to complete first. */}
+        {onSignIn && (
+          <button
+            data-onboarding-signin
+            onClick={onSignIn}
+            className="w-full mt-3 py-2 text-center"
+            style={{ color: 'var(--accent-ink)', fontSize: 14, fontWeight: 600 }}
+          >
+            {t('onboarding.haveAccount')}
+          </button>
+        )}
       </div>
     </div>
   );

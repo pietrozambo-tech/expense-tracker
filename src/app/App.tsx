@@ -3089,7 +3089,14 @@ export default function App() {
   if (!hasCompletedOnboarding) {
     const meta = (session?.user?.user_metadata ?? {}) as Record<string, string>;
     const googleFirstName = meta.given_name || (meta.full_name || meta.name || '').trim().split(/\s+/)[0] || '';
-    return <Onboarding onComplete={handleOnboardingComplete} initialName={googleFirstName} />;
+    return (
+      <Onboarding
+        onComplete={handleOnboardingComplete}
+        initialName={googleFirstName}
+        // Only a guest can be stuck here; a signed-in user is already past it.
+        onSignIn={!session && guest ? leaveGuest : undefined}
+      />
+    );
   }
 
   // First run after name + currency: show the feature carousel once
