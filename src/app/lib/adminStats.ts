@@ -32,17 +32,28 @@ export async function fetchAdminStats(): Promise<{ stats: AdminStats | null; err
   try {
     const { data, error } = await supabase.functions.invoke('admin-stats', { body: {} });
     if (error) {
-      // A 403 arrives as a FunctionsHttpError whose message is the generic
-      // "non-2xx status code"; the function's own sentence is in the body,
-      // which the SDK hands over as a Response on the error context.
+      // Every failure arrives as the same sentence - "Edge Function returned a
+      // non-2xx status code" - which says nothing about WHICH failure. The
+      // real answer is in the response the SDK parks on error.context, and it
+      // comes in three shapes: our own {error}, the API gateway's {message} or
+      // {msg} (a rejected JWT never reaches our code), and plain text when the
+      // worker failed to boot. Read all three, and always show the status.
       const ctx = (error as { context?: Response }).context;
-      if (ctx && typeof ctx.json === 'function') {
+      const status = ctx && typeof ctx.status === 'number' ? ctx.status : null;
+      let detail = '';
+      if (ctx && typeof ctx.text === 'function') {
         try {
-          const body = await ctx.json();
-          if (body?.error) return { stats: null, error: String(body.error) };
-        } catch { /* not JSON - fall through to the SDK's own message */ }
+          const raw = await ctx.text();
+          try {
+            const body = JSON.parse(raw);
+            detail = String(body?.error ?? body?.message ?? body?.msg ?? body?.code ?? raw);
+          } catch {
+            detail = raw.slice(0, 200);
+          }
+        } catch { /* body already consumed or unreadable */ }
       }
-      return { stats: null, error: error.message || 'Could not load stats' };
+      const label = detail.trim() || error.message || 'Could not load stats';
+      return { stats: null, error: status ? `${status}: ${label}` : label };
     }
     const stats = data as AdminStats | null;
     if (!stats || !Array.isArray(stats.days)) return { stats: null, error: 'Unexpected response' };

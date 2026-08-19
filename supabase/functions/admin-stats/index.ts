@@ -50,16 +50,37 @@ const MAX_PAGES = 20;
 const PER_PAGE = 1000;
 const MAX_EMAILS_PER_DAY = 50;
 
+// Every path below returns a sentence. An uncaught throw here would instead
+// become a platform 500 whose body is not our JSON, and the browser SDK
+// reports all of those as the same useless "non-2xx status code" - so the one
+// thing this handler must never do is throw.
 Deno.serve(async (req: Request) => {
+  try {
+    return await handle(req);
+  } catch (e) {
+    return json(500, { error: `admin-stats crashed: ${e instanceof Error ? e.message : String(e)}` });
+  }
+});
+
+async function handle(req: Request): Promise<Response> {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
   if (req.method !== 'POST') return json(405, { error: 'Method not allowed' });
 
   const authHeader = req.headers.get('Authorization');
   if (!authHeader) return json(401, { error: 'Sign in first - this reads account data.' });
 
-  const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
-  const ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')!;
-  const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+  const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? '';
+  const ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
+  const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+  // Named individually: "something is unset" costs another round trip to find
+  // out which, and these are injected by the platform, so a gap here is a
+  // project-configuration story worth telling precisely.
+  const missing = [
+    !SUPABASE_URL && 'SUPABASE_URL',
+    !ANON_KEY && 'SUPABASE_ANON_KEY',
+    !SERVICE_ROLE_KEY && 'SUPABASE_SERVICE_ROLE_KEY',
+  ].filter(Boolean);
+  if (missing.length) return json(500, { error: `Missing runtime secrets: ${missing.join(', ')}` });
 
   const allowed = (Deno.env.get('ADMIN_EMAILS') ?? '')
     .split(',')
@@ -148,4 +169,4 @@ Deno.serve(async (req: Request) => {
     },
     days: rows,
   });
-});
+}
