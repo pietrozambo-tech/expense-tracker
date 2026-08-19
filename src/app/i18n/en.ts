@@ -432,6 +432,9 @@ export const en = {
 
   // Settings
   'nudge.dismiss': 'Dismiss',
+  'nudge.backupTitle': 'Your data lives only on this device',
+  'nudge.backupBody': 'You are not signed in, so there is no copy anywhere else. Download a backup now and then - or sign in from Settings to sync.',
+  'nudge.backupCta': 'Download backup',
   'nudge.recapTitle': '{month} in review',
   'nudge.recapSpent': 'You spent {amount}',
   'nudge.recapTop': 'top category {name}',
@@ -546,6 +549,9 @@ export const en = {
   'set.supportEmailHint': 'So we can reply to you.',
   'set.supportMsg': 'YOUR MESSAGE',
   'set.supportPlaceholder': 'Tell us anything…',
+  'set.supportTopicFeedback': 'Feedback',
+  'set.supportTopicProblem': 'Report a problem',
+  'set.supportDiagNote': 'We attach technical details (app version, device, screen - never your data) to help us fix it.',
   'set.supportSent': 'Message sent',
   'set.supportReply': 'by email.',
   'set.done': 'Done',

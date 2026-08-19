@@ -1,7 +1,7 @@
 import type { LucideIcon } from 'lucide-react';
 import { Bell, Lightbulb, ChevronRight, ChevronLeft, Wrench, ArrowLeftRight, UserCircle, Wallet, HelpCircle, ShieldCheck, ScrollText, Layers, FlaskConical, Trash2, Landmark, Cloud, LogOut, Upload, Copy, Download, FileSpreadsheet, Palmtree, UserX, Mail, LifeBuoy, CheckCircle2, Globe, CalendarClock, Sparkles, Palette, Sun, Moon, SunMoon, Split, Plus, Eraser } from 'lucide-react';
 import { getCategoryIcon } from './categoryIcons';
-import { sendSupportMessage, supportLimitReached } from '../lib/support';
+import { composeSupportMessage, sendSupportMessage, supportLimitReached, type SupportTopic } from '../lib/support';
 import { switchGlow } from './categoryColors';
 
 // Where messages from Settings > Contacts go. Easy to swap when the domain changes.
@@ -455,6 +455,7 @@ export function Settings({
   const [showSupport, setShowSupport] = useState(false);
   const [supportMessage, setSupportMessage] = useState('');
   const [supportEmail, setSupportEmail] = useState(userEmail || '');
+  const [supportTopic, setSupportTopic] = useState<SupportTopic>('feedback');
   const [sendingSupport, setSendingSupport] = useState(false);
   const [supportSent, setSupportSent] = useState(false);
   const [editedName, setEditedName] = useState(userName);
@@ -538,7 +539,7 @@ export function Settings({
     }
     setSendingSupport(true);
     const res = await sendSupportMessage({
-      message: supportMessage.trim(),
+      message: composeSupportMessage(supportTopic, supportMessage, { txCount: transactions.length }),
       email: supportEmail.trim(),
       name: userName,
       isGuest,
@@ -2988,6 +2989,32 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
               </p>
             </div>
 
+            {/* What kind of message this is. One form either way - a problem
+                report just travels with a small technical block appended, so
+                a bug from a stranger's phone arrives debuggable. */}
+            <div className="flex gap-2 mb-4">
+              {(['feedback', 'problem'] as const).map((topicOpt) => (
+                <button
+                  key={topicOpt}
+                  data-support-topic={topicOpt}
+                  onClick={() => setSupportTopic(topicOpt)}
+                  className="px-4 py-2 rounded-full text-sm font-medium transition-colors"
+                  style={
+                    supportTopic === topicOpt
+                      ? { backgroundColor: 'var(--wash-accent2)', color: 'var(--accent-ink)', border: '1px solid transparent' }
+                      : { backgroundColor: 'var(--bg-card)', color: 'var(--ink-2)', border: '1px solid var(--line-2)' }
+                  }
+                >
+                  {t(topicOpt === 'feedback' ? 'set.supportTopicFeedback' : 'set.supportTopicProblem')}
+                </button>
+              ))}
+            </div>
+            {supportTopic === 'problem' && (
+              <p data-diag-note style={{ color: 'var(--faint)', fontSize: 12, lineHeight: 1.45, marginTop: -8, marginBottom: 16 }}>
+                {t('set.supportDiagNote')}
+              </p>
+            )}
+
             <p style={{ color: 'var(--ink-2)', fontSize: 13, fontWeight: 500, marginBottom: 8 }}>{t('set.supportEmail')}</p>
             <input
               type="email"
@@ -3008,7 +3035,10 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
               onChange={(e) => setSupportMessage(e.target.value)}
               placeholder={t('set.supportPlaceholder')}
               rows={6}
-              maxLength={5000}
+              // The Edge Function rejects messages over 5000 chars, and the
+              // topic line plus a problem report's diagnostics block ride
+              // inside the same string - so the textarea leaves them room.
+              maxLength={supportTopic === 'problem' ? 4600 : 4900}
               // 16px keeps iOS from auto-zooming on focus
               className="w-full p-4 rounded-2xl bg-white shadow-sm outline-none resize-none focus:ring-2 focus:ring-blue-500"
               style={{ fontSize: 16, color: 'var(--ink)', lineHeight: 1.5 }}

@@ -724,11 +724,13 @@ export default function App() {
       now: new Date(),
       standalone: env.standalone,
       mobile: env.mobile,
+      guest,
+      txCount: expenses.length,
       hasPrevMonthActivity: expenses.some((e) => (e.date ?? '').startsWith(prev)),
       catsUntouched,
       sourcesUntouched,
     });
-  }, [hasCompletedOnboarding, nudgePrefs, categories, incomeCategories, sources, expenses]);
+  }, [hasCompletedOnboarding, nudgePrefs, categories, incomeCategories, sources, expenses, guest]);
 
   // Last month, told as one line. Amounts pre-formatted here so the card
   // stays free of money arithmetic; negative savings are simply not claimed
@@ -758,13 +760,17 @@ export default function App() {
   const dismissNudge = () => {
     if (!activeNudge) return;
     setNudgePrefs((p) =>
-      activeNudge === 'recap' ? { ...p, recapSeen: monthKey(new Date()) }
+      activeNudge === 'backup' ? { ...p, backupSnoozedAt: new Date().toISOString() }
+      : activeNudge === 'recap' ? { ...p, recapSeen: monthKey(new Date()) }
       : activeNudge === 'install' ? { ...p, installDismissed: true }
       : { ...p, customizeDismissed: true }
     );
   };
   // Taking the tip consumes it, same as declining - either way it was heard.
+  // The backup CTA downloads on the spot - the export itself stamps
+  // lastBackupAt, which is what actually retires the card.
   const actOnNudge = () => {
+    if (activeNudge === 'backup') { handleExportData(); return; }
     if (activeNudge === 'recap') setCurrentTab('trend');
     else if (activeNudge === 'customize') setCurrentTab('settings');
     dismissNudge();
@@ -2639,6 +2645,9 @@ export default function App() {
         })
       );
       track('data_exported', { count: expenses.length });
+      // Any successful export - from Settings or the backup nudge's CTA -
+      // resets the nudge's thirty-day clock: backed up means not at risk.
+      setNudgePrefs((p) => ({ ...p, lastBackupAt: new Date().toISOString() }));
       toast.success(t('toast.backupExported'), {
         description: t(expenses.length === 1 ? 'toast.backupExportedDesc.one' : 'toast.backupExportedDesc.other', { n: expenses.length }),
         duration: 2000,

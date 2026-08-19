@@ -433,6 +433,9 @@ export const it: Record<keyof typeof en, string> = {
 
   // Settings
   'nudge.dismiss': 'Chiudi',
+  'nudge.backupTitle': 'I tuoi dati vivono solo su questo dispositivo',
+  'nudge.backupBody': 'Non hai eseguito l’accesso, quindi non esiste una copia altrove. Scarica un backup ogni tanto - oppure accedi dalle Impostazioni per sincronizzare.',
+  'nudge.backupCta': 'Scarica backup',
   'nudge.recapTitle': '{month} in sintesi',
   'nudge.recapSpent': 'Hai speso {amount}',
   'nudge.recapTop': 'categoria top {name}',
@@ -540,6 +543,9 @@ export const it: Record<keyof typeof en, string> = {
   'set.supportEmailHint': 'Così possiamo risponderti.',
   'set.supportMsg': 'IL TUO MESSAGGIO',
   'set.supportPlaceholder': 'Scrivici qualsiasi cosa…',
+  'set.supportTopicFeedback': 'Feedback',
+  'set.supportTopicProblem': 'Segnala un problema',
+  'set.supportDiagNote': 'Alleghiamo dettagli tecnici (versione app, dispositivo, schermo - mai i tuoi dati) per aiutarci a risolvere.',
   'set.supportSent': 'Messaggio inviato',
   'set.supportReply': 'via email.',
   'set.done': 'Fatto',

@@ -1,8 +1,13 @@
 // In-app nudges: the app noticing something worth saying once, quietly.
 //
-// Three of them, shown ONE at a time on the Dashboard - a column of advice is
+// Four of them, shown ONE at a time on the Dashboard - a column of advice is
 // nagging, a single slim card is a tip:
 //
+//   backup     a guest with a real ledger and no recent backup. Their data
+//              exists in exactly one place - this device's browser storage -
+//              and one cleared cache or lost phone erases it. The one nudge
+//              about LOSING things, so it outranks the rest and returns
+//              monthly rather than answering "no" forever.
 //   recap      first opens of a new month: last month, told as one line.
 //   install    a browser visitor who has not installed. Half funnel, half
 //              data safety: an installed app is exempt from Safari's 7-day
@@ -33,6 +38,12 @@ export interface NudgePrefs {
    *  devices that predate the field, so their two-day clock starts honestly
    *  from the upgrade rather than firing on the spot. */
   onboardedAt?: string;
+  /** Backup-nudge clocks. A dismissal snoozes for thirty days rather than
+   *  forever - new data keeps accruing, so the risk the card describes only
+   *  grows - and any backup export (from the card OR Settings) resets the
+   *  same clock, so a diligent user is simply never asked. */
+  backupSnoozedAt?: string;
+  lastBackupAt?: string;
 }
 
 export const DEFAULT_NUDGE_PREFS: NudgePrefs = { tips: true, recap: true };
@@ -59,15 +70,28 @@ export const monthKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() +
 export const prevMonthKey = (d: Date) => monthKey(new Date(d.getFullYear(), d.getMonth() - 1, 1));
 
 const TWO_DAYS = 2 * 24 * 60 * 60 * 1000;
+const THIRTY_DAYS = 30 * 24 * 60 * 60 * 1000;
 
-export type Nudge = 'recap' | 'install' | 'customize';
+/** How many transactions make a guest ledger worth a backup warning. Below
+ *  this, the stakes are a demo or a first afternoon; above it, months of
+ *  real history sit one cleared cache from gone. */
+export const BACKUP_NUDGE_MIN_TX = 25;
+
+/** True when the clock is unset, unparseable, or thirty days stale. */
+const backupClockDue = (iso: string | undefined, now: Date): boolean => {
+  const ts = iso ? Date.parse(iso) : NaN;
+  return !Number.isFinite(ts) || now.getTime() - ts >= THIRTY_DAYS;
+};
+
+export type Nudge = 'backup' | 'recap' | 'install' | 'customize';
 
 /**
  * The one nudge worth showing right now, or null.
  *
- * Priority is urgency: the recap expires with the month, the install banner
- * waits but matters (an uninstalled guest's data is evictable), the customize
- * tip keeps until it is either taken or refused.
+ * Priority is urgency: the backup card guards against permanent loss so it
+ * goes first, the recap expires with the month, the install banner waits but
+ * matters (an uninstalled guest's data is evictable), the customize tip keeps
+ * until it is either taken or refused.
  */
 export function dueNudge(args: {
   prefs: NudgePrefs;
@@ -76,12 +100,25 @@ export function dueNudge(args: {
   standalone: boolean;
   /** A phone or tablet browser - the install instructions only exist there. */
   mobile: boolean;
+  /** No account: this device's storage is the only copy of everything. */
+  guest: boolean;
+  /** Total transactions - the size of what a guest stands to lose. */
+  txCount: number;
   /** Any transaction dated in the previous calendar month. */
   hasPrevMonthActivity: boolean;
   catsUntouched: boolean;
   sourcesUntouched: boolean;
 }): Nudge | null {
   const { prefs, now } = args;
+  if (
+    prefs.tips &&
+    args.guest &&
+    args.txCount >= BACKUP_NUDGE_MIN_TX &&
+    backupClockDue(prefs.lastBackupAt, now) &&
+    backupClockDue(prefs.backupSnoozedAt, now)
+  ) {
+    return 'backup';
+  }
   if (prefs.recap && args.hasPrevMonthActivity && prefs.recapSeen !== monthKey(now)) {
     return 'recap';
   }

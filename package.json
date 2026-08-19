@@ -13,6 +13,7 @@
     "sync:ios": "pnpm build:native && cap sync ios",
     "site": "node scripts/build-site.mjs",
     "test:sync": "node scripts/test-sync.mjs",
+    "test:nudges": "node scripts/test-nudges.mjs",
     "test:recurrence": "node scripts/test-recurrence.mjs",
     "test:import": "node scripts/test-import.mjs",
     "test:storage": "node scripts/test-storage.mjs",

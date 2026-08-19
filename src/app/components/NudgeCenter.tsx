@@ -1,14 +1,16 @@
 import { useState } from 'react';
-import { X, BarChart3, ArrowDownToLine, SlidersHorizontal, ChevronRight } from 'lucide-react';
+import { X, BarChart3, ArrowDownToLine, SlidersHorizontal, ShieldCheck, ChevronRight } from 'lucide-react';
 import { t } from '../i18n';
 import { installPlatform, type Nudge } from '../lib/nudges';
 
 // One slim card at the top of the Dashboard, one nudge at a time - see
 // lib/nudges.ts for which one and why. The card is advice, so everything
 // about it stays dismissible and quiet: no colour shouting, one line of body,
-// and the X answers "no" permanently.
+// and the X answers "no" permanently (the backup card alone re-asks after a
+// month - its risk compounds instead of expiring).
 
 const ICONS: Record<Nudge, typeof BarChart3> = {
+  backup: ShieldCheck,
   recap: BarChart3,
   install: ArrowDownToLine,
   customize: SlidersHorizontal,
@@ -42,12 +44,14 @@ export function NudgeCenter({
   const Icon = ICONS[nudge];
 
   const title =
-    nudge === 'recap' ? t('nudge.recapTitle', { month: recap?.month ?? '' })
+    nudge === 'backup' ? t('nudge.backupTitle')
+    : nudge === 'recap' ? t('nudge.recapTitle', { month: recap?.month ?? '' })
     : nudge === 'install' ? t('nudge.installTitle')
     : t('nudge.customizeTitle');
 
   const body =
-    nudge === 'recap'
+    nudge === 'backup' ? t('nudge.backupBody')
+    : nudge === 'recap'
       ? [
           t('nudge.recapSpent', { amount: recap?.spent ?? '' }),
           recap?.topCategory ? t('nudge.recapTop', { name: recap.topCategory }) : null,
@@ -57,7 +61,8 @@ export function NudgeCenter({
       : t('nudge.customizeBody');
 
   const cta =
-    nudge === 'recap' ? t('nudge.recapCta')
+    nudge === 'backup' ? t('nudge.backupCta')
+    : nudge === 'recap' ? t('nudge.recapCta')
     : nudge === 'install' ? (showSteps ? null : t('nudge.installHow'))
     : t('nudge.customizeCta');
 

@@ -51,6 +51,8 @@ const base = {
   now: NOW,
   standalone: true,
   mobile: true,
+  guest: false,
+  txCount: 0,
   hasPrevMonthActivity: false,
   catsUntouched: true,
   sourcesUntouched: true,
@@ -77,7 +79,24 @@ eq('touched sources alone also counts', due({ sourcesUntouched: false }), null);
 eq('customize dismissed: never again', due({ prefs: { customizeDismissed: true } }), null);
 eq('no onboarding stamp yet: wait for it', due({ prefs: { onboardedAt: undefined } }), null);
 
+// ── the backup card: a guest ledger with no recent copy ────────────────────
+const g = { guest: true, txCount: 40, standalone: false };
+eq('a guest with a real ledger is asked to back up before anything else',
+  due({ ...g, hasPrevMonthActivity: true }), 'backup');
+eq('signed in, the ledger has a second home - no alarm',
+  due({ ...g, guest: false, hasPrevMonthActivity: true }), 'recap');
+eq('a small ledger is not worth the alarm', due({ ...g, txCount: 24 }), 'install');
+eq('a fresh backup buys thirty days of quiet',
+  due({ ...g, prefs: { lastBackupAt: new Date(NOW.getTime() - 10 * 864e5).toISOString() } }), 'install');
+eq('a stale one does not',
+  due({ ...g, prefs: { lastBackupAt: new Date(NOW.getTime() - 31 * 864e5).toISOString() } }), 'backup');
+eq('a dismissal snoozes rather than silences',
+  due({ ...g, prefs: { backupSnoozedAt: new Date(NOW.getTime() - 10 * 864e5).toISOString() } }), 'install');
+eq('and the snooze expires after a month',
+  due({ ...g, prefs: { backupSnoozedAt: new Date(NOW.getTime() - 31 * 864e5).toISOString() } }), 'backup');
+
 // ── the toggles rule them all ──────────────────────────────────────────────
+eq('tips off silences the backup card too', due({ ...g, prefs: { tips: false } }), null);
 eq('tips off silences install', due({ standalone: false, prefs: { tips: false } }), null);
 eq('tips off silences customize', due({ prefs: { tips: false } }), null);
 eq('recap off silences the recap but not the tips',
