@@ -43,3 +43,36 @@ create policy "update own activity"
 
 -- The admin window is the last 30 days, ordered by day.
 create index if not exists app_activity_day_idx on public.app_activity (day desc);
+
+-- How a device actually records its visit.
+--
+-- The app used to upsert the row itself, asserting its own user_id, and the
+-- insert was refused: "new row violates row-level security policy". Whatever
+-- made auth.uid() and that id disagree, the design invited it - a client
+-- claiming who it is, and a policy checking the claim.
+--
+-- So the client claims nothing. This function takes no arguments: the account
+-- and the day are both decided here, from the caller's own token and the
+-- server's clock (UTC, matching the buckets admin-stats reports). It is
+-- SECURITY DEFINER, so it does not depend on the table's policies at all, and
+-- it cannot write a row for anyone but the caller because there is no
+-- parameter with which to try. An unauthenticated call says so plainly rather
+-- than failing as a policy violation.
+create or replace function public.record_activity()
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if auth.uid() is null then
+    raise exception 'record_activity: no authenticated user (auth.uid() is null)';
+  end if;
+  insert into public.app_activity (user_id, day, last_seen)
+  values (auth.uid(), (now() at time zone 'utc')::date, now())
+  on conflict (user_id, day) do update set last_seen = excluded.last_seen;
+end;
+$$;
+
+revoke all on function public.record_activity() from public, anon;
+grant execute on function public.record_activity() to authenticated;

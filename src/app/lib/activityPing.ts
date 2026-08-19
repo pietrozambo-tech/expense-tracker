@@ -7,8 +7,8 @@ import { supabase } from './supabase';
 // Deliberately cheap and deliberately silent:
 //   * at most one write per device per day, guarded locally, so opening the
 //     app twenty times costs one round trip;
-//   * an upsert, so several devices on the same account collapse into the one
-//     row that (user_id, day) allows;
+//   * one row per (user_id, day) whatever the device, because the server
+//     decides both halves of that key;
 //   * every failure is swallowed. A counter for the developer screen is never
 //     a reason for someone's app to complain at them.
 //
@@ -73,9 +73,12 @@ export async function pingActivity(
     }
   }
   try {
-    const { error } = await supabase
-      .from('app_activity')
-      .upsert({ user_id: userId, day, last_seen: now.toISOString() }, { onConflict: 'user_id,day' });
+    // A function call, not an insert: record_activity takes no arguments and
+    // derives both the account and the day server-side (see
+    // supabase/schema-activity.sql). The client asserting its own user_id is
+    // what the row-level policy kept refusing, and it was never the client's
+    // fact to assert.
+    const { error } = await supabase.rpc('record_activity');
     // Only remember it worked. A failed ping that marked itself done would
     // lose the whole day, and the next launch is the only retry there is.
     if (error) {
