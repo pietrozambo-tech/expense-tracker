@@ -27,10 +27,15 @@ create table if not exists public.app_activity (
 -- against ADMIN_EMAILS.
 alter table public.app_activity enable row level security;
 
+-- Dropped first so the whole file can be run again without erroring on the
+-- second pass: Postgres has no "create policy if not exists", and a script
+-- you cannot re-run is a script you end up afraid of.
+drop policy if exists "insert own activity" on public.app_activity;
 create policy "insert own activity"
   on public.app_activity for insert to authenticated
   with check (auth.uid() = user_id);
 
+drop policy if exists "update own activity" on public.app_activity;
 create policy "update own activity"
   on public.app_activity for update to authenticated
   using (auth.uid() = user_id)

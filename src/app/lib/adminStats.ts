@@ -70,10 +70,50 @@ export async function fetchAdminStats(includeSelf = false): Promise<{ stats: Adm
       const label = detail.trim() || error.message || 'Could not load stats';
       return { stats: null, error: status ? `${status}: ${label}` : label };
     }
-    const stats = data as AdminStats | null;
-    if (!stats || !Array.isArray(stats.days)) return { stats: null, error: 'Unexpected response' };
-    return { stats, error: null };
+    return normalise(data);
   } catch (e) {
     return { stats: null, error: e instanceof Error ? e.message : 'Could not load stats' };
   }
+}
+
+/**
+ * Trust the shape of nothing that arrived over a network.
+ *
+ * A deployed function is a separate artefact from this bundle, and the two
+ * drift: the version before this one answered with {signups} per day and no
+ * newEmails at all, which rendered as a crash rather than as a number - the
+ * whole app fell into its error boundary because a developer screen asked a
+ * stale endpoint a question. So every field is defaulted here, and a payload
+ * that is recognisably the older shape says so in words a redeploy answers.
+ */
+function normalise(data: unknown): { stats: AdminStats | null; error: string | null } {
+  const raw = data as Record<string, any> | null;
+  if (!raw || !Array.isArray(raw.days)) return { stats: null, error: 'Unexpected response' };
+  const t = (raw.totals ?? {}) as Record<string, unknown>;
+  // The tell: this build asks for daily actives, which the previous function
+  // had no concept of. Its numbers would silently read as zeros.
+  if (t.activeToday === undefined && (t as { signups7?: number }).signups7 !== undefined) {
+    return {
+      stats: null,
+      error: 'The deployed admin-stats is the older version - redeploy it to count daily actives.',
+    };
+  }
+  const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : 0);
+  const list = (v: unknown) => (Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : []);
+  return {
+    stats: {
+      generatedAt: typeof raw.generatedAt === 'string' ? raw.generatedAt : '',
+      includeSelf: raw.includeSelf === true,
+      totals: {
+        accounts: num(t.accounts), activeToday: num(t.activeToday), newToday: num(t.newToday),
+        active7: num(t.active7), new7: num(t.new7), new30: num(t.new30), excluded: num(t.excluded),
+      },
+      days: raw.days.map((d: Record<string, unknown>) => ({
+        date: typeof d?.date === 'string' ? d.date : '',
+        active: num(d?.active), new: num(d?.new), returning: num(d?.returning),
+        emails: list(d?.emails), newEmails: list(d?.newEmails),
+      })),
+    },
+    error: null,
+  };
 }
