@@ -172,7 +172,61 @@ weekends or do I just think I do.
 
 ---
 
-## 4. Smaller parked items
+## 4. Per-user JSON blob → transaction rows
+
+**Status: not urgent, but it is the ceiling.** Worth doing before the user
+count makes it expensive rather than after.
+
+### The shape today
+
+`public.user_data` holds one row per account whose `data` column is the
+user's entire dataset as JSON — every transaction, category, source, rule and
+setting. Reads are one round trip and writes are one round trip, which is why
+it was chosen: it made sync trivial and it has been right for a year.
+
+### What it costs
+
+Postgres has no partial update for a value like this. Changing one 4-euro
+coffee rewrites the whole blob, and because Postgres updates by writing a new
+row version and marking the old one dead, **every save leaves a corpse the
+size of the entire ledger**. A user with 1,400 transactions (~1–2 MB of JSON)
+who saves thirty times in a day generates tens of megabytes of garbage that
+autovacuum has to sweep. The steady-state disk use is therefore governed by
+how *often* people save multiplied by how *much history they have* — a product
+that grows on both axes at once.
+
+That is why the project read 27 MB with five real users in August 2026:
+almost none of it was data. `supabase/diagnostics.sql` measures the split.
+
+The write amplification also lands on the wire: every edit uploads the entire
+history over mobile data, and the sync's last-write-wins reconciliation has to
+compare whole documents.
+
+### What to do instead
+
+`transactions` as rows (`user_id`, the columns already in `Transaction`, an
+index on `(user_id, date)`), with categories, sources and rules alongside.
+Settings can stay a small blob — it is small and it is rewritten wholesale
+anyway. Then an edit is an `UPDATE ... WHERE id = ?`: one row dead, not the
+library.
+
+### Why it is not a weekend
+
+The reconciler, the change ledger, the shared-household merge and the backup
+format all speak the blob's shape today. The migration needs to run for
+existing accounts without a maintenance window, and the client needs to keep
+reading both shapes while it rolls out. Budget a week, and do it when nothing
+else is in flight.
+
+### Cheaper things first, in order
+
+1. `vacuum full analyze public.user_data`, and set
+   `autovacuum_vacuum_scale_factor = 0.05` on it — see `diagnostics.sql`.
+   Buys back the wasted space today, costs minutes.
+2. Debounce the push so a burst of edits is one upload, not eight.
+3. Only then the schema.
+
+## 5. Smaller parked items
 
 - **Optimistic render during token refresh.** Cuts the expired-token +
   slow-network cold start from ~1,446ms to ~330ms. Carries auth risk: shows UI
@@ -184,8 +238,17 @@ weekends or do I just think I do.
 - **320px row clipping** — pre-existing overlap on the narrowest phones.
 - **Haptics.**
 - **PostHog device split.**
-- **Apple Developer Program enrolment** → Apple Sign-In, TestFlight, Capacitor
-  spike.
+- **Apple Developer Program enrolment** → paid 20 Aug 2026; Apple Sign-In,
+  TestFlight and the Capacitor spike are now unblocked.
+- **Activity history before tracking cannot be recovered after all.**
+  `schema-activity-backfill.sql` reads `auth.audit_log_entries`, on the
+  reasoning that sign-ins and token refreshes are a record of who was around.
+  On this project that table is EMPTY (0 rows, August 2026) — Supabase does
+  not retain it on the free plan — so the function returns nothing and the
+  developer screen's per-account history starts the day `app_activity` was
+  created. The function is harmless and stays in place in case retention
+  differs on a paid plan; nothing else should be built on the assumption that
+  it returns rows.
 - **Splitwise / Tricount direct API pull — ruled out.** Splitwise's Terms of
   Use forbid use "in connection with any fee-based service" and forbid apps
   that compete with Splitwise. Do not revisit without new terms. The
