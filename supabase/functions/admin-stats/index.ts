@@ -371,6 +371,14 @@ async function handle(req: Request): Promise<Response> {
     .select('user_id, last_seen')
     .order('last_seen', { ascending: false })
     .limit(20000);
+  // Days before the activity table existed, recovered from Supabase's own
+  // auth log (see supabase/schema-activity-backfill.sql). A missing function
+  // is not an error - the roster simply has less history to show - so this
+  // never fails the request.
+  let historyRows: { user_id: string; day: string }[] = [];
+  const { data: hist } = await admin.rpc('activity_history', { since });
+  if (Array.isArray(hist)) historyRows = hist as { user_id: string; day: string }[];
+
   // Three signals, weakest first so the strongest overwrites it. Only the
   // first is a recorded open; the other two are what history there is, and
   // they matter because the activity table starts the day it was created -
@@ -392,16 +400,41 @@ async function handle(req: Request): Promise<Response> {
     note(r.user_id, r.updated_at, 'sync');
   }
 
-  const visitsById = new Map<string, number>();
+  // Days each account showed up, counted once per day whichever record
+  // proves it: a recorded launch and a token refresh on the same day are one
+  // day. Recorded rows reach back only to the activity table's first day;
+  // inferred ones cover the reported window.
+  const dayKeys = new Set<string>();
   for (const r of (seenRows ?? []) as { user_id: string; last_seen: string }[]) {
     note(r.user_id, r.last_seen, 'open');
-    // One row per (user, day), so counting rows counts days they showed up.
-    visitsById.set(r.user_id, (visitsById.get(r.user_id) ?? 0) + 1);
+    dayKeys.add(`${r.user_id}|${dayOf(r.last_seen) ?? ''}`);
+  }
+  for (const r of historyRows) dayKeys.add(`${r.user_id}|${r.day}`);
+  const visitsById = new Map<string, number>();
+  for (const key of dayKeys) {
+    const id = key.slice(0, key.indexOf('|'));
+    visitsById.set(id, (visitsById.get(id) ?? 0) + 1);
+  }
+
+  // Where the recorded history actually begins: everything the screen shows
+  // before this date is inferred, and the screen says which.
+  const recordedDays = (openRows ?? []).map((r: { day: string }) => r.day).sort();
+  const trackingSince = recordedDays.length ? recordedDays[0] : null;
+
+  // Recorded launches and inferred days, deduped: an account that opened the
+  // app on a day it also refreshed a token is one day, not two.
+  const openKeys = new Set<string>();
+  const allOpens: { userId: string; day: string }[] = [];
+  for (const r of [...(openRows ?? []), ...historyRows] as { user_id: string; day: string }[]) {
+    const key = `${r.user_id}|${r.day}`;
+    if (openKeys.has(key)) continue;
+    openKeys.add(key);
+    allOpens.push({ userId: r.user_id, day: r.day });
   }
 
   const { days, totals, accounts } = aggregate({
     accounts: users.map((u) => ({ id: u.id, email: u.email ?? null, createdAt: u.created_at ?? null })),
-    opens: (openRows ?? []).map((r: { user_id: string; day: string }) => ({ userId: r.user_id, day: r.day })),
+    opens: allOpens,
     today,
     days: MAX_DAYS,
     excludeIds,
@@ -414,6 +447,7 @@ async function handle(req: Request): Promise<Response> {
     ok: true,
     generatedAt: new Date().toISOString(),
     includeSelf,
+    trackingSince,
     totals,
     days,
     accounts,

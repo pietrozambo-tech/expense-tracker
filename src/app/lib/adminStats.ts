@@ -45,6 +45,10 @@ export interface AdminStats {
   generatedAt: string;
   /** Whether the owner's own account is counted in these numbers. */
   includeSelf: boolean;
+  /** First day with a RECORDED launch. Days before it are inferred from
+   *  Supabase's auth log, and the screen says so rather than passing the two
+   *  off as the same kind of fact. Null when nothing has been recorded yet. */
+  trackingSince: string | null;
   totals: {
     accounts: number;
     activeToday: number;
@@ -119,6 +123,7 @@ function normalise(data: unknown): { stats: AdminStats | null; error: string | n
     stats: {
       generatedAt: typeof raw.generatedAt === 'string' ? raw.generatedAt : '',
       includeSelf: raw.includeSelf === true,
+      trackingSince: typeof raw.trackingSince === 'string' ? raw.trackingSince : null,
       totals: {
         accounts: num(t.accounts), activeToday: num(t.activeToday), newToday: num(t.newToday),
         active7: num(t.active7), new7: num(t.new7), new30: num(t.new30), excluded: num(t.excluded),

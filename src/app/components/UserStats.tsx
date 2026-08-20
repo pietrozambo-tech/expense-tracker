@@ -37,7 +37,7 @@ export function UserStats({ stats, dark }: { stats: AdminStats; dark: boolean })
   // the screen exists for.
   const [roster, setRoster] = useState(false);
 
-  if (roster) return <Roster accounts={stats.accounts} onBack={() => setRoster(false)} />;
+  if (roster) return <Roster accounts={stats.accounts} trackingSince={stats.trackingSince} onBack={() => setRoster(false)} />;
 
   const days = [...stats.days].reverse(); // oldest -> newest, so time runs right
   const peak = Math.max(1, ...days.map((d) => d.active));
@@ -276,11 +276,13 @@ const joined = (iso: string | null) => {
  * heading rather than being sorted in by their sign-up date, which would read
  * as an activity they do not have.
  */
-function Roster({ accounts, onBack }: { accounts: AdminAccount[]; onBack: () => void }) {
+function Roster({ accounts, trackingSince, onBack }: {
+  accounts: AdminAccount[]; trackingSince: string | null; onBack: () => void;
+}) {
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState<AdminAccount | null>(null);
 
-  if (open) return <Person account={open} onBack={() => setOpen(null)} />;
+  if (open) return <Person account={open} trackingSince={trackingSince} onBack={() => setOpen(null)} />;
 
   // Grouped by how recently each account was around, because that is the
   // question the list is read to answer: who is still here. Twenty-five lines
@@ -408,7 +410,9 @@ function Roster({ accounts, onBack }: { accounts: AdminAccount[]; onBack: () => 
  * is one cell per day rather than a bar chart because the underlying fact is
  * binary: they either opened it that day or they did not.
  */
-function Person({ account, onBack }: { account: AdminAccount; onBack: () => void }) {
+function Person({ account, trackingSince, onBack }: {
+  account: AdminAccount; trackingSince: string | null; onBack: () => void;
+}) {
   const inLast = (n: number) => {
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - n + 1);
@@ -465,6 +469,14 @@ function Person({ account, onBack }: { account: AdminAccount; onBack: () => void
         <span>{shortDay(last30[0])}</span><span>today</span>
       </div>
 
+      {trackingSince && (
+        <p data-person-provenance className="mb-2" style={{ fontSize: 10.5, lineHeight: 1.45, ...ink('--ink-3') }}>
+          Launches have been recorded since {joined(trackingSince)}. Earlier days
+          come from Supabase's own sign-in log, which is a good proxy and not a
+          promise - a token can refresh in a tab nobody is looking at.
+        </p>
+      )}
+
       {account.days.length > 0 ? (
         <>
           <p className="mb-1" style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.2, ...ink('--ink-2') }}>
@@ -480,9 +492,9 @@ function Person({ account, onBack }: { account: AdminAccount; onBack: () => void
         </>
       ) : (
         <p style={{ fontSize: 11.5, lineHeight: 1.45, ...ink('--ink-3') }}>
-          No opens recorded in this window. Launches have only been counted
-          since activity tracking began, so an older account can be a heavy
-          user and still show nothing here.
+          Nothing in this window - no recorded launch and no sign-in activity
+          either. For an account that predates the auth log's retention, that
+          is a gap in the record rather than a verdict on the person.
         </p>
       )}
     </div>
