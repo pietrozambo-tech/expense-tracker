@@ -272,25 +272,27 @@ export function TrendCategoryBreakdown({
               </button>
 
 
-              {/* Subcategories */}
-              {isExpanded && subcategories.length > 0 && (
+              {/* Subcategories. These percentages are shares of THIS category,
+                  not of the month - a different referent from the number one
+                  line up, wearing the same clothes. Two things keep that
+                  readable: a caption naming the referent, and a closing
+                  "no subcategory" remainder row so the list visibly totals
+                  100%. The remainder is what made a caption insufficient on
+                  its own - money logged without a subcategory was simply
+                  missing, and a 37% total had nothing to say about the rest. */}
+              {isExpanded && subcategories.length > 0 && (() => {
+                const subShare = subcategories.reduce((sum, s) => sum + s.weightPercentage, 0);
+                const restShare = 100 - subShare;
+                const restAvg = item.monthlyAvg - subcategories.reduce((sum, s) => sum + s.monthlyAvg, 0);
+                return (
                 <div className="ml-11 mt-0.5 mb-1 space-y-0.5 border-l-2 border-neutral-100 pl-3">
-                  {/* MOCK SWITCH - remove after the variant is chosen */}
-                  {(() => { return null; })()}
-                  {['A','B','C'].includes(localStorage.getItem('tcb-mock') || '') && (
-                    <div className="flex items-center justify-between gap-3 pt-0.5 pb-0.5">
-                      <span style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: '0.08em', color: 'var(--ink-3)' }}>
-                        SHARE OF {item.name.toUpperCase()}
-                      </span>
-                      {localStorage.getItem('tcb-mock') === 'C' && (
-                        <span className="flex-1 ml-2 rounded-full overflow-hidden flex" style={{ height: 4, backgroundColor: 'var(--bg-inset)' }}>
-                          {subcategories.map((sub, i) => (
-                            <span key={sub.name} style={{ width: `${sub.weightPercentage}%`, backgroundColor: solidOf(item), opacity: 1 - i * 0.22 }} />
-                          ))}
-                        </span>
-                      )}
-                    </div>
-                  )}
+                  <div
+                    className="pt-0.5 pb-0.5"
+                    data-sub-caption
+                    style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--ink-3)' }}
+                  >
+                    {t('tcb.shareOf', { name: item.name })}
+                  </div>
                   {subcategories.map((sub) => {
                     return (
                       <div
@@ -309,21 +311,23 @@ export function TrendCategoryBreakdown({
                       </div>
                     );
                   })}
-                  {['B','C'].includes(localStorage.getItem('tcb-mock') || '') && item.monthlyAvg - subcategories.reduce((x, y) => x + y.monthlyAvg, 0) > 0.5 && (
-                    <div className="flex items-center justify-between gap-3 py-1">
-                      <div className="text-neutral-500 text-xs truncate" style={{ opacity: 0.75 }}>No subcategory</div>
+                  {/* Same half-point guard as the bar's tail: a fully
+                      subcategorised category is left alone rather than given
+                      a float-error 0% row. */}
+                  {restShare >= 0.5 && (
+                    <div className="flex items-center justify-between gap-3 py-1" data-sub-rest>
+                      <div className="text-neutral-500 text-xs truncate" style={{ opacity: 0.75 }}>{t('tcb.noSub')}</div>
                       <div className="flex items-center gap-0.5 flex-shrink-0 ml-1">
-                        <div className="text-neutral-500 text-[10px] tabular-nums text-right w-9">
-                          {(100 - subcategories.reduce((x, y) => x + y.weightPercentage, 0)).toFixed(0)}%
-                        </div>
+                        <div className="text-neutral-500 text-[10px] tabular-nums text-right w-9">{restShare.toFixed(0)}%</div>
                         <div className="text-neutral-600 font-normal text-xs tabular-nums text-right w-16">
-                          <AmountText amount={item.monthlyAvg - subcategories.reduce((x, y) => x + y.monthlyAvg, 0)} currency={currency} abbreviate="summary" />
+                          <AmountText amount={restAvg} currency={currency} abbreviate="summary" />
                         </div>
                       </div>
                     </div>
                   )}
                 </div>
-              )}
+                );
+              })()}
             </div>
           );
         })}

@@ -201,6 +201,8 @@ export const it: Record<keyof typeof en, string> = {
   'tcb.subtitle.other': 'al mese su {n} categorie',
   'tcb.showAll': 'Mostra altre {n}',
   'tcb.showLess': 'Mostra meno',
+  'tcb.shareOf': 'Quota di {name}',
+  'tcb.noSub': 'Senza sottocategoria',
 
   // Period picker sheet
   'ppm.title': 'Vai al periodo',

@@ -200,6 +200,8 @@ export const en = {
   'tcb.subtitle.other': 'a month across {n} categories',
   'tcb.showAll': 'Show {n} more',
   'tcb.showLess': 'Show less',
+  'tcb.shareOf': 'Share of {name}',
+  'tcb.noSub': 'No subcategory',
 
   // Period picker sheet
   'ppm.title': 'Jump to period',
