@@ -275,6 +275,22 @@ export function TrendCategoryBreakdown({
               {/* Subcategories */}
               {isExpanded && subcategories.length > 0 && (
                 <div className="ml-11 mt-0.5 mb-1 space-y-0.5 border-l-2 border-neutral-100 pl-3">
+                  {/* MOCK SWITCH - remove after the variant is chosen */}
+                  {(() => { return null; })()}
+                  {['A','B','C'].includes(localStorage.getItem('tcb-mock') || '') && (
+                    <div className="flex items-center justify-between gap-3 pt-0.5 pb-0.5">
+                      <span style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: '0.08em', color: 'var(--ink-3)' }}>
+                        SHARE OF {item.name.toUpperCase()}
+                      </span>
+                      {localStorage.getItem('tcb-mock') === 'C' && (
+                        <span className="flex-1 ml-2 rounded-full overflow-hidden flex" style={{ height: 4, backgroundColor: 'var(--bg-inset)' }}>
+                          {subcategories.map((sub, i) => (
+                            <span key={sub.name} style={{ width: `${sub.weightPercentage}%`, backgroundColor: solidOf(item), opacity: 1 - i * 0.22 }} />
+                          ))}
+                        </span>
+                      )}
+                    </div>
+                  )}
                   {subcategories.map((sub) => {
                     return (
                       <div
@@ -293,6 +309,19 @@ export function TrendCategoryBreakdown({
                       </div>
                     );
                   })}
+                  {['B','C'].includes(localStorage.getItem('tcb-mock') || '') && item.monthlyAvg - subcategories.reduce((x, y) => x + y.monthlyAvg, 0) > 0.5 && (
+                    <div className="flex items-center justify-between gap-3 py-1">
+                      <div className="text-neutral-500 text-xs truncate" style={{ opacity: 0.75 }}>No subcategory</div>
+                      <div className="flex items-center gap-0.5 flex-shrink-0 ml-1">
+                        <div className="text-neutral-500 text-[10px] tabular-nums text-right w-9">
+                          {(100 - subcategories.reduce((x, y) => x + y.weightPercentage, 0)).toFixed(0)}%
+                        </div>
+                        <div className="text-neutral-600 font-normal text-xs tabular-nums text-right w-16">
+                          <AmountText amount={item.monthlyAvg - subcategories.reduce((x, y) => x + y.monthlyAvg, 0)} currency={currency} abbreviate="summary" />
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
