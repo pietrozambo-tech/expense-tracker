@@ -1,5 +1,5 @@
 import { X } from 'lucide-react';
-import { t } from '../i18n';
+import { t, getLanguage } from '../i18n';
 import { getCategoryIcon } from './categoryIcons';
 
 interface CategoryFilterModalProps {
@@ -24,10 +24,19 @@ export function CategoryFilterModal({
   if (!isOpen) return null;
 
   const categoryList = transactionType === 'income' ? incomeCategories : categories;
-  
+
+  // Alphabetical, not storage order. Storage order is seeding order with
+  // custom categories appended, so a category you added yourself sat at the
+  // very bottom of a two-column grid - findable only by reading all of it.
+  // A filter list is for looking things up, and lookup wants the alphabet.
+  // (The Add screen keeps its own order: that grid is muscle memory, ranked
+  // by use, and reshuffling it on every rename would break the habit.)
+  const sorted = [...categoryList].sort((a, b) =>
+    a.name.localeCompare(b.name, getLanguage(), { sensitivity: 'base' }));
+
   const allCategories = [
     { id: 'all', name: 'All', icon: 'MoreHorizontal', color: 'text-neutral-500', bgColor: 'bg-neutral-50' },
-    ...categoryList
+    ...sorted
   ];
 
   return (
