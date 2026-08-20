@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { getLanguage } from '../i18n/store';
 import { Mail, ArrowLeft } from 'lucide-react';
 import { useAuth } from './AuthProvider';
@@ -88,43 +88,25 @@ export function SignIn() {
     if (error) { setError(error); setBusy(false); }
   };
 
-  // Soft brand halo at the top fading into the app background.
+  // Soft brand halo AROUND THE LOGO, never touching the top edge.
   //
-  // The last stop has to be the THEME's page colour, not a literal. It was
-  // #F6F5F2 - the light value - so in dark mode the two transparent stops let
-  // the dark page through at the top and then the gradient hard-faded into
-  // cream, splitting the screen into a dark half and a white half. The
-  // stylesheet already re-points the `bg-[#F6F5F2]` utility for dark mode, but
-  // an inline gradient string is out of its reach.
+  // Two prior versions each taught one lesson. A radial anchored at the
+  // viewport top tinted the top edge unevenly. A linear one tinted it evenly
+  // and a theme-color override asked the installed app's status-bar strip to
+  // match - but with status-bar-style "default" iOS paints that strip itself
+  // and ignored the override (screenshot, 20 Aug), so the seam stayed. The
+  // strip cannot be recoloured from here. What CAN be guaranteed is the
+  // page's side of the boundary: this ellipse is sized and placed so its
+  // final stop - fully faded to the page colour - lands well above y=0.
+  // Centre 26% down, vertical radius 34%: the top edge sits at 26/34 = 76%
+  // of the radius, and the fade completes at 70%, a clear margin before it.
+  // The top edge is therefore pure var(--bg-page): the same colour every
+  // other screen meets the strip with. Nothing for iOS to disagree with.
   //
-  // LINEAR, not radial, and that is the seam fix for the installed app. The
-  // status-bar strip (time, battery) is painted by iOS in one flat colour -
-  // the app runs status-bar-style "default", so the webview starts BELOW the
-  // strip - and a radial halo tints the page's top edge differently at the
-  // centre than at the corners: no single strip colour can meet a top edge
-  // that is not one colour, so a dividing line showed. A vertical gradient
-  // makes the top row uniform, and the effect below tells the strip to paint
-  // exactly that colour while this screen is up.
+  // The last stop stays var(--bg-page), not a literal: a hardcoded light
+  // value once split the dark screen into a dark half and a cream half.
   const bg =
-    'linear-gradient(180deg, rgba(99,102,241,0.12), rgba(59,130,246,0.06) 42%, var(--bg-page) 72%)';
-
-  // The halo's top row, pre-composited over each theme's page colour -
-  // #F5F5F7 + 12% #6366F1, and #121214 + the same. The strip cannot render
-  // alpha over the page, so it needs the arithmetic done for it.
-  useEffect(() => {
-    const meta = document.querySelector('meta[name="theme-color"]');
-    if (!meta) return;
-    const dark = document.documentElement.getAttribute('data-theme') === 'dark';
-    meta.setAttribute('content', dark ? '#1C1C2F' : '#E3E4F6');
-    return () => {
-      // Back to what lib/themeMode.ts maintains everywhere else. (If the
-      // system theme flips WHILE this screen is open, themeMode's listener
-      // resets the strip to the plain page colour and the seam returns until
-      // the next mount - accepted: that edge is a sunset during sign-in.)
-      const darkNow = document.documentElement.getAttribute('data-theme') === 'dark';
-      meta.setAttribute('content', darkNow ? '#121214' : '#F5F5F7');
-    };
-  }, []);
+    'radial-gradient(80% 34% at 50% 26%, rgba(99,102,241,0.12), rgba(59,130,246,0.06) 45%, var(--bg-page) 70%)';
 
   return (
     // Viewport height, not a minimum: this screen grows every time a provider
