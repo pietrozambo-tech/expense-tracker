@@ -147,20 +147,15 @@ export function SignIn() {
                 {getLanguage() === 'it' ? 'Continua con Apple' : 'Continue with Apple'}
               </button>
             )}
-            {APPLE_SIGN_IN_ENABLED && (
-              /* The Hide My Email trap. Apple's sheet offers to hand us a
-                 relay address instead of the real one; for someone who first
-                 signed up with Google, that relay email matches nothing, a
-                 fresh empty account is created, and to them it reads as
-                 their data being gone. One quiet line under the button is
-                 the entire prevention - the recovery, once someone is
-                 standing in the empty account, is a support conversation. */
-              <p data-apple-email-hint className="mb-3 -mt-1.5 px-2 text-center" style={{ color: 'var(--ink-2)', fontSize: 11.5, lineHeight: 1.4 }}>
-                {getLanguage() === 'it'
-                  ? 'Hai già usato Google? Scegli "Condividi la mia email" così Apple ritrova il tuo account.'
-                  : 'Used Google before? Choose "Share My Email" so Apple finds your account.'}
-              </p>
-            )}
+            {/* NOTE - the Hide My Email trap, known and accepted. Apple's
+                sheet can hand us a relay address; for someone who first
+                signed up with Google that relay matches nothing, Supabase
+                mints a fresh empty account, and it reads as lost data. A
+                warning line lived here briefly and was removed as clutter
+                (owner's call, 21 Aug 2026) - if a support message ever says
+                "logged in with Apple and everything is gone", this is what
+                happened, and the fix is to sign out and use Google or pick
+                Share My Email. */}
 
             {/* Google */}
             <button
