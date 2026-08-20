@@ -687,7 +687,6 @@ export const it: Record<keyof typeof en, string> = {
   'shared.of': 'di',
   'set.shared': 'Condivise',
   'set.shared.off': 'No',
-  'set.shared.beta': 'BETA',
   'shared.set.introTitle': 'Dividi le spese, non il budget',
   'shared.set.introBody': 'L’affitto, la spesa, le bollette. Inserisci l’importo intero — nel tuo budget entra solo la tua metà, e il saldo tra voi si aggiorna da solo.',
   'shared.set.nameLabel': 'Il suo nome',

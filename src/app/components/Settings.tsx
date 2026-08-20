@@ -3413,22 +3413,9 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
             className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-neutral-50 active:bg-neutral-100 transition-colors"
           >
             <RowIcon icon={Split} tone={TILE.shared} />
-            <span className="flex items-center gap-1.5 flex-1 min-w-0 text-left">
-              <span style={{ color: 'var(--ink)', fontSize: '15px' }}>{t('set.shared')}</span>
-              {/* The lock came off this feature before it is finished, which is
-                  the point - it needs real pairs using it. The mark is what
-                  replaces the gate's honesty: it stays free while it settles,
-                  and nobody should be surprised later that it changed. */}
-              <span
-                style={{
-                  color: 'var(--accent-ink)', backgroundColor: 'var(--wash-accent2)',
-                  fontSize: 10, fontWeight: 700, letterSpacing: '0.04em',
-                  padding: '1.5px 6px', borderRadius: 999,
-                }}
-              >
-                {t('set.shared.beta')}
-              </span>
-            </span>
+            {/* Wore a BETA mark while real pairs settled it in; retired once
+                the owner called it stable (Aug 2026). */}
+            <span className="flex-1 text-left" style={{ color: 'var(--ink)', fontSize: '15px' }}>{t('set.shared')}</span>
             <span style={{ color: 'var(--ink-2)', fontSize: '14px' }}>
               {household && partner ? partner.name : t('set.shared.off')}
             </span>

@@ -429,24 +429,15 @@ function SettingsIllustration() {
         <ChevronRight className="w-4 h-4 flex-shrink-0 ml-2" style={{ color: 'var(--ghost)' }} />
       </div>
       {/* Shared, drawn as the real row draws it - partner's name in the value
-          slot, and the same mark the row carries in the app. The tour points
-          at where the feature lives rather than teaching it: it is new enough
-          that a slide explaining it would be rewritten within the month. */}
+          slot. The tour points at where the feature lives rather than teaching
+          it. (The BETA mark this mirrored came off the real row when the
+          feature was called stable, so it comes off here too - the mock must
+          never show chrome the app no longer has.) */}
       <div className="flex items-center gap-3 px-4 py-3.5">
         <span className="flex items-center justify-center flex-shrink-0" style={{ width: 30, height: 30, borderRadius: 9, background: 'var(--bg-inset)' }}>
           <Split className="w-4 h-4" style={{ color: 'var(--ink-2)' }} />
         </span>
-        <span className="flex items-center gap-1.5 flex-1 min-w-0">
-          <span className="text-[15px] font-medium" style={{ color: 'var(--ink)' }}>{t('set.shared')}</span>
-          <span
-            style={{
-              color: 'var(--accent-ink)', background: 'var(--wash-accent2)', fontSize: 9,
-              fontWeight: 700, letterSpacing: '0.04em', padding: '1px 5px', borderRadius: 999,
-            }}
-          >
-            {t('set.shared.beta')}
-          </span>
-        </span>
+        <span className="text-[15px] font-medium flex-1 min-w-0" style={{ color: 'var(--ink)' }}>{t('set.shared')}</span>
         <span className="text-[14px]" style={{ color: 'var(--ink-2)' }}>
           {getLanguage() === 'it' ? 'Giulia' : 'Alex'}
         </span>

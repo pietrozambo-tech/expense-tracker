@@ -693,7 +693,6 @@ export const en = {
   'shared.of': 'of',
   'set.shared': 'Shared',
   'set.shared.off': 'Off',
-  'set.shared.beta': 'BETA',
   'shared.set.introTitle': 'Share the costs, not your budget',
   'shared.set.introBody': 'Rent, the weekly shop, the bills. Enter what you paid in full — only your half lands in your budget, and the balance between you keeps itself.',
   'shared.set.nameLabel': 'Their name',
