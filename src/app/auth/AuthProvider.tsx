@@ -172,11 +172,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return { error: null };
     }
 
-    const { error } = await supabase.auth.signInWithOAuth({
+    // Web: navigate to the provider with REPLACE, not assign. Supabase's
+    // default sets window.location.href, which stacks a history entry - and
+    // that entry is the sign-in page frozen at the moment of leaving
+    // ("Sending…", buttons disabled). In the installed app, iOS's
+    // edge-swipe-back walks browser history from ANY screen, so weeks after
+    // signing in a swipe on Trend slid that stale login snapshot over the
+    // app. replace() leaves nothing behind the app to swipe back to: on a
+    // fresh standalone launch the app becomes the only history entry.
+    const { data, error } = await supabase.auth.signInWithOAuth({
       provider,
-      options: { redirectTo: `${window.location.origin}${window.location.pathname}` },
+      options: {
+        redirectTo: `${window.location.origin}${window.location.pathname}`,
+        skipBrowserRedirect: true,
+      },
     });
-    return { error: error ? error.message : null };
+    if (error) return { error: error.message };
+    if (!data?.url) return { error: 'Could not start sign-in' };
+    window.location.replace(data.url);
+    return { error: null };
   };
 
   const signInWithGoogle = () => signInWithProvider('google');
