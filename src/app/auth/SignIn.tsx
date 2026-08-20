@@ -7,9 +7,15 @@ import { TracklyLogo } from '../components/TracklyLogo';
 // Placeholder tagline — swap for the final one once decided.
 const TAGLINE = 'Your Expense Lens';
 
-// Apple sign-in is ready in code but needs paid Apple Developer + Supabase
-// setup. Flip to true once configured (e.g. when moving to the App Store).
-const APPLE_SIGN_IN_ENABLED = false;
+// Live since 20 Aug 2026: Apple Developer Program + a Services ID, key and
+// signed client secret configured in Supabase. App Store guideline 4.8 makes
+// this mandatory once Google sign-in is offered, and Apple's own guidance puts
+// its button no lower than the alternatives - hence it sits above Google.
+//
+// The client secret is a JWT that Apple caps at six months. When web Apple
+// sign-in starts failing, that is why: regenerate with tools/
+// apple-client-secret.html and repaste it into Supabase.
+const APPLE_SIGN_IN_ENABLED = true;
 
 // Email one-time-code sign-in. Codes are delivered by a custom SMTP provider
 // (Resend) configured in Supabase - see supabase/EMAIL-OTP.md, which also
@@ -131,7 +137,11 @@ export function SignIn() {
                 onClick={apple}
                 disabled={busy}
                 className="w-full py-4 rounded-2xl font-medium text-base flex items-center justify-center gap-2.5 transition-all active:scale-[0.98] mb-3"
-                style={{ backgroundColor: '#000000', color: '#FFFFFF', boxShadow: '0 2px 10px rgba(0,0,0,0.12)' }}
+                // The transparent border mirrors the 1px one on the Google
+                // button below: without it Apple's button rendered 2px
+                // shorter, and Apple's guidelines say its button may not be
+                // the less prominent one. Measured, not eyeballed.
+                style={{ backgroundColor: '#000000', color: '#FFFFFF', border: '1px solid transparent', boxShadow: '0 2px 10px rgba(0,0,0,0.12)' }}
               >
                 <AppleLogo />
                 {getLanguage() === 'it' ? 'Continua con Apple' : 'Continue with Apple'}
