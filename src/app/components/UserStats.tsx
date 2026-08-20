@@ -277,44 +277,69 @@ const joined = (iso: string | null) => {
  * as an activity they do not have.
  */
 function Roster({ accounts, onBack }: { accounts: AdminAccount[]; onBack: () => void }) {
+  const [query, setQuery] = useState('');
+  const [open, setOpen] = useState<AdminAccount | null>(null);
+
+  if (open) return <Person account={open} onBack={() => setOpen(null)} />;
+
   // Grouped by how recently each account was around, because that is the
   // question the list is read to answer: who is still here. Twenty-five lines
   // sorted by date make the reader do that arithmetic themselves, one row at a
-  // time; four labelled bands answer it before they start.
-  const days = (a: AdminAccount): number => {
-    const t = a.lastSeen ? Date.parse(a.lastSeen) : NaN;
-    return Number.isFinite(t) ? (Date.now() - t) / 864e5 : Infinity;
+  // time; labelled bands answer it before they start.
+  const dayIndex = (iso: string) => {
+    const d = new Date(iso);
+    return Math.floor(new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime() / 864e5);
+  };
+  const todayIndex = dayIndex(new Date().toISOString());
+  const age = (a: AdminAccount): number => {
+    if (!a.lastSeen) return Infinity;
+    const t = Date.parse(a.lastSeen);
+    // Calendar days apart, so "today" means today rather than "within 24h" -
+    // an 11pm visit is still today at 9am, and a reader means the date.
+    return Number.isFinite(t) ? todayIndex - dayIndex(a.lastSeen) : Infinity;
   };
   const BANDS: { key: string; label: string; hint: string; has: (d: number) => boolean }[] = [
-    { key: 'week', label: 'ACTIVE THIS WEEK', hint: '', has: (d) => d <= 7 },
+    { key: 'today', label: 'TODAY', hint: '', has: (d) => d <= 0 },
+    { key: 'week', label: 'ACTIVE THIS WEEK', hint: '', has: (d) => d > 0 && d <= 7 },
     { key: 'month', label: 'ACTIVE THIS MONTH', hint: '', has: (d) => d > 7 && d <= 30 },
     { key: 'dormant', label: 'DORMANT', hint: 'nothing for over a month', has: (d) => d > 30 && d < Infinity },
     { key: 'never', label: 'NEVER SIGNED IN', hint: 'account created, never used', has: (d) => d === Infinity },
   ];
 
+  const q = query.trim().toLowerCase();
+  const matching = q ? accounts.filter((a) => (a.email ?? '').toLowerCase().includes(q)) : accounts;
+
   const line = (a: AdminAccount, i: number) => {
     // Only the weakest evidence is qualified. A recorded launch and a data
     // change both mean the same thing to a reader - they were using the app -
-    // so labelling every row with which one it was (as this list did, 25 times
-    // over) is noise dressed as precision. A bare sign-in is different: it says
-    // they logged in and may have done nothing since, and that IS worth a word.
+    // so labelling every row with which one it was is noise dressed as
+    // precision. A bare sign-in is different: it says they logged in and may
+    // have done nothing since, and that IS worth a word.
     const weak = a.lastSeenSource === 'signin';
     return (
-      <div key={`${a.email ?? 'anon'}-${i}`} data-roster-row className="py-2"
-        style={{ borderTop: i === 0 ? 'none' : '1px solid var(--line-2)' }}>
-        <div className="flex items-baseline justify-between gap-3">
-          <span className="truncate" style={{ fontSize: 13, fontWeight: 500, ...ink('--ink') }}>
-            {a.email ?? '(no address)'}
+      <button
+        key={`${a.email ?? 'anon'}-${i}`}
+        data-roster-row
+        onClick={() => setOpen(a)}
+        className="w-full text-left py-2 flex items-center gap-2"
+        style={{ borderTop: i === 0 ? 'none' : '1px solid var(--line-2)' }}
+      >
+        <span className="flex-1 min-w-0">
+          <span className="flex items-baseline justify-between gap-3">
+            <span className="truncate" style={{ fontSize: 13, fontWeight: 500, ...ink('--ink') }}>
+              {a.email ?? '(no address)'}
+            </span>
+            <span className="flex-shrink-0" style={{ fontSize: 12, fontWeight: 600, ...ink(a.lastSeen ? '--ink-2' : '--ink-3') }}>
+              {ago(a.lastSeen)}
+            </span>
           </span>
-          <span className="flex-shrink-0" style={{ fontSize: 12, fontWeight: 600, ...ink(a.lastSeen ? '--ink-2' : '--ink-3') }}>
-            {ago(a.lastSeen)}
+          <span className="block" style={{ fontSize: 11, ...ink('--ink-3') }}>
+            {a.lastSeen && <>{exact(a.lastSeen)}{weak ? ' · signed in only' : ''} · </>}
+            joined {joined(a.createdAt)}
           </span>
-        </div>
-        <div style={{ fontSize: 11, ...ink('--ink-3') }}>
-          {a.lastSeen && <>{exact(a.lastSeen)}{weak ? ' · signed in only' : ''} · </>}
-          joined {joined(a.createdAt)}
-        </div>
-      </div>
+        </span>
+        <ChevronRight className="w-3.5 h-3.5 flex-shrink-0" style={{ color: 'var(--ghost, var(--ink-3))' }} />
+      </button>
     );
   };
 
@@ -324,31 +349,142 @@ function Roster({ accounts, onBack }: { accounts: AdminAccount[]; onBack: () => 
         <ChevronLeft size={18} style={{ color: 'var(--accent-ink)' }} />
         <span style={{ color: 'var(--accent-ink)', fontSize: 13.5, fontWeight: 600 }}>Back to the chart</span>
       </button>
-      <p className="mb-3" style={{ fontSize: 12, lineHeight: 1.4, ...ink('--ink-2') }}>
-        <span style={{ fontWeight: 600, ...ink('--ink') }}>{accounts.length} accounts</span>, grouped by when
-        they were last using the app.
+
+      {/* Twenty-five rows is already past the point of scrolling to find one
+          address; it only grows from here. */}
+      <input
+        data-roster-search
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        placeholder="Filter by email"
+        inputMode="email"
+        autoCapitalize="off"
+        autoCorrect="off"
+        className="w-full px-3 py-2 mb-3 rounded-xl outline-none"
+        style={{ backgroundColor: 'var(--bg-inset)', color: 'var(--ink)', fontSize: 16, border: '1px solid var(--line-2)' }}
+      />
+
+      {q ? (
+        <div data-roster-band="search">
+          <p className="mb-0.5" style={{ fontSize: 11.5, fontWeight: 700, letterSpacing: 0.3, ...ink('--ink') }}>
+            {matching.length} {matching.length === 1 ? 'MATCH' : 'MATCHES'}
+          </p>
+          {matching.length === 0
+            ? <p className="py-2" style={{ fontSize: 12, ...ink('--ink-3') }}>No address contains "{query.trim()}".</p>
+            : matching.map(line)}
+        </div>
+      ) : (
+        BANDS.map(({ key, label, hint, has }) => {
+          const rows = accounts.filter((a) => has(age(a)));
+          if (rows.length === 0) return null;
+          return (
+            <div key={key} data-roster-band={key} className="mb-4">
+              <p className="mb-0.5" style={{ fontSize: 11.5, fontWeight: 700, letterSpacing: 0.3, ...ink('--ink') }}>
+                {label} · {rows.length}
+              </p>
+              {hint && <p className="mb-0.5" style={{ fontSize: 10.5, ...ink('--ink-3') }}>{hint}</p>}
+              {rows.map(line)}
+            </div>
+          );
+        })
+      )}
+
+      <p className="mt-1" style={{ fontSize: 10.5, lineHeight: 1.45, ...ink('--ink-3') }}>
+        {accounts.length} accounts. "Last using" is the most recent of: opening
+        the app (recorded only since activity tracking began), changing any
+        data, or - where there is nothing else - signing in, which those rows
+        mark, since a sign-in alone does not mean they used it.
+      </p>
+    </div>
+  );
+}
+
+/**
+ * One account on its own.
+ *
+ * The roster answers "who is still here"; this answers "what does this one
+ * person's use look like" - how many days they have shown up, how many of
+ * those fall in the last week and month, and which days those were. The strip
+ * is one cell per day rather than a bar chart because the underlying fact is
+ * binary: they either opened it that day or they did not.
+ */
+function Person({ account, onBack }: { account: AdminAccount; onBack: () => void }) {
+  const inLast = (n: number) => {
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - n + 1);
+    const from = cutoff.toISOString().slice(0, 10);
+    return account.days.filter((d) => d >= from).length;
+  };
+  const last30 = (() => {
+    const out: string[] = [];
+    for (let i = 29; i >= 0; i -= 1) {
+      const d = new Date();
+      d.setUTCDate(d.getUTCDate() - i);
+      out.push(d.toISOString().slice(0, 10));
+    }
+    return out;
+  })();
+  const been = new Set(account.days);
+
+  return (
+    <div data-person>
+      <button data-person-back onClick={onBack} className="flex items-center gap-1 mb-2 -ml-1 py-1">
+        <ChevronLeft size={18} style={{ color: 'var(--accent-ink)' }} />
+        <span style={{ color: 'var(--accent-ink)', fontSize: 13.5, fontWeight: 600 }}>All accounts</span>
+      </button>
+
+      <p className="break-all mb-0.5" style={{ fontSize: 15, fontWeight: 600, ...ink('--ink') }}>
+        {account.email ?? '(no address)'}
+      </p>
+      <p className="mb-3" style={{ fontSize: 11.5, ...ink('--ink-3') }}>
+        joined {joined(account.createdAt)} · last seen {ago(account.lastSeen)}
+        {account.lastSeen ? ` (${exact(account.lastSeen)})` : ''}
       </p>
 
-      {BANDS.map(({ key, label, hint, has }) => {
-        const rows = accounts.filter((a) => has(days(a)));
-        if (rows.length === 0) return null;
-        return (
-          <div key={key} data-roster-band={key} className="mb-4">
-            <p className="mb-0.5" style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.3, ...ink('--ink-2') }}>
-              {label} · {rows.length}
-            </p>
-            {hint && <p className="mb-0.5" style={{ fontSize: 10.5, ...ink('--ink-3') }}>{hint}</p>}
-            {rows.map(line)}
-          </div>
-        );
-      })}
+      <div className="grid grid-cols-3 gap-2 mb-3">
+        <Tile label="Days seen" value={account.visits} sub="all time" />
+        <Tile label="Last 7 days" value={inLast(7)} sub="days" />
+        <Tile label="Last 30 days" value={inLast(30)} sub="days" />
+      </div>
 
-      <p style={{ fontSize: 10.5, lineHeight: 1.45, ...ink('--ink-3') }}>
-        "Last using" is the most recent of: opening the app (recorded only since
-        activity tracking began today), changing any data, or - where there is
-        nothing else - signing in, which those rows mark, since a sign-in alone
-        does not mean they used it.
+      <p className="mb-1" style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.2, ...ink('--ink-2') }}>
+        LAST 30 DAYS
       </p>
+      <div data-person-strip className="flex gap-[3px] mb-1">
+        {last30.map((d) => (
+          <span
+            key={d}
+            title={d}
+            data-person-cell={been.has(d) ? 'on' : 'off'}
+            className="flex-1 rounded-sm"
+            style={{ height: 22, backgroundColor: been.has(d) ? '#2a78d6' : 'var(--bg-inset)' }}
+          />
+        ))}
+      </div>
+      <div className="flex justify-between mb-3" style={{ fontSize: 10, ...ink('--ink-3') }}>
+        <span>{shortDay(last30[0])}</span><span>today</span>
+      </div>
+
+      {account.days.length > 0 ? (
+        <>
+          <p className="mb-1" style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.2, ...ink('--ink-2') }}>
+            DAYS THEY OPENED IT
+          </p>
+          {account.days.map((d, i) => (
+            <div key={d} data-person-day className="py-1.5"
+              style={{ borderTop: i === 0 ? 'none' : '1px solid var(--line-2)', fontSize: 12, ...ink('--ink-2') }}>
+              {new Date(`${d}T12:00:00Z`).toLocaleDateString(undefined,
+                { weekday: 'short', day: 'numeric', month: 'short' })}
+            </div>
+          ))}
+        </>
+      ) : (
+        <p style={{ fontSize: 11.5, lineHeight: 1.45, ...ink('--ink-3') }}>
+          No opens recorded in this window. Launches have only been counted
+          since activity tracking began, so an older account can be a heavy
+          user and still show nothing here.
+        </p>
+      )}
     </div>
   );
 }

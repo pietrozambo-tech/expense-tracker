@@ -113,6 +113,13 @@ export interface AccountLine {
    *  A roster that showed all three as one number would claim a precision it
    *  does not have. */
   lastSeenSource: 'open' | 'sync' | 'signin' | null;
+  /** Days with a recorded open, across all of history. Zero for an account
+   *  whose whole life predates the activity table - which is why the roster
+   *  never reads this as "they never used it". */
+  visits: number;
+  /** The days inside the reported window on which they opened the app, so a
+   *  single account can be read on its own without another round trip. */
+  days: string[];
 }
 
 export interface Aggregated {
@@ -148,6 +155,8 @@ export function aggregate(args: {
   maxEmailsPerDay?: number;
   /** Most recent sign of life per account, with its provenance. */
   lastSeenById?: Map<string, { at: string; source: 'open' | 'sync' | 'signin' }>;
+  /** Recorded open-days per account, over all of history. */
+  visitsById?: Map<string, number>;
 }): Aggregated {
   const { accounts, opens, today } = args;
   const exclude = args.excludeIds ?? new Set<string>();
@@ -214,6 +223,9 @@ export function aggregate(args: {
       return {
         email: a.email, createdAt: a.createdAt,
         lastSeen: hit?.at ?? null, lastSeenSource: hit?.source ?? null,
+        visits: args.visitsById?.get(a.id) ?? 0,
+        // Their own days, newest first - the window the chart above reports.
+        days: dates.filter((d) => seen.get(d)?.has(a.id)),
       };
     })
     .sort((x, y) => {
@@ -380,8 +392,11 @@ async function handle(req: Request): Promise<Response> {
     note(r.user_id, r.updated_at, 'sync');
   }
 
+  const visitsById = new Map<string, number>();
   for (const r of (seenRows ?? []) as { user_id: string; last_seen: string }[]) {
     note(r.user_id, r.last_seen, 'open');
+    // One row per (user, day), so counting rows counts days they showed up.
+    visitsById.set(r.user_id, (visitsById.get(r.user_id) ?? 0) + 1);
   }
 
   const { days, totals, accounts } = aggregate({
@@ -392,6 +407,7 @@ async function handle(req: Request): Promise<Response> {
     excludeIds,
     maxEmailsPerDay: MAX_EMAILS_PER_DAY,
     lastSeenById,
+    visitsById,
   });
 
   return json(200, {

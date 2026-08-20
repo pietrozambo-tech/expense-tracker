@@ -35,6 +35,10 @@ export interface AdminAccount {
   /** What that sign of life was: a recorded launch, a data sync, or a
    *  sign-in. They are not equal evidence, so the roster says which. */
   lastSeenSource: 'open' | 'sync' | 'signin' | null;
+  /** Days with a recorded open, across all of history. */
+  visits: number;
+  /** Days inside the reported window on which they opened the app. */
+  days: string[];
 }
 
 export interface AdminStats {
@@ -126,6 +130,8 @@ function normalise(data: unknown): { stats: AdminStats | null; error: string | n
             lastSeen: typeof a?.lastSeen === 'string' ? a.lastSeen : null,
             lastSeenSource: a?.lastSeenSource === 'open' || a?.lastSeenSource === 'sync' || a?.lastSeenSource === 'signin'
               ? a.lastSeenSource : null,
+            visits: typeof a?.visits === 'number' && Number.isFinite(a.visits) ? a.visits : 0,
+            days: Array.isArray(a?.days) ? a.days.filter((x: unknown): x is string => typeof x === 'string') : [],
           }))
         : [],
       days: raw.days.map((d: Record<string, unknown>) => ({
