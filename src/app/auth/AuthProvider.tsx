@@ -39,6 +39,12 @@ function readUrlAuthError(): string | null {
   }
 }
 
+// How long the app waits for a stored session to resolve before it renders
+// anyway. Long enough that a slow-but-working connection still lands you
+// signed in; short enough that a connection which never answers is a few
+// seconds of splash rather than a dead app.
+const SESSION_DEADLINE_MS = 8000;
+
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 // Set by signOut() so the listener can tell a deliberate exit from a session
@@ -53,11 +59,50 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [guest, setGuest] = useState<boolean>(loadGuest);
 
   useEffect(() => {
-    // Resolve the current session on load (also completes a magic-link redirect)
-    supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session);
+    // Resolve the current session on load (also completes a magic-link
+    // redirect).
+    //
+    // The ENTIRE app is gated on this settling - App renders a bare logo
+    // splash while `loading` is true - so this promise must never get the last
+    // word. It used to: with no catch and no deadline, a getSession() that
+    // rejected, or simply never answered, left the app frozen on that logo
+    // with nothing to tap. Seen in the wild two days after a launch that
+    // worked, nothing deployed in between: the stored access token had
+    // expired, so getSession() went to the network to refresh it, and that
+    // request never came back.
+    //
+    // Three independent ways out now, and the session is applied whenever it
+    // arrives - even after we stopped waiting for it:
+    //   it answers  -> session set, splash cleared
+    //   it fails    -> splash cleared, treated as signed out
+    //   it is mute  -> the deadline clears the splash anyway
+    // A late answer is not lost: setSession still runs and the app re-renders
+    // signed in. Offline-first is the whole point here - a network that is
+    // having a bad day may cost you the cloud, never the ledger already on
+    // the device.
+    let stoppedWaiting = false;
+    const stopWaiting = () => {
+      if (stoppedWaiting) return;
+      stoppedWaiting = true;
       setLoading(false);
-    });
+    };
+    const deadline = window.setTimeout(() => {
+      console.warn('[auth] getSession did not answer in time - starting without it');
+      track('auth_session_stalled');
+      stopWaiting();
+    }, SESSION_DEADLINE_MS);
+
+    supabase.auth
+      .getSession()
+      .then(({ data }) => setSession(data.session))
+      .catch((e) => {
+        console.warn('[auth] getSession failed', e);
+        track('auth_session_failed');
+      })
+      .finally(() => {
+        window.clearTimeout(deadline);
+        stopWaiting();
+      });
 
     const { data: sub } = supabase.auth.onAuthStateChange((event, newSession) => {
       // A sign-out nobody asked for is nearly always one thing: the access
