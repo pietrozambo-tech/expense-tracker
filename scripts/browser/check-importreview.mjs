@@ -62,11 +62,15 @@ const boot = async () => {
   // The screen's one external link: "Tricount" pointing at the exporter that
   // stands in for the export button Tricount does not have. _blank, because
   // from the installed PWA it must open the system browser.
-  const link = p.locator('a[href="https://tricount-exporter.pages.dev"]');
-  ok(await link.count() === 1 && (await link.textContent()).trim() === 'Tricount',
-    'the import steps link Tricount to the exporter that gets the file out');
-  ok(await link.getAttribute('target') === '_blank' && /noopener/.test(await link.getAttribute('rel') ?? ''),
-    'in a new tab, with the opener cut');
+  // Twice on the screen: the trips card and step 1 both name Tricount, and
+  // both names ARE the way to get the file out.
+  const links = p.locator('a[href="https://tricount-exporter.pages.dev"]');
+  const linkTexts = await links.allTextContents();
+  ok(await links.count() === 2 && linkTexts.every((x) => x.trim() === 'Tricount'),
+    `the card and the steps both link Tricount to the exporter (${linkTexts.length})`);
+  const attrs = await links.evaluateAll((els) => els.map((a) => ({ t: a.target, r: a.rel })));
+  ok(attrs.every((a) => a.t === '_blank' && /noopener/.test(a.r)),
+    'each in a new tab, with the opener cut');
   await p.locator('input[type="file"]').setInputFiles(tripFile);
   await p.waitForTimeout(900);
   return { ctx, p };

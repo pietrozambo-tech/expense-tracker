@@ -2987,7 +2987,13 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
               </div>
               <div style={{ color: 'var(--ink)', fontSize: 14, fontWeight: 700, lineHeight: 1.3 }}>{getLanguage() === 'it' ? 'Viaggi e spese condivise' : 'Trips & split expenses'}</div>
               <p style={{ color: 'var(--ink-3)', fontSize: 12, lineHeight: 1.45, marginTop: 4 }}>
-                {getLanguage() === 'it' ? 'Un export di viaggio da Splitwise o Tricount arriva come sola tua quota - i pareggi vengono saltati.' : 'A Splitwise or Tricount trip export lands as your share only - settlements are skipped.'}
+                {getLanguage() === 'it'
+                  ? <>Un export di viaggio da Splitwise o{' '}
+                <a href="https://tricount-exporter.pages.dev" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent-ink)', fontWeight: 600, textDecoration: 'underline' }}>Tricount</a>{' '}
+                arriva come sola tua quota - i pareggi vengono saltati.</>
+                  : <>A Splitwise or{' '}
+                <a href="https://tricount-exporter.pages.dev" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent-ink)', fontWeight: 600, textDecoration: 'underline' }}>Tricount</a>{' '}
+                trip export lands as your share only - settlements are skipped.</>}
               </p>
             </div>
           </div>
