@@ -219,11 +219,17 @@ function DockTab({
   label,
   active,
   onClick,
+  dot = false,
 }: {
   icon: LucideIcon;
   label: string;
   active: boolean;
   onClick: () => void;
+  // A quiet state marker on the icon (currently: offline, on Settings). A dot
+  // rather than a banner on purpose - this app is offline-first, so being
+  // offline is a normal way to use it, not an emergency. The dot points at
+  // where the full answer lives; the sync row in Settings IS that answer.
+  dot?: boolean;
 }) {
   return (
     <button
@@ -249,7 +255,19 @@ function DockTab({
           token that darkens for light mode moves the label toward the pill -
           measured 2.1:1 after the light token was corrected for pages. #AAAAB4
           is 4.6:1 on the composited glass in either theme. */}
-      <Icon size={22} style={{ color: active ? '#FFFFFF' : '#AAAAB4' }} strokeWidth={active ? 2.4 : 2} />
+      <span className="relative inline-flex">
+        <Icon size={22} style={{ color: active ? '#FFFFFF' : '#AAAAB4' }} strokeWidth={active ? 2.4 : 2} />
+        {dot && (
+          <span
+            data-dock-dot
+            className="absolute rounded-full"
+            // The sync row's offline amber, ringed in the dock's own glass
+            // colour so it reads as sitting ON the icon rather than floating.
+            style={{ top: -2, right: -5, width: 7, height: 7, backgroundColor: '#FF9F0A', boxShadow: '0 0 0 2px rgba(28, 28, 30, 0.9)' }}
+            aria-hidden="true"
+          />
+        )}
+      </span>
       <span
         className="text-[9.5px] font-semibold leading-none whitespace-nowrap"
         style={{ color: active ? '#FFFFFF' : '#AAAAB4' }}
@@ -3619,6 +3637,9 @@ export default function App() {
                 label={t('tab.settings')}
                 active={currentTab === 'settings'}
                 onClick={() => setCurrentTab('settings')}
+                // Signed-in only: a guest's ledger is entirely local, so
+                // being offline costs them nothing worth a marker.
+                dot={offline && !!session}
               />
             </div>
             </div>

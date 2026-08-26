@@ -117,6 +117,9 @@ pnpm build      # production build (PWA)
 pnpm preview    # serve the production build
 ```
 
+Browser checks (real Chromium against the dev server) live in
+`scripts/browser/` - see its README for why they are in the repo.
+
 App data lives in localStorage under versioned keys (`expense-tracker.v1.*`) with optional cloud sync to Supabase (one JSON record per user, RLS-protected). Storage layer: `src/app/lib/storage.ts` · types: `src/app/types.ts` · backup format: `src/app/lib/backup.ts` · recurrence engine: `src/app/lib/recurrence.ts` · FX engine: `src/app/lib/fx.ts`.
 
 ### Bringing a Tricount trip in
