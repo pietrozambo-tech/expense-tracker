@@ -119,6 +119,32 @@ pnpm preview    # serve the production build
 
 App data lives in localStorage under versioned keys (`expense-tracker.v1.*`) with optional cloud sync to Supabase (one JSON record per user, RLS-protected). Storage layer: `src/app/lib/storage.ts` · types: `src/app/types.ts` · backup format: `src/app/lib/backup.ts` · recurrence engine: `src/app/lib/recurrence.ts` · FX engine: `src/app/lib/fx.ts`.
 
+### Bringing a Tricount trip in
+
+Tricount has no self-service export - its FAQ points you at `support@bunq.com`
+and a wait - but it serves every shared trip to its public link over an API.
+`scripts/tricount-import.mjs` reads that and writes a TracklyLab import file:
+
+```bash
+node scripts/tricount-import.mjs --url <share link> --inspect        # look first
+node scripts/tricount-import.mjs --url <share link> --me "Pietro"    # then convert
+```
+
+It imports **your share**, not what you paid: fronting €400 for four people is
+€100 of spending and €300 of lending, and only the first belongs in a ledger.
+Settling up is left out entirely - that is money moving between people.
+
+The API is undocumented and mapped from open-source clients, so the script is
+built to stop rather than guess: an unrecognised entry type, allocations that
+do not add up to their expense, or a name that is not in the trip all end the
+run instead of writing plausible wrong numbers. It prints your trip total at
+the end - check it against the figure Tricount shows for you before importing.
+
+`pnpm test:tricount` covers the conversion (even and uneven splits, settling
+up, rounds you were not in, foreign currency, the refusals) and round-trips a
+converted file through the app's real `buildImport`, including re-import
+dedupe.
+
 ### Edge Functions
 
 Three live in `supabase/functions/`, deployed with `supabase functions deploy <name>`:

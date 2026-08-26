@@ -25,7 +25,8 @@
     "test:inputs": "node scripts/test-inputs.mjs",
     "test:colors": "node scripts/test-colors.mjs",
     "test:shared": "node scripts/test-shared.mjs",
-    "test:schema": "node scripts/test-schema.mjs"
+    "test:schema": "node scripts/test-schema.mjs",
+    "test:tricount": "node scripts/test-tricount.mjs"
   },
   "dependencies": {
     "@capacitor/app": "^8.1.1",
