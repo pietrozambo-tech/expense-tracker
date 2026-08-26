@@ -2825,13 +2825,23 @@ READING A STATEMENT
 - If debits and credits are in separate columns: debit = expense, credit = income.
 - Remove obvious duplicates.
 
-SPLIT EXPENSES (Splitwise and similar trip exports)
-Some files have one column per person. Those columns hold each person's BALANCE for the row - what they paid MINUS their share - not what anything cost them. Convert each row to MY personal cost:
-- My column negative: my cost is its absolute value (that was my share).
-- My column zero: skip the row - I wasn't part of that expense. Also skip any row where my cost works out to 0 (I was fully paid back): a zero-amount transaction is clutter, not spending.
-- My column positive: I paid for others too. My cost = (Cost − the sum of everyone's negative values taken as positive) ÷ (the number of people with positive values). The rest comes back to me, so it is NOT my spending.
+SPLIT EXPENSES (Tricount, Splitwise and similar trip exports)
+Some files have one column per person. Those columns come in two kinds that look identical and mean OPPOSITE things, so work out which one you have before converting anything - do not assume.
+
+Take a few rows with three or more people and add up the per-person values:
+- They add up to that row's total/cost → the columns are SHARES: what each person's portion cost. MY COST IS SIMPLY MY OWN VALUE, taken as written. Do not divide anything. (Tricount exports are this kind. So is anything whose values are all positive.)
+- They cancel out to roughly zero, with a mix of positives and negatives → the columns are BALANCES: what each person PAID minus their share. (Splitwise exports are this kind.) Only then:
+  - My value negative: my cost is its absolute value.
+  - My value positive: my cost = (Cost − the sum of everyone's negative values taken as positive) ÷ (the number of people with positive values). The rest comes back to me, so it is NOT my spending.
+
+Tell me which kind you found and on what evidence, in one line, before the JSON. If different rows disagree, or a row's values neither sum to its total nor cancel to zero, STOP and ask me - the two rules give plausible-looking answers on each other's files, so a wrong choice here is invisible afterwards. Getting it wrong on evenly-split rows happens to give the right number and on unevenly-split ones does not, which is exactly the kind of error nobody catches by eye.
+
+- My column may be a NICKNAME rather than my full name (e.g. "Pit" for Pietro), and may be a first name only. If no column clearly corresponds to me, ASK me which one is mine rather than choosing: that single decision is either right for every row or wrong for every row.
+- An empty, blank or zero value for me means I was not part of that expense: skip the row. Also skip any row where my cost works out to 0 (I was fully paid back): a zero-amount transaction is clutter, not spending.
 - Skip settlement rows entirely: Category "Payment", descriptions like "X paid Y", and any "Total balance" summary line. That is money moving between people, not spending.
-- Map their categories to mine as above (e.g. "Dining out" → my closest food category); use the trip context in descriptions where it helps ("Ferry a/r" stays "Ferry a/r").
+- Map their categories to mine as above (e.g. "Dining out" → my closest food category). A category that just means "none" - UNCATEGORIZED, OTHER, blank - is NOT a category to map: work that row out from its description like any uncategorised row, rather than filing it under Others.
+- Trip rows are often dated when they were BOOKED, months before the trip (flights, hotels, cars). Keep those dates: that is when the money left. Do not move them to the trip week.
+- Use the trip context in descriptions where it helps ("Ferry a/r" stays "Ferry a/r").
 
 MY EXPENSE categories (with their subcategories):
 ${expList}

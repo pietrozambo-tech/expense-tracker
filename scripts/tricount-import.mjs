@@ -281,12 +281,32 @@ export function convertExported(row, me) {
   const date = String(row.date ?? '').slice(0, 10);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return problem('bad date', `has an unreadable date: ${row.date}`);
 
-  // The exporter's category enum. UNCATEGORIZED is left off the record
-  // entirely rather than translated into a name: the app then files it in the
-  // catch-all AND counts it, which is what puts it in front of you in the
-  // review filter instead of pretending it was categorised.
-  const CATEGORY_NAMES = { TRANSPORT: 'Transports', TRAVEL: 'Travel', FOOD: 'Food & Drinks', ACCOMMODATION: 'Travel' };
-  const category = CATEGORY_NAMES[row.category] ?? (row.category && row.category !== 'UNCATEGORIZED' ? row.category : 'Others');
+  // The exporter's category enum, onto the default category names. A miss is
+  // not a disaster - the app files an unknown name in the catch-all and
+  // COUNTS it, which is what puts the row in front of you in the review
+  // filter rather than pretending it was categorised - but a hit saves that
+  // work, so the known values are worth carrying.
+  //
+  // UNCATEGORIZED and OTHER mean "nobody said", which is not a category to
+  // map: they go straight to the catch-all to be sorted out. Descriptions are
+  // usually far better evidence than this enum, which is why the AI import
+  // route categorises a trip like this much better than this table can.
+  const CATEGORY_NAMES = {
+    FOOD_AND_DRINK: 'Food & Drinks',
+    FOOD: 'Food & Drinks',
+    GROCERIES: 'Groceries',
+    TRANSPORT: 'Transports',
+    TRAVEL: 'Travel',
+    ACCOMMODATION: 'Travel',
+    ENTERTAINMENT: 'Leisure',
+    LEISURE: 'Leisure',
+    SHOPPING: 'Shopping',
+    HEALTH: 'Health & Care',
+    HOUSING: 'Housing',
+    UNCATEGORIZED: 'Others',
+    OTHER: 'Others',
+  };
+  const category = CATEGORY_NAMES[row.category] ?? (row.category || 'Others');
 
   return {
     record: {
@@ -297,6 +317,67 @@ export function convertExported(row, me) {
       description: row.description || undefined,
     },
   };
+}
+
+/**
+ * The exporter's CSV, as rows shaped like its JSON.
+ *
+ * Header: date,description,category,paid_by,total,<person>,<person>,…
+ * The per-person columns are that person's SHARE, blank when they were not in
+ * it - the same costs-not-balances distinction as the JSON, in a layout that
+ * looks even more like a Splitwise export than the JSON does.
+ */
+export function parseExportedCsv(text) {
+  // Fields can be quoted, and a description may legitimately contain a comma.
+  const parseLine = (line) => {
+    const out = [];
+    let cur = '';
+    let quoted = false;
+    for (let i = 0; i < line.length; i += 1) {
+      const ch = line[i];
+      if (quoted) {
+        if (ch === '"' && line[i + 1] === '"') { cur += '"'; i += 1; }
+        else if (ch === '"') quoted = false;
+        else cur += ch;
+      } else if (ch === '"') quoted = true;
+      else if (ch === ',') { out.push(cur); cur = ''; }
+      else cur += ch;
+    }
+    out.push(cur);
+    return out;
+  };
+
+  const lines = text.replace(/\r\n?/g, '\n').trim().split('\n').filter((l) => l.trim());
+  if (!lines.length) throw new Error('The CSV is empty.');
+  const header = parseLine(lines[0]).map((h) => h.trim());
+  const FIXED = ['date', 'description', 'category', 'paid_by', 'total'];
+  for (let i = 0; i < FIXED.length; i += 1) {
+    if (header[i]?.toLowerCase() !== FIXED[i]) {
+      throw new Error(
+        `This is not the exporter's CSV: column ${i + 1} is "${header[i]}", expected "${FIXED[i]}".\n` +
+          `Header seen: ${header.join(', ')}`,
+      );
+    }
+  }
+  const people = header.slice(FIXED.length).filter(Boolean);
+  if (!people.length) throw new Error('The CSV has no per-person columns, so no share can be read.');
+
+  return lines.slice(1).map((line) => {
+    const c = parseLine(line);
+    const shares = {};
+    people.forEach((p, i) => {
+      const v = c[FIXED.length + i];
+      if (v !== undefined && v.trim() !== '') shares[p] = Number(v);
+    });
+    return {
+      date: c[0],
+      description: c[1],
+      category: c[2],
+      paid_by: c[3],
+      total: Number(c[4]),
+      shares,
+    };
+  });
 }
 
 export function convertEntry(entry, me, homeCurrency) {
@@ -429,13 +510,21 @@ async function main() {
   // The offline road: an export somebody already produced and looked at.
   if (args.fromJson) {
     if (!args.me) usage('Give me your name as it appears in the export: --me "Pit".');
-    let rows;
+    let text;
     try {
-      rows = JSON.parse(readFileSync(args.fromJson, 'utf8'));
+      text = readFileSync(args.fromJson, 'utf8');
     } catch (e) {
       throw new Error(`Could not read ${args.fromJson}: ${e.message}`);
     }
-    if (!Array.isArray(rows)) throw new Error(`${args.fromJson} is not a list of expenses.`);
+    // The exporter offers both, and which one you clicked is not something to
+    // have to remember: decide from the content, not the file extension.
+    let rows;
+    if (text.trimStart().startsWith('[') || text.trimStart().startsWith('{')) {
+      rows = JSON.parse(text);
+      if (!Array.isArray(rows)) throw new Error(`${args.fromJson} is not a list of expenses.`);
+    } else {
+      rows = parseExportedCsv(text);
+    }
     const people = [...new Set(rows.flatMap((r) => Object.keys(r?.shares ?? {})))];
     if (!people.includes(args.me)) {
       throw new Error(`"${args.me}" is not in this export.\nThe people in it are: ${people.join(', ')}`);

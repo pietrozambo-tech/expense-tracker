@@ -10,7 +10,7 @@ import { copyFileSync, globSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { convertEntry, convertExported, keyFromUrl } from './tricount-import.mjs';
+import { convertEntry, convertExported, parseExportedCsv, keyFromUrl } from './tricount-import.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -210,6 +210,45 @@ refuses(
     JSON.stringify(Object.keys(viaApi).sort()) === JSON.stringify(Object.keys(viaFile).sort()),
     `the API road and the export road write the same record shape (${Object.keys(viaFile).sort().join(', ')})`,
   );
+}
+
+// ---- the same export, as CSV ----
+//
+// Blank means "not in it", which in a comma-separated line is an empty field
+// between two commas rather than a zero - a distinction worth a test, since
+// reading it as 0 would put people in expenses they never had.
+{
+  const csv = [
+    'date,description,category,paid_by,total,Pit,Merlo,Max',
+    '2026-08-26,Pranzo Chico do Norte,FOOD_AND_DRINK,Pit,63,23,17,23',
+    '2026-08-26,Monte,UNCATEGORIZED,Max,50,,25,25',
+    '2026-08-26,"Cena, con virgola",ENTERTAINMENT,Merlo,30,10,10,10',
+  ].join('\n');
+  const rows = parseExportedCsv(csv);
+  ok(rows.length === 3, `the CSV parses to one row per expense (${rows.length})`);
+  ok(rows[0].shares.Pit === 23 && rows[0].total === 63, 'shares and total are read off the row');
+  ok(!('Pit' in rows[1].shares), 'a blank cell means not in it, not a zero share');
+  ok(rows[2].description === 'Cena, con virgola', 'a quoted description survives its own comma');
+
+  const { record } = convertExported(rows[0], 'Pit');
+  ok(record.amount === 23 && record.category === 'Food & Drinks',
+    `an uneven CSV row converts to my real share with a mapped category (${record.amount}, ${record.category})`);
+  ok(convertExported(rows[1], 'Pit').skip === 'not mine', 'and the blank row is left out');
+}
+{
+  // The exporter's newer enum values, which an older map passed through raw.
+  const row = { date: '2026-08-26', description: 'Balene', category: 'ENTERTAINMENT', paid_by: 'Merlo', total: 10, shares: { Pit: 10 } };
+  ok(convertExported(row, 'Pit').record.category === 'Leisure', 'ENTERTAINMENT maps to a real category');
+  ok(
+    convertExported({ ...row, category: 'OTHER' }, 'Pit').record.category === 'Others',
+    'OTHER means "nobody said" and goes to the catch-all to be reviewed',
+  );
+}
+{
+  const bad = 'when,what,how much\n2026-01-01,x,5';
+  let msg = '';
+  try { parseExportedCsv(bad); } catch (e) { msg = e.message; }
+  ok(/not the exporter's CSV/.test(msg), 'a CSV that is not this format is rejected by its header, not misread');
 }
 
 // Tricount has used more than one link shape.
