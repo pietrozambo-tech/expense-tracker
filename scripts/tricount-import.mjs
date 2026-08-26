@@ -74,6 +74,8 @@ Usage:
   --out <file>      where to write the import file (default tricount-import.json)
   --currency <ISO>  your home currency for the file (default EUR)
   --categories <f>  a TracklyLab backup, so subcategories use YOUR names
+  --trip-name <n>   prefix every description ("Formentera - Cena porto"), so this
+                    trip stays searchable next to the other trips in the app
   --no-trip         keep each row's own category instead of filing it all under Travel
   --inspect         report what the trip contains and write the raw JSON; no conversion
   --raw <file>      also save the raw API response (default with --inspect)
@@ -105,6 +107,7 @@ function parseArgs(argv) {
     else if (a === '--raw') args.raw = next();
     else if (a === '--currency') args.currency = next().toUpperCase();
     else if (a === '--inspect') args.inspect = true;
+    else if (a === '--trip-name') args.tripName = next();
     else if (a === '--no-trip') args.trip = false;
     else if (a === '--trip') args.trip = true;
     else if (a === '--help' || a === '-h') usage();
@@ -578,7 +581,7 @@ export function convertEntry(entry, me, homeCurrency, trip = true, taxonomy = DE
 }
 
 /** Shared by both roads: convert, refuse on anything unclear, write, report. */
-function finish(rows, convert, { me, currency, out, title }) {
+function finish(rows, convert, { me, currency, out, title, tripName }) {
   const transactions = [];
   const skipped = { settlement: 0, 'not mine': 0, 'zero share': 0 };
   const problems = [];
@@ -606,6 +609,20 @@ function finish(rows, convert, { me, currency, out, title }) {
     }
     console.error('\nSend me what --inspect prints for these. A guess here would either invent spending or hide some.');
     process.exit(1);
+  }
+
+  // The trip's name, onto every description. Dates cannot group a trip -
+  // most of one is booked months before it is taken - so a searchable word
+  // in the description is the only grouping that survives export, backup and
+  // another trip arriving next month. Idempotent on purpose: a description
+  // that already starts with the name is left alone.
+  if (tripName) {
+    for (const t of transactions) {
+      const d = t.description ?? '';
+      if (!d.toLowerCase().startsWith(tripName.toLowerCase())) {
+        t.description = d ? `${tripName} - ${d}` : tripName;
+      }
+    }
   }
 
   transactions.sort((a, b) => a.date.localeCompare(b.date));
@@ -676,6 +693,15 @@ async function main() {
       throw new Error(`No travel category found in ${args.categories}. Is it a TracklyLab backup?`);
     }
   }
+  if (args.trip && !args.inspect && !args.tripName) {
+    console.log(
+      'Tip: --trip-name "Azzorre" prefixes every description, so this trip stays\n' +
+        '     searchable in the app next to the next one. Skipping it is fine for a\n' +
+        '     first or only trip. (Pick one spelling and keep it: the name is part of\n' +
+        '     each row\'s dedupe identity, so re-importing under a different name\n' +
+        '     would import the same trip twice.)',
+    );
+  }
   if (args.trip && !args.inspect) {
     if (taxonomy.resolved) {
       const used = Object.entries(taxonomy.sub).filter(([, v]) => v).map(([k, v]) => `${k} -> ${v}`);
@@ -716,6 +742,7 @@ async function main() {
       throw new Error(`"${args.me}" is not in this export.\nThe people in it are: ${people.join(', ')}`);
     }
     finish(rows, (row) => convertExported(row, args.me, args.trip, taxonomy), {
+    tripName: args.tripName,
       me: args.me,
       currency: args.currency,
       out: args.out,
@@ -763,6 +790,7 @@ async function main() {
   }
 
   finish(entries, (entry) => convertEntry(entry, args.me, args.currency, args.trip, taxonomy), {
+    tripName: args.tripName,
     me: args.me,
     currency: args.currency,
     out: args.out,

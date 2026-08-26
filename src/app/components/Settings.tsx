@@ -2819,6 +2819,7 @@ Quando i dati sono un viaggio (un export Tricount o Splitwise che sembra una vac
 - Decidila dalla DESCRIZIONE quando la categoria di origine non dice nulla di utile - "UNCATEGORIZED", "OTHER", "TRAVEL" o vuota. Su un export di viaggio "TRAVEL" non porta informazione, visto che è tutto viaggio: leggi "Hotel PD Sud" come hotel, "Volo" come volo, "Cena" come cibo, "Benzina" come trasporto.
 - Se nessuna delle due è decisiva, LASCIA FUORI la sottocategoria invece di indovinare. Una vuota è un buco che vedo e riempio; una sbagliata è un buco che sembra pieno.
 - Non inventare nuove sottocategorie per questo: usa quelle che ho.
+- CHIEDIMI un NOME BREVE per il viaggio (una o due parole - "Azzorre", "Formentera") e premettilo alla descrizione di OGNI riga importata: "Cena porto" diventa "Formentera - Cena porto". Senza, due viaggi collassano in un unico mucchio indistinguibile di righe di viaggio; il nome è ciò che mi permette di ritrovare un viaggio dopo, cercandolo. Mantieni il resto della descrizione com'era, e non premetterlo a una che inizia già col nome. Se ti dico che non voglio un nome, lascia le descrizioni intatte.
 
 Le MIE categorie di SPESA (con le loro sottocategorie):
 ${expList}
@@ -2905,7 +2906,8 @@ When the data is a trip (a Tricount or Splitwise export that looks like a holida
 - Decide it from the SOURCE CATEGORY when that says something specific (their "FOOD_AND_DRINK" → my food subcategory, "TRANSPORT" → my transport one, "ACCOMMODATION" → my lodging one, "ENTERTAINMENT" → my activities one).
 - Decide it from the DESCRIPTION when the source category says nothing useful - "UNCATEGORIZED", "OTHER", "TRAVEL", or blank. On a trip export "TRAVEL" carries no information, since everything is travel: read "Hotel PD Sud" as a hotel, "Volo" as a flight, "Cena" as food, "Benzina" as transportation.
 - If neither is decisive, LEAVE the subcategory out rather than guessing. An empty one is a gap I can see and fill; a wrong one is a gap that looks filled.
-- Do not invent new Travel subcategories for this: use the ones I have.
+- Do not invent new subcategories for this: use the ones I have.
+- ASK me for a SHORT NAME for the trip (a word or two - "Azores", "Formentera") and prefix EVERY imported row's description with it: "Cena porto" becomes "Formentera - Cena porto". Without it, two trips collapse into one indistinguishable pile of travel rows; the name is what lets me pull one trip back up later by searching it. Keep the rest of the description as it was, and do not prefix one that already starts with the name. If I say I do not want a name, leave descriptions untouched.
 
 MY EXPENSE categories (with their subcategories):
 ${expList}

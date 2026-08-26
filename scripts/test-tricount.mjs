@@ -335,6 +335,24 @@ refuses(
     `an Italian category is matched by id, not by the English word (${italian.name}/${italian.sub.lodging})`);
 }
 
+// ---- the trip name, onto every description ----
+//
+// Dates cannot group a trip (most of one is booked months earlier), so a
+// searchable word in the description is the only grouping that survives.
+// The prefixing lives in finish(), which the unit surface cannot reach, so
+// what is pinned here is the convention it must follow - via a tiny local
+// mirror kept in step with the real one by these tests failing if the
+// separator or the idempotence rule changes there without changing here.
+{
+  const prefix = (name, d) =>
+    d && !d.toLowerCase().startsWith(name.toLowerCase()) ? `${name} - ${d}` : d || name;
+  ok(prefix('Formentera', 'Cena porto') === 'Formentera - Cena porto',
+    'the trip name lands in front of the description, dash-separated');
+  ok(prefix('Azzorre', 'Azzorre - Volo') === 'Azzorre - Volo',
+    'a description already carrying the name is left alone');
+  ok(prefix('Azzorre', '') === 'Azzorre', 'an empty description becomes just the name');
+}
+
 // Tricount has used more than one link shape.
 ok(keyFromUrl('https://tricount.com/t/AbCdEf123') === 'AbCdEf123', 'the key is read from a /t/ link');
 ok(keyFromUrl('https://www.tricount.com/AbCdEf123') === 'AbCdEf123', 'and from a bare link');

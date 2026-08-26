@@ -164,6 +164,13 @@ Nothing decisive means no subcategory rather than a guessed one. `--no-trip`
 keeps each row's own category instead, for a tricount that is a flatshare
 rather than a holiday.
 
+`--trip-name "Azzorre"` prefixes every description ("Azzorre - Cena porto"),
+because dates cannot group a trip - most of one is booked months before it is
+taken - and a searchable word is the only grouping that survives the next trip
+arriving. Pick one spelling and keep it: the name becomes part of each row's
+dedupe identity, so re-importing the same trip under a different name would
+import it twice. The AI prompt asks for the same name when it detects a trip.
+
 Expect a trip to land across several months rather than in the week you took
 it - flights, hotels and cars are usually booked long before, and those rows
 keep the date the money actually left. The run prints the month breakdown so
