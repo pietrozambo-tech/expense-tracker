@@ -176,6 +176,7 @@ import {
   type SyncPayload,
 } from './lib/cloud';
 import { track } from './lib/analytics';
+import { useOnline } from './lib/useOnline';
 import { categories as initialCategories, incomeCategories as initialIncomeCategories, defaultCategoriesFor, defaultIncomeCategoriesFor } from './components/categories';
 import { reassignToOthers, CATCHALL_RE } from './lib/categoryOps';
 import { switchGlow } from './components/categoryColors';
@@ -795,6 +796,21 @@ export default function App() {
   useEffect(() => {
     cloudHydratedRef.current = cloudHydrated;
   }, [cloudHydrated]);
+
+  // What the sync row should actually say.
+  //
+  // `syncStatus` is a record of the last SAVE, which is a different question
+  // from "can this device reach the cloud right now". Launch the app on a
+  // plane and change nothing, and the row cheerfully reported "Synced 5m ago"
+  // - true about the past, misleading about the present, and no help at all
+  // to someone wondering why a cloud action just failed.
+  //
+  // Two things say we are cut off: the browser reporting no network, and a
+  // session we could not verify (which only happens because the server could
+  // not be reached). Either one outranks a stale success.
+  const online = useOnline();
+  const offline = !online || sessionUnverified;
+  const effectiveSyncStatus = offline && syncStatus !== 'pending' ? 'offline' : syncStatus;
 
   // A session we had to take on trust has just been confirmed by the server -
   // the network came back. The hydrate effect below keys on userId, which did
@@ -3420,7 +3436,7 @@ export default function App() {
                 onCategoriesOpened={() => setOpenCategoriesOnSettings(false)}
                 userEmail={userEmail}
                 userAvatar={userAvatar}
-                syncStatus={syncStatus}
+                syncStatus={effectiveSyncStatus}
                 lastSyncedAt={lastSyncedAt}
                 isGuest={guest}
                 onSignOut={async () => { await signOut(); }}

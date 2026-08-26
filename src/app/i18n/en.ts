@@ -523,7 +523,11 @@ export const en = {
   // reported its sync state in English - and this row is the one place that
   // tells you whether your data is safe.
   'sync.syncing': 'Syncing…',
-  'sync.offline': 'Offline - will sync when back online',
+  'sync.offline': 'Offline',
+  // Said in the sub-line, so the title above it can just be the state. The
+  // reassurance comes first on purpose: the question behind "why did that
+  // fail?" is nearly always "is my data alright?".
+  'sync.offlineWhy': 'Your ledger is safe here. Anything that needs the cloud has to wait.',
   'sync.error': 'Sync issue - retrying automatically',
   'sync.synced': 'Synced',
   'sync.syncedAt': 'Synced · {when}',

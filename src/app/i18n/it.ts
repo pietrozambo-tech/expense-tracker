@@ -517,7 +517,8 @@ export const it: Record<keyof typeof en, string> = {
 
   // Riga di sincronizzazione - vedi la nota nel catalogo inglese.
   'sync.syncing': 'Sincronizzazione…',
-  'sync.offline': 'Offline - sincronizzerà al ritorno online',
+  'sync.offline': 'Offline',
+  'sync.offlineWhy': 'I tuoi dati sono al sicuro qui. Tutto ciò che richiede il cloud deve aspettare.',
   'sync.error': 'Problema di sincronizzazione - riprovo da solo',
   'sync.synced': 'Sincronizzato',
   'sync.syncedAt': 'Sincronizzato · {when}',

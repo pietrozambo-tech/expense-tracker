@@ -3244,11 +3244,21 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
             </button>
           ) : (
             <>
-              <div className="w-full flex items-center gap-3 px-4 py-2.5" style={{ borderBottom: '1px solid var(--bg-inset)' }}>
+              <div className="w-full flex items-center gap-3 px-4 py-2.5" style={{ borderBottom: '1px solid var(--bg-inset)' }} data-sync-row>
                 <Cloud className="w-5 h-5" style={{ color: syncMeta.color }} strokeWidth={2} />
                 <div className="flex-1 min-w-0">
                   <div style={{ color: 'var(--ink)', fontSize: '15px' }}>{syncMeta.label}</div>
-                  {userEmail && <div className="truncate" style={{ color: 'var(--ink-2)', fontSize: '13px' }}>{userEmail}</div>}
+                  {/* Offline, which account you are is not the thing you came
+                      here to find out - whether your data is alright is. The
+                      email is one tap away in Profile and comes straight back
+                      when the connection does. */}
+                  {syncStatus === 'offline' ? (
+                    <div style={{ color: 'var(--ink-2)', fontSize: '13px', lineHeight: 1.4 }} data-sync-offline-why>
+                      {t('sync.offlineWhy')}
+                    </div>
+                  ) : (
+                    userEmail && <div className="truncate" style={{ color: 'var(--ink-2)', fontSize: '13px' }}>{userEmail}</div>
+                  )}
                 </div>
               </div>
               {/* Deleting the account lives with "Erase all data" at the bottom,
