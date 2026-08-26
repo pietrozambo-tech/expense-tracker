@@ -59,6 +59,14 @@ const boot = async () => {
   await p.waitForTimeout(700);
   await p.getByText('Import data', { exact: true }).first().click();
   await p.waitForTimeout(700);
+  // The screen's one external link: "Tricount" pointing at the exporter that
+  // stands in for the export button Tricount does not have. _blank, because
+  // from the installed PWA it must open the system browser.
+  const link = p.locator('a[href="https://tricount-exporter.pages.dev"]');
+  ok(await link.count() === 1 && (await link.textContent()).trim() === 'Tricount',
+    'the import steps link Tricount to the exporter that gets the file out');
+  ok(await link.getAttribute('target') === '_blank' && /noopener/.test(await link.getAttribute('rel') ?? ''),
+    'in a new tab, with the opener cut');
   await p.locator('input[type="file"]').setInputFiles(tripFile);
   await p.waitForTimeout(900);
   return { ctx, p };

@@ -2987,7 +2987,7 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
               </div>
               <div style={{ color: 'var(--ink)', fontSize: 14, fontWeight: 700, lineHeight: 1.3 }}>{getLanguage() === 'it' ? 'Viaggi e spese condivise' : 'Trips & split expenses'}</div>
               <p style={{ color: 'var(--ink-3)', fontSize: 12, lineHeight: 1.45, marginTop: 4 }}>
-                {getLanguage() === 'it' ? 'Un export di viaggio da Splitwise arriva come sola tua quota - i pareggi vengono saltati.' : 'A Splitwise trip export lands as your share only - settlements are skipped.'}
+                {getLanguage() === 'it' ? 'Un export di viaggio da Splitwise o Tricount arriva come sola tua quota - i pareggi vengono saltati.' : 'A Splitwise or Tricount trip export lands as your share only - settlements are skipped.'}
               </p>
             </div>
           </div>
@@ -2995,11 +2995,20 @@ Output ONLY the JSON - no commentary, no code fences - and save it as a .json fi
           {/* Steps */}
           <div className="bg-white rounded-2xl shadow-sm p-5 flex flex-col gap-4">
             <Step n={1}>
+              {/* The app's first external link. Tricount has no export button
+                  of its own, so the name links to the tool that makes one
+                  from a share link (client-side - the trip stays in the
+                  user's browser). target=_blank because from the installed
+                  PWA this must open the system browser, which is where that
+                  tool has to run anyway. */}
               {getLanguage() === 'it'
-                ? <>Apri un assistente AI qualsiasi (ChatGPT, Claude, Gemini…). Incolla il prompt qui sotto e allega il tuo file - un foglio di calcolo, un estratto conto (PDF o CSV), un export di viaggio Splitwise, screenshot o una tabella incollata. Le spese condivise arrivano come sola tua quota - i pareggi tra persone vengono saltati.</>
+                ? <>Apri un assistente AI qualsiasi (ChatGPT, Claude, Gemini…). Incolla il prompt qui sotto e allega il tuo file - un foglio di calcolo, un estratto conto (PDF o CSV), un export di viaggio Splitwise o{' '}
+              <a href="https://tricount-exporter.pages.dev" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent-ink)', fontWeight: 600, textDecoration: 'underline' }}>Tricount</a>,
+              screenshot o una tabella incollata. Le spese condivise arrivano come sola tua quota - i pareggi tra persone vengono saltati.</>
                 : <>Open any AI assistant (ChatGPT, Claude, Gemini…). Paste the prompt below and attach your file -
-              a spreadsheet, a bank/card statement (PDF or CSV), a Splitwise trip export, screenshots, or a
-              pasted table. Split expenses come in as your share only - settlements between people are skipped.</>}
+              a spreadsheet, a bank/card statement (PDF or CSV), a Splitwise or{' '}
+              <a href="https://tricount-exporter.pages.dev" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent-ink)', fontWeight: 600, textDecoration: 'underline' }}>Tricount</a>{' '}
+              trip export, screenshots, or a pasted table. Split expenses come in as your share only - settlements between people are skipped.</>}
             </Step>
             <Step n={2}>
               {getLanguage() === 'it'
