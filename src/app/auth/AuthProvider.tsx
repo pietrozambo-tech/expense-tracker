@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import type { Session, User } from '@supabase/supabase-js';
-import { supabase } from '../lib/supabase';
+import { supabase, readStoredSession } from '../lib/supabase';
 import { identifyUser, track, resetAnalytics } from '../lib/analytics';
 import { isNative, NATIVE_AUTH_REDIRECT } from '../lib/platform';
 import { loadGuest, saveGuest } from '../lib/storage';
@@ -9,6 +9,9 @@ interface AuthContextValue {
   session: Session | null;
   user: User | null;
   loading: boolean; // still resolving the initial session
+  // Signed in on this device's word alone: the server could not be reached to
+  // confirm it. The app works; the cloud does not, until the network returns.
+  sessionUnverified: boolean;
   guest: boolean; // user chose to use the app locally, without an account
   authError: string | null; // error returned in an OAuth redirect, if any
   clearAuthError: () => void;
@@ -39,11 +42,18 @@ function readUrlAuthError(): string | null {
   }
 }
 
-// How long the app waits for a stored session to resolve before it renders
-// anyway. Long enough that a slow-but-working connection still lands you
-// signed in; short enough that a connection which never answers is a few
-// seconds of splash rather than a dead app.
-const SESSION_DEADLINE_MS = 8000;
+// How long the app waits for the server's word on a stored session before it
+// carries on without it.
+//
+// This used to have to be generous, because giving up meant showing the
+// sign-in screen - cutting a slow-but-working refresh short would have thrown
+// a signed-in user out. It does not mean that any more: giving up now falls
+// back to the session on disk, so the user lands in their app either way and
+// the only cost of being early is that a refresh may confirm things a moment
+// later. That makes waiting the expensive option, not the safe one. Eight
+// seconds of staring at a logo in airplane mode was the price of the old
+// caution.
+const SESSION_DEADLINE_MS = 2500;
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
@@ -54,6 +64,10 @@ let deliberateSignOut = false;
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
+  // True while we are trusting a session we could not check with the server
+  // (offline). The app is fully usable in this state - the ledger is local -
+  // but anything that needs the cloud will fail until the network returns.
+  const [sessionUnverified, setSessionUnverified] = useState(false);
   const [loading, setLoading] = useState(true);
   const [authError, setAuthError] = useState<string | null>(() => readUrlAuthError());
   const [guest, setGuest] = useState<boolean>(loadGuest);
@@ -86,18 +100,55 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       stoppedWaiting = true;
       setLoading(false);
     };
+
+    // Being unable to CHECK a session is not the same as not having one.
+    //
+    // getSession() refreshes an expired access token over the network and
+    // hands back `session: null` when that call fails - so an hour offline
+    // (Supabase tokens last exactly that) turned a signed-in user into a
+    // stranger, staring at the sign-in screen with their own ledger on the
+    // device behind it and no way to sign in without a network. Airplane mode
+    // looked fine only because the token had not expired yet: no refresh, no
+    // network, no problem. Weak coverage failed because the refresh went out
+    // and never came back.
+    //
+    // So when the check cannot be completed, fall back to the session on
+    // disk. That is safe precisely because auth-js deletes it when the server
+    // rejects the refresh token and keeps it when the request never got an
+    // answer: a session still in storage means "nobody told us otherwise".
+    const fallBackToStored = (why: string) => {
+      const stored = readStoredSession();
+      if (!stored) return; // genuinely signed out, or the server said no
+      console.warn(`[auth] using the stored session unverified (${why})`);
+      track('auth_session_unverified', { why });
+      setSession((current) => current ?? stored);
+      setSessionUnverified(true);
+    };
+
     const deadline = window.setTimeout(() => {
       console.warn('[auth] getSession did not answer in time - starting without it');
       track('auth_session_stalled');
+      fallBackToStored('timeout');
       stopWaiting();
     }, SESSION_DEADLINE_MS);
 
     supabase.auth
       .getSession()
-      .then(({ data }) => setSession(data.session))
+      .then(({ data, error }) => {
+        if (data.session) {
+          setSession(data.session);
+          setSessionUnverified(false);
+          return;
+        }
+        // No session AND an error means the refresh was attempted and did not
+        // come back clean. No session and no error means signed out, which is
+        // the truth and must be respected.
+        if (error) fallBackToStored('refresh-failed');
+      })
       .catch((e) => {
         console.warn('[auth] getSession failed', e);
         track('auth_session_failed');
+        fallBackToStored('threw');
       })
       .finally(() => {
         window.clearTimeout(deadline);
@@ -119,7 +170,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         track('signed_out_unexpected');
       }
       if (event === 'SIGNED_OUT') deliberateSignOut = false;
+      // Anything arriving here came from the server, so it settles the
+      // question the offline fallback could only guess at - including a
+      // SIGNED_OUT, which is the one answer that must override a stored
+      // session rather than defer to it.
       setSession(newSession);
+      setSessionUnverified(false);
       // Signing in supersedes guest mode
       if (newSession) {
         setGuest(false);
@@ -283,6 +339,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         session,
         user: session?.user ?? null,
         loading,
+        sessionUnverified,
         guest,
         authError,
         clearAuthError: () => setAuthError(null),

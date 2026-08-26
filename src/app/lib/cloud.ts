@@ -36,6 +36,36 @@ export interface SyncPayload {
 
 const TABLE = 'user_data';
 
+// How long a cloud call at launch is allowed to say nothing before we stop
+// waiting for it.
+//
+// Long enough that a slow connection which is genuinely working still lands
+// its data, short enough to bound the one screen this gates: a signed-in
+// device with nothing local yet, which sits on "Loading your data…" until
+// this expires. Measured offline, the wait is this plus the session deadline,
+// because the cloud call queues behind auth-js retrying the token refresh.
+export const CLOUD_DEADLINE_MS = 8000;
+
+/**
+ * The same promise, but it is guaranteed to settle.
+ *
+ * A request that fails is easy - it throws, and every caller here already
+ * treats a throw as "carry on with what is on the device". A request that
+ * simply never answers is the dangerous one: `catch` never runs, `finally`
+ * never runs, and whatever the caller was gating on stays gated forever. That
+ * is not hypothetical - a phone showing signal but with no working data
+ * connection does exactly this, and it left the app on its loading screen.
+ *
+ * Timing out is deliberately expressed as a rejection, so it arrives at the
+ * existing error handling instead of needing new branches beside it.
+ */
+export function withDeadline<T>(work: Promise<T>, ms: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('cloud request timed out')), ms);
+    work.then(resolve, reject).finally(() => clearTimeout(timer));
+  });
+}
+
 // The record as it exists on the server: the data, plus the stamp identifying
 // which version of it we are holding. The stamp is what makes a write safe -
 // see saveCloudChecked.

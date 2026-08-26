@@ -171,6 +171,8 @@ import {
   mergePayloads,
   sameVersion,
   samePayload,
+  withDeadline,
+  CLOUD_DEADLINE_MS,
   type SyncPayload,
 } from './lib/cloud';
 import { track } from './lib/analytics';
@@ -428,7 +430,7 @@ export default function App() {
   const [openCategoriesOnSettings, setOpenCategoriesOnSettings] = useState(false); // deep-link Settings → Categories
 
   // Auth + cloud sync
-  const { session, loading: authLoading, guest, signOut, deleteAccount, leaveGuest } = useAuth();
+  const { session, loading: authLoading, sessionUnverified, guest, signOut, deleteAccount, leaveGuest } = useAuth();
   const userId = session?.user?.id ?? null;
   const userEmail = session?.user?.email ?? null;
   // Google (and other OAuth providers) put the profile photo in user_metadata.
@@ -794,6 +796,23 @@ export default function App() {
     cloudHydratedRef.current = cloudHydrated;
   }, [cloudHydrated]);
 
+  // A session we had to take on trust has just been confirmed by the server -
+  // the network came back. The hydrate effect below keys on userId, which did
+  // not change, so nothing would otherwise go and fetch what the account did
+  // elsewhere while this device was offline. Ask for it now, rather than
+  // leaving the device on local-only data until the next relaunch.
+  const wasUnverified = useRef(false);
+  useEffect(() => {
+    if (sessionUnverified) {
+      wasUnverified.current = true;
+      return;
+    }
+    if (wasUnverified.current && session) {
+      wasUnverified.current = false;
+      setHydrateTick((n) => n + 1);
+    }
+  }, [sessionUnverified, session]);
+
   // On sign-in: load the user's cloud data into state; if the account has none
   // yet, push the current (local) data up — a one-time migration on first login.
   useEffect(() => {
@@ -832,7 +851,14 @@ export default function App() {
     let cancelled = false;
     (async () => {
       try {
-        const cloud = await loadCloud(userId);
+        // With a deadline, because a request that never answers is the one
+        // failure `catch` cannot save us from. On a device with no local data
+        // this gate is the whole screen (see the loading splash below), and a
+        // phone with a bar of signal but no working data connection left it
+        // there indefinitely - the request neither arrived nor failed.
+        // Timing out lands in the same catch as being offline, which already
+        // means "carry on with what is on the device".
+        const cloud = await withDeadline(loadCloud(userId), CLOUD_DEADLINE_MS);
         if (cancelled) return;
         if (cloud) {
           // Merge, don't replace. This used to assign the cloud's payload
@@ -844,7 +870,7 @@ export default function App() {
           rememberSyncBase(cloud.payload, cloud.version);
         } else {
           const local = buildPayload();
-          const res = await saveCloudChecked(userId, local, null);
+          const res = await withDeadline(saveCloudChecked(userId, local, null), CLOUD_DEADLINE_MS);
           if (res.ok) rememberSyncBase(local, res.version);
           // A conflict here means another device created the row a moment ago.
           // Leave the base empty; the first save will see the mismatch, pull
