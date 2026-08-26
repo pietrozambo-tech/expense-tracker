@@ -73,6 +73,7 @@ Usage:
   --me <name>       your display name IN the tricount, exactly as it appears
   --out <file>      where to write the import file (default tricount-import.json)
   --currency <ISO>  your home currency for the file (default EUR)
+  --categories <f>  a TracklyLab backup, so subcategories use YOUR names
   --no-trip         keep each row's own category instead of filing it all under Travel
   --inspect         report what the trip contains and write the raw JSON; no conversion
   --raw <file>      also save the raw API response (default with --inspect)
@@ -96,6 +97,7 @@ function parseArgs(argv) {
       return v;
     };
     if (a === '--from-json') args.fromJson = next();
+    else if (a === '--categories') args.categories = next();
     else if (a === '--url') args.url = next();
     else if (a === '--key') args.key = next();
     else if (a === '--me') args.me = next();
@@ -264,7 +266,7 @@ function inspect(registry, entries) {
  * Read one as the other and every number comes out wrong while looking
  * perfectly reasonable.
  */
-export function convertExported(row, me, trip = true) {
+export function convertExported(row, me, trip = true, taxonomy = DEFAULT_TAXONOMY) {
   const label = row.description ?? '(no description)';
   const problem = (kind, message) => ({ problem: { kind, label, message } });
 
@@ -286,7 +288,7 @@ export function convertExported(row, me, trip = true) {
   const date = String(row.date ?? '').slice(0, 10);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return problem('bad date', `has an unreadable date: ${row.date}`);
 
-  const { category, subcategory } = categorise(row, trip);
+  const { category, subcategory } = categorise(row, trip, taxonomy);
 
   return {
     record: {
@@ -320,41 +322,108 @@ const CATEGORY_NAMES = {
 
 // A trip is one thing that happened, so it belongs under one category, with
 // the shape of it in the subcategories - which is also what makes the Trend
-// card's "share of Travel" read as a breakdown of the trip. The names here
-// are the default Travel subcategories; if yours are spelled differently the
-// app does not silently invent them, it asks you to approve each new one, so
-// a mismatch shows up as a question rather than as a mess.
+// card's "share of Travel" read as a breakdown of the trip.
+//
+// What those subcategories are CALLED is not for this script to decide. It
+// used to name them from the app's seed list, which meant a file could carry
+// "Hotel" to somebody who had deliberately deleted "Hotel" in favour of
+// "Accomodation" - and since the import dialog starts every proposed chip
+// ticked, one tap on Import put the deleted one back. Every import undid the
+// same deletion again. So rows are sorted into BUCKETS here, and the naming
+// is resolved against the user's own category list when it is available.
+const BUCKETS = {
+  // In preference order: the first of the user's own subcategories that
+  // matches one of these names is the one used for that bucket.
+  flights: ['flights', 'flight', 'voli', 'volo', 'aerei'],
+  lodging: ['accomodation', 'accommodation', 'alloggio', 'alloggi', 'hotel', 'hotels'],
+  food: ['food', 'cibo', 'restaurant', 'ristorante', 'pasti', 'meals'],
+  transport: ['transportation', 'transport', 'transports', 'trasporti', 'trasporto'],
+  activities: ['activities', 'activity', 'attivita', 'escursioni', 'esperienze'],
+};
+
+// Only used when the user's real categories were not supplied. These are the
+// app's seeded names, which is the best available guess and still only a
+// guess - main() says so out loud when it falls back to them.
+const SEEDED_NAMES = {
+  flights: 'Flights',
+  lodging: 'Hotel',
+  food: 'Food',
+  transport: 'Transportation',
+  activities: 'Activities',
+};
+
+const fold = (s) => (s ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+
+/**
+ * Work out what to call things, from the user's own category list.
+ *
+ * Found by id rather than by name: the seeded travel category keeps the id
+ * "travel" in every language, so this still works for somebody whose category
+ * reads "Viaggi". A bucket with no matching subcategory of theirs resolves to
+ * null, and rows in it are written without one - proposing a new chip is the
+ * behaviour that caused the problem.
+ */
+export function travelTaxonomy(categories) {
+  if (!Array.isArray(categories)) {
+    return { name: 'Travel', sub: { ...SEEDED_NAMES }, resolved: false, missing: [] };
+  }
+  const travel =
+    categories.find((c) => c.id === 'travel') ??
+    categories.find((c) => ['travel', 'viaggi', 'viaggio'].includes(fold(c.name)));
+  if (!travel) {
+    return { name: 'Travel', sub: { ...SEEDED_NAMES }, resolved: false, missing: [] };
+  }
+  const theirs = travel.subcategories ?? [];
+  const sub = {};
+  const missing = [];
+  for (const [bucket, names] of Object.entries(BUCKETS)) {
+    let pick = null;
+    for (const wanted of names) {
+      const hit = theirs.find((x) => fold(x) === wanted);
+      if (hit) { pick = hit; break; }
+    }
+    sub[bucket] = pick;
+    if (!pick) missing.push(bucket);
+  }
+  return { name: travel.name, sub, resolved: true, missing, theirs };
+}
+
+const DEFAULT_TAXONOMY = { name: 'Travel', sub: { ...SEEDED_NAMES }, resolved: false, missing: [] };
+
+// The exporter's category enum, onto BUCKETS rather than onto names - see
+// travelTaxonomy for why naming is resolved separately.
+const TRAVEL_SUBS = {
+  FOOD_AND_DRINK: 'food',
+  FOOD: 'food',
+  GROCERIES: 'food',
+  TRANSPORT: 'transport',
+  ACCOMMODATION: 'lodging',
+  ENTERTAINMENT: 'activities',
+  LEISURE: 'activities',
+};
+
 // Note what is NOT here: TRAVEL itself. On a trip export that value carries
 // no information - everything is travel - so rows marked with it are read
 // from their description instead, which is how "Hotel PD Sud" lands beside
 // the other hotels rather than in a different subcategory from them.
-const TRAVEL_SUBS = {
-  FOOD_AND_DRINK: 'Food',
-  FOOD: 'Food',
-  GROCERIES: 'Food',
-  TRANSPORT: 'Transportation',
-  ACCOMMODATION: 'Accomodation',
-  ENTERTAINMENT: 'Activities',
-  LEISURE: 'Activities',
-};
-
+//
 // Only where the word is decisive. Anything else is left without a
 // subcategory rather than filed on a hunch: an empty one is a gap you can
 // see and fill, a wrong one is a gap that looks filled. Italian and English
 // both, because trip descriptions are written in whatever language the trip
-// was had in.
+// was had in. The text is accent-folded before matching (see fold).
 const TRAVEL_WORDS = [
-  [/\b(volo|voli|flight|aereo|ryanair|easyjet|azul|tap)\b/i, 'Flights'],
+  [/\b(volo|voli|flight|aereo|ryanair|easyjet|azul|tap)\b/i, 'flights'],
   // "camper" and "roulotte" are deliberately absent: on this trip they turned
   // up in "Birre camper aperitivo" and "Cena roulotte insular", where the
   // meal is the expense and the vehicle is just where it happened.
-  [/\b(hotel|hostel|airbnb|b&b|alloggio|apartment|appartamento|camping)\b/i, 'Hotel'],
-  [/\b(pranzo|cena|colazione|merenda|caff?e|bar|birr\w*|ristorante|pizza|toast|yogurt|empanadas|acqua|acque|aperitivo|ape|snack|dinner|lunch|breakfast|drinks?)\b/i, 'Food'],
-  [/\b(taxi|traghetto|ferry|benzina|benza|gasolio|macchina|auto|hertz|noleggio|bus|treno|train|parcheggio|barca|boat)\b/i, 'Transportation'],
-  [/\b(escursione|tour|balene|whale|canoa|kayak|terme|biliardo|museo|ticket|ingresso|trip|diving|snorkel)\b/i, 'Activities'],
+  [/\b(hotel|hostel|airbnb|b&b|alloggio|apartment|appartamento|camping)\b/i, 'lodging'],
+  [/\b(pranzo|cena|colazione|merenda|caff?e|bar|birr\w*|ristorante|pizza|toast|yogurt|empanadas|acqua|acque|aperitivo|ape|snack|dinner|lunch|breakfast|drinks?)\b/i, 'food'],
+  [/\b(taxi|traghetto|ferry|benzina|benza|gasolio|macchina|auto|hertz|noleggio|bus|treno|train|parcheggio|barca|boat)\b/i, 'transport'],
+  [/\b(escursione|tour|balene|whale|canoa|kayak|terme|biliardo|museo|ticket|ingresso|trip|diving|snorkel)\b/i, 'activities'],
 ];
 
-export function categorise(row, trip) {
+export function categorise(row, trip, taxonomy = DEFAULT_TAXONOMY) {
   const raw = row.category;
   const named = raw && raw !== 'UNCATEGORIZED' && raw !== 'OTHER';
 
@@ -366,19 +435,21 @@ export function categorise(row, trip) {
 
   // Trip mode: everything is Travel, and what KIND of travel spending comes
   // from the source category when that says something specific, and from the
-  // description when it does not. Neither is trusted over the other by
-  // default - a specific enum beats a keyword hunt, and a keyword beats an
-  // enum that only says "travel".
-  let sub = named ? TRAVEL_SUBS[raw] ?? null : null;
-  if (!sub) {
+  // description when it does not. A specific enum beats a keyword hunt; a
+  // keyword beats an enum that only says "travel".
+  let bucket = named ? TRAVEL_SUBS[raw] ?? null : null;
+  if (!bucket) {
     // Accents stripped before matching. Not for tidiness: JavaScript's \b
     // does not treat "é" as a letter, so /\bcafe\b/ never matches "Café" -
     // the word boundary fails on the accent itself. Folding the text once is
     // more reliable than spelling every accented variant into every pattern.
-    const text = (row.description ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '');
-    sub = TRAVEL_WORDS.find(([re]) => re.test(text))?.[1] ?? null;
+    const text = fold(row.description);
+    bucket = TRAVEL_WORDS.find(([re]) => re.test(text))?.[1] ?? null;
   }
-  return { category: 'Travel', subcategory: sub };
+
+  // A bucket the user has no subcategory for is written WITHOUT one. Naming
+  // it anyway is what put a deleted "Hotel" back on every import.
+  return { category: taxonomy.name, subcategory: (bucket && taxonomy.sub[bucket]) || null };
 }
 
 /**
@@ -442,7 +513,7 @@ export function parseExportedCsv(text) {
   });
 }
 
-export function convertEntry(entry, me, homeCurrency, trip = true) {
+export function convertEntry(entry, me, homeCurrency, trip = true, taxonomy = DEFAULT_TAXONOMY) {
   const label = entry.description ?? `entry ${entry.id}`;
   // Problems are RETURNED, not thrown, so one run can report every one of them
   // at once. Stopping at the first sent you round the loop again for the
@@ -490,6 +561,7 @@ export function convertEntry(entry, me, homeCurrency, trip = true) {
   const { category, subcategory } = categorise(
     { category: entry.category_custom || entry.category, description: entry.description },
     trip,
+    taxonomy,
   );
   const record = {
     date,
@@ -570,6 +642,40 @@ Then: Settings -> Import -> choose ${out}.`);
 async function main() {
   const args = parseArgs(process.argv.slice(2));
 
+  // What to call the trip's subcategories. Read from the user's own export
+  // when they give one, because the alternative is naming chips they may have
+  // deliberately deleted - and the import dialog ticks every proposed chip by
+  // default, so a name invented here comes back as a real one on one tap.
+  let taxonomy = DEFAULT_TAXONOMY;
+  if (args.categories) {
+    let backup;
+    try {
+      backup = JSON.parse(readFileSync(args.categories, 'utf8'));
+    } catch (e) {
+      throw new Error(`Could not read ${args.categories}: ${e.message}`);
+    }
+    taxonomy = travelTaxonomy(backup.categories ?? backup);
+    if (!taxonomy.resolved) {
+      throw new Error(`No travel category found in ${args.categories}. Is it a TracklyLab backup?`);
+    }
+  }
+  if (args.trip && !args.inspect) {
+    if (taxonomy.resolved) {
+      const used = Object.entries(taxonomy.sub).filter(([, v]) => v).map(([k, v]) => `${k} -> ${v}`);
+      console.log(`Using your own subcategories: ${used.join(', ') || '(none matched)'}`);
+      if (taxonomy.missing.length) {
+        console.log(`No subcategory of yours for: ${taxonomy.missing.join(', ')} - those rows get none.`);
+      }
+    } else {
+      console.log(
+        'Note: filing subcategories under the app\'s default names ' +
+          `(${Object.values(SEEDED_NAMES).join(', ')}).\n` +
+          '      If yours differ, the import will offer to ADD these - and it ticks them by\n' +
+          '      default. Pass --categories <your-backup.json> to use your own names instead.',
+      );
+    }
+  }
+
   // The offline road: an export somebody already produced and looked at.
   if (args.fromJson) {
     if (!args.me) usage('Give me your name as it appears in the export: --me "Pit".');
@@ -592,7 +698,7 @@ async function main() {
     if (!people.includes(args.me)) {
       throw new Error(`"${args.me}" is not in this export.\nThe people in it are: ${people.join(', ')}`);
     }
-    finish(rows, (row) => convertExported(row, args.me, args.trip), {
+    finish(rows, (row) => convertExported(row, args.me, args.trip, taxonomy), {
       me: args.me,
       currency: args.currency,
       out: args.out,
@@ -639,7 +745,7 @@ async function main() {
     );
   }
 
-  finish(entries, (entry) => convertEntry(entry, args.me, args.currency, args.trip), {
+  finish(entries, (entry) => convertEntry(entry, args.me, args.currency, args.trip, taxonomy), {
     me: args.me,
     currency: args.currency,
     out: args.out,

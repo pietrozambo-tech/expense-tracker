@@ -144,13 +144,22 @@ It imports **your share**, not what you paid: fronting €400 for four people is
 €100 of spending and €300 of lending, and only the first belongs in a ledger.
 Settling up is left out entirely - that is money moving between people.
 
-A trip is filed as **one thing**: every row lands under `Travel`, with the
-shape of it in the subcategories (`Food`, `Transportation`, `Hotel`,
-`Flights`, `Activities`) - taken from the source's own category where that
-says something specific, and from the description where it does not, since
-"TRAVEL" on a trip export carries no information. Nothing decisive means no
-subcategory rather than a guessed one. `--no-trip` keeps each row's own
-category instead, for a tricount that is a flatshare rather than a holiday.
+A trip is filed as **one thing**: every row lands under your travel category,
+with the shape of it in the subcategories - taken from the source's own
+category where that says something specific, and from the description where it
+does not, since "TRAVEL" on a trip export carries no information.
+
+Pass `--categories <your-backup.json>` so those subcategories use **your**
+names. Without it the script falls back to the app's seeded names, and if
+yours differ the import will offer to add them - with every proposal ticked by
+default, which is how a subcategory you deleted comes back on one tap. With
+it, a row whose kind you have no subcategory for is written without one rather
+than proposing a new chip. The travel category is found by id, so it works
+when yours is called `Viaggi`.
+
+Nothing decisive means no subcategory rather than a guessed one. `--no-trip`
+keeps each row's own category instead, for a tricount that is a flatshare
+rather than a holiday.
 
 Expect a trip to land across several months rather than in the week you took
 it - flights, hotels and cars are usually booked long before, and those rows

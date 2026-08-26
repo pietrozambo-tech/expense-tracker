@@ -10,7 +10,7 @@ import { copyFileSync, globSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { convertEntry, convertExported, parseExportedCsv, keyFromUrl } from './tricount-import.mjs';
+import { convertEntry, convertExported, parseExportedCsv, travelTaxonomy, keyFromUrl } from './tricount-import.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -290,6 +290,49 @@ refuses(
   ).record;
   ok(flat.category === 'Groceries' && flat.subcategory === undefined,
     `--no-trip keeps each row's own category (${flat.category})`);
+}
+
+// ---- naming the subcategories after the user's, not after the seed ----
+//
+// The bug this closes: the script named chips from the app's seed list, so a
+// file could carry "Hotel" to somebody who had deleted "Hotel" in favour of
+// "Accomodation". The import dialog ticks every proposed chip by default, so
+// one tap put the deleted one back - on every import, for ever.
+{
+  const cat = (id, name, subcategories) => ({ id, name, type: 'expense', subcategories });
+  const mine = [
+    cat('travel', 'Travel', ['Flights', 'Food', 'Activities', 'Transportation', 'Accomodation']),
+    cat('groceries', 'Groceries', []),
+  ];
+  const tax = travelTaxonomy(mine);
+  ok(tax.resolved && tax.name === 'Travel', 'the travel category is found in a real backup');
+  ok(tax.sub.lodging === 'Accomodation',
+    `a hotel row is named with the subcategory the user actually has (${tax.sub.lodging})`);
+  ok(tax.sub.food === 'Food' && tax.sub.transport === 'Transportation', 'and so are the others');
+
+  const row = { date: '2026-08-26', description: 'Hotel FLW', category: 'UNCATEGORIZED', paid_by: 'Max', total: 10, shares: { Pit: 10 } };
+  const { record } = convertExported(row, 'Pit', true, tax);
+  ok(record.subcategory === 'Accomodation',
+    `and the converted row carries it, never the seed's name (${record.subcategory})`);
+  ok(
+    mine[0].subcategories.includes(record.subcategory),
+    'so the import proposes nothing new - which is what stops a deleted chip coming back',
+  );
+
+  // A bucket they have no subcategory for must produce none, rather than
+  // inventing the seed's name for it.
+  const spartan = travelTaxonomy([cat('travel', 'Travel', ['Food'])]);
+  ok(spartan.sub.lodging === null && spartan.missing.includes('lodging'),
+    'a bucket with no subcategory of theirs resolves to nothing, and is reported');
+  ok(
+    convertExported(row, 'Pit', true, spartan).record.subcategory === undefined,
+    'and that row is written without one rather than proposing a new chip',
+  );
+
+  // Found by id, so it still works when the category is not called "Travel".
+  const italian = travelTaxonomy([cat('travel', 'Viaggi', ['Alloggio', 'Cibo'])]);
+  ok(italian.name === 'Viaggi' && italian.sub.lodging === 'Alloggio',
+    `an Italian category is matched by id, not by the English word (${italian.name}/${italian.sub.lodging})`);
 }
 
 // Tricount has used more than one link shape.
