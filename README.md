@@ -144,6 +144,14 @@ It imports **your share**, not what you paid: fronting €400 for four people is
 €100 of spending and €300 of lending, and only the first belongs in a ledger.
 Settling up is left out entirely - that is money moving between people.
 
+A trip is filed as **one thing**: every row lands under `Travel`, with the
+shape of it in the subcategories (`Food`, `Transportation`, `Hotel`,
+`Flights`, `Activities`) - taken from the source's own category where that
+says something specific, and from the description where it does not, since
+"TRAVEL" on a trip export carries no information. Nothing decisive means no
+subcategory rather than a guessed one. `--no-trip` keeps each row's own
+category instead, for a tricount that is a flatshare rather than a holiday.
+
 Expect a trip to land across several months rather than in the week you took
 it - flights, hotels and cars are usually booked long before, and those rows
 keep the date the money actually left. The run prints the month breakdown so

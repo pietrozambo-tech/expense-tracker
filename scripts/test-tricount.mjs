@@ -166,9 +166,10 @@ const exported = (o) => ({ date: '2026-08-26', category: 'UNCATEGORIZED', paid_b
   const { record } = convertExported(
     exported({ description: 'Toast', total: 8.6, shares: { Pit: 2.87, Merlo: 2.87, Max: 2.86 } }),
     'Pit',
+    false, // plain mode: the trip rule is exercised in its own block below
   );
   ok(record.amount === 2.87, `an export's own rounding is taken as given (${record.amount})`);
-  ok(record.category === 'Others', 'and UNCATEGORIZED goes to the catch-all to be reviewed, not to a guess');
+  ok(record.category === 'Others', 'and outside trip mode UNCATEGORIZED goes to the catch-all to be reviewed');
 }
 {
   // Somebody else paid, and the whole thing was mine.
@@ -193,8 +194,9 @@ const exported = (o) => ({ date: '2026-08-26', category: 'UNCATEGORIZED', paid_b
   const { record } = convertExported(
     exported({ description: 'Macchina Pico', category: 'TRANSPORT', total: 230, shares: { Pit: 76.67, Merlo: 76.66, Max: 76.67 } }),
     'Pit',
+    false,
   );
-  ok(record.category === 'Transports', 'the exporter category enum maps onto a real category name');
+  ok(record.category === 'Transports', 'outside trip mode the enum maps onto a real category name');
 }
 refuses(
   convertExported(exported({ description: 'Broken', total: 100, shares: { Pit: 10, Merlo: 10 } }), 'Pit'),
@@ -230,7 +232,7 @@ refuses(
   ok(!('Pit' in rows[1].shares), 'a blank cell means not in it, not a zero share');
   ok(rows[2].description === 'Cena, con virgola', 'a quoted description survives its own comma');
 
-  const { record } = convertExported(rows[0], 'Pit');
+  const { record } = convertExported(rows[0], 'Pit', false);
   ok(record.amount === 23 && record.category === 'Food & Drinks',
     `an uneven CSV row converts to my real share with a mapped category (${record.amount}, ${record.category})`);
   ok(convertExported(rows[1], 'Pit').skip === 'not mine', 'and the blank row is left out');
@@ -238,9 +240,9 @@ refuses(
 {
   // The exporter's newer enum values, which an older map passed through raw.
   const row = { date: '2026-08-26', description: 'Balene', category: 'ENTERTAINMENT', paid_by: 'Merlo', total: 10, shares: { Pit: 10 } };
-  ok(convertExported(row, 'Pit').record.category === 'Leisure', 'ENTERTAINMENT maps to a real category');
+  ok(convertExported(row, 'Pit', false).record.category === 'Leisure', 'ENTERTAINMENT maps to a real category');
   ok(
-    convertExported({ ...row, category: 'OTHER' }, 'Pit').record.category === 'Others',
+    convertExported({ ...row, category: 'OTHER' }, 'Pit', false).record.category === 'Others',
     'OTHER means "nobody said" and goes to the catch-all to be reviewed',
   );
 }
@@ -249,6 +251,45 @@ refuses(
   let msg = '';
   try { parseExportedCsv(bad); } catch (e) { msg = e.message; }
   ok(/not the exporter's CSV/.test(msg), 'a CSV that is not this format is rejected by its header, not misread');
+}
+
+// ---- trip mode: one category, the shape of it in the subcategories ----
+{
+  const trip = (description, category) => convertExported(
+    { date: '2026-08-26', description, category, paid_by: 'Merlo', total: 10, shares: { Pit: 10 } },
+    'Pit',
+  ).record;
+
+  ok(trip('Cena Carne', 'UNCATEGORIZED').category === 'Travel',
+    'on a trip every row is Travel, whatever it was spent on');
+  ok(trip('Cena Carne', 'FOOD_AND_DRINK').subcategory === 'Food', 'a specific source category becomes the subcategory');
+  ok(trip('Macchina Pico', 'TRANSPORT').subcategory === 'Transportation', 'TRANSPORT lands on my Transportation');
+  ok(trip('Escursione Balene', 'ENTERTAINMENT').subcategory === 'Activities', 'ENTERTAINMENT lands on my Activities');
+
+  // "TRAVEL" on a trip export says nothing - everything is travel - so the
+  // description decides, which is what keeps all the hotels together.
+  ok(trip('Hotel PD Sud', 'TRAVEL').subcategory === 'Hotel',
+    'a row marked only TRAVEL is read from its description, not filed as generic');
+  ok(trip('Hotel FLW', 'UNCATEGORIZED').subcategory === 'Hotel', 'and so is an uncategorised one');
+  ok(trip('Volo', 'UNCATEGORIZED').subcategory === 'Flights', 'a flight is recognised');
+  ok(trip('Café', 'UNCATEGORIZED').subcategory === 'Food',
+    'an accented word still matches - \\b does not treat "é" as a letter, so the text is folded first');
+
+  // Words that name where a meal happened, not what was bought.
+  ok(trip('Cena roulotte insular', 'FOOD_AND_DRINK').subcategory === 'Food',
+    'a meal eaten in a caravan is food, not accommodation');
+
+  ok(trip('Barraca (infami)', 'UNCATEGORIZED').subcategory === undefined,
+    'nothing decisive means no subcategory rather than a guessed one');
+
+  // And the opt-out, for a tricount that is a flatshare rather than a trip.
+  const flat = convertExported(
+    { date: '2026-08-26', description: 'Spesa', category: 'GROCERIES', paid_by: 'Merlo', total: 10, shares: { Pit: 10 } },
+    'Pit',
+    false,
+  ).record;
+  ok(flat.category === 'Groceries' && flat.subcategory === undefined,
+    `--no-trip keeps each row's own category (${flat.category})`);
 }
 
 // Tricount has used more than one link shape.

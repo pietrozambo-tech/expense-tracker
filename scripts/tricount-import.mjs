@@ -73,6 +73,7 @@ Usage:
   --me <name>       your display name IN the tricount, exactly as it appears
   --out <file>      where to write the import file (default tricount-import.json)
   --currency <ISO>  your home currency for the file (default EUR)
+  --no-trip         keep each row's own category instead of filing it all under Travel
   --inspect         report what the trip contains and write the raw JSON; no conversion
   --raw <file>      also save the raw API response (default with --inspect)
 
@@ -83,7 +84,9 @@ First run:
 }
 
 function parseArgs(argv) {
-  const args = { currency: 'EUR', out: 'tricount-import.json' };
+  // Trip mode by default: this reads Tricounts, and a Tricount is nearly
+  // always one trip. --no-trip is there for a flatshare or a standing group.
+  const args = { currency: 'EUR', out: 'tricount-import.json', trip: true };
   for (let i = 0; i < argv.length; i += 1) {
     const a = argv[i];
     const next = () => {
@@ -100,6 +103,8 @@ function parseArgs(argv) {
     else if (a === '--raw') args.raw = next();
     else if (a === '--currency') args.currency = next().toUpperCase();
     else if (a === '--inspect') args.inspect = true;
+    else if (a === '--no-trip') args.trip = false;
+    else if (a === '--trip') args.trip = true;
     else if (a === '--help' || a === '-h') usage();
     else usage(`Unknown option: ${a}`);
   }
@@ -259,7 +264,7 @@ function inspect(registry, entries) {
  * Read one as the other and every number comes out wrong while looking
  * perfectly reasonable.
  */
-export function convertExported(row, me) {
+export function convertExported(row, me, trip = true) {
   const label = row.description ?? '(no description)';
   const problem = (kind, message) => ({ problem: { kind, label, message } });
 
@@ -281,32 +286,7 @@ export function convertExported(row, me) {
   const date = String(row.date ?? '').slice(0, 10);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return problem('bad date', `has an unreadable date: ${row.date}`);
 
-  // The exporter's category enum, onto the default category names. A miss is
-  // not a disaster - the app files an unknown name in the catch-all and
-  // COUNTS it, which is what puts the row in front of you in the review
-  // filter rather than pretending it was categorised - but a hit saves that
-  // work, so the known values are worth carrying.
-  //
-  // UNCATEGORIZED and OTHER mean "nobody said", which is not a category to
-  // map: they go straight to the catch-all to be sorted out. Descriptions are
-  // usually far better evidence than this enum, which is why the AI import
-  // route categorises a trip like this much better than this table can.
-  const CATEGORY_NAMES = {
-    FOOD_AND_DRINK: 'Food & Drinks',
-    FOOD: 'Food & Drinks',
-    GROCERIES: 'Groceries',
-    TRANSPORT: 'Transports',
-    TRAVEL: 'Travel',
-    ACCOMMODATION: 'Travel',
-    ENTERTAINMENT: 'Leisure',
-    LEISURE: 'Leisure',
-    SHOPPING: 'Shopping',
-    HEALTH: 'Health & Care',
-    HOUSING: 'Housing',
-    UNCATEGORIZED: 'Others',
-    OTHER: 'Others',
-  };
-  const category = CATEGORY_NAMES[row.category] ?? (row.category || 'Others');
+  const { category, subcategory } = categorise(row, trip);
 
   return {
     record: {
@@ -314,9 +294,91 @@ export function convertExported(row, me) {
       amount: share,
       type: 'expense',
       category,
+      ...(subcategory ? { subcategory } : {}),
       description: row.description || undefined,
     },
   };
+}
+
+// The exporter's category enum, onto the default category names. A miss is not
+// a disaster - the app files an unknown name in the catch-all and COUNTS it,
+// which is what puts the row in front of you in the review filter rather than
+// pretending it was categorised - but a hit saves that work.
+const CATEGORY_NAMES = {
+  FOOD_AND_DRINK: 'Food & Drinks',
+  FOOD: 'Food & Drinks',
+  GROCERIES: 'Groceries',
+  TRANSPORT: 'Transports',
+  TRAVEL: 'Travel',
+  ACCOMMODATION: 'Travel',
+  ENTERTAINMENT: 'Leisure',
+  LEISURE: 'Leisure',
+  SHOPPING: 'Shopping',
+  HEALTH: 'Health & Care',
+  HOUSING: 'Housing',
+};
+
+// A trip is one thing that happened, so it belongs under one category, with
+// the shape of it in the subcategories - which is also what makes the Trend
+// card's "share of Travel" read as a breakdown of the trip. The names here
+// are the default Travel subcategories; if yours are spelled differently the
+// app does not silently invent them, it asks you to approve each new one, so
+// a mismatch shows up as a question rather than as a mess.
+// Note what is NOT here: TRAVEL itself. On a trip export that value carries
+// no information - everything is travel - so rows marked with it are read
+// from their description instead, which is how "Hotel PD Sud" lands beside
+// the other hotels rather than in a different subcategory from them.
+const TRAVEL_SUBS = {
+  FOOD_AND_DRINK: 'Food',
+  FOOD: 'Food',
+  GROCERIES: 'Food',
+  TRANSPORT: 'Transportation',
+  ACCOMMODATION: 'Accomodation',
+  ENTERTAINMENT: 'Activities',
+  LEISURE: 'Activities',
+};
+
+// Only where the word is decisive. Anything else is left without a
+// subcategory rather than filed on a hunch: an empty one is a gap you can
+// see and fill, a wrong one is a gap that looks filled. Italian and English
+// both, because trip descriptions are written in whatever language the trip
+// was had in.
+const TRAVEL_WORDS = [
+  [/\b(volo|voli|flight|aereo|ryanair|easyjet|azul|tap)\b/i, 'Flights'],
+  // "camper" and "roulotte" are deliberately absent: on this trip they turned
+  // up in "Birre camper aperitivo" and "Cena roulotte insular", where the
+  // meal is the expense and the vehicle is just where it happened.
+  [/\b(hotel|hostel|airbnb|b&b|alloggio|apartment|appartamento|camping)\b/i, 'Hotel'],
+  [/\b(pranzo|cena|colazione|merenda|caff?e|bar|birr\w*|ristorante|pizza|toast|yogurt|empanadas|acqua|acque|aperitivo|ape|snack|dinner|lunch|breakfast|drinks?)\b/i, 'Food'],
+  [/\b(taxi|traghetto|ferry|benzina|benza|gasolio|macchina|auto|hertz|noleggio|bus|treno|train|parcheggio|barca|boat)\b/i, 'Transportation'],
+  [/\b(escursione|tour|balene|whale|canoa|kayak|terme|biliardo|museo|ticket|ingresso|trip|diving|snorkel)\b/i, 'Activities'],
+];
+
+export function categorise(row, trip) {
+  const raw = row.category;
+  const named = raw && raw !== 'UNCATEGORIZED' && raw !== 'OTHER';
+
+  if (!trip) {
+    // UNCATEGORIZED and OTHER mean "nobody said", which is not a category to
+    // map: they go to the catch-all to be sorted out.
+    return { category: (named && (CATEGORY_NAMES[raw] ?? raw)) || 'Others', subcategory: null };
+  }
+
+  // Trip mode: everything is Travel, and what KIND of travel spending comes
+  // from the source category when that says something specific, and from the
+  // description when it does not. Neither is trusted over the other by
+  // default - a specific enum beats a keyword hunt, and a keyword beats an
+  // enum that only says "travel".
+  let sub = named ? TRAVEL_SUBS[raw] ?? null : null;
+  if (!sub) {
+    // Accents stripped before matching. Not for tidiness: JavaScript's \b
+    // does not treat "é" as a letter, so /\bcafe\b/ never matches "Café" -
+    // the word boundary fails on the accent itself. Folding the text once is
+    // more reliable than spelling every accented variant into every pattern.
+    const text = (row.description ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '');
+    sub = TRAVEL_WORDS.find(([re]) => re.test(text))?.[1] ?? null;
+  }
+  return { category: 'Travel', subcategory: sub };
 }
 
 /**
@@ -380,7 +442,7 @@ export function parseExportedCsv(text) {
   });
 }
 
-export function convertEntry(entry, me, homeCurrency) {
+export function convertEntry(entry, me, homeCurrency, trip = true) {
   const label = entry.description ?? `entry ${entry.id}`;
   // Problems are RETURNED, not thrown, so one run can report every one of them
   // at once. Stopping at the first sent you round the loop again for the
@@ -425,15 +487,16 @@ export function convertEntry(entry, me, homeCurrency) {
     return problem('bad date', `has an unreadable date: ${entry.date}`);
   }
 
+  const { category, subcategory } = categorise(
+    { category: entry.category_custom || entry.category, description: entry.description },
+    trip,
+  );
   const record = {
     date,
     amount: share,
     type: 'expense',
-    // Tricount's own category, passed through as a name. Whatever does not
-    // match one of yours lands in the catch-all, and the app counts those and
-    // offers the review filter - which is a better place to sort them out
-    // than a mapping table guessed at here.
-    category: entry.category_custom || entry.category || 'Others',
+    category,
+    ...(subcategory ? { subcategory } : {}),
     description: entry.description || undefined,
   };
   // Only when it differs from the file's currency: TracklyLab converts, and it
@@ -529,7 +592,7 @@ async function main() {
     if (!people.includes(args.me)) {
       throw new Error(`"${args.me}" is not in this export.\nThe people in it are: ${people.join(', ')}`);
     }
-    finish(rows, (row) => convertExported(row, args.me), {
+    finish(rows, (row) => convertExported(row, args.me, args.trip), {
       me: args.me,
       currency: args.currency,
       out: args.out,
@@ -576,7 +639,7 @@ async function main() {
     );
   }
 
-  finish(entries, (entry) => convertEntry(entry, args.me, args.currency), {
+  finish(entries, (entry) => convertEntry(entry, args.me, args.currency, args.trip), {
     me: args.me,
     currency: args.currency,
     out: args.out,

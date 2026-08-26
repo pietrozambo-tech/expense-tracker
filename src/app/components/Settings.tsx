@@ -2843,6 +2843,14 @@ Tell me which kind you found and on what evidence, in one line, before the JSON.
 - Trip rows are often dated when they were BOOKED, months before the trip (flights, hotels, cars). Keep those dates: that is when the money left. Do not move them to the trip week.
 - Use the trip context in descriptions where it helps ("Ferry a/r" stays "Ferry a/r").
 
+A TRIP IS ONE THING - file it as one
+When the data is a trip (a Tricount or Splitwise export, a holiday spreadsheet, or because I tell you it is), put EVERY row of it under my "Travel" category - all of it, including the meals, the taxis, the beers and the museum tickets. Those were travel spending. Do not scatter them across Food & Drinks, Transports and Leisure: I want the trip to read as one block, and the shape of it in the subcategories.
+- "subcategory": use one of MY EXISTING Travel subcategories (they are listed below with the category). That is where the source's own category or wording goes.
+- Decide it from the SOURCE CATEGORY when that says something specific (their "FOOD_AND_DRINK" → my Food, "TRANSPORT" → my Transportation, "ACCOMMODATION" → my Accomodation, "ENTERTAINMENT" → my Activities).
+- Decide it from the DESCRIPTION when the source category says nothing useful - "UNCATEGORIZED", "OTHER", "TRAVEL", or blank. On a trip export "TRAVEL" carries no information, since everything is travel: read "Hotel PD Sud" as a hotel, "Volo" as a flight, "Cena" as food, "Benzina" as transportation.
+- If neither is decisive, LEAVE the subcategory out rather than guessing. An empty one is a gap I can see and fill; a wrong one is a gap that looks filled.
+- Do not invent new Travel subcategories for this: use the ones I have.
+
 MY EXPENSE categories (with their subcategories):
 ${expList}
 
