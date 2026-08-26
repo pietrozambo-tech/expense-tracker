@@ -620,6 +620,15 @@ function finish(rows, convert, { me, currency, out, title }) {
     byMonth.set(m, Math.round(((byMonth.get(m) ?? 0) + t.amount) * 100) / 100);
   }
 
+  // The API road knows a settlement when it sees one (type_transaction is
+  // BALANCE). An export has no such field, so a "Marco pays Anna" row would
+  // come through here as ordinary spending and inflate the trip. Structure
+  // cannot decide it - a row with one person's share is far more often
+  // somebody paying for you alone - so these are REPORTED rather than
+  // dropped, and you say which they are.
+  const SETTLEMENT_WORDS = /\b(rimbors\w*|risarcim\w*|payment|paid|pays|paga|pagat\w*|settle\w*|saldo|refund|reimburs\w*|bonifico|transfer)\b/i;
+  const suspicious = transactions.filter((t) => SETTLEMENT_WORDS.test(t.description ?? ''));
+
   console.log(`\nTrip:      ${title ?? '(untitled)'}`);
   console.log(`You:       ${me}`);
   console.log(`Written:   ${out}  (${transactions.length} transactions)`);
@@ -634,6 +643,14 @@ function finish(rows, convert, { me, currency, out, title }) {
     console.log('\nIt lands across several months, because that is when it was paid:');
     for (const [m, v] of [...byMonth].sort()) console.log(`  ${m}  ${v.toFixed(2)}`);
   }
+  if (suspicious.length) {
+    console.log(`
+Worth a look - these read like people settling up rather than spending, and an
+export does not mark them the way the API does. If any of them IS a settlement,
+delete it from ${out} before importing:`);
+    for (const t of suspicious) console.log(`  ${t.date}  ${t.amount.toFixed(2).padStart(9)}  ${t.description}`);
+  }
+
   console.log(`
 Check the total against what Tricount shows as yours before importing.
 Then: Settings -> Import -> choose ${out}.`);

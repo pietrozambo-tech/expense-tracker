@@ -2794,6 +2794,8 @@ ${exampleRow2}
 }
 
 BEFORE YOU CONVERT - ask me, do not guess
+- WHICH COLUMN IS ME. If the file has one value per person (a trip split), and no column is unmistakably mine, ASK me before converting anything. My column may be a nickname rather than my name ("Pit" for Pietro), a first name only, or a surname. Do not pick the closest-looking one and carry on: this single decision is either right for every row or wrong for every row, and a file built on the wrong person imports perfectly and is entirely someone else's spending. Tell me the names you found and let me choose.
+- WHETHER IT IS A TRIP. Split files are usually holidays, but the same tools get used for flatshares and standing groups. If the rows look like rent, bills and weekly shopping rather than a trip, ASK me before filing everything under Travel.
 - If the data has no YEAR anywhere (e.g. only "month" and "day" columns), ASK me which year it covers, and whether it spans more than one. A wrong year silently files a whole set of transactions in the wrong place, and nothing in the app will look obviously broken afterwards.
 - If a row is a monthly or weekly TOTAL rather than one transaction (e.g. a salary tab with one row per month and no day), ask me which day of the month to date it on.
 - Open EVERY sheet, tab and page of what I give you. Files often keep income on a second tab, and converting only the first one loses half the picture without saying so.
@@ -2826,25 +2828,31 @@ READING A STATEMENT
 - Remove obvious duplicates.
 
 SPLIT EXPENSES (Tricount, Splitwise and similar trip exports)
-Some files have one column per person. Those columns come in two kinds that look identical and mean OPPOSITE things, so work out which one you have before converting anything - do not assume.
+Some files carry one value per person on every row - as one column per person, or as a "shares"/"owed" object inside each row. Those values come in two kinds that look identical and mean OPPOSITE things, so work out which one you have before converting anything - do not assume.
 
-Take a few rows with three or more people and add up the per-person values:
+The headers usually name the tool, which is a hint worth taking but never the final word:
+- "date,description,category,paid_by,total,<names…>" - a Tricount export.
+- "Date,Description,Category,Cost,Currency,<names…>", ending in a "Total balance" row - a Splitwise export.
+
+Confirm it with arithmetic either way, because the file can come from anywhere. Take a few rows with three or more people and add up the per-person values:
 - They add up to that row's total/cost → the columns are SHARES: what each person's portion cost. MY COST IS SIMPLY MY OWN VALUE, taken as written. Do not divide anything. (Tricount exports are this kind. So is anything whose values are all positive.)
 - They cancel out to roughly zero, with a mix of positives and negatives → the columns are BALANCES: what each person PAID minus their share. (Splitwise exports are this kind.) Only then:
   - My value negative: my cost is its absolute value.
   - My value positive: my cost = (Cost − the sum of everyone's negative values taken as positive) ÷ (the number of people with positive values). The rest comes back to me, so it is NOT my spending.
 
-Tell me which kind you found and on what evidence, in one line, before the JSON. If different rows disagree, or a row's values neither sum to its total nor cancel to zero, STOP and ask me - the two rules give plausible-looking answers on each other's files, so a wrong choice here is invisible afterwards. Getting it wrong on evenly-split rows happens to give the right number and on unevenly-split ones does not, which is exactly the kind of error nobody catches by eye.
+Before the JSON, tell me in three short lines: which kind you found and on what evidence, which column you took as mine, and THE TOTAL OF MY SHARE across every row you converted. That last number is the one thing I can check in five seconds against what Tricount or Splitwise shows for me - if it does not match, something is wrong and I should not import the file.
 
-- My column may be a NICKNAME rather than my full name (e.g. "Pit" for Pietro), and may be a first name only. If no column clearly corresponds to me, ASK me which one is mine rather than choosing: that single decision is either right for every row or wrong for every row.
+If different rows disagree, or a row's values neither sum to its total nor cancel to zero, STOP and ask me - the two rules give plausible-looking answers on each other's files, so a wrong choice here is invisible afterwards. Getting it wrong on evenly-split rows happens to give the right number and on unevenly-split ones does not, which is exactly the kind of error nobody catches by eye.
 - An empty, blank or zero value for me means I was not part of that expense: skip the row. Also skip any row where my cost works out to 0 (I was fully paid back): a zero-amount transaction is clutter, not spending.
-- Skip settlement rows entirely: Category "Payment", descriptions like "X paid Y", and any "Total balance" summary line. That is money moving between people, not spending.
+- Skip settlement rows entirely: Category "Payment" or "Reimbursement", descriptions like "X paid Y" / "Rimborso", and any "Total balance" summary line. That is money moving between people, not spending.
+- But a row where only ONE person has a share is NOT automatically a settlement - it usually means somebody paid for that person alone ("Escursione Balene", 66.78, all mine, paid by a friend). That is my spending in full. Decide by the DESCRIPTION and category, never by the row having one name on it: treating those as settlements silently deletes real expenses, often the big ones.
+- The "paid by" column says who fronted the money. It is never my cost, not even on rows I paid: use my own share column, and nothing else.
 - Map their categories to mine as above (e.g. "Dining out" → my closest food category). A category that just means "none" - UNCATEGORIZED, OTHER, blank - is NOT a category to map: work that row out from its description like any uncategorised row, rather than filing it under Others.
 - Trip rows are often dated when they were BOOKED, months before the trip (flights, hotels, cars). Keep those dates: that is when the money left. Do not move them to the trip week.
 - Use the trip context in descriptions where it helps ("Ferry a/r" stays "Ferry a/r").
 
 A TRIP IS ONE THING - file it as one
-When the data is a trip (a Tricount or Splitwise export, a holiday spreadsheet, or because I tell you it is), put EVERY row of it under my "Travel" category - all of it, including the meals, the taxis, the beers and the museum tickets. Those were travel spending. Do not scatter them across Food & Drinks, Transports and Leisure: I want the trip to read as one block, and the shape of it in the subcategories.
+When the data is a trip (a Tricount or Splitwise export that looks like a holiday, a trip spreadsheet, or because I tell you it is - ask if it might be a flatshare instead), put EVERY row of it under my "Travel" category - all of it, including the meals, the taxis, the beers and the museum tickets. Those were travel spending. Do not scatter them across Food & Drinks, Transports and Leisure: I want the trip to read as one block, and the shape of it in the subcategories.
 - "subcategory": use one of MY EXISTING Travel subcategories (they are listed below with the category). That is where the source's own category or wording goes.
 - Decide it from the SOURCE CATEGORY when that says something specific (their "FOOD_AND_DRINK" → my Food, "TRANSPORT" → my Transportation, "ACCOMMODATION" → my Accomodation, "ENTERTAINMENT" → my Activities).
 - Decide it from the DESCRIPTION when the source category says nothing useful - "UNCATEGORIZED", "OTHER", "TRAVEL", or blank. On a trip export "TRAVEL" carries no information, since everything is travel: read "Hotel PD Sud" as a hotel, "Volo" as a flight, "Cena" as food, "Benzina" as transportation.
