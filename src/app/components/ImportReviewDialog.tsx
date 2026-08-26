@@ -18,8 +18,14 @@ export function ImportReviewDialog({
   onCancel: () => void;
 }) {
   const proposals = result.proposedSubcategories;
-  // Everything starts checked: approving the lot stays one tap.
-  const [approved, setApproved] = useState<Set<string>>(() => new Set(proposals.map(proposalKey)));
+  // Nothing starts checked. It used to be the reverse ("approving the lot
+  // stays one tap"), and that default is how a deleted subcategory kept
+  // coming back: a trip file asking for "Hotel" landed here pre-ticked, and
+  // one tap on Import re-added the chip its owner had deliberately removed -
+  // on every import, for ever. Growing the user's own taxonomy is an opt-in,
+  // not a toll on the way past; the rows import either way, just without the
+  // unapproved subcategory.
+  const [approved, setApproved] = useState<Set<string>>(() => new Set());
 
   const toggle = (p: ProposedSubcategory) => {
     const k = proposalKey(p);
@@ -58,6 +64,7 @@ export function ImportReviewDialog({
               <button
                 key={proposalKey(p)}
                 onClick={() => toggle(p)}
+                data-import-proposal={on ? 'on' : 'off'}
                 className="w-full flex items-center gap-3 px-2.5 py-2.5 rounded-xl text-left transition-colors"
               >
                 <span
@@ -77,7 +84,7 @@ export function ImportReviewDialog({
                     {p.name}
                   </span>
                   <span className="block text-[12px]" style={{ color: 'var(--ink-2)' }}>
-                    in {p.categoryName} · {p.rows} row{p.rows === 1 ? '' : 's'}
+                    {t(p.rows === 1 ? 'imp.proposalMeta.one' : 'imp.proposalMeta.other', { cat: p.categoryName, n: p.rows })}
                   </span>
                 </span>
               </button>

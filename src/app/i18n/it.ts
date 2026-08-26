@@ -367,6 +367,8 @@ export const it: Record<keyof typeof en, string> = {
   'imp.newSubBody': 'Solo quelle selezionate vengono aggiunte alle tue categorie. Le altre importano le transazioni senza sottocategoria.',
   'imp.importCta.one': 'Importa {n} transazione',
   'imp.importCta.other': 'Importa {n} transazioni',
+  'imp.proposalMeta.one': 'in {cat} · {n} riga',
+  'imp.proposalMeta.other': 'in {cat} · {n} righe',
   'imp.cancelImport': 'Annulla importazione',
 
   // Account-mismatch guard

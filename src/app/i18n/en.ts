@@ -366,6 +366,8 @@ export const en = {
   'imp.newSubBody': 'Only checked ones are added to your categories. Unchecked ones import their transactions without a subcategory.',
   'imp.importCta.one': 'Import {n} transaction',
   'imp.importCta.other': 'Import {n} transactions',
+  'imp.proposalMeta.one': 'in {cat} · {n} row',
+  'imp.proposalMeta.other': 'in {cat} · {n} rows',
   'imp.cancelImport': 'Cancel import',
 
   // Account-mismatch guard
