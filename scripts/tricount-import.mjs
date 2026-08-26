@@ -31,6 +31,11 @@
  * Check the reported total against the figure Tricount shows for you. If they
  * agree, the mapping is right; if they do not, do not import the file.
  *
+ * A second opinion, if you want one: tricount-exporter.pages.dev does the
+ * same fetch entirely in the browser and shows per-person totals. Two
+ * independent readings of the same trip agreeing is about as much assurance
+ * as an undocumented API allows.
+ *
  * This spoofs the Android app's User-Agent because the endpoint requires it.
  * It is for getting your own trip out, at your own scale - two requests. Do
  * not point it at anything that is not yours.
@@ -43,12 +48,18 @@ const API = 'https://api.tricount.bunq.com';
 // The endpoint refuses anything that does not look like the app.
 const APP_UA = 'com.bunq.tricount.android:RELEASE:7.0.7:3174:ANDROID:13:C';
 
-// Entry types, as they appear in `type_transaction`. Settlements are money
-// moving between people; only NORMAL rows are spending. These are the values
-// seen in the wild - an unknown one is a hard stop rather than a guess,
-// because guessing wrong here either invents spending or hides some.
+// Entry types, as they appear in `type_transaction`.
+//
+// These two, and ONLY these two, are what two independent working clients
+// agree on: NORMAL rows are spending, BALANCE rows are people settling up.
+// An earlier version of this list also carried INCOME, REIMBURSEMENT and
+// TRANSFER, invented here on the reasoning that they sounded like
+// settlements. That was the very mistake this script is meant to avoid: a
+// guess that silently DROPS rows is no better than one that silently invents
+// them, and Tricount is known to emit at least INCOME. So the list stays at
+// what is confirmed, and anything else stops the run to be identified.
 const SPENDING_TYPES = new Set(['NORMAL']);
-const SETTLEMENT_TYPES = new Set(['BALANCE', 'INCOME', 'REIMBURSEMENT', 'TRANSFER']);
+const SETTLEMENT_TYPES = new Set(['BALANCE']);
 
 function usage(msg) {
   if (msg) console.error(`\n${msg}`);
@@ -114,6 +125,9 @@ async function api(path, { method = 'GET', body, token, appId }) {
   const headers = {
     'User-Agent': APP_UA,
     'app-id': appId,
+    // Unique per request, which is what a client request id means. The
+    // open-source clients happen to hardcode one; if the endpoint ever
+    // objects to a fresh one, that is the first thing to try changing.
     'X-Bunq-Client-Request-Id': randomUUID(),
   };
   if (token) headers['X-Bunq-Client-Authentication'] = token;
@@ -228,20 +242,21 @@ function inspect(registry, entries) {
  * the case where carrying on would mean inventing a number.
  */
 export function convertEntry(entry, me, homeCurrency) {
+  const label = entry.description ?? `entry ${entry.id}`;
+  // Problems are RETURNED, not thrown, so one run can report every one of them
+  // at once. Stopping at the first sent you round the loop again for the
+  // second, which for a trip with a few odd rows is a miserable way to find
+  // out what they are.
+  const problem = (kind, message) => ({ problem: { kind, label, message } });
+
   const type = entry.type_transaction ?? '(missing)';
   if (SETTLEMENT_TYPES.has(type)) return { skip: 'settlement' };
   if (!SPENDING_TYPES.has(type)) {
-    throw new Error(
-      `Entry "${entry.description ?? entry.id}" has type_transaction "${type}", which this script ` +
-        'does not know how to treat.\nRun with --inspect and tell me what you see - guessing here ' +
-        'either invents spending or hides some.',
-    );
+    return problem('unknown type', `type_transaction "${type}" is neither known spending nor known settling up`);
   }
 
   const allocations = entry.allocations ?? [];
-  if (!allocations.length) {
-    throw new Error(`Entry "${entry.description ?? entry.id}" has no allocations, so no share can be worked out.`);
-  }
+  if (!allocations.length) return problem('no allocations', 'has no allocations, so no share can be worked out');
 
   const mine = allocations.find((a) => displayName(a.membership) === me);
   if (!mine) return { skip: 'not mine' };
@@ -250,28 +265,25 @@ export function convertEntry(entry, me, homeCurrency) {
   // magnitude. Rounded to cents because floating point sums of thirds do not
   // land clean and a ledger should not carry 33.33333333333333.
   const share = Math.round(Math.abs(num(mine.amount?.value)) * 100) / 100;
-  if (!Number.isFinite(share)) {
-    throw new Error(`Entry "${entry.description ?? entry.id}" has an unreadable allocation amount.`);
-  }
+  if (!Number.isFinite(share)) return problem('bad amount', 'has an unreadable allocation amount');
   if (share === 0) return { skip: 'zero share' };
 
   // Reconciliation: the shares must add up to what the thing cost. If they do
   // not, the field being read is not the one being assumed, and every number
-  // in the output is suspect - so say so here rather than let it through.
+  // in the output is suspect - so say so rather than let it through.
   const total = Math.abs(num(entry.amount?.value));
   const summed = allocations.reduce((sum, a) => sum + Math.abs(num(a.amount?.value)), 0);
   if (Number.isFinite(total) && total > 0 && Math.abs(summed - total) > 0.02 + total * 0.001) {
-    throw new Error(
-      `Entry "${entry.description ?? entry.id}": the shares add up to ${summed.toFixed(2)} but the ` +
-        `expense is ${total.toFixed(2)}.\nThe amount fields are not what this script assumes - stop and check ` +
-        'with --inspect rather than import these numbers.',
+    return problem(
+      'does not reconcile',
+      `shares add up to ${summed.toFixed(2)} but the expense is ${total.toFixed(2)}`,
     );
   }
 
   const currency = mine.amount?.currency ?? entry.amount?.currency ?? homeCurrency;
   const date = String(entry.date ?? '').slice(0, 10);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-    throw new Error(`Entry "${entry.description ?? entry.id}" has an unreadable date: ${entry.date}`);
+    return problem('bad date', `has an unreadable date: ${entry.date}`);
   }
 
   const record = {
@@ -333,15 +345,40 @@ async function main() {
 
   const transactions = [];
   const skipped = { settlement: 0, 'not mine': 0, 'zero share': 0 };
-  const currencies = new Set();
+  const problems = [];
   for (const entry of entries) {
     const out = convertEntry(entry, args.me, args.currency);
+    if (out.problem) {
+      problems.push(out.problem);
+      continue;
+    }
     if (out.skip) {
       skipped[out.skip] += 1;
       continue;
     }
     transactions.push(out.record);
-    currencies.add(out.currency);
+  }
+
+  // Nothing is written when anything was not understood. A partial file is
+  // the worst outcome available here: it imports cleanly, looks complete, and
+  // is quietly missing a piece of the trip.
+  if (problems.length) {
+    const byKind = new Map();
+    for (const p of problems) {
+      if (!byKind.has(p.kind)) byKind.set(p.kind, []);
+      byKind.get(p.kind).push(p);
+    }
+    console.error(`\nStopped: ${problems.length} row(s) could not be read with confidence. Nothing was written.\n`);
+    for (const [kind, list] of byKind) {
+      console.error(`  ${kind} (${list.length}):`);
+      for (const p of list.slice(0, 5)) console.error(`    - "${p.label}" ${p.message}`);
+      if (list.length > 5) console.error(`    …and ${list.length - 5} more`);
+    }
+    console.error(`
+Run --inspect and send me what it prints. These are the rows where a guess
+would either invent spending or hide some, which is exactly what this script
+refuses to do on your behalf.`);
+    process.exit(1);
   }
 
   transactions.sort((a, b) => a.date.localeCompare(b.date));

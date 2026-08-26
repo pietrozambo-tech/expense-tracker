@@ -19,13 +19,11 @@ const ok = (cond, msg) => {
   console.log(`${cond ? 'PASS' : 'FAIL'}  ${msg}`);
   if (!cond) failed += 1;
 };
-const throws = (fn, re, msg) => {
-  try {
-    fn();
-    ok(false, `${msg} (nothing was thrown)`);
-  } catch (e) {
-    ok(re.test(e.message), `${msg}${re.test(e.message) ? '' : ` (said: ${e.message})`}`);
-  }
+// Problems are returned rather than thrown, so one run can report all of them
+// instead of sending you round the loop per bad row.
+const refuses = (result, kind, msg) => {
+  const got = result.problem?.kind;
+  ok(got === kind, `${msg}${got === kind ? '' : ` (got ${got ?? JSON.stringify(result)})`}`);
 };
 
 const who = (name) => ({ RegistryMembershipNonUser: { alias: { display_name: name } } });
@@ -124,21 +122,35 @@ const expense = ({ desc = 'Dinner', date = '2026-07-14', total = 100, shares, cu
   ok(record.amount === 33.33, `a third is rounded to cents (${record.amount})`);
 }
 
-// The two failures that must stop the run rather than produce a number.
-throws(
-  () => convertEntry(expense({ total: 100, shares: { Pietro: 25, Anna: 25 } }), 'Pietro', 'EUR'),
-  /add up to/,
-  'shares that do not reconcile with the expense total stop the run',
+// The failures that must stop the run rather than produce a number.
+refuses(
+  convertEntry(expense({ total: 100, shares: { Pietro: 25, Anna: 25 } }), 'Pietro', 'EUR'),
+  'does not reconcile',
+  'shares that do not add up to the expense total stop the run',
 );
-throws(
-  () => convertEntry(expense({ total: 10, shares: { Pietro: 10 }, type: 'SOMETHING_NEW' }), 'Pietro', 'EUR'),
-  /does not know how to treat/,
+refuses(
+  convertEntry(expense({ total: 10, shares: { Pietro: 10 }, type: 'SOMETHING_NEW' }), 'Pietro', 'EUR'),
+  'unknown type',
   'an unrecognised entry type stops the run instead of being assumed',
 );
-throws(
-  () => convertEntry({ ...expense({ total: 10, shares: { Pietro: 10 } }), date: 'last tuesday' }, 'Pietro', 'EUR'),
-  /unreadable date/,
+// INCOME is the one that caught me out: it was on an invented list of things
+// to skip quietly, which would have dropped real rows without a word. Only
+// NORMAL and BALANCE are confirmed by working clients; everything else, this
+// one included, has to be identified before it is treated.
+refuses(
+  convertEntry(expense({ total: 50, shares: { Pietro: 50 }, type: 'INCOME' }), 'Pietro', 'EUR'),
+  'unknown type',
+  'INCOME is surfaced rather than silently dropped as a guessed-at settlement',
+);
+refuses(
+  convertEntry({ ...expense({ total: 10, shares: { Pietro: 10 } }), date: 'last tuesday' }, 'Pietro', 'EUR'),
+  'bad date',
   'an unreadable date stops the run',
+);
+refuses(
+  convertEntry({ ...expense({ total: 10, shares: { Pietro: 10 } }), allocations: [] }, 'Pietro', 'EUR'),
+  'no allocations',
+  'an entry with no allocations stops the run',
 );
 
 // Tricount has used more than one link shape.

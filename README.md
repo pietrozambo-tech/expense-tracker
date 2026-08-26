@@ -137,8 +137,16 @@ Settling up is left out entirely - that is money moving between people.
 The API is undocumented and mapped from open-source clients, so the script is
 built to stop rather than guess: an unrecognised entry type, allocations that
 do not add up to their expense, or a name that is not in the trip all end the
-run instead of writing plausible wrong numbers. It prints your trip total at
-the end - check it against the figure Tricount shows for you before importing.
+run - reported together, with nothing written - instead of producing plausible
+wrong numbers. Only `NORMAL` (spending) and `BALANCE` (settling up) are treated
+as known; anything else is surfaced to be identified rather than assumed.
+
+It prints your trip total at the end. Check it against the figure Tricount
+shows for you before importing. For a second opinion,
+[tricount-exporter.pages.dev](https://tricount-exporter.pages.dev/) does the
+same fetch entirely in the browser and shows per-person totals - two
+independent readings agreeing is about as much assurance as an undocumented
+API allows.
 
 `pnpm test:tricount` covers the conversion (even and uneven splits, settling
 up, rounds you were not in, foreign currency, the refusals) and round-trips a
