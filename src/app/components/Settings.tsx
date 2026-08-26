@@ -2669,6 +2669,22 @@ export function Settings({
     // shown - otherwise it invents a near-duplicate of one you already have.
     const catLine = (c: any) =>
       `- ${c.name}${c.subcategories?.length ? ` (subcategories: ${c.subcategories.join(', ')})` : ''}`;
+    // The trip rule below needs to name MY travel category, and "Travel" is
+    // only its seeded English name - the Italian seed calls it "Viaggi", and a
+    // user can rename it to anything. Resolved here the same way
+    // scripts/tricount-import.mjs does: seeded id first, then folded name.
+    // When nothing matches, the prompt tells the AI to ask instead of filing a
+    // trip under a category that does not exist.
+    const foldName = (x: string) => x.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+    const travelCat =
+      categories.find((c) => c.id === 'travel') ??
+      categories.find((c) => ['travel', 'viaggi', 'viaggio', 'trips', 'trip'].includes(foldName(c.name)));
+    const travelRefEn = travelCat
+      ? `my "${travelCat.name}" category`
+      : 'whichever of MY categories below represents trips - and if none clearly does, ASK me which to use before converting';
+    const travelRefIt = travelCat
+      ? `la mia categoria "${travelCat.name}"`
+      : 'quella delle MIE categorie qui sotto che rappresenta i viaggi - e se nessuna lo fa chiaramente, CHIEDIMI quale usare prima di convertire';
     const expList = categories.map(catLine).join('\n');
     const incList = incomeCategories.map(catLine).join('\n');
     const hasSources = sources.length > 0;
@@ -2719,6 +2735,11 @@ export function Settings({
       : userName.trim()
         ? `My name is ${userName.trim()} - if a file has one column per person, mine is the one matching that name (it may include a surname).`
         : `If a file has one column per person, ask me which column is mine before converting.`;
+    // TWO prompt bodies, one per language, maintained BY HAND as twins.
+    // Nothing enforces that they agree: the split-file arithmetic below was
+    // rewritten in English and the Italian copy silently kept the old, wrong
+    // rule until an audit caught it. When you change a rule in one body,
+    // change the other in the same commit.
     const importPrompt = getLanguage() === 'it' ? `Voglio importare il mio storico di spese ed entrate in un'app che si chiama "TracklyLab". ${ownerLine}
 
 Ti darò i miei dati in qualunque forma li abbia - un foglio Excel/CSV, un estratto conto bancario o della carta (PDF, CSV o screenshot), foto o screenshot di una lista di transazioni, o una tabella incollata. Leggi TUTTO e trasforma OGNI transazione in UN file JSON ESATTAMENTE in questo formato:
@@ -2733,6 +2754,8 @@ ${exampleRow2}
 }
 
 PRIMA DI CONVERTIRE - chiedimi, non tirare a indovinare
+- QUALE COLONNA SONO IO. Se il file ha un valore per persona (una divisione di viaggio) e nessuna colonna è inequivocabilmente mia, CHIEDIMELO prima di convertire qualsiasi cosa. La mia colonna può essere un soprannome invece del mio nome ("Pit" per Pietro), solo il nome di battesimo, o il cognome. Non scegliere la più somigliante per poi proseguire: questa singola decisione è giusta per ogni riga o sbagliata per ogni riga, e un file costruito sulla persona sbagliata si importa perfettamente ed è interamente la spesa di qualcun altro. Dimmi i nomi che hai trovato e lascia scegliere me.
+- SE È UN VIAGGIO. I file divisi sono di solito vacanze, ma gli stessi strumenti si usano per case condivise e gruppi fissi. Se le righe sembrano affitto, bollette e spesa settimanale più che un viaggio, CHIEDIMELO prima di archiviare tutto sotto la categoria di viaggio.
 - Se nei dati non c'è l'ANNO da nessuna parte (es. solo colonne "mese" e "giorno"), CHIEDIMI che anno coprono, e se ne coprono più di uno. Un anno sbagliato archivia in silenzio un intero blocco di transazioni nel posto sbagliato, e dopo niente nell'app sembrerà visibilmente rotto.
 - Se una riga è un TOTALE mensile o settimanale invece di una singola transazione (es. un foglio stipendi con una riga al mese e nessun giorno), chiedimi in che giorno del mese datarla.
 - Apri OGNI foglio, scheda e pagina di quello che ti do. Spesso le entrate stanno in una seconda scheda, e convertire solo la prima perde metà del quadro senza dirlo.
@@ -2764,13 +2787,38 @@ LEGGERE UN ESTRATTO CONTO
 - Se dare e avere sono in colonne separate: dare = spesa, avere = entrata.
 - Rimuovi i duplicati evidenti.
 
-SPESE CONDIVISE (Splitwise ed export simili)
-Alcuni file hanno una colonna per persona. Quelle colonne contengono il SALDO di ciascuno per la riga - quanto ha pagato MENO la sua quota - non quanto gli è costata. Converti ogni riga nel MIO costo personale:
-- La mia colonna negativa: il mio costo è il suo valore assoluto (era la mia quota).
-- La mia colonna a zero: salta la riga - non facevo parte di quella spesa. Salta anche ogni riga dove il mio costo risulta 0 (mi hanno rimborsato del tutto): una transazione a zero è rumore, non spesa.
-- La mia colonna positiva: ho pagato anche per altri. Il mio costo = (Costo − la somma dei valori negativi degli altri presi in positivo) ÷ (il numero di persone con valori positivi). Il resto mi torna indietro, quindi NON è mia spesa.
-- Salta del tutto le righe di pareggio: categoria "Payment", descrizioni tipo "X paid Y" e ogni riga di riepilogo "Total balance". Sono soldi che girano tra persone, non spese.
-- Mappa le loro categorie sulle mie come sopra (es. "Dining out" → la mia categoria di cibo più vicina); usa il contesto del viaggio nelle descrizioni dove aiuta ("Ferry a/r" resta "Ferry a/r").
+SPESE DIVISE (Tricount, Splitwise ed export simili)
+Alcuni file portano un valore per persona su ogni riga - come una colonna per persona, o come un oggetto "shares"/"owed" dentro la riga. Quei valori arrivano in due tipi che sembrano identici e significano l'OPPOSTO, quindi stabilisci quale hai davanti prima di convertire qualsiasi cosa - non darlo per scontato.
+
+Le intestazioni di solito rivelano lo strumento - un indizio da cogliere, mai la parola finale:
+- "date,description,category,paid_by,total,<nomi…>" - un export Tricount.
+- "Date,Description,Category,Cost,Currency,<nomi…>", con una riga finale "Total balance" - un export Splitwise.
+
+Conferma comunque con l'aritmetica, perché il file può arrivare da ovunque. Prendi qualche riga con tre o più persone e somma i valori per persona:
+- Sommano al totale/costo della riga → le colonne sono QUOTE: quanto è costata la porzione di ciascuno. IL MIO COSTO È SEMPLICEMENTE IL MIO VALORE, preso così com'è. Non dividere nulla. (Gli export Tricount sono così. Come qualunque file con valori tutti positivi.)
+- Si annullano circa a zero, con positivi e negativi misti → le colonne sono SALDI: quanto ciascuno ha PAGATO meno la sua quota. (Gli export Splitwise sono così.) Solo allora:
+  - Il mio valore negativo: il mio costo è il suo valore assoluto.
+  - Il mio valore positivo: il mio costo = (Costo − la somma dei valori negativi degli altri presi in positivo) ÷ (il numero di persone con valori positivi). Il resto mi torna indietro, quindi NON è mia spesa.
+
+Prima del JSON, dimmi in tre righe brevi: quale tipo hai trovato e con che prova, quale colonna hai preso come mia, e IL TOTALE DELLA MIA QUOTA su tutte le righe convertite. Quell'ultimo numero è l'unica cosa che posso verificare in cinque secondi contro ciò che Tricount o Splitwise mi mostrano - se non coincide, qualcosa è storto e non devo importare il file.
+
+Se righe diverse si contraddicono, o i valori di una riga né sommano al totale né si annullano a zero, FERMATI e chiedimi - le due regole danno risposte plausibili sui file l'una dell'altra, quindi una scelta sbagliata qui è invisibile dopo. Sbagliare sulle righe divise in parti uguali dà per caso il numero giusto e su quelle diseguali no: esattamente l'errore che nessuno coglie a occhio.
+
+- Un valore vuoto o a zero per me significa che non facevo parte di quella spesa: salta la riga. Salta anche ogni riga dove il mio costo risulta 0 (mi hanno rimborsato del tutto): una transazione a zero è rumore, non spesa.
+- Salta del tutto le righe di pareggio: categoria "Payment" o "Rimborso", descrizioni tipo "X paid Y" / "Rimborso", e ogni riga di riepilogo "Total balance". Sono soldi che girano tra persone, non spese.
+- Ma una riga dove UNA SOLA persona ha una quota NON è automaticamente un pareggio - di solito significa che qualcuno ha pagato solo per quella persona ("Escursione Balene", 66.78, tutta mia, pagata da un amico). Quella è mia spesa per intero. Decidi da DESCRIZIONE e categoria, mai dal fatto che la riga porti un solo nome: trattarle da pareggi cancella spese vere in silenzio, spesso le più grandi.
+- La colonna "paid by" dice chi ha anticipato i soldi. Non è mai il mio costo, nemmeno sulle righe che ho pagato io: usa la mia colonna di quota, e nient'altro.
+- Mappa le loro categorie sulle mie come sopra (es. "Dining out" → la mia categoria di cibo più vicina). Una categoria che significa solo "nessuna" - UNCATEGORIZED, OTHER, vuota - NON è una categoria da mappare: deduci quella riga dalla descrizione come ogni riga senza categoria, invece di archiviarla nel contenitore generico.
+- Le righe di un viaggio spesso portano la data della PRENOTAZIONE, mesi prima del viaggio (voli, hotel, auto). Mantieni quelle date: è quando i soldi sono usciti. Non spostarle alla settimana del viaggio.
+- Usa il contesto del viaggio nelle descrizioni dove aiuta ("Ferry a/r" resta "Ferry a/r").
+
+UN VIAGGIO È UNA COSA SOLA - archivialo come tale
+Quando i dati sono un viaggio (un export Tricount o Splitwise che sembra una vacanza, un foglio di viaggio, o perché te lo dico io - chiedi se potrebbe invece essere una casa condivisa), metti OGNI riga sotto ${travelRefIt} - tutto, compresi i pasti, i taxi, le birre e i biglietti del museo. Erano spese di viaggio. Non spargerle tra cibo, trasporti e tempo libero: voglio che il viaggio si legga come un blocco unico, e la sua forma nelle sottocategorie.
+- "subcategory": usa una delle MIE sottocategorie ESISTENTI di quella categoria (elencate sotto). È lì che va la categoria o la dicitura del file.
+- Decidila dalla CATEGORIA DI ORIGINE quando dice qualcosa di specifico (il loro "FOOD_AND_DRINK" → la mia sottocategoria di cibo, "TRANSPORT" → quella di trasporti, "ACCOMMODATION" → quella di alloggio, "ENTERTAINMENT" → quella di attività).
+- Decidila dalla DESCRIZIONE quando la categoria di origine non dice nulla di utile - "UNCATEGORIZED", "OTHER", "TRAVEL" o vuota. Su un export di viaggio "TRAVEL" non porta informazione, visto che è tutto viaggio: leggi "Hotel PD Sud" come hotel, "Volo" come volo, "Cena" come cibo, "Benzina" come trasporto.
+- Se nessuna delle due è decisiva, LASCIA FUORI la sottocategoria invece di indovinare. Una vuota è un buco che vedo e riempio; una sbagliata è un buco che sembra pieno.
+- Non inventare nuove sottocategorie per questo: usa quelle che ho.
 
 Le MIE categorie di SPESA (con le loro sottocategorie):
 ${expList}
@@ -2795,7 +2843,7 @@ ${exampleRow2}
 
 BEFORE YOU CONVERT - ask me, do not guess
 - WHICH COLUMN IS ME. If the file has one value per person (a trip split), and no column is unmistakably mine, ASK me before converting anything. My column may be a nickname rather than my name ("Pit" for Pietro), a first name only, or a surname. Do not pick the closest-looking one and carry on: this single decision is either right for every row or wrong for every row, and a file built on the wrong person imports perfectly and is entirely someone else's spending. Tell me the names you found and let me choose.
-- WHETHER IT IS A TRIP. Split files are usually holidays, but the same tools get used for flatshares and standing groups. If the rows look like rent, bills and weekly shopping rather than a trip, ASK me before filing everything under Travel.
+- WHETHER IT IS A TRIP. Split files are usually holidays, but the same tools get used for flatshares and standing groups. If the rows look like rent, bills and weekly shopping rather than a trip, ASK me before filing everything under my travel category.
 - If the data has no YEAR anywhere (e.g. only "month" and "day" columns), ASK me which year it covers, and whether it spans more than one. A wrong year silently files a whole set of transactions in the wrong place, and nothing in the app will look obviously broken afterwards.
 - If a row is a monthly or weekly TOTAL rather than one transaction (e.g. a salary tab with one row per month and no day), ask me which day of the month to date it on.
 - Open EVERY sheet, tab and page of what I give you. Files often keep income on a second tab, and converting only the first one loses half the picture without saying so.
@@ -2852,9 +2900,9 @@ If different rows disagree, or a row's values neither sum to its total nor cance
 - Use the trip context in descriptions where it helps ("Ferry a/r" stays "Ferry a/r").
 
 A TRIP IS ONE THING - file it as one
-When the data is a trip (a Tricount or Splitwise export that looks like a holiday, a trip spreadsheet, or because I tell you it is - ask if it might be a flatshare instead), put EVERY row of it under my "Travel" category - all of it, including the meals, the taxis, the beers and the museum tickets. Those were travel spending. Do not scatter them across Food & Drinks, Transports and Leisure: I want the trip to read as one block, and the shape of it in the subcategories.
-- "subcategory": use one of MY EXISTING Travel subcategories (they are listed below with the category). That is where the source's own category or wording goes.
-- Decide it from the SOURCE CATEGORY when that says something specific (their "FOOD_AND_DRINK" → my Food, "TRANSPORT" → my Transportation, "ACCOMMODATION" → my Accomodation, "ENTERTAINMENT" → my Activities).
+When the data is a trip (a Tricount or Splitwise export that looks like a holiday, a trip spreadsheet, or because I tell you it is - ask if it might be a flatshare instead), put EVERY row of it under ${travelRefEn} - all of it, including the meals, the taxis, the beers and the museum tickets. Those were travel spending. Do not scatter them across Food & Drinks, Transports and Leisure: I want the trip to read as one block, and the shape of it in the subcategories.
+- "subcategory": use one of MY EXISTING subcategories of that category (they are listed below with it). That is where the source's own category or wording goes.
+- Decide it from the SOURCE CATEGORY when that says something specific (their "FOOD_AND_DRINK" → my food subcategory, "TRANSPORT" → my transport one, "ACCOMMODATION" → my lodging one, "ENTERTAINMENT" → my activities one).
 - Decide it from the DESCRIPTION when the source category says nothing useful - "UNCATEGORIZED", "OTHER", "TRAVEL", or blank. On a trip export "TRAVEL" carries no information, since everything is travel: read "Hotel PD Sud" as a hotel, "Volo" as a flight, "Cena" as food, "Benzina" as transportation.
 - If neither is decisive, LEAVE the subcategory out rather than guessing. An empty one is a gap I can see and fill; a wrong one is a gap that looks filled.
 - Do not invent new Travel subcategories for this: use the ones I have.
