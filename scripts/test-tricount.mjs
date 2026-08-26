@@ -10,7 +10,7 @@ import { copyFileSync, globSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { convertEntry, keyFromUrl } from './tricount-import.mjs';
+import { convertEntry, convertExported, keyFromUrl } from './tricount-import.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -152,6 +152,65 @@ refuses(
   'no allocations',
   'an entry with no allocations stops the run',
 );
+
+// ---- the offline road: a JSON export from tricount-exporter.pages.dev ----
+//
+// Shapes taken from a real trip, because that is where the awkward rows come
+// from. Its `shares` are COSTS; the neighbouring format everyone assumes
+// (Splitwise) puts BALANCES in the same place, and reading one as the other
+// gives wrong numbers that look entirely reasonable.
+const exported = (o) => ({ date: '2026-08-26', category: 'UNCATEGORIZED', paid_by: 'Merlo', ...o });
+
+{
+  // Three-way with the odd cent, exactly as the exporter writes it.
+  const { record } = convertExported(
+    exported({ description: 'Toast', total: 8.6, shares: { Pit: 2.87, Merlo: 2.87, Max: 2.86 } }),
+    'Pit',
+  );
+  ok(record.amount === 2.87, `an export's own rounding is taken as given (${record.amount})`);
+  ok(record.category === 'Others', 'and UNCATEGORIZED goes to the catch-all to be reviewed, not to a guess');
+}
+{
+  // Somebody else paid, and the whole thing was mine.
+  const { record } = convertExported(
+    exported({ description: 'Whale 2', total: 66.78, shares: { Pit: 66.78 } }),
+    'Pit',
+  );
+  ok(record.amount === 66.78, 'an expense somebody else paid entirely for me is entirely my spending');
+}
+{
+  const r = convertExported(exported({ description: 'Monte', total: 50, shares: { Merlo: 25, Max: 25 } }), 'Pit');
+  ok(r.skip === 'not mine', 'a row I am not in is left out');
+}
+{
+  const { record } = convertExported(
+    exported({ description: 'Cena tramonto brutto', total: 18.5, shares: { Pit: 11, Max: 7.5 } }),
+    'Pit',
+  );
+  ok(record.amount === 11, `an uneven split is read as written, not divided by heads (${record.amount})`);
+}
+{
+  const { record } = convertExported(
+    exported({ description: 'Macchina Pico', category: 'TRANSPORT', total: 230, shares: { Pit: 76.67, Merlo: 76.66, Max: 76.67 } }),
+    'Pit',
+  );
+  ok(record.category === 'Transports', 'the exporter category enum maps onto a real category name');
+}
+refuses(
+  convertExported(exported({ description: 'Broken', total: 100, shares: { Pit: 10, Merlo: 10 } }), 'Pit'),
+  'does not reconcile',
+  'an export whose shares do not add up stops the run just the same',
+);
+
+// Both roads must produce the same shape, or only one of them is really tested.
+{
+  const viaApi = convertEntry(expense({ total: 100, shares: { Pietro: 25, Anna: 25, Luca: 25, Sara: 25 } }), 'Pietro', 'EUR').record;
+  const viaFile = convertExported(exported({ description: 'Dinner', total: 100, shares: { Pietro: 25, Anna: 25, Luca: 25, Sara: 25 } }), 'Pietro').record;
+  ok(
+    JSON.stringify(Object.keys(viaApi).sort()) === JSON.stringify(Object.keys(viaFile).sort()),
+    `the API road and the export road write the same record shape (${Object.keys(viaFile).sort().join(', ')})`,
+  );
+}
 
 // Tricount has used more than one link shape.
 ok(keyFromUrl('https://tricount.com/t/AbCdEf123') === 'AbCdEf123', 'the key is read from a /t/ link');

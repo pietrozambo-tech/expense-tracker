@@ -122,8 +122,18 @@ App data lives in localStorage under versioned keys (`expense-tracker.v1.*`) wit
 ### Bringing a Tricount trip in
 
 Tricount has no self-service export - its FAQ points you at `support@bunq.com`
-and a wait - but it serves every shared trip to its public link over an API.
-`scripts/tricount-import.mjs` reads that and writes a TracklyLab import file:
+and a wait. `scripts/tricount-import.mjs` writes a TracklyLab import file, by
+either of two roads.
+
+**From an export** (no network, and the road to prefer):
+[tricount-exporter.pages.dev](https://tricount-exporter.pages.dev/) fetches a
+trip in your browser and hands you JSON; this converts it.
+
+```bash
+node scripts/tricount-import.mjs --from-json azores.json --me "Pit"
+```
+
+**From the share link directly**, via the API the app itself uses:
 
 ```bash
 node scripts/tricount-import.mjs --url <share link> --inspect        # look first
@@ -133,6 +143,18 @@ node scripts/tricount-import.mjs --url <share link> --me "Pietro"    # then conv
 It imports **your share**, not what you paid: fronting €400 for four people is
 €100 of spending and €300 of lending, and only the first belongs in a ledger.
 Settling up is left out entirely - that is money moving between people.
+
+Expect a trip to land across several months rather than in the week you took
+it - flights, hotels and cars are usually booked long before, and those rows
+keep the date the money actually left. The run prints the month breakdown so
+that is not a surprise afterwards.
+
+Note the export's `shares` are **costs**. The neighbouring format everyone
+assumes - Splitwise - puts **balances** in the same place (paid minus
+consumed, signed), so an exported Tricount fed to a converter written for
+Splitwise produces wrong numbers that look perfectly reasonable. That includes
+the in-app AI import prompt, which describes the Splitwise layout: use this
+script for Tricount rather than pasting the export there.
 
 The API is undocumented and mapped from open-source clients, so the script is
 built to stop rather than guess: an unrecognised entry type, allocations that

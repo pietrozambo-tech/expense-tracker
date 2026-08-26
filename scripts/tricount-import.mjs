@@ -41,7 +41,7 @@
  * not point it at anything that is not yours.
  */
 import { generateKeyPairSync, randomUUID } from 'node:crypto';
-import { writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 
 const API = 'https://api.tricount.bunq.com';
@@ -65,8 +65,10 @@ function usage(msg) {
   if (msg) console.error(`\n${msg}`);
   console.error(`
 Usage:
+  node scripts/tricount-import.mjs --from-json <export.json> --me "<your name>"
   node scripts/tricount-import.mjs --url <share link> --me "<your name>" [options]
 
+  --from-json <f>   a JSON export from tricount-exporter.pages.dev (no network)
   --url <link>      the Tricount share link (tricount.com/…), or --key <token>
   --me <name>       your display name IN the tricount, exactly as it appears
   --out <file>      where to write the import file (default tricount-import.json)
@@ -90,7 +92,8 @@ function parseArgs(argv) {
       i += 1;
       return v;
     };
-    if (a === '--url') args.url = next();
+    if (a === '--from-json') args.fromJson = next();
+    else if (a === '--url') args.url = next();
     else if (a === '--key') args.key = next();
     else if (a === '--me') args.me = next();
     else if (a === '--out') args.out = next();
@@ -241,6 +244,61 @@ function inspect(registry, entries) {
  * is not mine to record, and throws only when the row cannot be understood -
  * the case where carrying on would mean inventing a number.
  */
+/**
+ * The same job, starting from a JSON export instead of the API.
+ *
+ * tricount-exporter.pages.dev does the fetch in the browser and hands you
+ * `[{date, description, category, paid_by, total, shares:{name: amount}}]`.
+ * Converting that needs no network at all, and it is the safer of the two
+ * roads here: the export has been eyeballed by a human before it arrives,
+ * whereas the API path is written from other people's clients and untested.
+ *
+ * Its `shares` are COSTS - what each person's portion came to - which is
+ * worth stating because the neighbouring format everyone assumes (Splitwise)
+ * puts BALANCES in those columns instead: paid minus consumed, sign and all.
+ * Read one as the other and every number comes out wrong while looking
+ * perfectly reasonable.
+ */
+export function convertExported(row, me) {
+  const label = row.description ?? '(no description)';
+  const problem = (kind, message) => ({ problem: { kind, label, message } });
+
+  const shares = row.shares ?? {};
+  const names = Object.keys(shares);
+  if (!names.length) return problem('no allocations', 'has no shares, so no portion can be worked out');
+
+  const total = Number(row.total);
+  const summed = Math.round(names.reduce((sum, n) => sum + Number(shares[n]), 0) * 100) / 100;
+  if (Number.isFinite(total) && total > 0 && Math.abs(summed - total) > 0.02 + total * 0.001) {
+    return problem('does not reconcile', `shares add up to ${summed.toFixed(2)} but the expense is ${total.toFixed(2)}`);
+  }
+
+  if (!(me in shares)) return { skip: 'not mine' };
+  const share = Math.round(Number(shares[me]) * 100) / 100;
+  if (!Number.isFinite(share)) return problem('bad amount', 'has an unreadable share');
+  if (share === 0) return { skip: 'zero share' };
+
+  const date = String(row.date ?? '').slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return problem('bad date', `has an unreadable date: ${row.date}`);
+
+  // The exporter's category enum. UNCATEGORIZED is left off the record
+  // entirely rather than translated into a name: the app then files it in the
+  // catch-all AND counts it, which is what puts it in front of you in the
+  // review filter instead of pretending it was categorised.
+  const CATEGORY_NAMES = { TRANSPORT: 'Transports', TRAVEL: 'Travel', FOOD: 'Food & Drinks', ACCOMMODATION: 'Travel' };
+  const category = CATEGORY_NAMES[row.category] ?? (row.category && row.category !== 'UNCATEGORIZED' ? row.category : 'Others');
+
+  return {
+    record: {
+      date,
+      amount: share,
+      type: 'expense',
+      category,
+      description: row.description || undefined,
+    },
+  };
+}
+
 export function convertEntry(entry, me, homeCurrency) {
   const label = entry.description ?? `entry ${entry.id}`;
   // Problems are RETURNED, not thrown, so one run can report every one of them
@@ -303,9 +361,95 @@ export function convertEntry(entry, me, homeCurrency) {
   return { record, currency };
 }
 
+/** Shared by both roads: convert, refuse on anything unclear, write, report. */
+function finish(rows, convert, { me, currency, out, title }) {
+  const transactions = [];
+  const skipped = { settlement: 0, 'not mine': 0, 'zero share': 0 };
+  const problems = [];
+  for (const row of rows) {
+    const res = convert(row);
+    if (res.problem) problems.push(res.problem);
+    else if (res.skip) skipped[res.skip] += 1;
+    else transactions.push(res.record);
+  }
+
+  // Nothing is written when anything was not understood. A partial file is
+  // the worst outcome available here: it imports cleanly, looks complete, and
+  // is quietly missing a piece of the trip.
+  if (problems.length) {
+    const byKind = new Map();
+    for (const p of problems) {
+      if (!byKind.has(p.kind)) byKind.set(p.kind, []);
+      byKind.get(p.kind).push(p);
+    }
+    console.error(`\nStopped: ${problems.length} row(s) could not be read with confidence. Nothing was written.\n`);
+    for (const [kind, list] of byKind) {
+      console.error(`  ${kind} (${list.length}):`);
+      for (const p of list.slice(0, 5)) console.error(`    - "${p.label}" ${p.message}`);
+      if (list.length > 5) console.error(`    …and ${list.length - 5} more`);
+    }
+    console.error('\nSend me what --inspect prints for these. A guess here would either invent spending or hide some.');
+    process.exit(1);
+  }
+
+  transactions.sort((a, b) => a.date.localeCompare(b.date));
+  writeFileSync(out, JSON.stringify({ version: 1, currency, transactions }, null, 2));
+
+  const byCurrency = new Map();
+  const byMonth = new Map();
+  for (const t of transactions) {
+    const c = t.currency ?? currency;
+    byCurrency.set(c, (byCurrency.get(c) ?? 0) + t.amount);
+    const m = t.date.slice(0, 7);
+    byMonth.set(m, Math.round(((byMonth.get(m) ?? 0) + t.amount) * 100) / 100);
+  }
+
+  console.log(`\nTrip:      ${title ?? '(untitled)'}`);
+  console.log(`You:       ${me}`);
+  console.log(`Written:   ${out}  (${transactions.length} transactions)`);
+  console.log(`Left out:  ${skipped.settlement} settling-up, ${skipped['not mine']} you were not part of, ${skipped['zero share']} zero-share`);
+  console.log('\nYour share of this trip:');
+  for (const [c, total] of byCurrency) console.log(`  ${total.toFixed(2)} ${c}`);
+
+  // Trips get booked months before they are taken, and those bookings keep
+  // the date the money actually left - which is right, and surprising if
+  // nobody says so first.
+  if (byMonth.size > 1) {
+    console.log('\nIt lands across several months, because that is when it was paid:');
+    for (const [m, v] of [...byMonth].sort()) console.log(`  ${m}  ${v.toFixed(2)}`);
+  }
+  console.log(`
+Check the total against what Tricount shows as yours before importing.
+Then: Settings -> Import -> choose ${out}.`);
+}
+
 async function main() {
   const args = parseArgs(process.argv.slice(2));
-  if (!args.url && !args.key) usage('Give me the trip: --url <share link> (or --key <token>).');
+
+  // The offline road: an export somebody already produced and looked at.
+  if (args.fromJson) {
+    if (!args.me) usage('Give me your name as it appears in the export: --me "Pit".');
+    let rows;
+    try {
+      rows = JSON.parse(readFileSync(args.fromJson, 'utf8'));
+    } catch (e) {
+      throw new Error(`Could not read ${args.fromJson}: ${e.message}`);
+    }
+    if (!Array.isArray(rows)) throw new Error(`${args.fromJson} is not a list of expenses.`);
+    const people = [...new Set(rows.flatMap((r) => Object.keys(r?.shares ?? {})))];
+    if (!people.includes(args.me)) {
+      throw new Error(`"${args.me}" is not in this export.\nThe people in it are: ${people.join(', ')}`);
+    }
+    finish(rows, (row) => convertExported(row, args.me), {
+      me: args.me,
+      currency: args.currency,
+      out: args.out,
+      title: args.fromJson,
+    });
+    return;
+  }
+
+  if (!args.url && !args.key) usage('Give me the trip: --url <share link>, --key <token>, or --from-json <file>.');
   if (!args.inspect && !args.me) {
     usage('Give me your name in the tricount: --me "Pietro".\nRun --inspect first if you are not sure how it is spelled.');
   }
@@ -343,66 +487,12 @@ async function main() {
     );
   }
 
-  const transactions = [];
-  const skipped = { settlement: 0, 'not mine': 0, 'zero share': 0 };
-  const problems = [];
-  for (const entry of entries) {
-    const out = convertEntry(entry, args.me, args.currency);
-    if (out.problem) {
-      problems.push(out.problem);
-      continue;
-    }
-    if (out.skip) {
-      skipped[out.skip] += 1;
-      continue;
-    }
-    transactions.push(out.record);
-  }
-
-  // Nothing is written when anything was not understood. A partial file is
-  // the worst outcome available here: it imports cleanly, looks complete, and
-  // is quietly missing a piece of the trip.
-  if (problems.length) {
-    const byKind = new Map();
-    for (const p of problems) {
-      if (!byKind.has(p.kind)) byKind.set(p.kind, []);
-      byKind.get(p.kind).push(p);
-    }
-    console.error(`\nStopped: ${problems.length} row(s) could not be read with confidence. Nothing was written.\n`);
-    for (const [kind, list] of byKind) {
-      console.error(`  ${kind} (${list.length}):`);
-      for (const p of list.slice(0, 5)) console.error(`    - "${p.label}" ${p.message}`);
-      if (list.length > 5) console.error(`    …and ${list.length - 5} more`);
-    }
-    console.error(`
-Run --inspect and send me what it prints. These are the rows where a guess
-would either invent spending or hide some, which is exactly what this script
-refuses to do on your behalf.`);
-    process.exit(1);
-  }
-
-  transactions.sort((a, b) => a.date.localeCompare(b.date));
-  const payload = { version: 1, currency: args.currency, transactions };
-  writeFileSync(args.out, JSON.stringify(payload, null, 2));
-
-  const byCurrency = new Map();
-  for (const t of transactions) {
-    const c = t.currency ?? args.currency;
-    byCurrency.set(c, (byCurrency.get(c) ?? 0) + t.amount);
-  }
-
-  console.log(`\nTrip:      ${registry.title ?? '(untitled)'}`);
-  console.log(`You:       ${args.me}`);
-  console.log(`Written:   ${args.out}  (${transactions.length} transactions)`);
-  console.log(`Left out:  ${skipped.settlement} settling-up, ${skipped['not mine']} you were not part of, ${skipped['zero share']} zero-share`);
-  console.log('\nYour share of this trip:');
-  for (const [c, total] of byCurrency) console.log(`  ${total.toFixed(2)} ${c}`);
-  console.log(`
-Check that against what Tricount shows as your own total before importing.
-If the two agree, the mapping is right. If they do not, do not import this
-file - run --inspect and we will look at why.
-
-Then: Settings -> Import -> choose ${args.out}.`);
+  finish(entries, (entry) => convertEntry(entry, args.me, args.currency), {
+    me: args.me,
+    currency: args.currency,
+    out: args.out,
+    title: registry.title,
+  });
 }
 
 export { keyFromUrl, entriesOf, displayName };
