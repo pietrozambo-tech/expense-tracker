@@ -17,6 +17,7 @@
     "isSubcategoryModalOpen": "a modal is never mid-open across a remount",
     "isSourceModalOpen": "a modal is never mid-open across a remount",
     "isSearchModalOpen": "a modal is never mid-open across a remount",
-    "exportScopeOpen": "a sheet is never mid-open across a remount; it asks again next time"
+    "exportScopeOpen": "a sheet is never mid-open across a remount; it asks again next time",
+    "renderLimit": "How much of the list is painted, not what the user was looking at: a remount re-paints from the cap by design, and persisting a deep Show more would re-pay the full-paint stall this state exists to avoid."
   }
 }
