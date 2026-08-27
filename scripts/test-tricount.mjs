@@ -333,6 +333,12 @@ refuses(
   const italian = travelTaxonomy([cat('travel', 'Viaggi', ['Alloggio', 'Cibo'])]);
   ok(italian.name === 'Viaggi' && italian.sub.lodging === 'Alloggio',
     `an Italian category is matched by id, not by the English word (${italian.name}/${italian.sub.lodging})`);
+
+  // The AI prompt and this script must accept the same names - they drifted
+  // once ('Trips' resolved in the prompt, "not found" here, same backup).
+  const trips = travelTaxonomy([cat('custom-1', 'Trips', ['Food'])]);
+  ok(trips.resolved && trips.name === 'Trips',
+    `a category named Trips resolves on this road too, as it does in the prompt (${trips.name})`);
 }
 
 // ---- the trip name, onto every description ----

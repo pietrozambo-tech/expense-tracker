@@ -400,32 +400,44 @@ async function handle(req: Request): Promise<Response> {
     note(r.user_id, r.updated_at, 'sync');
   }
 
+  // Where the recorded history actually begins - worked out BEFORE the merges
+  // below, because it is their cutoff.
+  //
+  // Two honesty rules live here. Inferred days (token refreshes from the
+  // auth log) may only fill the gap BEFORE recording began: once the app
+  // records real launches, a backgrounded tab refreshing its token daily
+  // must not keep an account "active" in the chart. And openRows is
+  // windowed (.gte day, since), so an earliest recorded day EQUAL to the
+  // window start means tracking began before the window - the true start is
+  // unknowable from here, and reporting the window edge as "recorded since"
+  // would attribute months of recorded launches to the audit-log proxy.
+  // null then reads as "everything shown is recorded", which is the truth.
+  const recordedDays = (openRows ?? []).map((r: { day: string }) => r.day).sort();
+  const firstRecorded = recordedDays.length ? recordedDays[0] : null;
+  const trackingSince = firstRecorded && firstRecorded > since ? firstRecorded : null;
+  const inferredRows = historyRows.filter((r) => firstRecorded === null || r.day < firstRecorded);
+
   // Days each account showed up, counted once per day whichever record
   // proves it: a recorded launch and a token refresh on the same day are one
   // day. Recorded rows reach back only to the activity table's first day;
-  // inferred ones cover the reported window.
+  // inferred ones cover the days before it.
   const dayKeys = new Set<string>();
   for (const r of (seenRows ?? []) as { user_id: string; last_seen: string }[]) {
     note(r.user_id, r.last_seen, 'open');
     dayKeys.add(`${r.user_id}|${dayOf(r.last_seen) ?? ''}`);
   }
-  for (const r of historyRows) dayKeys.add(`${r.user_id}|${r.day}`);
+  for (const r of inferredRows) dayKeys.add(`${r.user_id}|${r.day}`);
   const visitsById = new Map<string, number>();
   for (const key of dayKeys) {
     const id = key.slice(0, key.indexOf('|'));
     visitsById.set(id, (visitsById.get(id) ?? 0) + 1);
   }
 
-  // Where the recorded history actually begins: everything the screen shows
-  // before this date is inferred, and the screen says which.
-  const recordedDays = (openRows ?? []).map((r: { day: string }) => r.day).sort();
-  const trackingSince = recordedDays.length ? recordedDays[0] : null;
-
-  // Recorded launches and inferred days, deduped: an account that opened the
-  // app on a day it also refreshed a token is one day, not two.
+  // Recorded launches and pre-tracking inferred days, deduped: an account
+  // that opened the app on a day it also refreshed a token is one day.
   const openKeys = new Set<string>();
   const allOpens: { userId: string; day: string }[] = [];
-  for (const r of [...(openRows ?? []), ...historyRows] as { user_id: string; day: string }[]) {
+  for (const r of [...(openRows ?? []), ...inferredRows] as { user_id: string; day: string }[]) {
     const key = `${r.user_id}|${r.day}`;
     if (openKeys.has(key)) continue;
     openKeys.add(key);

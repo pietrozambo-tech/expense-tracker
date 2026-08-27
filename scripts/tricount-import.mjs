@@ -372,7 +372,7 @@ export function travelTaxonomy(categories) {
   }
   const travel =
     categories.find((c) => c.id === 'travel') ??
-    categories.find((c) => ['travel', 'viaggi', 'viaggio'].includes(fold(c.name)));
+    categories.find((c) => ['travel', 'viaggi', 'viaggio', 'trips', 'trip'].includes(fold(c.name)));
   if (!travel) {
     return { name: 'Travel', sub: { ...SEEDED_NAMES }, resolved: false, missing: [] };
   }
@@ -713,8 +713,9 @@ async function main() {
       console.log(
         'Note: filing subcategories under the app\'s default names ' +
           `(${Object.values(SEEDED_NAMES).join(', ')}).\n` +
-          '      If yours differ, the import will offer to ADD these - and it ticks them by\n' +
-          '      default. Pass --categories <your-backup.json> to use your own names instead.',
+          '      If yours are spelled differently, the import will OFFER these as new\n' +
+          '      subcategories - unticked, so unless you tick them the rows arrive with\n' +
+          '      none at all. Pass --categories <your-backup.json> to use your own names.',
       );
     }
   }

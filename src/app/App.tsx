@@ -828,7 +828,11 @@ export default function App() {
   // not be reached). Either one outranks a stale success.
   const online = useOnline();
   const offline = !online || sessionUnverified;
-  const effectiveSyncStatus = offline && syncStatus !== 'pending' ? 'offline' : syncStatus;
+  // No carve-out for 'pending': a push in flight cannot succeed on a device
+  // that is offline, and the push has no deadline of its own - a hung fetch
+  // kept the row saying "Syncing…" from airplane mode, which is the exact
+  // stale answer this row was rebuilt to stop giving.
+  const effectiveSyncStatus = offline ? 'offline' : syncStatus;
 
   // A session we had to take on trust has just been confirmed by the server -
   // the network came back. The hydrate effect below keys on userId, which did

@@ -37,7 +37,7 @@ as $$
   where a.created_at >= since::timestamptz
     -- Guard the cast: a malformed or absent actor id must not error the whole
     -- query, it must simply not be a row.
-    and a.payload->>'actor_id' ~ '^[0-9a-fA-F-]{36}$'
+    and a.payload->>'actor_id' ~ '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$'
 $$;
 
 revoke all on function public.activity_history(date) from public, anon, authenticated;
