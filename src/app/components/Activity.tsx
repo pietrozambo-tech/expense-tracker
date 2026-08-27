@@ -1,5 +1,6 @@
 import { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { FilterBar } from './FilterBar';
+import { ALL_YEARS } from './ActivityFilterSheets';
 import { ActivityDayGroup } from './ActivityDayGroup';
 import { ExpenseItem } from './ExpenseItem';
 import { IncomeItem } from './IncomeItem';
@@ -197,6 +198,13 @@ export function Activity({
 
   // Get date range based on selected year and month
   const getDateRange = () => {
+    // "All years" - a trip over New Year is one trip, and no single year
+    // contains it. Handled before anything parses the year, because
+    // parseInt('all') is NaN and the month branch below would quietly fall
+    // through to "this month" instead.
+    if (selectedYear === ALL_YEARS) {
+      return { start: new Date(-8640000000000000), end: new Date(8640000000000000) };
+    }
     const year = parseInt(selectedYear);
 
     if (selectedMonth === 'year') {
@@ -405,7 +413,13 @@ export function Activity({
   const activeFilters = (() => {
     const bits: string[] = [];
     if (activityType !== 'all') bits.push(activityType === 'expense' ? t('act.expenses') : t('act.income'));
-    bits.push(selectedMonth === 'year' ? selectedYear : `${monthsShort()[parseInt(selectedMonth, 10)] ?? ''} ${selectedYear}`);
+    bits.push(
+      selectedYear === ALL_YEARS
+        ? t('act.allYears')
+        : selectedMonth === 'year'
+          ? selectedYear
+          : `${monthsShort()[parseInt(selectedMonth, 10)] ?? ''} ${selectedYear}`,
+    );
     if (categoryFilter !== 'All') bits.push(categoryFilter);
     if (subcategoryFilter !== 'All') bits.push(subcategoryFilter);
     if (typeFilter !== 'All') bits.push(typeFilterLabel(typeFilter));
@@ -548,7 +562,12 @@ export function Activity({
           sources={sources}
           availableYears={availableYears}
           availableMonths={availableMonths}
-          onYearChange={(year) => setSelectedYear(year)}
+          onYearChange={(year) => {
+            setSelectedYear(year);
+            // A month number means nothing spread across every year, and
+            // leaving one selected would silently narrow the "all" view.
+            if (year === ALL_YEARS) setSelectedMonth('year');
+          }}
           onMonthChange={(month) => setSelectedMonth(month)}
           onOpenCategorySelector={() => {
             setIsCategoryModalOpen(true);

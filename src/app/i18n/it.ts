@@ -224,6 +224,7 @@ export const it: Record<keyof typeof en, string> = {
   'act.sortAmount': 'Importo',
   'act.ariaSort': 'Ordina per importo o data',
   'act.ariaSearch': 'Cerca transazioni',
+  'act.allYears': 'Tutti gli anni',
   'act.fullYear': "Tutto l'anno",
   'act.type.all': 'Tutte',
   'act.type.oneOff': 'Una tantum',

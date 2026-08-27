@@ -44,6 +44,11 @@ function Sheet({ title, onClose, children }: { title: string; onClose: () => voi
   );
 }
 
+// The year filter's "no year at all" value. A string because it sits in the
+// same slot as "2026" - in state, in the saved view, in App's presets - and a
+// sentinel that travels with them beats a second nullable field everywhere.
+export const ALL_YEARS = 'all';
+
 export function PeriodSheet({
   year,
   month,
@@ -68,6 +73,21 @@ export function PeriodSheet({
         {/* Years: a scrolling row rather than a picker - there are rarely more
             than a handful, and seeing them all is faster than opening a list. */}
         <div className="flex gap-2 overflow-x-auto pb-3 -mx-1 px-1">
+          {/* First, because it is the widest lens - the years narrow from
+              here. It exists for the trip that crosses New Year: no single
+              year contains it, so without this the app can only ever show
+              half of one. */}
+          <button
+            onClick={() => { onYearChange(ALL_YEARS); onClose(); }}
+            data-period-all
+            className="px-3.5 py-1.5 rounded-full text-[13px] font-semibold flex-shrink-0 transition-colors"
+            style={{
+              backgroundColor: year === ALL_YEARS ? '#4F74F3' : 'var(--bg-field)',
+              color: year === ALL_YEARS ? '#FFFFFF' : '#5c5c60',
+            }}
+          >
+            {t('act.allYears')}
+          </button>
           {availableYears.map((y) => {
             const on = y === year;
             return (
@@ -86,6 +106,8 @@ export function PeriodSheet({
           })}
         </div>
 
+        {year === ALL_YEARS ? null : (
+        <>
         <button
           onClick={() => { onMonthChange('year'); onClose(); }}
           className="w-full mb-2 py-2.5 rounded-xl text-[14px] font-semibold transition-colors"
@@ -118,6 +140,8 @@ export function PeriodSheet({
             );
           })}
         </div>
+        </>
+        )}
       </div>
     </Sheet>
   );

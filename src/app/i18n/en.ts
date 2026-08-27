@@ -223,6 +223,7 @@ export const en = {
   'act.sortAmount': 'Amount',
   'act.ariaSort': 'Sort by amount or date',
   'act.ariaSearch': 'Search transactions',
+  'act.allYears': 'All years',
   'act.fullYear': 'Full Year',
   'act.type.all': 'All',
   'act.type.oneOff': 'One-off',

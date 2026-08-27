@@ -3,7 +3,7 @@ import { ChevronDown, Search, X, SlidersHorizontal, ArrowDownWideNarrow } from '
 import { t } from '../i18n';
 import { monthsShort } from '../i18n/store';
 import type { Source } from '../types';
-import { PeriodSheet, FiltersSheet } from './ActivityFilterSheets';
+import { PeriodSheet, FiltersSheet, ALL_YEARS } from './ActivityFilterSheets';
 import { FILTER_ACTIVE } from './filterChip';
 
 interface FilterBarProps {
@@ -108,7 +108,12 @@ export function FilterBar({
     activeChips.push({ key: 'subcategory', label: subcategory, clear: () => onSubcategoryClear?.() });
   }
 
-  const periodLabel = `${month === 'year' ? t('act.fullYear') : monthsShort()[parseInt(month, 10)] ?? month} ${year}`;
+  // "All years" is a whole label, not a year to append a month to - composing
+  // it the usual way produced "Full Year all".
+  const periodLabel =
+    year === ALL_YEARS
+      ? t('act.allYears')
+      : `${month === 'year' ? t('act.fullYear') : monthsShort()[parseInt(month, 10)] ?? month} ${year}`;
 
   const clearAll = () => {
     if (typeFilter && typeFilter !== 'All') onTypeFilterChange?.('All');
@@ -148,7 +153,7 @@ export function FilterBar({
         className="flex items-center gap-2"
         style={{ WebkitTapHighlightColor: 'rgba(255, 255, 255, 0)' }}
       >
-        <button onClick={() => openSheet('period')} className={`${PILL} ${PILL_NEUTRAL}`}>
+        <button onClick={() => openSheet('period')} data-period-chip className={`${PILL} ${PILL_NEUTRAL}`}>
           <span>{periodLabel}</span>
           <ChevronDown className={`${CHEVRON} text-neutral-400`} />
         </button>
