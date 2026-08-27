@@ -83,6 +83,54 @@ await p.waitForTimeout(900);
 const half = await rows();
 ok(half === 2, `picking a single year still narrows to it (${half}/4 in 2026)`);
 
+// ---- a big ledger: the list is capped, the totals are not ----
+//
+// Painting every row made All years a 1.5-2.5s stall on a real-sized ledger
+// (worse on a phone). The DOM stops at the cap and the tail loads on
+// request; the header keeps counting everything.
+{
+  const ctx2 = await b.newContext({ viewport: { width: 390, height: 900 }, locale: 'en-GB' });
+  await ctx2.addInitScript(() => {
+    if (localStorage.getItem('seeded')) return;
+    localStorage.setItem('seeded', '1');
+    localStorage.setItem('expense-tracker.v1.guest', 'true');
+    localStorage.setItem('expense-tracker.v1.settings', JSON.stringify({
+      onboarded: true, userName: 'P', currency: 'EUR', hasSeenIntro: true, weekStartsOn: 1, language: 'en',
+    }));
+    localStorage.setItem('expense-tracker.v1.nudges', JSON.stringify({ tips: false, recap: false }));
+    const cat = { id: 'groc', name: 'Groceries', type: 'expense', icon: 'ShoppingCart', color: 'text-emerald-600', bgColor: 'bg-emerald-50', selectedBg: 'bg-emerald-100', subcategories: [] };
+    localStorage.setItem('expense-tracker.v1.categories', JSON.stringify([cat]));
+    localStorage.setItem('expense-tracker.v1.sources', JSON.stringify([{ id: 'cash', kind: 'cash', mark: 'banknote', name: 'Cash', brand: '#2FA84F' }]));
+    const txns = [];
+    for (let i = 0; i < 400; i++) {
+      const d = new Date(2025, 0, 1 + i);
+      const date = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      txns.push({ id: `e${i}`, date, type: 'expense', amount: 10, baseAmount: 10, currency: 'EUR', sourceId: 'cash', category: cat, createdAt: `${date}T10:00:00.000Z`, updatedAt: `${date}T10:00:00.000Z`, recurrence: 'Never repeat', description: `Spesa ${i}` });
+    }
+    localStorage.setItem('expense-tracker.v1.transactions', JSON.stringify(txns));
+  });
+  const p2 = await ctx2.newPage();
+  await p2.goto(URL, { waitUntil: 'networkidle' });
+  await p2.waitForTimeout(1600);
+  await p2.getByRole('button', { name: 'Activity' }).first().click();
+  await p2.waitForTimeout(700);
+  await p2.locator('[data-period-chip]').click();
+  await p2.waitForTimeout(400);
+  await p2.locator('[data-period-all]').click();
+  await p2.waitForTimeout(900);
+
+  const painted = await p2.evaluate(() => (document.body.innerText.match(/Spesa \d+/g) ?? []).length);
+  ok(painted >= 250 && painted <= 260,
+    `a 400-row ledger paints only up to the cap, day-group aligned (${painted})`);
+  const header = (await p2.locator('body').innerText()).includes('400 transactions');
+  ok(header, 'while the header still counts all 400 - the cap is DOM-only');
+  await p2.locator('[data-show-more-rows]').click();
+  await p2.waitForTimeout(700);
+  const after = await p2.evaluate(() => (document.body.innerText.match(/Spesa \d+/g) ?? []).length);
+  ok(after === 400, `and Show more brings in the tail (${after}/400)`);
+  await ctx2.close();
+}
+
 console.log(fail.length ? `\n${fail.length} FAILED` : '\nall good');
 await b.close();
 process.exit(fail.length ? 1 : 0);

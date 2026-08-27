@@ -230,6 +230,8 @@ export const en = {
   'act.type.recurring': 'Recurring',
   'act.type.imported': 'Imported',
   'act.source': 'Source',
+  'act.showMore.one': 'Show {n} earlier transaction',
+  'act.showMore.other': 'Show {n} earlier transactions',
   'act.noTx': 'No transactions found',
   'act.tryDifferent': 'Try a different search term',
   'act.changeFilters': 'Change your filters or add a new transaction',

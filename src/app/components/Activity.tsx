@@ -74,6 +74,22 @@ interface ActivityProps {
   sharedBadges?: Map<string, 'new' | 'updated'>;
 }
 
+// The list's tail. The rows above the cap are already on screen; this row
+// stands in for the rest, saying how many - so a capped list reads as "ends
+// here, more on request" rather than quietly shorter than its own totals.
+function ShowMoreRows({ n, onClick }: { n: number; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      data-show-more-rows
+      className="w-full py-3.5 text-center transition-colors active:bg-neutral-50"
+      style={{ color: 'var(--accent-ink)', fontSize: 13.5, fontWeight: 600 }}
+    >
+      {t(n === 1 ? 'act.showMore.one' : 'act.showMore.other', { n })}
+    </button>
+  );
+}
+
 export function Activity({
   transactions,
   onEditTransaction,
@@ -105,6 +121,13 @@ export function Activity({
   // The preset pins the year the batch actually landed in, over the whole
   // year - the imported rows must be on screen when the tab opens.
   const [selectedYear, setSelectedYear] = useState(preset?.year ?? saved?.selectedYear ?? currentYear);
+  // How many rows the LIST paints. The totals above it always count
+  // everything - this caps only the DOM. A year of history is a couple of
+  // thousand nodes, and painting them all made switching to All years (and
+  // every return to this tab) a 1.5-2.5s stall on desktop, worse on a phone.
+  // 250 covers weeks of scrolling; the tail loads on request.
+  const RENDER_CAP = 250;
+  const [renderLimit, setRenderLimit] = useState(RENDER_CAP);
   const [selectedMonth, setSelectedMonth] = useState(preset ? 'year' : saved?.selectedMonth ?? currentMonth);
   const [categoryFilter, setCategoryFilter] = useState(preset?.categoryFilter ?? saved?.categoryFilter ?? 'All');
   const [subcategoryFilter, setSubcategoryFilter] = useState(saved?.subcategoryFilter ?? 'All');
@@ -188,6 +211,13 @@ export function Activity({
 
   const availableYears = getAvailableYears();
   const availableMonths = getAvailableMonths();
+
+  // A new filter is a new list: the cap starts over rather than carrying a
+  // deep "Show more" from a different view.
+  useEffect(() => {
+    setRenderLimit(RENDER_CAP);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedYear, selectedMonth, categoryFilter, subcategoryFilter, sourceFilter, typeFilter, searchQuery, activityType, sortBy]);
 
   // Auto-adjust selected month if it doesn't exist in the selected year
   useEffect(() => {
@@ -611,7 +641,7 @@ export function Activity({
       >
         {sortBy === 'amount' && filteredTransactions.length > 0 ? (
           <div>
-            {amountSorted.map((transaction) =>
+            {amountSorted.slice(0, renderLimit).map((transaction) =>
               transaction.type === 'income' ? (
                 <IncomeItem
                   key={transaction.id}
@@ -633,6 +663,9 @@ export function Activity({
                 />
               ),
             )}
+            {amountSorted.length > renderLimit && (
+              <ShowMoreRows n={amountSorted.length - renderLimit} onClick={() => setRenderLimit((l) => l + RENDER_CAP * 2)} />
+            )}
           </div>
         ) : Object.entries(groupedTransactions).length === 0 ? (
           <div className="px-6 py-16 text-center">
@@ -642,19 +675,40 @@ export function Activity({
             </p>
           </div>
         ) : (
-          Object.entries(groupedTransactions)
-            .sort(([dateA], [dateB]) => new Date(dateB).getTime() - new Date(dateA).getTime())
-            .map(([date, dayTransactions]) => (
-              <ActivityDayGroup
-                key={date}
-                date={date}
-                transactions={dayTransactions}
-                onTransactionTap={onEditTransaction}
-                onDeleteTransaction={onDeleteTransaction}
-                currency={currency}
-                badges={sharedBadges}
-              />
-            ))
+          (() => {
+            const sortedDays = Object.entries(groupedTransactions).sort(
+              ([dateA], [dateB]) => new Date(dateB).getTime() - new Date(dateA).getTime(),
+            );
+            // Whole days only: a day group cut in half would misstate its own
+            // header total, so the cap rounds up to the day boundary.
+            const shown: typeof sortedDays = [];
+            let rows = 0;
+            for (const entry of sortedDays) {
+              shown.push(entry);
+              rows += entry[1].length;
+              if (rows >= renderLimit) break;
+            }
+            const hidden = filteredTransactions.length -
+              shown.reduce((sum, [, list]) => sum + list.length, 0);
+            return (
+              <>
+                {shown.map(([date, dayTransactions]) => (
+                  <ActivityDayGroup
+                    key={date}
+                    date={date}
+                    transactions={dayTransactions}
+                    onTransactionTap={onEditTransaction}
+                    onDeleteTransaction={onDeleteTransaction}
+                    currency={currency}
+                    badges={sharedBadges}
+                  />
+                ))}
+                {hidden > 0 && (
+                  <ShowMoreRows n={hidden} onClick={() => setRenderLimit((l) => l + RENDER_CAP * 2)} />
+                )}
+              </>
+            );
+          })()
         )}
       </div>
 

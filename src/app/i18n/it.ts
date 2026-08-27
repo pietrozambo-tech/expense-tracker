@@ -231,6 +231,8 @@ export const it: Record<keyof typeof en, string> = {
   'act.type.recurring': 'Ricorrenti',
   'act.type.imported': 'Importate',
   'act.source': 'Conto',
+  'act.showMore.one': 'Mostra {n} transazione precedente',
+  'act.showMore.other': 'Mostra altre {n} transazioni precedenti',
   'act.noTx': 'Nessuna transazione trovata',
   'act.tryDifferent': 'Prova con un altro termine di ricerca',
   'act.changeFilters': 'Cambia i filtri o aggiungi una transazione',
