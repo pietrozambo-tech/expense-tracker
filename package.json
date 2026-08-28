@@ -28,7 +28,8 @@
     "test:schema": "node scripts/test-schema.mjs",
     "test:tricount": "node scripts/test-tricount.mjs",
     "test:bulkedit": "node scripts/test-bulkedit.mjs",
-    "test:trips": "node scripts/test-trips.mjs"
+    "test:trips": "node scripts/test-trips.mjs",
+    "test:periods": "node scripts/test-periods.mjs"
   },
   "dependencies": {
     "@capacitor/app": "^8.1.1",

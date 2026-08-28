@@ -1,6 +1,9 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { ChevronRight, ArrowUpDown, TrendingUp, TrendingDown, Minus, Plus, Receipt, ChevronLeft, ChevronDown, X, Wallet, Gauge, Sparkles, Split } from 'lucide-react';
 import { TrendCategoryBreakdown } from './TrendCategoryBreakdown';
+// Aliased: this file already has a `selectableYears` memo of its own, for
+// the Dashboard's period picker.
+import { selectableYears as yearsUpToNow } from '../lib/periods';
 import React from 'react';
 import { formatAmountListView, formatAbbreviatedAmount, abbreviateNumber, needsAbbreviation, formatSavingRate, CURRENCIES, mineAmount } from '../utils/currency';
 import { byRecency, partnerSourceId } from '../lib/shared';
@@ -768,17 +771,10 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
   }, [drilldownTransactions, drilldownSortBy, currency]);
   
   // Get available years from expenses data
-  const getAvailableYears = (): number[] => {
-    if (expenses.length === 0) return [now.getFullYear()];
-    
-    const years = new Set<number>();
-    expenses.forEach(expense => {
-      const year = parseLocalDate(expense.date).getFullYear();
-      years.add(year);
-    });
-    
-    return Array.from(years).sort((a, b) => b - a); // Sort descending (newest first)
-  };
+  // Trend's year list. Never later than this one: a flight booked for next
+  // March would otherwise offer a whole year of empty charts. Shared with
+  // Activity through lib/periods so the two tabs cannot drift.
+  const getAvailableYears = (): number[] => yearsUpToNow(expenses.map((e) => e.date));
   
   // Initialize trend year filter to most recent year with data
   const getMostRecentYearWithData = (): number => {

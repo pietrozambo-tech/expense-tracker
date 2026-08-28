@@ -131,6 +131,68 @@ ok(half === 2, `picking a single year still narrows to it (${half}/4 in 2026)`);
   await ctx2.close();
 }
 
+// ---- and never a month that has not happened ----
+//
+// The period list was built straight from the dates in the ledger, so one
+// future-dated row - a flight booked for December, a schedule seeded ahead -
+// put its month in the picker and let you browse spending that has not
+// occurred. The Dashboard already refused; these two now agree with it.
+{
+  const ctx3 = await b.newContext({ viewport: { width: 390, height: 900 }, locale: 'en-GB' });
+  await ctx3.route(/supabase\.co/, (r) => r.abort());
+  await ctx3.addInitScript(() => {
+    if (localStorage.getItem('seeded')) return;
+    localStorage.setItem('seeded', '1');
+    localStorage.setItem('expense-tracker.v1.guest', 'true');
+    localStorage.setItem('expense-tracker.v1.settings', JSON.stringify({
+      onboarded: true, userName: 'P', currency: 'EUR', hasSeenIntro: true, weekStartsOn: 1, language: 'en',
+    }));
+    localStorage.setItem('expense-tracker.v1.nudges', JSON.stringify({ tips: false, recap: false }));
+    const cat = { id: 'travel', name: 'Travel', type: 'expense', icon: 'Plane', color: 'text-sky-600', bgColor: 'bg-sky-50', selectedBg: 'bg-sky-100', subcategories: [] };
+    localStorage.setItem('expense-tracker.v1.categories', JSON.stringify([cat]));
+    localStorage.setItem('expense-tracker.v1.sources', JSON.stringify([{ id: 'cash', kind: 'cash', mark: 'banknote', name: 'Cash', brand: '#2FA84F' }]));
+    const now = new Date();
+    const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const past = new Date(now); past.setMonth(past.getMonth() - 2);
+    const soon = new Date(now); soon.setMonth(soon.getMonth() + 3);
+    const nextYear = new Date(now); nextYear.setFullYear(nextYear.getFullYear() + 1);
+    const tx = (id, date, description) => ({
+      id, date, type: 'expense', amount: 20, baseAmount: 20, currency: 'EUR', sourceId: 'cash',
+      category: cat, createdAt: `${date}T10:00:00.000Z`, updatedAt: `${date}T10:00:00.000Z`,
+      recurrence: 'Never repeat', description,
+    });
+    localStorage.setItem('expense-tracker.v1.transactions', JSON.stringify([
+      tx('n', iso(now), 'Questo mese'),
+      tx('p', iso(past), 'Speso davvero'),
+      tx('f', iso(soon), 'Volo prenotato'),
+      tx('y', iso(nextYear), 'Molto avanti'),
+    ]));
+  });
+  const p3 = await ctx3.newPage();
+  await p3.goto(URL, { waitUntil: 'networkidle' });
+  await p3.waitForTimeout(1600);
+  await p3.getByRole('button', { name: 'Activity' }).first().click();
+  await p3.waitForTimeout(800);
+  await p3.locator('[data-period-chip]').click();
+  await p3.waitForTimeout(500);
+
+  const sheet = await p3.locator('body').innerText();
+  const now = new Date();
+  // The grid always draws twelve months and greys out the ones you cannot
+  // pick - the same shape the Dashboard's picker uses - so the question is
+  // whether a future month is ENABLED, not whether it is drawn.
+  const shortMonth = (d) => d.toLocaleDateString('en-US', { month: 'short' });
+  const soon = new Date(now); soon.setMonth(soon.getMonth() + 3);
+  const cell = (d) => p3.getByRole('button', { name: shortMonth(d), exact: true }).first();
+
+  ok(!sheet.includes(String(now.getFullYear() + 1)), 'next year is not on offer at all');
+  ok(await cell(soon).isDisabled(),
+    `a month three ahead cannot be picked, even holding a booked row ("${shortMonth(soon)}")`);
+  ok(!(await cell(now).isDisabled()),
+    `while the month you are in can ("${shortMonth(now)}")`);
+  await ctx3.close();
+}
+
 console.log(fail.length ? `\n${fail.length} FAILED` : '\nall good');
 await b.close();
 process.exit(fail.length ? 1 : 0);

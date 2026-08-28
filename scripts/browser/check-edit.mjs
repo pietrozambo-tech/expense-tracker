@@ -106,19 +106,23 @@ const open = async () => {
   await p.getByText('Add a recurring transaction', { exact: false }).first().click();
   await p.waitForTimeout(700);
 
-  // The editor opens with the first category already standing in, so its
-  // subcategories are there from the start.
-  const onOpen = await p.locator('[data-sub-chip]').allInnerTexts();
-  ok(onOpen.join(',') === 'Rent,Utilities,Cleaning',
-    `the standing category's subcategories are offered from the start (${onOpen.join(', ')})`);
-  // And they sit INSIDE the grid, under the row holding the chosen category -
-  // the same layout the Add screen uses - rather than in a field of their own
-  // at the foot of the form.
+  // Nothing is chosen on open. The editor used to fall back to the first
+  // category in the list, so a new schedule arrived with one already lit -
+  // and Create was live, ready to file the row under whatever sorted first.
+  ok(await p.locator('[data-sub-chip]').count() === 0,
+    'a new schedule opens with no category chosen, so no subcategories either');
+  const createEarly = p.getByRole('button', { name: /^(Save|Salva|Create|Add)/ }).last();
+  ok(await createEarly.isDisabled(), 'and Create is not offered until one is');
+
+  await p.getByRole('button', { name: 'Housing' }).first().click();
+  await p.waitForTimeout(400);
+  // They sit INSIDE the grid, under the row holding the chosen category - the
+  // same layout the Add screen uses - rather than in a field of their own at
+  // the foot of the form.
   const inGrid = await p.evaluate(() => {
     const chip = document.querySelector('[data-sub-chip]');
     const grid = chip?.closest('.grid');
-    const cat = grid?.querySelector('button');
-    return !!grid && !!cat && grid.contains(chip);
+    return !!grid && !!chip && grid.contains(chip);
   });
   ok(inGrid, 'the subcategories open inside the category grid, not below the form');
 

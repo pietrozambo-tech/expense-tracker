@@ -15,6 +15,7 @@ import { BulkCategoryModal } from './BulkCategoryModal';
 import { TripsSheet } from './TripsSheet';
 import { TripAssignModal } from './TripAssignModal';
 import { detectTrips, travelCategoryOf, type Trip } from '../lib/trips';
+import { clampYear, selectableMonths, selectableYears } from '../lib/periods';
 import { CURRENCIES, mineAmount } from '../utils/currency';
 import { byRecency } from '../lib/shared';
 import { AmountText } from './AmountText';
@@ -227,31 +228,27 @@ export function Activity({
   );
 
   // Get available years (only years with data)
-  const getAvailableYears = () => {
-    const years = new Set<string>();
-    typedTransactions.forEach(t => {
-      years.add(String(parseLocalDate(t.date).getFullYear()));
-    });
-    return Array.from(years).sort((a, b) => parseInt(b) - parseInt(a));
-  };
+  // Never a period that has not happened. Built from lib/periods so this tab,
+  // Trend and the Dashboard cannot disagree about what is browsable - one
+  // future-dated row used to put its month in this picker, and the list then
+  // showed spending that has not occurred.
+  const availableYears = selectableYears(typedTransactions.map((t) => t.date)).map(String);
+  const availableMonths = selectableMonths(
+    typedTransactions.map((t) => t.date),
+    parseInt(selectedYear, 10),
+  ).map(String);
 
-  // Get available months for the selected year (only months with data)
-  const getAvailableMonths = () => {
-    const year = parseInt(selectedYear);
-    const monthsSet = new Set<number>();
-    typedTransactions.forEach(t => {
-      const date = parseLocalDate(t.date);
-      if (date.getFullYear() === year) {
-        monthsSet.add(date.getMonth());
-      }
-    });
-    return Array.from(monthsSet)
-      .sort((a, b) => a - b)
-      .map(String);
-  };
-
-  const availableYears = getAvailableYears();
-  const availableMonths = getAvailableMonths();
+  // A restored view can point at a year that has since become unreachable -
+  // or was future when it was saved. Fall back to this year rather than render
+  // an empty list under a year the picker no longer offers.
+  useEffect(() => {
+    if (selectedYear === ALL_YEARS) return;
+    const clamped = String(clampYear(parseInt(selectedYear, 10)));
+    if (clamped !== selectedYear) {
+      setSelectedYear(clamped);
+      setSelectedMonth('year');
+    }
+  }, [selectedYear]);
 
   // A new filter is a new list: the cap starts over rather than carrying a
   // deep "Show more" from a different view.

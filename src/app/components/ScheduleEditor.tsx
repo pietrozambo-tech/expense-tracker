@@ -113,7 +113,11 @@ export function ScheduleEditor({
   const [means, setMeans] = useState<'change' | 'correction'>('change');
 
   const list = type === 'income' ? incomeCategories : categories;
-  const category = list.find((c) => c.id === categoryId) ?? list[0];
+  // No fallback to list[0]. It made the first category look chosen when
+  // nothing had been - a new schedule opened with Office Food already lit -
+  // and it made `valid` below lie, so Create was live and would have filed the
+  // row under whatever happened to sort first.
+  const category = list.find((c) => c.id === categoryId) ?? null;
   const amountValue = parseFloat(amount.replace(',', '.'));
   const valid = description.trim().length > 0 && amountValue > 0 && !!category && start >= today;
 
