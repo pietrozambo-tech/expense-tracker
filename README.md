@@ -154,11 +154,11 @@ does not, since "TRAVEL" on a trip export carries no information.
 
 Pass `--categories <your-backup.json>` so those subcategories use **your**
 names. Without it the script falls back to the app's seeded names, and if
-yours differ the import will offer to add them - with every proposal ticked by
-default, which is how a subcategory you deleted comes back on one tap. With
-it, a row whose kind you have no subcategory for is written without one rather
-than proposing a new chip. The travel category is found by id, so it works
-when yours is called `Viaggi`.
+yours differ the import offers to add them - unticked, so a subcategory you
+deliberately deleted does not come back unless you ask for it. With it, a row
+whose kind you have no subcategory for is written without one rather than
+proposing a new chip. The travel category is found by id, so it works when
+yours is called `Viaggi`.
 
 Nothing decisive means no subcategory rather than a guessed one. `--no-trip`
 keeps each row's own category instead, for a tricount that is a flatshare
@@ -170,6 +170,24 @@ taken - and a searchable word is the only grouping that survives the next trip
 arriving. Pick one spelling and keep it: the name becomes part of each row's
 dedupe identity, so re-importing the same trip under a different name would
 import it twice. The AI prompt asks for the same name when it detects a trip.
+
+**Loading a trip you are still on.** Import midway and again at the end, with
+the whole file the second time - there is no need to wait for the trip to
+finish. A row already in the ledger is recognised by date, type, amount,
+currency and description and skipped; the import summary says how many, so
+only what is new arrives. Two things to know. Spell the trip name identically
+both times, because it is part of that identity. And a row *edited in Tricount
+after your first import* - a share corrected, somebody added late - carries a
+different amount, so it reads as new and lands beside the old figure rather
+than replacing it. `--categories <your-backup.json>` compares the file against
+what you have already imported and names those rows first:
+
+```
+Against your backup: 12 already imported, 9 new, 1 changed.
+  2026-03-13  was 60.00 -> now 68.00   Azzorre - Hotel PD Sud
+```
+
+Fix or delete the stale row in the app before importing.
 
 Expect a trip to land across several months rather than in the week you took
 it - flights, hotels and cars are usually booked long before, and those rows
@@ -199,8 +217,9 @@ API allows.
 
 `pnpm test:tricount` covers the conversion (even and uneven splits, settling
 up, rounds you were not in, foreign currency, the refusals) and round-trips a
-converted file through the app's real `buildImport`, including re-import
-dedupe.
+converted file through the app's real `buildImport`, including the mid-trip
+then full-trip re-import: what is recognised, what a renamed trip does, and the
+edited-in-Tricount row that lands twice.
 
 ### Edge Functions
 

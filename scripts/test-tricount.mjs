@@ -386,6 +386,7 @@ try {
   copyFileSync(join(root, 'src/app/utils/currency.ts'), join(tmp, 'src/app/utils/currency.ts'));
   copyFileSync(join(root, 'src/app/i18n/store.ts'), join(tmp, 'src/app/i18n/store.ts'));
   copyFileSync(join(root, 'scripts/tricount-test/roundtrip.ts'), join(tmp, 'scripts/tricount-test/roundtrip.ts'));
+  copyFileSync(join(root, 'scripts/tricount-test/reimport.ts'), join(tmp, 'scripts/tricount-test/reimport.ts'));
 
   const bundle = join(tmp, 'roundtrip.mjs');
   execFileSync(process.execPath, [
@@ -393,6 +394,13 @@ try {
     '--bundle', '--format=esm', '--platform=node', `--outfile=${bundle}`, '--log-level=warning',
   ], { stdio: 'inherit' });
   execFileSync(process.execPath, [bundle], { stdio: 'inherit' });
+
+  const bundle2 = join(tmp, 'reimport.mjs');
+  execFileSync(process.execPath, [
+    esbuild, join(tmp, 'scripts/tricount-test/reimport.ts'),
+    '--bundle', '--format=esm', '--platform=node', `--outfile=${bundle2}`, '--log-level=warning',
+  ], { stdio: 'inherit' });
+  execFileSync(process.execPath, [bundle2], { stdio: 'inherit' });
 } catch {
   failed += 1;
 } finally {

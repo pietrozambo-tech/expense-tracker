@@ -581,7 +581,7 @@ export function convertEntry(entry, me, homeCurrency, trip = true, taxonomy = DE
 }
 
 /** Shared by both roads: convert, refuse on anything unclear, write, report. */
-function finish(rows, convert, { me, currency, out, title, tripName }) {
+function finish(rows, convert, { me, currency, out, title, tripName, ledger }) {
   const transactions = [];
   const skipped = { settlement: 0, 'not mine': 0, 'zero share': 0 };
   const problems = [];
@@ -668,6 +668,45 @@ delete it from ${out} before importing:`);
     for (const t of suspicious) console.log(`  ${t.date}  ${t.amount.toFixed(2).padStart(9)}  ${t.description}`);
   }
 
+  // Against what is already in the ledger, when a backup was supplied.
+  //
+  // Loading a trip midway and again at the end is the normal way to use this,
+  // and the app handles the ordinary case itself: a row it has already
+  // imported is recognised and skipped. What it CANNOT recognise is a row
+  // that changed in Tricount after the first import - somebody added to an
+  // old expense, an amount corrected - because the app matches on the
+  // amount. That row arrives as new, and the ledger quietly ends up holding
+  // both figures. Only a human can say which is right, so it is named here
+  // rather than resolved.
+  if (ledger) {
+    const fold = (d) => (d ?? '').trim().toLowerCase().replace(/\s+/g, ' ');
+    const byKey = new Map();
+    for (const t of ledger) {
+      if (t?.type !== 'expense' && t?.type !== 'income') continue;
+      byKey.set(`${t.date}|${fold(t.description)}`, Math.round(Number(t.amount) * 100) / 100);
+    }
+    let known = 0;
+    const changed = [];
+    for (const t of transactions) {
+      const had = byKey.get(`${t.date}|${fold(t.description)}`);
+      if (had === undefined) continue;
+      if (Math.abs(had - t.amount) < 0.005) known += 1;
+      else changed.push({ ...t, was: had });
+    }
+    const fresh = transactions.length - known - changed.length;
+    console.log(`\nAgainst your backup: ${known} already imported, ${fresh} new, ${changed.length} changed.`);
+    if (changed.length) {
+      console.log(`
+These exist in your ledger with a DIFFERENT amount - someone edited them in
+Tricount after your last import. The app matches on the amount, so it will not
+recognise them: they would import ALONGSIDE the old figures, counting twice.
+Fix each one in the app (or delete the old row) before importing:`);
+      for (const t of changed) {
+        console.log(`  ${t.date}  was ${t.was.toFixed(2)} -> now ${t.amount.toFixed(2)}   ${t.description}`);
+      }
+    }
+  }
+
   console.log(`
 Check the total against what Tricount shows as yours before importing.
 Then: Settings -> Import -> choose ${out}.`);
@@ -681,6 +720,7 @@ async function main() {
   // deliberately deleted - and the import dialog ticks every proposed chip by
   // default, so a name invented here comes back as a real one on one tap.
   let taxonomy = DEFAULT_TAXONOMY;
+  let ledger = null;
   if (args.categories) {
     let backup;
     try {
@@ -689,6 +729,9 @@ async function main() {
       throw new Error(`Could not read ${args.categories}: ${e.message}`);
     }
     taxonomy = travelTaxonomy(backup.categories ?? backup);
+    // The same file also says what is already in the ledger, which is what
+    // makes a second import of the same trip safe to reason about.
+    ledger = Array.isArray(backup.transactions) ? backup.transactions : null;
     if (!taxonomy.resolved) {
       throw new Error(`No travel category found in ${args.categories}. Is it a TracklyLab backup?`);
     }
@@ -744,6 +787,7 @@ async function main() {
     }
     finish(rows, (row) => convertExported(row, args.me, args.trip, taxonomy), {
     tripName: args.tripName,
+      ledger,
       me: args.me,
       currency: args.currency,
       out: args.out,
@@ -792,6 +836,7 @@ async function main() {
 
   finish(entries, (entry) => convertEntry(entry, args.me, args.currency, args.trip, taxonomy), {
     tripName: args.tripName,
+      ledger,
     me: args.me,
     currency: args.currency,
     out: args.out,
