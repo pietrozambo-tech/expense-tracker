@@ -249,6 +249,55 @@ const open = async () => {
   await ctx.close();
 }
 
+// ── the schedule form fits the phone it is on ─────────────────────────────
+//
+// Amount and Starts are both flex-1, so they are halves. They were not: a flex
+// item defaults to min-width:auto and refuses to shrink below its content, and
+// input[type=date] carries a wide intrinsic width - so the date column took
+// 175px of a 342px row and hung off the right edge of the screen. Measured at
+// 320px, the narrowest phone still in use, where the squeeze is worst.
+{
+  const ctx = await b.newContext({ viewport: { width: 320, height: 900 }, locale: 'en-GB' });
+  await ctx.route(/supabase\.co/, (r) => r.abort());
+  await ctx.addInitScript((cats) => {
+    const put = (k, v) => localStorage.setItem(`expense-tracker.v1.${k}`, typeof v === 'string' ? v : JSON.stringify(v));
+    localStorage.setItem('seeded', '1');
+    put('guest', 'true');
+    put('settings', { onboarded: true, userName: 'P', currency: 'EUR', hasSeenIntro: true, weekStartsOn: 1, language: 'en' });
+    put('nudges', { tips: false, recap: false });
+    put('categories', cats);
+    put('sources', [{ id: 'cash', kind: 'cash', mark: 'banknote', name: 'Cash', brand: '#2FA84F' }]);
+    put('transactions', []);
+  }, CATS);
+  const p = await ctx.newPage();
+  await p.goto(URL, { waitUntil: 'networkidle' });
+  await p.waitForTimeout(1500);
+  await p.getByRole('button', { name: 'Settings' }).first().click();
+  await p.waitForTimeout(600);
+  await p.getByText('Recurring', { exact: true }).first().click();
+  await p.waitForTimeout(600);
+  await p.getByText('Add a recurring transaction', { exact: false }).first().click();
+  await p.waitForTimeout(700);
+
+  const box = await p.evaluate(() => {
+    const date = document.querySelector('input[type="date"]');
+    const cols = [...date.closest('.flex').children];
+    const w = (el) => Math.round(el.getBoundingClientRect().width);
+    const sheet = date.closest('[class*="rounded-t"]') ?? document.body;
+    return {
+      cols: cols.map(w),
+      right: Math.round(date.getBoundingClientRect().right),
+      viewport: window.innerWidth,
+      overflow: sheet.scrollWidth - sheet.clientWidth,
+    };
+  });
+  ok(box.cols[0] === box.cols[1], `Amount and Starts are equal halves (${box.cols.join(' vs ')})`);
+  ok(box.right <= box.viewport, `and the date field ends inside the screen (${box.right} <= ${box.viewport})`);
+  ok(box.overflow <= 0, `with nothing scrolling sideways (${box.overflow}px)`);
+  await p.screenshot({ path: `${OUT}/schedule-320.png` });
+  await ctx.close();
+}
+
 console.log(fail.length ? `\n${fail.length} FAILED` : '\nall good');
 await b.close();
 process.exit(fail.length ? 1 : 0);

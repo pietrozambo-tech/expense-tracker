@@ -30,7 +30,7 @@ const LABEL: React.CSSProperties = { color: 'var(--ink-2)', fontSize: 12, fontWe
 // 16px, not the 15 the rest of this sheet uses: anything smaller makes iOS zoom
 // the page in when the field takes focus. See the floor in theme.css.
 const FIELD = 'w-full px-4 py-3 rounded-xl text-[16px]';
-const FIELD_STYLE: React.CSSProperties = { backgroundColor: 'var(--bg-field)', color: 'var(--ink)', border: 'none', outline: 'none' };
+const FIELD_STYLE: React.CSSProperties = { backgroundColor: 'var(--bg-field)', color: 'var(--ink)', border: 'none', outline: 'none', minWidth: 0 };
 
 /**
  * Create or edit a schedule.
@@ -204,8 +204,14 @@ export function ScheduleEditor({
             />
           </div>
 
+          {/* min-w-0 on both halves, or they are not halves.
+              A flex item defaults to min-width:auto, so it refuses to shrink
+              below its own content - and input[type=date] carries a wide
+              intrinsic width (Safari renders "29 Aug 2026" plus picker
+              chrome). The date column helped itself to 175px of a 342px row
+              and pushed the field off the right edge of the phone. */}
           <div className="flex gap-3">
-            <div className="flex-1">
+            <div className="flex-1 min-w-0">
               <div style={LABEL} className="mb-1.5">{t('sched.amount')}</div>
               <input
                 value={amount}
@@ -216,7 +222,7 @@ export function ScheduleEditor({
                 style={FIELD_STYLE}
               />
             </div>
-            <div className="flex-1">
+            <div className="flex-1 min-w-0">
               <div style={LABEL} className="mb-1.5">{t('sched.start')}</div>
               <input
                 type="date"
