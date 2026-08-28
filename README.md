@@ -61,10 +61,9 @@ Designed to take seconds.
 
 - **Amount first**, with a currency chip: the four mains plus a searchable list of ~150 currencies for that dinner in Bangkok.
 - **Expense or Income**, description, **date picker** and **recurrence** (see below).
-- **Categories in alphabetical order** with icons and colors; selecting one reveals its **subcategories inline**.
+- **Categories** with icons and colors; selecting one reveals its **subcategories inline**.
+- **Order the grid** from the pill beside the Category label: alphabetical (the default, and stable - the tile you want stays where it was) or **Most used**, counted from your whole ledger every time. The choice is remembered, and the schedule editor follows it.
 - **Source** - which account or card the money moved through, with your default preselected.
-
-- **Order the category grid** from the pill beside its label: alphabetical (the default, and stable - the tile you want stays where it was) or **Most used**, counted from your whole ledger every time. The choice is remembered, and the schedule editor follows it.
 
 ## 🔁 Recurring transactions
 
