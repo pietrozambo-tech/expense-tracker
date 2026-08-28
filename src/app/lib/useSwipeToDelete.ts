@@ -13,8 +13,13 @@ const AXIS_LOCK = 8; // px of movement before we commit the gesture to an axis
  * is left to the browser (the list scrolls), a horizontal lock calls
  * preventDefault on the (non-passive) touchmove so the page does NOT scroll
  * up/down while you swipe the row sideways.
+ *
+ * `enabled` is what selection mode turns off. There, a tap ticks the row and a
+ * sideways drag would reveal a delete action for one row while a bar at the
+ * bottom offers to delete all of them - two answers to the same question, on
+ * the same row, at the same time.
  */
-export function useSwipeToDelete() {
+export function useSwipeToDelete(enabled = true) {
   const ref = useRef<HTMLButtonElement | null>(null);
   const [translateX, setTranslateX] = useState(0);
   const [dragging, setDragging] = useState(false);
@@ -28,9 +33,15 @@ export function useSwipeToDelete() {
     setTranslateX(v);
   };
 
+  // A row left swiped open when selection mode starts would keep its delete
+  // action parked underneath while you tick it. Close it on the way in.
+  useEffect(() => {
+    if (!enabled && tx.current !== 0) apply(0);
+  }, [enabled]);
+
   useEffect(() => {
     const el = ref.current;
-    if (!el) return;
+    if (!el || !enabled) return;
 
     const begin = (x: number, y: number) => {
       g.current = { x, y, offset: tx.current, axis: 'none', moved: false, active: true };
@@ -82,7 +93,7 @@ export function useSwipeToDelete() {
       window.removeEventListener('mousemove', onMouseMove);
       window.removeEventListener('mouseup', finish);
     };
-  }, []);
+  }, [enabled]);
 
   const close = () => apply(0);
 

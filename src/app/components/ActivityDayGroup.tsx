@@ -16,6 +16,10 @@ interface ActivityDayGroupProps {
   /** Their unread changes, by transaction id. Passed through rather than
    *  derived here: one list feeds the dot, the shared view and these rows. */
   badges?: Map<string, 'new' | 'updated'>;
+  /** Selection mode, passed straight through to the rows. */
+  selectable?: boolean;
+  selectedIds?: Set<string>;
+  onToggleSelect?: (id: string) => void;
 }
 
 export function ActivityDayGroup({
@@ -24,7 +28,10 @@ export function ActivityDayGroup({
   onTransactionTap,
   onDeleteTransaction,
   currency,
-  badges
+  badges,
+  selectable = false,
+  selectedIds,
+  onToggleSelect
 }: ActivityDayGroupProps) {
   const isToday = (() => {
     const parsed = parseLocalDate(date);
@@ -104,6 +111,9 @@ export function ActivityDayGroup({
               onTap={onTransactionTap}
               onDelete={onDeleteTransaction}
               currency={currency}
+              selectable={selectable}
+              selected={selectedIds?.has(transaction.id) ?? false}
+              onToggleSelect={onToggleSelect}
             />
           ) : (
             <ExpenseItem
@@ -113,6 +123,9 @@ export function ActivityDayGroup({
               onDelete={onDeleteTransaction}
               currency={currency}
               badge={badges?.get(transaction.id) ?? null}
+              selectable={selectable}
+              selected={selectedIds?.has(transaction.id) ?? false}
+              onToggleSelect={onToggleSelect}
             />
           )
         )}

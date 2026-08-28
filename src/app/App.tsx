@@ -78,6 +78,7 @@ import {
   watchHousehold,
 } from './lib/householdCloud';
 import { buildImport, applyImportDecision, type ImportPayload, type ImportResult } from './lib/importData';
+import { applyBulkCategory, applyBulkDelete, applyBulkSource, planBulkDelete } from './lib/bulkEdit';
 import { ImportSummaryDialog } from './components/ImportSummaryDialog';
 import { ImportReviewDialog } from './components/ImportReviewDialog';
 import { buildBackup, downloadBackup, isBackupFile } from './lib/backup';
@@ -469,6 +470,9 @@ export default function App() {
   const [lastSyncedAt, setLastSyncedAt] = useState<number | null>(null);
   const [syncRetryTick, setSyncRetryTick] = useState(0);
   const [isModalOpen, setIsModalOpen] = useState(false); // Track if any modal is open
+  // Activity is picking rows. Separate from isModalOpen because the sheets it
+  // opens while selecting toggle that one off again on close.
+  const [activitySelecting, setActivitySelecting] = useState(false);
   const [isSaving, setIsSaving] = useState(false); // Track if save is in progress to prevent duplicate submissions
   
   // Track original values for change detection
@@ -2325,7 +2329,105 @@ export default function App() {
       duration: 1400,
     });
   };
-  
+
+  // ── Acting on a whole selection (Activity ▸ ⋯ ▸ Select) ───────────────────
+  //
+  // Activity owns the ticks; these own what happens to them. The split is not
+  // arbitrary: every hard part here needs something that screen has never been
+  // given - the recurring rules, the household, and the previous state to put
+  // back.
+
+  const runBulkCategory = (ids: string[], category: Category, subcategory: string | null) => {
+    hapticHeavy();
+    const set = new Set(ids);
+    setExpenses((prev) => applyBulkCategory(prev, set, category, subcategory));
+    setRefreshKey((k) => k + 1);
+    // Shared rows carry the new stamp, so the next reconciliation pushes the
+    // change up like any other edit - nothing extra to do here.
+  };
+
+  const runBulkSource = (ids: string[], sourceId: string) => {
+    hapticHeavy();
+    const set = new Set(ids);
+    setExpenses((prev) => applyBulkSource(prev, set, sourceId));
+    setRefreshKey((k) => k + 1);
+  };
+
+  /**
+   * A pending bulk delete, mid-question.
+   *
+   * Two questions can stand between the tap and the deletion - "N rows, worth
+   * this much, sure?" and "some of these repeat, how far?" - and the selection
+   * must survive both being cancelled. It lives here rather than in Activity
+   * because only the second one exists, and only App can tell.
+   */
+  const [bulkDelete, setBulkDelete] = useState<
+    { ids: string[]; onDone: () => void; step: 'confirm' | 'recurring' } | null
+  >(null);
+
+  const handleBulkDelete = (ids: string[], onDone: () => void) => {
+    if (ids.length === 0) return;
+    setBulkDelete({ ids, onDone, step: 'confirm' });
+  };
+
+  const runBulkDelete = (scope: 'one' | 'future') => {
+    const pending = bulkDelete;
+    if (!pending) return;
+    hapticHeavy();
+    const set = new Set(pending.ids);
+    const plan = planBulkDelete(set, expenses, recurringRules);
+    const next = applyBulkDelete(expenses, recurringRules, set, scope);
+
+    // What actually leaves, which on 'future' is more than was ticked.
+    const removed = expenses.filter((e) => !next.expenses.some((n) => n.id === e.id));
+    // The rules this touched, kept by id so undo can put back exactly those
+    // and nothing else - a sync landing inside the undo window must not be
+    // rolled back along with them.
+    const beforeById = new Map(recurringRules.map((r) => [r.id, r]));
+    const touchedRules = new Map(
+      next.rules.filter((r) => beforeById.get(r.id) !== r).map((r) => [r.id, beforeById.get(r.id)!]),
+    );
+
+    // A shared row exists on the server too, and absence is never read as a
+    // deletion there (that would wipe the ledger on a fresh device). One call
+    // for the batch, not one per row.
+    if (plan.shared.length && household?.remoteId) {
+      void tombstoneSharedItems(plan.shared.map(sharedIdOf)).catch(() => {});
+    }
+
+    setExpenses(next.expenses);
+    setRecurringRules(next.rules);
+    setRefreshKey((k) => k + 1);
+    pending.onDone();
+    setBulkDelete(null);
+
+    const n = removed.length;
+    // Undo puts the rows back and un-does the rule edits. It cannot un-send a
+    // tombstone, though: her device would have dropped its replica, and the
+    // row would come back here only to vanish on the next sync. So a batch
+    // with shared rows in it gets no undo, and the confirmation said so.
+    const undoable = plan.shared.length === 0;
+    toast.success(t(n === 1 ? 'sel.deleted.one' : 'sel.deleted.other', { n }), {
+      duration: undoable ? 6000 : 2200,
+      action: undoable
+        ? {
+            label: t('sel.undo'),
+            onClick: () => {
+              setExpenses((cur) => {
+                const have = new Set(cur.map((e) => e.id));
+                return [...cur, ...removed.filter((e) => !have.has(e.id))];
+              });
+              setRecurringRules((cur) => cur.map((r) => touchedRules.get(r.id) ?? r));
+              setRefreshKey((k) => k + 1);
+              toast.success(t(n === 1 ? 'sel.restored.one' : 'sel.restored.other', { n }), {
+                duration: 1600,
+              });
+            },
+          }
+        : undefined,
+    });
+  };
+
   // Get the correct categories based on transaction type
   const activeCategories = transactionType === 'expense' ? categories : incomeCategories;
   const selectedCategoryData = activeCategories.find(c => c.id === selectedCategory);
@@ -3260,12 +3362,17 @@ export default function App() {
             transactions={expenses}
             onEditTransaction={handleEditExpense}
             onDeleteTransaction={handleDeleteExpense}
+            onBulkDelete={handleBulkDelete}
+            onBulkCategory={runBulkCategory}
+            onBulkSource={runBulkSource}
+            onSelectModeChange={setActivitySelecting}
             onModalOpenChange={setIsModalOpen}
             sharedBadges={sharedBadges}
             categories={categories}
             incomeCategories={incomeCategories}
             currency={userCurrency}
             sources={activitySources}
+            assignableSources={pickableSources}
           />
         ) : (
           // Other tabs - Parent scrollable
@@ -3493,7 +3600,10 @@ export default function App() {
             appended directly to <body> blurs perfectly. Rather than bet on
             which engines share the quirk, hoist to where it provably works
             everywhere. */}
-        {currentTab !== 'add' && !isModalOpen && createPortal(
+        {/* activitySelecting: the selection bar stands exactly here, in the
+            same glass. Both mounted, and the dock's labels ghost up through
+            it. */}
+        {currentTab !== 'add' && !isModalOpen && !activitySelecting && createPortal(
           <>
             {/* The frost around the dock.
 
@@ -4002,6 +4112,60 @@ export default function App() {
           />
         </div>
       )}
+      {/* A bulk delete, asked about before it happens. Two dialogs, one after
+          the other: how much is going, and then - only when the selection
+          reaches into a schedule - how far it should reach. */}
+      {bulkDelete && (() => {
+        const plan = planBulkDelete(new Set(bulkDelete.ids), expenses, recurringRules);
+        const n = plan.rows.length;
+        if (n === 0) return null;
+        const total = formatAmountListView(
+          plan.rows.reduce((sum, t) => sum + Math.abs(mineAmount(t, userCurrency)), 0),
+          userCurrency,
+        );
+        if (bulkDelete.step === 'confirm') {
+          return (
+            <div className="relative z-[60]">
+              <ConfirmDialog
+                variant="danger"
+                title={t(n === 1 ? 'sel.delTitle.one' : 'sel.delTitle.other', { n })}
+                message={
+                  plan.shared.length
+                    ? t('sel.delBodyShared', { total, n: plan.shared.length })
+                    : t('sel.delBody', { total })
+                }
+                confirmLabel={t('common.delete')}
+                onConfirm={() =>
+                  plan.recurring.length
+                    ? setBulkDelete({ ...bulkDelete, step: 'recurring' })
+                    : runBulkDelete('one')
+                }
+                onCancel={() => setBulkDelete(null)}
+              />
+            </div>
+          );
+        }
+        return (
+          <div className="relative z-[60]">
+            <RecurringScopeDialog
+              variant="danger"
+              title={t('sel.recTitle')}
+              // Stopping the schedules reaches past the ticks - it takes every
+              // later occurrence of those chains too. Fair to offer, unfair to
+              // do quietly, so the extra rows are counted and named.
+              message={
+                t('sel.recBody', { n: plan.recurring.length }) +
+                (plan.collateral ? ` ${t('sel.recStopExtra', { n: plan.collateral })}` : '')
+              }
+              onlyThisLabel={t('sel.recOnly')}
+              futureLabel={t('sel.recStop')}
+              onOnlyThis={() => runBulkDelete('one')}
+              onFuture={() => runBulkDelete('future')}
+              onCancel={() => setBulkDelete(null)}
+            />
+          </div>
+        );
+      })()}
       {pendingRecurringDelete && (
         <div className="relative z-[60]">
           <RecurringScopeDialog

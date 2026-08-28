@@ -5,6 +5,7 @@ import { AmountText } from './AmountText';
 import { useState } from 'react';
 import { getCategoryIcon } from './categoryIcons';
 import { useSwipeToDelete } from '../lib/useSwipeToDelete';
+import { SelectDot } from './SelectDot';
 import { formatFullDate } from '../lib/dates';
 
 // The app's income green, the same one the Expenses/Income switches use. Money
@@ -37,13 +38,20 @@ interface IncomeItemProps {
   onDelete: (id: string) => void;
   currency: string; // fallback when the transaction has no currency of its own
   showDate?: boolean; // show the transaction date on the row (e.g. amount-sorted lists with no day headers)
+  /** Activity is in selection mode: a tick leads the row and a tap ticks it. */
+  selectable?: boolean;
+  selected?: boolean;
+  onToggleSelect?: (id: string) => void;
 }
 
 
 
-export function IncomeItem({ income, onTap, onDelete, currency, showDate = false }: IncomeItemProps) {
+export function IncomeItem({
+  income, onTap, onDelete, currency, showDate = false,
+  selectable = false, selected = false, onToggleSelect,
+}: IncomeItemProps) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const { ref, translateX, dragging, isOpen, close, handleTap, rowStyle } = useSwipeToDelete();
+  const { ref, translateX, dragging, isOpen, close, handleTap, rowStyle } = useSwipeToDelete(!selectable);
 
   const Icon = getCategoryIcon(income.category.icon);
   const transactionCurrency = income.currency || currency;
@@ -54,32 +62,38 @@ export function IncomeItem({ income, onTap, onDelete, currency, showDate = false
   return (
     <>
       <div className="relative overflow-hidden" style={{ backgroundColor: 'var(--bg-card)' }}>
-        {/* Delete action revealed by swiping the row left */}
-        <button
-          onClick={() => {
-            close();
-            setShowDeleteConfirm(true);
-          }}
-          aria-label="Delete income"
-          tabIndex={isOpen ? 0 : -1}
-          className="absolute right-0 top-0 bottom-0 w-20 flex items-center justify-center active:bg-red-600"
-          style={{ backgroundColor: 'var(--tone-danger)' }}
-        >
-          <Trash2 size={20} className="text-white" />
-        </button>
+        {/* Delete action revealed by swiping the row left. Not while selecting -
+            see ExpenseItem. */}
+        {!selectable && (
+          <button
+            onClick={() => {
+              close();
+              setShowDeleteConfirm(true);
+            }}
+            aria-label="Delete income"
+            tabIndex={isOpen ? 0 : -1}
+            className="absolute right-0 top-0 bottom-0 w-20 flex items-center justify-center active:bg-red-600"
+            style={{ backgroundColor: 'var(--tone-danger)' }}
+          >
+            <Trash2 size={20} className="text-white" />
+          </button>
+        )}
 
         {/* Swipeable row */}
         <button
           ref={ref}
-          onClick={() => handleTap(() => onTap(income.id))}
+          data-row-id={income.id}
+          onClick={() => (selectable ? onToggleSelect?.(income.id) : handleTap(() => onTap(income.id)))}
           className="w-full flex items-center gap-3 px-6 py-2.5 active:bg-neutral-100 min-h-[52px] relative"
           style={{
             ...rowStyle,
-            backgroundColor: 'var(--bg-card)',
+            backgroundColor: selected ? 'var(--wash-accent2)' : 'var(--bg-card)',
             transform: `translateX(${translateX}px)`,
             transition: dragging ? 'none' : 'transform 0.3s cubic-bezier(0.22, 1, 0.36, 1)',
           }}
         >
+          {selectable && <SelectDot on={selected} />}
+
           {/* Category Icon */}
           <div className={`flex-shrink-0 w-8 h-8 ${income.category.bgColor} rounded-lg flex items-center justify-center`}>
             <Icon className={`w-4 h-4 ${income.category.color}`} strokeWidth={2} />

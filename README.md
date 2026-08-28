@@ -37,6 +37,13 @@ Every transaction, in one searchable place.
 - **All / Expenses / Income** switch with net or per-type totals in the header.
 - **Filters**: year, month, one-off vs recurring, source, category and subcategory - plus **free-text search**.
 - **Tap to edit, swipe left to delete.**
+- **Select several at once** (⋯ ▸ Select): tick rows, then move them to another
+  category and subcategory, put them on an account, or delete them. Built for
+  the hour after an import, when forty rows landed in the catch-all with no
+  account on them. Select all takes everything the *filter* holds, not just the
+  rows painted so far; delete asks first with the count and the total, and can
+  be undone. When the selection reaches into a recurring schedule it asks once
+  whether to stop the schedules too, and says how many later rows that takes.
 - **Foreign-currency rows** show both the converted amount and the original (e.g. `-40.32€` over `-2,500.00₱`).
 - **CSV export** of exactly what you filtered - includes date, category, subcategory, source, original currency and amount, and the converted amount, ready for Excel or Sheets.
 

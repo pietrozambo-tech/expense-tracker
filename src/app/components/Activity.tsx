@@ -9,6 +9,9 @@ import { SubcategoryFilterModal } from './SubcategoryFilterModal';
 import { SourceFilterModal } from './SourceFilterModal';
 import { SearchModal } from './SearchModal';
 import { ExportScopeModal } from './ExportScopeModal';
+import { SourceSelectorModal } from './SourceSelectorModal';
+import { ActivitySelectionBar } from './ActivitySelectionBar';
+import { BulkCategoryModal } from './BulkCategoryModal';
 import { CURRENCIES, mineAmount } from '../utils/currency';
 import { byRecency } from '../lib/shared';
 import { AmountText } from './AmountText';
@@ -16,10 +19,10 @@ import { switchGlow } from './categoryColors';
 import { t } from '../i18n';
 import { monthsShort, daysShort } from '../i18n/store';
 import { toDateStr } from '../lib/recurrence';
-import { Download } from 'lucide-react';
+import { CheckSquare, Download, MoreVertical, X } from 'lucide-react';
 import { buildTransactionsCsv, downloadTransactionsCsv } from '../lib/csv';
 import { toast } from 'sonner';
-import type { Transaction, Source } from '../types';
+import type { Category, Transaction, Source } from '../types';
 import { parseLocalDate } from '../lib/dates';
 
 type ActivityTypeFilter = 'all' | 'expense' | 'income';
@@ -51,11 +54,38 @@ interface ActivityProps {
   weekStartsOn?: number;
   onEditTransaction: (id: string) => void;
   onDeleteTransaction: (id: string) => void;
+  /**
+   * Delete a whole selection.
+   *
+   * The confirmation, the "these repeat" question and the undo all live in
+   * App, because all three need the recurring rules and the household this
+   * screen has never been given. `onDone` is how App says the rows actually
+   * went - a cancelled confirmation must leave the selection exactly as the
+   * user built it.
+   */
+  onBulkDelete?: (ids: string[], onDone: () => void) => void;
+  onBulkCategory?: (ids: string[], category: Category, subcategory: string | null) => void;
+  onBulkSource?: (ids: string[], sourceId: string) => void;
+  /**
+   * Selection mode is on or off, so App can take the dock away.
+   *
+   * The action bar stands exactly where the dock stands, in the same dark
+   * glass - leave both mounted and the dock's labels ghost up through it.
+   * Reported separately from onModalOpenChange because a filter sheet closing
+   * would otherwise hand the dock back mid-selection.
+   */
+  onSelectModeChange?: (on: boolean) => void;
   onModalOpenChange?: (isOpen: boolean) => void;
   categories: any[];
   incomeCategories: any[];
   currency: string;
   sources: Source[];
+  /**
+   * The sources a row may be MOVED to, which is not the same list as the one
+   * you may filter by: a retired partner source stays filterable for as long
+   * as rows still wear it, and must never be assignable again.
+   */
+  assignableSources?: Source[];
   /** The household member's name, so a filtered export names who shared. */
   partnerName?: string;
   // One-shot: start with this type filter selected (e.g. 'Imported' from the
@@ -94,12 +124,17 @@ export function Activity({
   transactions,
   onEditTransaction,
   onDeleteTransaction,
+  onBulkDelete,
+  onBulkCategory,
+  onBulkSource,
+  onSelectModeChange,
   onModalOpenChange,
   sharedBadges,
   categories,
   incomeCategories,
   currency,
   sources,
+  assignableSources,
   partnerName,
   preset,
   onPresetConsumed,
@@ -434,6 +469,61 @@ export function Activity({
   // decimals and no BOM, the other the opposite).
   const [exportScopeOpen, setExportScopeOpen] = useState(false);
 
+  // ── Selecting several rows at once ───────────────────────────────────────
+  //
+  // Entered from the header's overflow menu. While it is on, the type switch
+  // and the filter bar step aside: changing the period mid-selection would
+  // leave rows ticked that are no longer on screen, and a selection you cannot
+  // see is how people delete things they never looked at.
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [selectMode, setSelectMode] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(() => new Set());
+  const [bulkCategoryOpen, setBulkCategoryOpen] = useState(false);
+  const [bulkSourceOpen, setBulkSourceOpen] = useState(false);
+
+  // What the actions will actually touch: the ticked rows that are still in
+  // the list. Re-derived from the filtered set every render rather than
+  // trusted from the Set, so a row that a sync removed under us cannot be
+  // counted in the header or handed to a delete.
+  const selectedRows = selectMode ? filteredTransactions.filter((t) => selected.has(t.id)) : [];
+  const selectedIds = selectedRows.map((t) => t.id);
+  const selectedTotal = selectedRows.reduce((sum, t) => sum + Math.abs(mineAmount(t, currency)), 0);
+  // Expenses and income are two different category lists; one selection cannot
+  // be filed under both. The bar still offers it and says why on tap.
+  const selectedKinds = new Set(selectedRows.map((t) => t.type));
+
+  // Told rather than derived, and cleaned up on unmount: leaving the tab with
+  // rows ticked must not leave App believing the dock is still hidden.
+  useEffect(() => {
+    onSelectModeChange?.(selectMode);
+    return () => {
+      if (selectMode) onSelectModeChange?.(false);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectMode]);
+
+  const exitSelect = () => {
+    setSelectMode(false);
+    setSelected(new Set());
+    setBulkCategoryOpen(false);
+    setBulkSourceOpen(false);
+  };
+
+  const toggleSelect = (id: string) =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+
+  // Everything the FILTER holds, not everything the list has painted. The list
+  // stops at RENDER_CAP rows; "select all" over that would quietly mean "the
+  // first 250 of your 400", delete them, and look like it had finished.
+  const allSelected = selectedRows.length > 0 && selectedRows.length === filteredTransactions.length;
+  const toggleSelectAll = () =>
+    setSelected(allSelected ? new Set() : new Set(filteredTransactions.map((t) => t.id)));
+
   // The filters in force, worded the way they read on screen.
   // Type-filter values stay canonical ('One-off', ...) - App presets and the
   // row filter compare them - so display goes through this map.
@@ -501,6 +591,46 @@ export function Activity({
     <div className="flex flex-col flex-1 min-h-0" style={{ backgroundColor: 'var(--bg-page)' }}>
       {/* Fixed Header - Always Visible */}
       <div className="flex-shrink-0 pt-0" style={{ backgroundColor: 'var(--bg-page)' }}>
+        {selectMode ? (
+          // The header the selection gets: what is ticked, what it comes to,
+          // and the two ways out. The count is the only claim on this screen
+          // about rows that may be scrolled past the cap, so it carries the
+          // total with it - a figure is checkable, "37 selected" is not.
+          <div className="px-6 pb-4 flex items-start justify-between gap-3">
+            <div className="flex items-start gap-3 min-w-0">
+              <button
+                data-sel-done
+                onClick={exitSelect}
+                aria-label={t('common.done')}
+                className="flex-shrink-0 w-9 h-9 flex items-center justify-center rounded-full transition-colors active:bg-neutral-200"
+                style={{ backgroundColor: 'var(--bg-inset)' }}
+              >
+                <X size={18} style={{ color: 'var(--ink)' }} />
+              </button>
+              <div className="min-w-0">
+                <h1
+                  data-sel-count
+                  style={{ color: 'var(--ink)', fontSize: '24px', fontWeight: '800', letterSpacing: '-0.6px' }}
+                >
+                  {selectedRows.length ? t('sel.count', { n: selectedRows.length }) : t('sel.none')}
+                </h1>
+                {selectedRows.length > 0 && (
+                  <p style={{ color: 'var(--ink-2)', fontSize: '14px', marginTop: '2px' }}>
+                    <AmountText amount={selectedTotal} currency={currency} decimals={2} />
+                  </p>
+                )}
+              </div>
+            </div>
+            <button
+              data-sel-all
+              onClick={toggleSelectAll}
+              className="flex-shrink-0 text-sm font-semibold px-2 py-1.5 rounded-lg active:bg-neutral-100"
+              style={{ color: 'var(--accent-ink)' }}
+            >
+              {allSelected ? t('sel.clear') : t('sel.all')}
+            </button>
+          </div>
+        ) : (
         <div className="px-6 pb-4 flex items-center justify-between">
           <div className="flex-1">
             <h1 style={{ color: 'var(--ink)', fontSize: '30px', fontWeight: '800', letterSpacing: '-1px' }}>{t('act.title')}</h1>
@@ -537,18 +667,73 @@ export function Activity({
               </div>
             )}
           </div>
+          {/* Export used to be its own button here. It now shares an overflow
+              menu with Select: two round buttons side by side on a 390px header
+              start crowding the week strip, and neither is an everyday action -
+              you export a few times a year and tidy up after an import. */}
           {filteredTransactions.length > 0 && (
-            <button
-              onClick={downloadActivity}
-              className="flex-shrink-0 w-9 h-9 flex items-center justify-center rounded-full transition-colors active:bg-neutral-200"
-              style={{ backgroundColor: 'var(--bg-inset)' }}
-            >
-              <Download size={18} style={{ color: 'var(--ink)' }} />
-            </button>
+            <div className="relative flex-shrink-0">
+              <button
+                data-act-more
+                aria-label={t('act.ariaMore')}
+                onClick={() => setMenuOpen((v) => !v)}
+                className="w-9 h-9 flex items-center justify-center rounded-full transition-colors active:bg-neutral-200"
+                style={{ backgroundColor: 'var(--bg-inset)' }}
+              >
+                <MoreVertical size={18} style={{ color: 'var(--ink)' }} />
+              </button>
+              {menuOpen && (
+                <>
+                  {/* Catches the tap that closes it, including one on the
+                      button itself - which would otherwise toggle it back open
+                      through the backdrop and leave the menu stuck. */}
+                  <div className="fixed inset-0 z-[55]" onClick={() => setMenuOpen(false)} />
+                  <div
+                    data-act-menu
+                    className="absolute right-0 top-11 z-[56] rounded-2xl overflow-hidden"
+                    style={{
+                      minWidth: 168,
+                      backgroundColor: 'var(--bg-card)',
+                      border: '1px solid var(--line-2)',
+                      boxShadow: '0 12px 28px rgba(0,0,0,0.16)',
+                    }}
+                  >
+                    <button
+                      data-act-menu-export
+                      onClick={() => {
+                        setMenuOpen(false);
+                        downloadActivity();
+                      }}
+                      className="w-full flex items-center gap-3 px-4 py-3 text-left active:bg-neutral-100"
+                      style={{ color: 'var(--ink)', fontSize: 14, fontWeight: 500 }}
+                    >
+                      <Download size={16} style={{ color: 'var(--ink-2)' }} />
+                      {t('act.menu.export')}
+                    </button>
+                    <div style={{ height: 1, backgroundColor: 'var(--line-2)' }} />
+                    <button
+                      data-act-menu-select
+                      onClick={() => {
+                        setMenuOpen(false);
+                        setSelectMode(true);
+                      }}
+                      className="w-full flex items-center gap-3 px-4 py-3 text-left active:bg-neutral-100"
+                      style={{ color: 'var(--ink)', fontSize: 14, fontWeight: 500 }}
+                    >
+                      <CheckSquare size={16} style={{ color: 'var(--ink-2)' }} />
+                      {t('act.menu.select')}
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
           )}
         </div>
+        )}
 
-        {/* All / Expenses / Income type filter */}
+        {/* All / Expenses / Income type filter. Both this and the filter bar
+            below are gone while selecting - see the note on selectMode. */}
+        {!selectMode && (<>
         <div className="px-6 pb-3">
           <div className="relative flex p-1 rounded-full" style={{ backgroundColor: 'var(--bg-track)' }}>
             <div
@@ -624,6 +809,7 @@ export function Activity({
           onCategoryClear={() => { setCategoryFilter('All'); setSubcategoryFilter('All'); }}
           onSubcategoryClear={() => setSubcategoryFilter('All')}
         />
+        </>)}
       </div>
 
       {/* Scrollable Transaction List */}
@@ -650,6 +836,9 @@ export function Activity({
                   onDelete={onDeleteTransaction}
                   currency={currency}
                   showDate
+                  selectable={selectMode}
+                  selected={selected.has(transaction.id)}
+                  onToggleSelect={toggleSelect}
                 />
               ) : (
                 <ExpenseItem
@@ -660,6 +849,9 @@ export function Activity({
                   currency={currency}
                   showDate
                   badge={sharedBadges?.get(transaction.id) ?? null}
+                  selectable={selectMode}
+                  selected={selected.has(transaction.id)}
+                  onToggleSelect={toggleSelect}
                 />
               ),
             )}
@@ -701,6 +893,9 @@ export function Activity({
                     onDeleteTransaction={onDeleteTransaction}
                     currency={currency}
                     badges={sharedBadges}
+                    selectable={selectMode}
+                    selectedIds={selected}
+                    onToggleSelect={toggleSelect}
                   />
                 ))}
                 {hidden > 0 && (
@@ -781,6 +976,71 @@ export function Activity({
           onClose={() => setExportScopeOpen(false)}
         />
       )}
+
+      {/* Selection mode: the bar takes the dock's place, and the two pickers
+          are the same ones the rest of the app uses. */}
+      {selectMode && (
+        <ActivitySelectionBar
+          count={selectedRows.length}
+          onCategory={() => {
+            if (selectedKinds.size > 1) {
+              toast.error(t('sel.mixed'));
+              return;
+            }
+            setBulkCategoryOpen(true);
+            onModalOpenChange?.(true);
+          }}
+          onSource={() => {
+            setBulkSourceOpen(true);
+            onModalOpenChange?.(true);
+          }}
+          onDelete={() => onBulkDelete?.(selectedIds, exitSelect)}
+        />
+      )}
+
+      {bulkCategoryOpen && (
+        <BulkCategoryModal
+          count={selectedRows.length}
+          categories={selectedKinds.has('income') ? incomeCategories : categories}
+          onClose={() => {
+            setBulkCategoryOpen(false);
+            onModalOpenChange?.(false);
+          }}
+          onApply={(category, subcategory) => {
+            const n = selectedIds.length;
+            onBulkCategory?.(selectedIds, category, subcategory);
+            onModalOpenChange?.(false);
+            toast.success(
+              t(n === 1 ? 'sel.moved.one' : 'sel.moved.other', {
+                n,
+                name: subcategory ? `${category.name} - ${subcategory}` : category.name,
+              }),
+              { duration: 1800 },
+            );
+            exitSelect();
+          }}
+        />
+      )}
+
+      <SourceSelectorModal
+        isOpen={bulkSourceOpen}
+        sources={assignableSources ?? sources}
+        title={t('sel.srcTitle')}
+        onClose={() => {
+          setBulkSourceOpen(false);
+          onModalOpenChange?.(false);
+        }}
+        onSelect={(sourceId) => {
+          const n = selectedIds.length;
+          const name = (assignableSources ?? sources).find((s) => s.id === sourceId)?.name ?? '';
+          onBulkSource?.(selectedIds, sourceId);
+          onModalOpenChange?.(false);
+          toast.success(t(n === 1 ? 'sel.onSource.one' : 'sel.onSource.other', { n, name }), {
+            duration: 1800,
+          });
+          exitSelect();
+        }}
+      />
     </div>
   );
 }
