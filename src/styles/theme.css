@@ -155,8 +155,22 @@
     @apply border-border outline-ring/50;
   }
 
+  /* The app's own tokens, not the shadcn ones.
+   *
+   * bg-background reads --background, whose dark value lives under a `.dark`
+   * class that nothing in this app ever sets: dark mode is
+   * html[data-theme="dark"] (lib/themeMode.ts). So body stayed light-mode
+   * cream at night - invisible until something let it show through, which the
+   * Dashboard drill-down does: its scrim is fixed inset-0, and the strip
+   * above the app's own background rendered as scrim-over-cream, a pale grey
+   * bar across the status bar area. (The toast had the same root cause.)
+   *
+   * --bg-page and --ink flip with data-theme, so body now follows the app in
+   * both themes. The rest of the shadcn token block is dead weight - the only
+   * consumer of that kit left is ui/sonner.tsx, which reads app tokens too. */
   body {
-    @apply bg-background text-foreground;
+    background-color: var(--bg-page);
+    color: var(--ink);
   }
 
   /**

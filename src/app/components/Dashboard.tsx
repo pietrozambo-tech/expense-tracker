@@ -637,20 +637,40 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
   }, [view, viewStateRef, timePeriodType, selectedMonth, selectedQuarter, selectedYear, transactionType, expandedCategory, drilldownContext, drilldownSortBy, comparisonBaseline, categorySortBy, cumulativeBenchmark]);
 
 
-  // Prevent background scroll when drilldown is open
+  // Prevent background scroll when the drilldown is open, and carry the
+  // dimming up into the status bar.
+  //
+  // The index.html viewport is not `viewport-fit=cover`, so in the installed
+  // app the layout viewport starts BELOW the status bar and that strip is
+  // painted by the body - which the sheet's `fixed inset-0` scrim cannot
+  // reach. Hence tinting the body to whatever the scrim makes of the page.
+  //
+  // That tint used to be the literal #999999, which is white dimmed 40%: the
+  // correct answer for the light theme and only for it. At night the page is
+  // #0E0E10, so the strip stayed a pale grey bar across the top of an
+  // otherwise dark screen. It is computed from the live token now, so it
+  // follows the theme - and any future change to --bg-page - on its own.
   useEffect(() => {
-    if (drilldownContext) {
-      document.body.style.overflow = 'hidden';
-      // Change status bar appearance for mobile by setting body background
-      // This helps the status bar area match the dimmed overlay
-      const originalBg = document.body.style.backgroundColor;
-      document.body.style.backgroundColor = '#999999'; // Matches the dimmed bg-black/40 look
-      
-      return () => {
-        document.body.style.overflow = '';
-        document.body.style.backgroundColor = originalBg;
-      };
-    }
+    if (!drilldownContext) return;
+
+    // 0.6 × the page colour: what `bg-black/40` composites to over it.
+    const dimmed = (() => {
+      const raw = getComputedStyle(document.documentElement).getPropertyValue('--bg-page').trim();
+      const hex = /^#([0-9a-f]{6})$/i.exec(raw);
+      if (!hex) return null; // token in some other notation - leave the strip alone
+      const n = parseInt(hex[1], 16);
+      const dim = (shift: number) => Math.round(((n >> shift) & 0xff) * 0.6);
+      return `rgb(${dim(16)}, ${dim(8)}, ${dim(0)})`;
+    })();
+
+    document.body.style.overflow = 'hidden';
+    const originalBg = document.body.style.backgroundColor;
+    if (dimmed) document.body.style.backgroundColor = dimmed;
+
+    return () => {
+      document.body.style.overflow = '';
+      document.body.style.backgroundColor = originalBg;
+    };
   }, [drilldownContext]);
 
   // Memoized drilldown transactions for performance and stability
