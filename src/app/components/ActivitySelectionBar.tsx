@@ -1,10 +1,13 @@
-import { Tag, Trash2, Wallet } from 'lucide-react';
+import { Plane, Tag, Trash2, Wallet } from 'lucide-react';
 import { t } from '../i18n';
 
 interface ActivitySelectionBarProps {
   count: number;
   onCategory: () => void;
   onSource: () => void;
+  /** Absent when the user has no travel category: without one there is nowhere
+   *  to file a trip, and the action would only ever explain itself. */
+  onTrip?: () => void;
   onDelete: () => void;
 }
 
@@ -24,6 +27,7 @@ export function ActivitySelectionBar({
   count,
   onCategory,
   onSource,
+  onTrip,
   onDelete,
 }: ActivitySelectionBarProps) {
   const none = count === 0;
@@ -64,7 +68,7 @@ export function ActivitySelectionBar({
     >
       <div
         data-sel-bar
-        className="relative w-full max-w-[430px] mx-auto grid grid-cols-3 items-center px-2 py-2 rounded-[26px] backdrop-blur-[26px] backdrop-saturate-150"
+        className={`relative w-full max-w-[430px] mx-auto grid ${onTrip ? 'grid-cols-4' : 'grid-cols-3'} items-center px-2 py-2 rounded-[26px] backdrop-blur-[26px] backdrop-saturate-150`}
         style={{
           backgroundColor: 'rgba(28, 28, 30, 0.84)',
           boxShadow: '0 10px 30px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.10)',
@@ -75,6 +79,7 @@ export function ActivitySelectionBar({
             the one thing worse than a refusal. */}
         {item('category', Tag, t('sel.category'), onCategory, none)}
         {item('source', Wallet, t('sel.account'), onSource, none)}
+        {onTrip && item('trip', Plane, t('sel.trip'), onTrip, none)}
         {item('delete', Trash2, t('sel.delete'), onDelete, none, true)}
       </div>
     </div>

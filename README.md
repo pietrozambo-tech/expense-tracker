@@ -38,12 +38,20 @@ Every transaction, in one searchable place.
 - **Filters**: year, month, one-off vs recurring, source, category and subcategory - plus **free-text search**.
 - **Tap to edit, swipe left to delete.**
 - **Select several at once** (⋯ ▸ Select): tick rows, then move them to another
-  category and subcategory, put them on an account, or delete them. Built for
-  the hour after an import, when forty rows landed in the catch-all with no
-  account on them. Select all takes everything the *filter* holds, not just the
+  category and subcategory, put them on an account, put them in a trip (or
+  take them out of one), or delete them. Built for the hour after an import,
+  when forty rows landed in the catch-all with no account on them - and for
+  the taxi you paid in cash that was never in the Tricount. Select all takes everything the *filter* holds, not just the
   rows painted so far; delete asks first with the count and the total, and can
   be undone. When the selection reaches into a recurring schedule it asks once
   whether to stop the schedules too, and says how many later rows that takes.
+- **Trips** (⋯ ▸ Trips): every trip in the ledger, each with its total and a
+  breakdown by subcategory, tap for its rows. Read out of the descriptions -
+  the name an import puts in front of every row (`Azores - Cena porto`) is a
+  trip's whole identity, so trips imported months ago appear with no
+  migration. Grouped by name **and** by time: two Formentera summers are two
+  trips, while the Azores' March flights and August dinners are one. The entry
+  only exists for someone who has trips. See `src/app/lib/trips.ts`.
 - **Foreign-currency rows** show both the converted amount and the original (e.g. `-40.32€` over `-2,500.00₱`).
 - **CSV export** of exactly what you filtered - includes date, category, subcategory, source, original currency and amount, and the converted amount, ready for Excel or Sheets.
 

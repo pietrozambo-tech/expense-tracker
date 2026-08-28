@@ -246,7 +246,8 @@ export const en = {
   'act.ariaMore': 'More actions',
 
   // Activity - selecting several rows at once
-  'sel.count': '{n} selected',
+  'sel.count.one': '1 selected',
+  'sel.count.other': '{n} selected',
   // Short on purpose: this line shares a 390px row with a round button and a
   // Select all pill, and Italian runs longer than English on both.
   'sel.none': 'Select',
@@ -282,6 +283,29 @@ export const en = {
   'sel.undo': 'Undo',
   'sel.restored.one': '1 transaction restored',
   'sel.restored.other': '{n} transactions restored',
+  'sel.trip': 'Trip',
+  'sel.tripTitle.one': 'Put 1 transaction in a trip',
+  'sel.tripTitle.other': 'Put {n} transactions in a trip',
+  'sel.tripNote': 'Anything not already in {cat} moves there - a trip is one block.',
+  'sel.tripNew': 'New trip...',
+  'sel.tripNewPh': 'Name it - e.g. Azores',
+  'sel.tripNone': 'No trip',
+  'sel.tripIncome': 'A trip is spending - select expenses only.',
+  'sel.tripNoCategory': 'You have no travel category, so there is nowhere to file a trip.',
+  'sel.inTrip.one': '1 transaction added to {name}',
+  'sel.inTrip.other': '{n} transactions added to {name}',
+  'sel.outTrip.one': '1 transaction taken out of its trip',
+  'sel.outTrip.other': '{n} transactions taken out of their trip',
+
+  // Trips
+  'act.menu.trips': 'Trips',
+  'trips.title': 'Trips',
+  'trips.meta.one': '1 trip',
+  'trips.meta.other': '{n} trips',
+  'trips.inAll': 'in all',
+  'trips.rows.one': '1 expense',
+  'trips.rows.other': '{n} expenses',
+  'trips.other': 'Other',
 
   // Recurring (upcoming recurring transactions)
   'set.scheduled': 'Recurring',

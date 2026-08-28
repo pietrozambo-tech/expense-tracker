@@ -1,4 +1,4 @@
-import { useState, useEffect, useLayoutEffect, useRef } from 'react';
+import { useState, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { FilterBar } from './FilterBar';
 import { ALL_YEARS } from './ActivityFilterSheets';
 import { ActivityDayGroup } from './ActivityDayGroup';
@@ -12,6 +12,9 @@ import { ExportScopeModal } from './ExportScopeModal';
 import { SourceSelectorModal } from './SourceSelectorModal';
 import { ActivitySelectionBar } from './ActivitySelectionBar';
 import { BulkCategoryModal } from './BulkCategoryModal';
+import { TripsSheet } from './TripsSheet';
+import { TripAssignModal } from './TripAssignModal';
+import { detectTrips, travelCategoryOf, type Trip } from '../lib/trips';
 import { CURRENCIES, mineAmount } from '../utils/currency';
 import { byRecency } from '../lib/shared';
 import { AmountText } from './AmountText';
@@ -19,7 +22,7 @@ import { switchGlow } from './categoryColors';
 import { t } from '../i18n';
 import { monthsShort, daysShort } from '../i18n/store';
 import { toDateStr } from '../lib/recurrence';
-import { CheckSquare, Download, MoreVertical, X } from 'lucide-react';
+import { CheckSquare, Download, MoreVertical, Plane, X } from 'lucide-react';
 import { buildTransactionsCsv, downloadTransactionsCsv } from '../lib/csv';
 import { toast } from 'sonner';
 import type { Category, Transaction, Source } from '../types';
@@ -66,6 +69,8 @@ interface ActivityProps {
   onBulkDelete?: (ids: string[], onDone: () => void) => void;
   onBulkCategory?: (ids: string[], category: Category, subcategory: string | null) => void;
   onBulkSource?: (ids: string[], sourceId: string) => void;
+  /** Put a selection in a trip, or take it out with `null`. */
+  onBulkTrip?: (ids: string[], name: string | null) => void;
   /**
    * Selection mode is on or off, so App can take the dock away.
    *
@@ -127,6 +132,7 @@ export function Activity({
   onBulkDelete,
   onBulkCategory,
   onBulkSource,
+  onBulkTrip,
   onSelectModeChange,
   onModalOpenChange,
   sharedBadges,
@@ -480,6 +486,18 @@ export function Activity({
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
   const [bulkCategoryOpen, setBulkCategoryOpen] = useState(false);
   const [bulkSourceOpen, setBulkSourceOpen] = useState(false);
+  const [tripsOpen, setTripsOpen] = useState(false);
+  const [tripAssignOpen, setTripAssignOpen] = useState(false);
+
+  // Trips are read out of the WHOLE ledger, never the filtered view: a trip's
+  // flights are booked months before it is taken, so any period would cut one
+  // in half. See lib/trips.ts.
+  const travelCategory = travelCategoryOf(categories);
+  const trips = useMemo(
+    () => detectTrips(transactions, travelCategory, (t) => mineAmount(t, currency)),
+    [transactions, travelCategory, currency],
+  );
+  const tripNames = useMemo(() => [...new Set(trips.map((t) => t.name))], [trips]);
 
   // What the actions will actually touch: the ticked rows that are still in
   // the list. Re-derived from the filtered set every render rather than
@@ -507,6 +525,27 @@ export function Activity({
     setSelected(new Set());
     setBulkCategoryOpen(false);
     setBulkSourceOpen(false);
+    setTripAssignOpen(false);
+  };
+
+  /**
+   * Show one trip's rows.
+   *
+   * All years, the travel category and the name as the search term - the trip
+   * IS its name in the description, so the filter that finds it is the same
+   * one a person would build by hand.
+   */
+  const openTrip = (trip: Trip) => {
+    setTripsOpen(false);
+    onModalOpenChange?.(false);
+    setActivityType('all');
+    setSelectedYear(ALL_YEARS);
+    setSelectedMonth('year');
+    setSubcategoryFilter('All');
+    setTypeFilter('All');
+    setSourceFilter('All');
+    if (travelCategory) setCategoryFilter(travelCategory.name);
+    setSearchQuery(trip.name);
   };
 
   const toggleSelect = (id: string) =>
@@ -617,7 +656,9 @@ export function Activity({
                   className="truncate"
                   style={{ color: 'var(--ink)', fontSize: '24px', fontWeight: '800', letterSpacing: '-0.6px' }}
                 >
-                  {selectedRows.length ? t('sel.count', { n: selectedRows.length }) : t('sel.none')}
+                  {selectedRows.length
+                    ? t(selectedRows.length === 1 ? 'sel.count.one' : 'sel.count.other', { n: selectedRows.length })
+                    : t('sel.none')}
                 </h1>
                 <p
                   data-sel-total
@@ -749,6 +790,27 @@ export function Activity({
                       <CheckSquare size={16} style={{ color: 'var(--ink-2)' }} />
                       {t('act.menu.select')}
                     </button>
+                    {/* Only for someone who has trips. For everyone else the
+                        menu is exactly what it was, which is the whole point
+                        of putting this here rather than on a screen. */}
+                    {trips.length > 0 && (
+                      <>
+                        <div style={{ height: 1, backgroundColor: 'var(--line-2)' }} />
+                        <button
+                          data-act-menu-trips
+                          onClick={() => {
+                            setMenuOpen(false);
+                            setTripsOpen(true);
+                            onModalOpenChange?.(true);
+                          }}
+                          className="w-full flex items-center gap-3 px-4 py-3 text-left active:bg-neutral-100"
+                          style={{ color: 'var(--ink)', fontSize: 14, fontWeight: 500 }}
+                        >
+                          <Plane size={16} style={{ color: 'var(--ink-2)' }} />
+                          {t('act.menu.trips')}
+                        </button>
+                      </>
+                    )}
                   </div>
                 </>
               )}
@@ -1020,7 +1082,59 @@ export function Activity({
             setBulkSourceOpen(true);
             onModalOpenChange?.(true);
           }}
+          onTrip={
+            travelCategory
+              ? () => {
+                  // A trip is spending. An income row cannot wear the travel
+                  // category at all, so it would take the name and then not be
+                  // in the trip - an edit that looks like it worked.
+                  if (selectedKinds.has('income')) {
+                    toast.error(t('sel.tripIncome'));
+                    return;
+                  }
+                  setTripAssignOpen(true);
+                  onModalOpenChange?.(true);
+                }
+              : undefined
+          }
           onDelete={() => onBulkDelete?.(selectedIds, exitSelect)}
+        />
+      )}
+
+      {tripAssignOpen && travelCategory && (
+        <TripAssignModal
+          count={selectedRows.length}
+          names={tripNames}
+          travel={travelCategory}
+          onClose={() => {
+            setTripAssignOpen(false);
+            onModalOpenChange?.(false);
+          }}
+          onApply={(name) => {
+            const n = selectedIds.length;
+            onBulkTrip?.(selectedIds, name);
+            onModalOpenChange?.(false);
+            toast.success(
+              name
+                ? t(n === 1 ? 'sel.inTrip.one' : 'sel.inTrip.other', { n, name })
+                : t(n === 1 ? 'sel.outTrip.one' : 'sel.outTrip.other', { n }),
+              { duration: 1800 },
+            );
+            exitSelect();
+          }}
+        />
+      )}
+
+      {tripsOpen && travelCategory && (
+        <TripsSheet
+          trips={trips}
+          travel={travelCategory}
+          currency={currency}
+          onOpen={openTrip}
+          onClose={() => {
+            setTripsOpen(false);
+            onModalOpenChange?.(false);
+          }}
         />
       )}
 

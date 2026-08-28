@@ -247,7 +247,8 @@ export const it: Record<keyof typeof en, string> = {
   'act.ariaMore': 'Altre azioni',
 
   // Activity - selezione multipla
-  'sel.count': '{n} selezionate',
+  'sel.count.one': '1 selezionata',
+  'sel.count.other': '{n} selezionate',
   'sel.none': 'Seleziona',
   'sel.hint': 'Tocca le righe',
   'sel.totalOf': 'in totale',
@@ -280,6 +281,29 @@ export const it: Record<keyof typeof en, string> = {
   'sel.undo': 'Annulla',
   'sel.restored.one': '1 transazione ripristinata',
   'sel.restored.other': '{n} transazioni ripristinate',
+  'sel.trip': 'Viaggio',
+  'sel.tripTitle.one': 'Metti 1 transazione in un viaggio',
+  'sel.tripTitle.other': 'Metti {n} transazioni in un viaggio',
+  'sel.tripNote': 'Quello che non è già in {cat} ci viene spostato: un viaggio è un blocco solo.',
+  'sel.tripNew': 'Nuovo viaggio...',
+  'sel.tripNewPh': 'Dagli un nome - es. Azzorre',
+  'sel.tripNone': 'Nessun viaggio',
+  'sel.tripIncome': 'Un viaggio sono spese: seleziona solo spese.',
+  'sel.tripNoCategory': 'Non hai una categoria viaggi, quindi non c\'è dove archiviare un viaggio.',
+  'sel.inTrip.one': '1 transazione aggiunta a {name}',
+  'sel.inTrip.other': '{n} transazioni aggiunte a {name}',
+  'sel.outTrip.one': '1 transazione tolta dal viaggio',
+  'sel.outTrip.other': '{n} transazioni tolte dal viaggio',
+
+  // Viaggi
+  'act.menu.trips': 'Viaggi',
+  'trips.title': 'Viaggi',
+  'trips.meta.one': '1 viaggio',
+  'trips.meta.other': '{n} viaggi',
+  'trips.inAll': 'in tutto',
+  'trips.rows.one': '1 spesa',
+  'trips.rows.other': '{n} spese',
+  'trips.other': 'Altro',
 
   // Ricorrenti (transazioni ricorrenti future)
   'set.scheduled': 'Ricorrenti',

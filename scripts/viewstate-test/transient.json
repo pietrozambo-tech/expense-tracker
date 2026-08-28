@@ -23,6 +23,8 @@
     "selectMode": "a remount means the ledger changed under the selection - a sync landed, an occurrence materialised - and rows the user never ticked would now be in it. Selection mode ends rather than carries on over a list that moved.",
     "selected": "ticks belong to the rows that were on screen when they were made; see selectMode",
     "bulkCategoryOpen": "a sheet is never mid-open across a remount",
-    "bulkSourceOpen": "a sheet is never mid-open across a remount"
+    "bulkSourceOpen": "a sheet is never mid-open across a remount",
+    "tripsOpen": "a sheet is never mid-open across a remount; opening a trip from it writes the FILTERS, and those are what persist",
+    "tripAssignOpen": "a sheet is never mid-open across a remount"
   }
 }

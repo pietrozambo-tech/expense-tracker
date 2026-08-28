@@ -79,6 +79,7 @@ import {
 } from './lib/householdCloud';
 import { buildImport, applyImportDecision, type ImportPayload, type ImportResult } from './lib/importData';
 import { applyBulkCategory, applyBulkDelete, applyBulkSource, planBulkDelete } from './lib/bulkEdit';
+import { applyBulkTrip, travelCategoryOf } from './lib/trips';
 import { ImportSummaryDialog } from './components/ImportSummaryDialog';
 import { ImportReviewDialog } from './components/ImportReviewDialog';
 import { buildBackup, downloadBackup, isBackupFile } from './lib/backup';
@@ -2353,6 +2354,19 @@ export default function App() {
     setRefreshKey((k) => k + 1);
   };
 
+  // Joining a trip, leaving one and moving between two are the same edit: a
+  // trip's identity is the name on the front of the description, so all three
+  // are one write with a different argument. Merging two spellings of the same
+  // trip falls out of it for free.
+  const runBulkTrip = (ids: string[], name: string | null) => {
+    const travel = travelCategoryOf(categories);
+    if (!travel) return;
+    hapticHeavy();
+    const set = new Set(ids);
+    setExpenses((prev) => applyBulkTrip(prev, set, name, travel));
+    setRefreshKey((k) => k + 1);
+  };
+
   /**
    * A pending bulk delete, mid-question.
    *
@@ -3365,6 +3379,7 @@ export default function App() {
             onBulkDelete={handleBulkDelete}
             onBulkCategory={runBulkCategory}
             onBulkSource={runBulkSource}
+            onBulkTrip={runBulkTrip}
             onSelectModeChange={setActivitySelecting}
             onModalOpenChange={setIsModalOpen}
             sharedBadges={sharedBadges}
