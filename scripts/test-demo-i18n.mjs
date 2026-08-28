@@ -32,6 +32,10 @@ import { setLanguage } from '${join(root, 'src/app/i18n/store.ts').replace(/\\/g
 import { defaultCategoriesFor, defaultIncomeCategoriesFor, droppedCategoryIdsFor } from '${join(root, 'src/app/components/categories.ts').replace(/\\/g, '/')}';
 import { getDemoTransactions } from '${join(root, 'src/app/lib/demoData.ts').replace(/\\/g, '/')}';
 
+// Loanwords and proper nouns: identical in both languages on purpose, so an
+// equality check must not read them as untranslated.
+const SHARED_WORDS = new Set(['Shopping', 'Sport', 'Tennis', 'Hotel', 'Streaming', 'Cloud', 'Royalties', 'Uber/Taxi', 'Cinema', 'Bar']);
+
 const gaps = demoTranslationGaps(mockExpenses);
 let failed = false;
 if (gaps.descriptions.length) {
@@ -65,6 +69,59 @@ for (const id of itDropped) {
   if (itIds.has(id)) {
     failed = true;
     console.error('Category ' + id + ' is marked dropped for Italian but still in the catalogue');
+  }
+}
+
+// No category may reach the Italian app still wearing English.
+//
+// localise() keeps the English name for any id the table does not mention, and
+// keeps the English SUBCATEGORIES for any entry that gives a name without
+// them. Both are silent: the category renders, it is simply in the wrong
+// language, which is how a catalogue ends up half Italian and half English.
+// Adding an English category without its Italian entry now fails here instead.
+const enCats = [...defaultCategoriesFor('en'), ...defaultIncomeCategoriesFor('en')];
+const itCats = new Map([...defaultCategoriesFor('it'), ...defaultIncomeCategoriesFor('it')].map((c) => [c.id, c]));
+for (const en of enCats) {
+  const it = itCats.get(en.id);
+  if (!it) {
+    // Absent is only legal when the language drops it on purpose.
+    if (!itDropped.has(en.id)) {
+      failed = true;
+      console.error('Category ' + en.id + ' has no Italian entry and is not marked dropped');
+    }
+    continue;
+  }
+  if (it.name === en.name && !SHARED_WORDS.has(en.name)) {
+    failed = true;
+    console.error('Category ' + en.id + ' is still English in Italian: "' + en.name + '"');
+  }
+  const enSubs = en.subcategories ?? [];
+  const itSubs = it.subcategories ?? [];
+  // Identical lists are only suspicious when they are not ALL loanwords -
+  // Abbonamenti really is Streaming and Cloud in both languages.
+  if (enSubs.length && enSubs.join('|') === itSubs.join('|') && !enSubs.every((x) => SHARED_WORDS.has(x))) {
+    failed = true;
+    console.error('Category ' + en.id + ' kept its English subcategories: ' + enSubs.join(', '));
+  }
+  for (const sub of itSubs) {
+    if (enSubs.includes(sub) && !SHARED_WORDS.has(sub)) {
+      failed = true;
+      console.error('Subcategory "' + sub + '" (' + en.id + ') is the English word in the Italian list');
+    }
+  }
+}
+
+// A subcategory name may only appear under ONE category: the filters match on
+// the name alone, so a name used twice pulls rows from both at once.
+for (const [lang, list] of [['en', defaultCategoriesFor('en')], ['it', defaultCategoriesFor('it')]]) {
+  const seen = new Map();
+  for (const c of list) {
+    for (const sub of c.subcategories ?? []) {
+      if (seen.has(sub)) {
+        failed = true;
+        console.error(lang + ': subcategory "' + sub + '" is under both ' + seen.get(sub) + ' and ' + c.id);
+      } else seen.set(sub, c.id);
+    }
   }
 }
 

@@ -1,7 +1,7 @@
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type ComponentType } from 'react';
 import { toast } from 'sonner';
 import { createPortal } from 'react-dom';
-import { BarChart3, Plus, List, X, Settings as SettingsIcon, TrendingUp, ChevronDown, Repeat, Split, Undo2 } from 'lucide-react';
+import { BarChart3, Plus, List, X, Settings as SettingsIcon, TrendingUp, ChevronDown, Repeat, Split, Trash2, Undo2 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { CURRENCIES, convertAmount, BASE_CURRENCY, formatAmountListView, formatAbbreviatedAmount, homeAmount, mineAmount } from './utils/currency';
 import type { Transaction, Source, RecurringRule, Category, Household, Person, Settlement, SharedRemoval } from './types';
@@ -333,6 +333,9 @@ export default function App() {
   const [expenses, setExpenses] = useState<Transaction[]>(loadTransactions);
   const [refreshKey, setRefreshKey] = useState(0);
   const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null);
+  // The open transaction's delete, asked about first - the same question the
+  // swipe path asks before it calls the same handler.
+  const [confirmDeleteEditing, setConfirmDeleteEditing] = useState(false);
   const [recurringRules, setRecurringRules] = useState<RecurringRule[]>(() => loadRecurringRules());
   // Shared expenses. household === null means the feature is OFF and no shared
   // surface exists anywhere - the app renders exactly as it did before.
@@ -414,10 +417,12 @@ export default function App() {
   // round-trip. Cleared below the moment the user lands on a tab that isn't
   // Activity or the editor.
   const activityViewRef = useRef<ActivityViewState | null>(null);
-  const [categories, setCategories] = useState(loadCategories);
-  const [incomeCategories, setIncomeCategories] = useState(loadIncomeCategories);
+  // The seeded fallback follows the stored language, so a missing key never
+  // drops an English catalogue into an Italian app.
+  const [categories, setCategories] = useState(() => loadCategories(loadSettings().language ?? 'en'));
+  const [incomeCategories, setIncomeCategories] = useState(() => loadIncomeCategories(loadSettings().language ?? 'en'));
   // Payment sources (Cash / banks) + the source pre-selected per direction
-  const [sources, setSources] = useState<Source[]>(loadSources);
+  const [sources, setSources] = useState<Source[]>(() => loadSources(loadSettings().language ?? 'en'));
   const [defaultSourceExpense, setDefaultSourceExpense] = useState(
     () => loadSettings().defaultSourceExpense || DEFAULT_SOURCE_EXPENSE
   );
@@ -3817,13 +3822,30 @@ export default function App() {
                   ? t('add.titleEdit')
                   : transactionType === 'income' ? t('add.titleNewIncome') : t('add.titleNewExpense')}
               </h3>
-              <button
-                onClick={handleCloseModal}
-                aria-label={t('common.close')}
-                className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-neutral-100 active:bg-neutral-200 transition-colors"
-              >
-                <X size={20} className="text-neutral-600" />
-              </button>
+              <div className="flex items-center gap-1">
+                {/* Deleting was reachable only by swiping the row in the list.
+                    Open the transaction to check something, decide it has to
+                    go, and you had to close, find the row again and swipe -
+                    so it sits beside the close button, where the decision is
+                    actually made. */}
+                {editingExpenseId && (
+                  <button
+                    data-edit-delete
+                    onClick={() => setConfirmDeleteEditing(true)}
+                    aria-label={t('common.delete')}
+                    className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-neutral-100 active:bg-neutral-200 transition-colors"
+                  >
+                    <Trash2 size={18} style={{ color: 'var(--tone-danger)' }} />
+                  </button>
+                )}
+                <button
+                  onClick={handleCloseModal}
+                  aria-label={t('common.close')}
+                  className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-neutral-100 active:bg-neutral-200 transition-colors"
+                >
+                  <X size={20} className="text-neutral-600" />
+                </button>
+              </div>
             </div>
 
             {/* Scrollable Form Content */}
@@ -4177,6 +4199,29 @@ export default function App() {
               onOnlyThis={() => runBulkDelete('one')}
               onFuture={() => runBulkDelete('future')}
               onCancel={() => setBulkDelete(null)}
+            />
+          </div>
+        );
+      })()}
+      {confirmDeleteEditing && editingExpenseId && (() => {
+        const txn = expenses.find((e) => e.id === editingExpenseId);
+        return (
+          <div className="relative z-[70]">
+            <ConfirmDialog
+              variant="danger"
+              title={txn?.type === 'income' ? t('del.txIncomeTitle') : t('del.txExpenseTitle')}
+              message={t('del.txBody', { name: txn?.description ?? '' })}
+              confirmLabel={t('common.delete')}
+              onConfirm={() => {
+                const id = editingExpenseId;
+                setConfirmDeleteEditing(false);
+                // Leave the sheet FIRST: a recurring row opens the "just this
+                // one or the whole chain" dialog, and that question belongs
+                // over the list, exactly where the swipe path asks it.
+                finishAddFlow(true);
+                handleDeleteExpense(id);
+              }}
+              onCancel={() => setConfirmDeleteEditing(false)}
             />
           </div>
         );

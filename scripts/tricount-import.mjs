@@ -351,7 +351,7 @@ const SEEDED_NAMES = {
   flights: 'Flights',
   lodging: 'Hotel',
   food: 'Food',
-  transport: 'Transportation',
+  transport: 'Transport',
   activities: 'Activities',
 };
 

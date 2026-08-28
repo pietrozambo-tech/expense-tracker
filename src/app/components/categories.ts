@@ -12,7 +12,7 @@ export const categories: Category[] = [
     color: 'text-amber-600',
     bgColor: 'bg-amber-50',
     selectedBg: 'bg-amber-100',
-    subcategories: ['Breakfast', 'Lunch', 'Snack'],
+    subcategories: ['Breakfast', 'Lunch', 'Coffee'],
     type: 'expense' as const
   },
   {
@@ -72,7 +72,7 @@ export const categories: Category[] = [
     color: 'text-purple-500',
     bgColor: 'bg-purple-50',
     selectedBg: 'bg-purple-100',
-    subcategories: ['Movies', 'Concerts', 'Clubbing'],
+    subcategories: ['Cinema', 'Concerts', 'Nightlife'],
     type: 'expense' as const
   },
   {
@@ -92,7 +92,7 @@ export const categories: Category[] = [
     color: 'text-green-600',
     bgColor: 'bg-green-50',
     selectedBg: 'bg-green-100',
-    subcategories: ['Tennis', 'Barry\'s'],
+    subcategories: ['Tennis', 'Gym'],
     type: 'expense' as const
   },
   {
@@ -122,7 +122,7 @@ export const categories: Category[] = [
     color: 'text-sky-600',
     bgColor: 'bg-sky-50',
     selectedBg: 'bg-sky-100',
-    subcategories: ['Public Transport', 'Uber/Taxi', 'Gasoline'],
+    subcategories: ['Public Transport', 'Uber/Taxi', 'Fuel'],
     type: 'expense' as const
   },
   {
@@ -132,7 +132,7 @@ export const categories: Category[] = [
     color: 'text-teal-500',
     bgColor: 'bg-teal-50',
     selectedBg: 'bg-teal-100',
-    subcategories: ['Flights', 'Hotel', 'Food', 'Activities', 'Transportation'],
+    subcategories: ['Flights', 'Hotel', 'Food', 'Activities', 'Transport'],
     type: 'expense' as const
   },
   {

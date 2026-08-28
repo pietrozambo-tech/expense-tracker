@@ -1,13 +1,11 @@
 import type { Category, Household, Person, RecurringRule, Settlement, SharedRemoval, Source, Transaction, UserSettings } from '../types';
+import { defaultCategoriesFor, defaultIncomeCategoriesFor } from '../components/categories';
 import {
-  categories as defaultCategories,
-  incomeCategories as defaultIncomeCategories,
-} from '../components/categories';
-import {
-  DEFAULT_SOURCES,
   DEFAULT_SOURCE_EXPENSE,
   DEFAULT_SOURCE_INCOME,
+  defaultSourcesFor,
 } from '../components/sources';
+import type { Language } from '../i18n/store';
 import { getItem, hydrate, removeItem, setItem } from './kv';
 import type { CountryVisit } from './travel';
 import { DEFAULT_NUDGE_PREFS, type NudgePrefs } from './nudges';
@@ -130,7 +128,8 @@ export const DEFAULT_SETTINGS: UserSettings = {
 export const loadSettings = () => read<UserSettings>(KEYS.settings, DEFAULT_SETTINGS);
 export const saveSettings = (settings: UserSettings) => write(KEYS.settings, settings);
 
-export const loadSources = () => read<Source[]>(KEYS.sources, DEFAULT_SOURCES);
+export const loadSources = (lang: Language = 'en') =>
+  read<Source[]>(KEYS.sources, defaultSourcesFor(lang));
 export const saveSources = (sources: Source[]) => write(KEYS.sources, sources);
 
 export const loadTransactions = () => read<Transaction[]>(KEYS.transactions, []);
@@ -140,11 +139,22 @@ export const saveRecurringRules = (rules: RecurringRule[]) => write(KEYS.recurri
 export const saveTransactions = (transactions: Transaction[]) =>
   write(KEYS.transactions, transactions);
 
-export const loadCategories = () => read<Category[]>(KEYS.categories, defaultCategories);
+/**
+ * The starter catalogue is the fallback, so it has to arrive in the user's
+ * language.
+ *
+ * These read the ENGLISH list before, whatever the app was set to: an Italian
+ * user who reached this path - a key that never got written, storage refusing
+ * a read - got Housing and Groceries under an Italian interface. The language
+ * is passed rather than read from the i18n store because this runs inside
+ * useState initialisers at boot, before anything has adopted a language.
+ */
+export const loadCategories = (lang: Language = 'en') =>
+  read<Category[]>(KEYS.categories, defaultCategoriesFor(lang));
 export const saveCategories = (categories: Category[]) => write(KEYS.categories, categories);
 
-export const loadIncomeCategories = () =>
-  read<Category[]>(KEYS.incomeCategories, defaultIncomeCategories);
+export const loadIncomeCategories = (lang: Language = 'en') =>
+  read<Category[]>(KEYS.incomeCategories, defaultIncomeCategoriesFor(lang));
 export const saveIncomeCategories = (categories: Category[]) =>
   write(KEYS.incomeCategories, categories);
 

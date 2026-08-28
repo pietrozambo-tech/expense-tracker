@@ -88,6 +88,11 @@ export function ScheduleEditor({
   // next occurrence makes "edit the amount" leave the cadence exactly alone.
   const [start, setStart] = useState(() => (rule ? nextDueDate(rule) ?? tomorrow : tomorrow));
   const [categoryId, setCategoryId] = useState(rule?.template.category?.id ?? '');
+  // A schedule could pick a category but never a subcategory, so every
+  // occurrence it stamped out arrived without one - and a rent that files
+  // itself under Housing with no Rent beneath it is a hole in the Trend
+  // breakdown that only fills if you edit each occurrence by hand.
+  const [subcategory, setSubcategory] = useState<string | null>(rule?.template.subcategory ?? null);
   const [sourceId, setSourceId] = useState(
     rule?.template.sourceId ?? (type === 'income' ? defaultSourceIncome : defaultSourceExpense) ?? '',
   );
@@ -134,6 +139,7 @@ export function ScheduleEditor({
     // Category ids do not cross the expense/income divide, so a stale one
     // would silently pick the wrong list's first entry.
     setCategoryId('');
+    setSubcategory(null);
     setSourceId((next === 'income' ? defaultSourceIncome : defaultSourceExpense) ?? '');
   };
 
@@ -374,7 +380,11 @@ export function ScheduleEditor({
                 return (
                   <button
                     key={c.id}
-                    onClick={() => setCategoryId(c.id)}
+                    onClick={() => {
+                      setCategoryId(c.id);
+                      // A subcategory belongs to the category above it.
+                      if (c.id !== categoryId) setSubcategory(null);
+                    }}
                     className="flex items-center gap-2 px-3 py-2.5 rounded-xl transition-colors"
                     style={{ backgroundColor: on ? 'var(--wash-accent)' : 'var(--bg-field)' }}
                   >
@@ -392,6 +402,35 @@ export function ScheduleEditor({
               })}
             </div>
           </div>
+
+          {(category?.subcategories?.length ?? 0) > 0 && (
+            <div>
+              <div style={LABEL} className="mb-1.5">{t('add.subcategory')}</div>
+              <div className="flex flex-wrap gap-2">
+                {category!.subcategories!.map((sub) => {
+                  const on = subcategory === sub;
+                  return (
+                    <button
+                      key={sub}
+                      data-sched-sub={sub}
+                      // Tapping the chosen one clears it: a subcategory is
+                      // optional here exactly as it is on the Add screen.
+                      onClick={() => setSubcategory(on ? null : sub)}
+                      className="px-3.5 py-1.5 rounded-lg text-sm border transition-colors"
+                      style={{
+                        backgroundColor: on ? 'var(--wash-accent2)' : 'var(--bg-field)',
+                        borderColor: on ? 'var(--accent-ink)' : 'transparent',
+                        color: on ? 'var(--accent-ink)' : 'var(--ink-2)',
+                        fontWeight: on ? 600 : 500,
+                      }}
+                    >
+                      {sub}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {sources.length > 0 && !partnerIsPaying && (
             <div>
@@ -438,7 +477,7 @@ export function ScheduleEditor({
                 amount: amountValue,
                 currency: rule?.template.currency || currency,
                 category: category!,
-                subcategory: rule?.template.subcategory,
+                subcategory: subcategory ?? undefined,
                 sourceId: partnerIsPaying && partner ? partnerSourceId(partner.id) : sourceId || undefined,
                 type,
                 rule: cadence,

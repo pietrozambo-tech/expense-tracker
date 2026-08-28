@@ -263,7 +263,9 @@ refuses(
   ok(trip('Cena Carne', 'UNCATEGORIZED').category === 'Travel',
     'on a trip every row is Travel, whatever it was spent on');
   ok(trip('Cena Carne', 'FOOD_AND_DRINK').subcategory === 'Food', 'a specific source category becomes the subcategory');
-  ok(trip('Macchina Pico', 'TRANSPORT').subcategory === 'Transportation', 'TRANSPORT lands on my Transportation');
+  // The app's own seeded name, which is what the fallback uses. A user whose
+  // list still says Transportation is matched by BUCKETS either way.
+  ok(trip('Macchina Pico', 'TRANSPORT').subcategory === 'Transport', 'TRANSPORT lands on the travel transport subcategory');
   ok(trip('Escursione Balene', 'ENTERTAINMENT').subcategory === 'Activities', 'ENTERTAINMENT lands on my Activities');
 
   // "TRAVEL" on a trip export says nothing - everything is travel - so the
