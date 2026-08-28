@@ -1,13 +1,14 @@
 import { useMemo, useState } from 'react';
 import { X, ChevronDown } from 'lucide-react';
 import { t } from '../i18n';
-import { translateRecurrence, numberLocale } from '../i18n/store';
+import { translateRecurrence, numberLocale, dateLocale } from '../i18n/store';
 import { CategorySelector } from './CategorySelector';
 import type { CategoryOrder } from '../lib/categoryOrder';
 import { SourceLogo } from './SourceLogo';
 import { switchGlow } from './categoryColors';
 import { CURRENCIES } from '../utils/currency';
 import { toDateStr, nextDueDate, repriceCandidate } from '../lib/recurrence';
+import { parseLocalDate } from '../lib/dates';
 import { Split, X as XIcon } from 'lucide-react';
 import { myShareOf, partnerSourceId } from '../lib/shared';
 import { formatAmountListView } from '../utils/currency';
@@ -97,6 +98,14 @@ export function ScheduleEditor({
   // itself under Housing with no Rent beneath it is a hole in the Trend
   // breakdown that only fills if you edit each occurrence by hand.
   const [subcategory, setSubcategory] = useState<string | null>(rule?.template.subcategory ?? null);
+
+  // Short and localised: "29 Aug 2026" fits half a 320px row with room to
+  // spare, which a full weekday-and-month date would not.
+  const startLabel = (() => {
+    const d = parseLocalDate(start);
+    if (isNaN(d.getTime())) return start;
+    return d.toLocaleDateString(dateLocale(), { day: 'numeric', month: 'short', year: 'numeric' });
+  })();
   const [sourceId, setSourceId] = useState(
     rule?.template.sourceId ?? (type === 'income' ? defaultSourceIncome : defaultSourceExpense) ?? '',
   );
@@ -232,14 +241,33 @@ export function ScheduleEditor({
             </div>
             <div className="flex-1 min-w-0">
               <div style={LABEL} className="mb-1.5">{t('sched.start')}</div>
-              <input
-                type="date"
-                value={start}
-                min={today}
-                onChange={(e) => setStart(e.target.value)}
-                className={FIELD}
-                style={FIELD_STYLE}
-              />
+              {/* The date the app draws, with the native control invisible on
+                  top of it.
+                  A bare input[type=date] is sized by the browser, not by us:
+                  iOS lays out its own value plus picker chrome and takes the
+                  width that needs, which is how this field ended up hanging
+                  off the right edge of the phone. min-width:0 made the two
+                  columns equal halves in engines that honour it and changed
+                  nothing where it is the CONTROL doing the sizing.
+                  Absolutely positioned inside a box our own text measures, its
+                  intrinsic width cannot push on anything - and the tap still
+                  lands on a real date input, so the native picker opens
+                  exactly as before. */}
+              <div className="relative w-full min-w-0 rounded-xl overflow-hidden" style={FIELD_STYLE}>
+                <div className="px-4 py-3 text-[16px] truncate" style={{ color: 'var(--ink)' }}>
+                  {startLabel}
+                </div>
+                <input
+                  type="date"
+                  data-sched-start
+                  aria-label={t('sched.start')}
+                  value={start}
+                  min={today}
+                  onChange={(e) => setStart(e.target.value)}
+                  className="absolute inset-0 w-full h-full opacity-0"
+                  style={{ minWidth: 0, WebkitAppearance: 'none', appearance: 'none', border: 'none', background: 'transparent' }}
+                />
+              </div>
             </div>
           </div>
 

@@ -284,20 +284,54 @@ const open = async () => {
   await p.waitForTimeout(700);
 
   const box = await p.evaluate(() => {
-    const date = document.querySelector('input[type="date"]');
-    const cols = [...date.closest('.flex').children];
+    const input = document.querySelector('[data-sched-start]');
+    const field = input.parentElement;              // the box WE draw
+    const cols = [...field.closest('.flex').children];
     const w = (el) => Math.round(el.getBoundingClientRect().width);
-    const sheet = date.closest('[class*="rounded-t"]') ?? document.body;
+    const sheet = field.closest('[class*="rounded-t"]') ?? document.body;
+    const cs = getComputedStyle(input);
     return {
       cols: cols.map(w),
-      right: Math.round(date.getBoundingClientRect().right),
+      right: Math.round(field.getBoundingClientRect().right),
+      inputRight: Math.round(input.getBoundingClientRect().right),
+      viewport: window.innerWidth,
+      overflow: sheet.scrollWidth - sheet.clientWidth,
+      positioned: cs.position === 'absolute',
+      label: field.textContent.trim(),
+    };
+  });
+  ok(box.cols[0] === box.cols[1], `Amount and Starts are equal halves (${box.cols.join(' vs ')})`);
+  ok(box.right <= box.viewport, `and the field ends inside the screen (${box.right} <= ${box.viewport})`);
+  ok(box.overflow <= 0, `with nothing scrolling sideways (${box.overflow}px)`);
+  // The point of the rebuild: the native control is laid out by us, not the
+  // other way round, so whatever width the browser wants for it cannot reach
+  // the layout. This is what the min-width fix alone could not guarantee.
+  ok(box.positioned, 'the native date control is positioned, so its own width cannot push the column');
+  ok(box.inputRight <= box.right, `and it cannot extend past the box we drew (${box.inputRight} <= ${box.right})`);
+  ok(/\d/.test(box.label), `while the date is still readable ("${box.label}")`);
+
+  // The closest this engine can get to the reported device. Safari lays out
+  // input[type=date] wider than Chromium does, which is why the flexbox fix
+  // alone was not enough; forcing the control to want 400px reproduces that
+  // condition and the layout must not move at all.
+  await p.addStyleTag({ content: 'input[type="date"]{min-width:400px !important;}' });
+  await p.waitForTimeout(300);
+  const forced = await p.evaluate(() => {
+    const input = document.querySelector('[data-sched-start]');
+    const field = input.parentElement;
+    const cols = [...field.closest('.flex').children];
+    const sheet = field.closest('[class*="rounded-t"]') ?? document.body;
+    return {
+      cols: cols.map((el) => Math.round(el.getBoundingClientRect().width)),
+      right: Math.round(field.getBoundingClientRect().right),
       viewport: window.innerWidth,
       overflow: sheet.scrollWidth - sheet.clientWidth,
     };
   });
-  ok(box.cols[0] === box.cols[1], `Amount and Starts are equal halves (${box.cols.join(' vs ')})`);
-  ok(box.right <= box.viewport, `and the date field ends inside the screen (${box.right} <= ${box.viewport})`);
-  ok(box.overflow <= 0, `with nothing scrolling sideways (${box.overflow}px)`);
+  ok(forced.cols[0] === forced.cols[1],
+    `a control demanding 400px leaves the halves equal (${forced.cols.join(' vs ')})`);
+  ok(forced.right <= forced.viewport && forced.overflow <= 0,
+    `and the field still ends inside the screen (${forced.right} <= ${forced.viewport}, overflow ${forced.overflow}px)`);
   await p.screenshot({ path: `${OUT}/schedule-320.png` });
   await ctx.close();
 }
