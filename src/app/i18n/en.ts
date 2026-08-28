@@ -460,6 +460,7 @@ export const en = {
   'toast.incCatAdded': 'Income category added',
   'toast.incCatUpdated': 'Income category updated',
   'toast.incCatDeleted': 'Income category deleted',
+  'toast.scheduledFrom': 'Scheduled from {date}. Nothing is recorded until then.',
   'toast.txDeleted': 'Expense deleted',
   'toast.txUpdated': 'Transaction updated',
   'toast.demoLoaded': 'Demo data loaded',

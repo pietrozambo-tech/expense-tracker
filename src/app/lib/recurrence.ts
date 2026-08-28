@@ -891,6 +891,38 @@ export function anchorForStart(start: string, rule: string): string {
  * March 31 -> anchor Jan 31, skip Feb 28; fires Mar 31, Apr 30, May 31 - the
  * month-end walk the anchor day implies, starting exactly where asked.
  */
+/**
+ * Starting a chain from the Add screen: does the row exist yet, or not?
+ *
+ * The two answers need different anchors, and getting it wrong is invisible in
+ * the data and glaring on screen. Occurrences generate strictly AFTER the
+ * anchor, because normally the anchor IS the first instance - the row the user
+ * just recorded. Anchor a chain on a date that has not arrived and the first
+ * thing the engine offers is the period after it: a rent set up on the 28th
+ * for the 1st announced itself as starting the following month.
+ *
+ * So a date still ahead is a schedule, not a payment. Nothing is recorded, and
+ * the anchor is backdated one period so the first output lands exactly on the
+ * chosen day - identical to a schedule made in Settings, which is the point:
+ * one intent, one behaviour, whichever screen it was expressed on.
+ *
+ * `today` is injected so this is answerable without waiting for a month to
+ * pass.
+ */
+export function planNewChain(
+  date: string,
+  rule: string,
+  today: Date = new Date(),
+): { record: boolean; anchorDate: string; skipDates: string[] } {
+  if (date > toDateStr(today)) {
+    const plan = anchorPlanForStart(date, rule);
+    return { record: false, anchorDate: plan.anchorDate, skipDates: plan.skipDates };
+  }
+  // Today or earlier: the money moved, the row is real, and it is the chain's
+  // first instance.
+  return { record: true, anchorDate: date, skipDates: [] };
+}
+
 export function anchorPlanForStart(
   start: string,
   rule: string,

@@ -157,6 +157,98 @@ const open = async () => {
   await ctx.close();
 }
 
+// ── a repeat set for a date that has not arrived ──────────────────────────
+//
+// The reported bug: on the 28th, a rent set for the 1st of next month
+// repeating monthly announced itself as starting the month AFTER that. A date
+// still ahead is a schedule, not a payment.
+{
+  const { ctx, p } = await open();
+  const AHEAD = 4;
+  await p.locator('.app-dock button').nth(2).click();
+  await p.waitForTimeout(800);
+
+  await p.locator('input[inputmode="decimal"]').first().fill('900');
+  await p.getByRole('button', { name: 'Housing' }).first().click();
+  await p.waitForTimeout(300);
+
+  // Walk the date forward with the chevron - the same way a person would.
+  for (let i = 0; i < AHEAD; i++) {
+    await p.locator('label[for="date-input"]').locator('xpath=following-sibling::button[1]').click();
+    await p.waitForTimeout(120);
+  }
+  await p.waitForTimeout(300);
+
+  await p.getByText('Never repeat').first().click();
+  await p.waitForTimeout(400);
+  await p.getByText('Every month', { exact: true }).first().click();
+  await p.waitForTimeout(400);
+
+  await p.getByRole('button', { name: /^(Save|Add)/ }).last().click();
+  await p.waitForTimeout(1000);
+
+  const state = await p.evaluate(() => ({
+    txns: JSON.parse(localStorage.getItem('expense-tracker.v1.transactions') ?? '[]'),
+    rules: JSON.parse(localStorage.getItem('expense-tracker.v1.recurring-rules') ?? '[]'),
+  }));
+  const chosen = new Date();
+  chosen.setDate(chosen.getDate() + AHEAD);
+  const pad = (n) => String(n).padStart(2, '0');
+  const chosenStr = `${chosen.getFullYear()}-${pad(chosen.getMonth() + 1)}-${pad(chosen.getDate())}`;
+
+  ok(state.txns.length === 2, `nothing is recorded for a day that has not arrived (${state.txns.length} rows, both seeded)`);
+  ok(state.rules.length === 1, `but the schedule exists (${state.rules.length})`);
+  // Backdated one period, which is what makes the FIRST fire land on the day
+  // picked rather than a month later.
+  const anchor = state.rules[0]?.anchorDate ?? '';
+  ok(anchor < chosenStr, `and is anchored before the chosen day (${anchor} < ${chosenStr})`);
+  ok(anchor.slice(8) === chosenStr.slice(8), `keeping the day of the month (${anchor.slice(8)})`);
+
+  // What the user actually reads.
+  await p.getByRole('button', { name: 'Settings' }).first().click();
+  await p.waitForTimeout(700);
+  await p.getByText('Recurring', { exact: true }).first().click();
+  await p.waitForTimeout(800);
+  await p.screenshot({ path: `${OUT}/schedule-from-add.png` });
+
+  // The line the user reads. "Next Tue, Sep 1" - it used to say Oct 1.
+  const screen = await p.locator('body').innerText();
+  // The app's own format on that line is "Sep 1", not en-GB's "1 Sept".
+  const short = (d) => `${d.toLocaleDateString('en-US', { month: 'short' })} ${d.getDate()}`;
+  const nextMonth = new Date(chosen);
+  nextMonth.setMonth(nextMonth.getMonth() + 1);
+  ok(screen.includes(short(chosen)),
+    `the screen announces the day asked for ("${short(chosen)}", ${AHEAD} days out)`);
+  ok(!screen.includes(short(nextMonth)),
+    `and not the month after it, which is what it used to say ("${short(nextMonth)}")`);
+  await ctx.close();
+}
+
+// ── the same repeat, dated today, still records the row ───────────────────
+{
+  const { ctx, p } = await open();
+  await p.locator('.app-dock button').nth(2).click();
+  await p.waitForTimeout(800);
+  await p.locator('input[inputmode="decimal"]').first().fill('50');
+  await p.getByRole('button', { name: 'Housing' }).first().click();
+  await p.waitForTimeout(250);
+  await p.getByText('Never repeat').first().click();
+  await p.waitForTimeout(400);
+  await p.getByText('Every month', { exact: true }).first().click();
+  await p.waitForTimeout(400);
+  await p.getByRole('button', { name: /^(Save|Add)/ }).last().click();
+  await p.waitForTimeout(1000);
+  const after = await p.evaluate(() => ({
+    txns: JSON.parse(localStorage.getItem('expense-tracker.v1.transactions') ?? '[]'),
+    rules: JSON.parse(localStorage.getItem('expense-tracker.v1.recurring-rules') ?? '[]'),
+  }));
+  ok(after.txns.length === 3, `dated today, the money moved, so the row is recorded (${after.txns.length})`);
+  ok(after.rules.length === 1, 'and it still starts a chain');
+  const seed = after.txns.find((t) => t.amount === 50);
+  ok(!!seed?.recurrenceOf, 'with the row itself as the chain\'s first instance');
+  await ctx.close();
+}
+
 console.log(fail.length ? `\n${fail.length} FAILED` : '\nall good');
 await b.close();
 process.exit(fail.length ? 1 : 0);

@@ -80,6 +80,7 @@ import {
 import { buildImport, applyImportDecision, type ImportPayload, type ImportResult } from './lib/importData';
 import { applyBulkCategory, applyBulkDelete, applyBulkSource, planBulkDelete } from './lib/bulkEdit';
 import { applyBulkTrip, travelCategoryOf } from './lib/trips';
+import { formatFullDate } from './lib/dates';
 import { ImportSummaryDialog } from './components/ImportSummaryDialog';
 import { ImportReviewDialog } from './components/ImportReviewDialog';
 import { buildBackup, downloadBackup, isBackupFile } from './lib/backup';
@@ -94,7 +95,7 @@ import { SaveButton } from './components/SaveButton';
 import { DescriptionInput } from './components/DescriptionInput';
 import { Onboarding } from './components/Onboarding';
 import { useAuth } from './auth/AuthProvider';
-import { processRecurrence, buildRuleTemplate, newRuleId, occurrenceDueDate, isActiveRule, generatesOn, applyFutureEdit, findPastSeriesMatches, findUnclaimedSeriesRows, findGeneratedDuplicates, tagPastSeries, anchorForStart, anchorPlanForStart, toDateStr, chargeHistory, reanchorAfterClear, type SeriesClaim } from './lib/recurrence';
+import { processRecurrence, buildRuleTemplate, newRuleId, occurrenceDueDate, isActiveRule, generatesOn, applyFutureEdit, findPastSeriesMatches, findUnclaimedSeriesRows, findGeneratedDuplicates, tagPastSeries, anchorForStart, anchorPlanForStart, planNewChain, toDateStr, chargeHistory, reanchorAfterClear, type SeriesClaim } from './lib/recurrence';
 import { SeriesClaimDialog } from './components/SeriesClaimDialog';
 import type { ScheduleDraft } from './components/ScheduledManager';
 import { RecurringScopeDialog } from './components/RecurringScopeDialog';
@@ -2081,24 +2082,63 @@ export default function App() {
         updatedAt: new Date().toISOString()
       };
 
-      // A recurrence choice on a new transaction starts a chain: the rule's
-      // template is stamped onto future occurrences by the engine.
-      if (recurrence !== 'Never repeat') {
-        const rule: RecurringRule = {
-          id: newRuleId(),
-          rule: recurrence,
-          anchorDate: date,
-          template: buildRuleTemplate(newExpense),
-        };
-        newExpense.recurrenceOf = rule.id;
-        setRecurringRules((prev) => [...prev, rule]);
-        const matches = findPastSeriesMatches(expenses, newExpense);
-        if (matches.length > 0) setPendingBackTag({ rule, ids: matches.map((m) => m.id), name: newExpense.description });
+      // A recurrence choice on a new transaction starts a chain. Which chain
+      // depends on whether the date has happened yet, and the difference is
+      // the whole of a reported bug:
+      //
+      // Set a rent for the 1st of next month while today is the 28th, and the
+      // row was recorded straight away for a day that has not arrived, with
+      // the chain anchored ON it. Occurrences generate strictly AFTER the
+      // anchor, so the Scheduled screen then announced the FOLLOWING month -
+      // "next: 1 October" for a rent the user had just set up for 1 September.
+      // The September charge did exist, as that pre-recorded row, but every
+      // surface said otherwise, and a schedule you have to reason about is
+      // broken whatever the ledger holds.
+      //
+      // A date still ahead means a schedule, not a payment, so it behaves like
+      // one made in Settings: nothing is recorded now, and the anchor is
+      // backdated one period so the engine's FIRST output lands exactly on the
+      // day picked. A date today or past is a payment that happened, and keeps
+      // the old shape - the row is real, and it is the chain's first instance.
+      const chain = recurrence !== 'Never repeat' ? planNewChain(date, recurrence) : null;
+      const scheduledAhead = !!chain && !chain.record;
+
+      if (chain) {
+        if (!chain.record) {
+          setRecurringRules((prev) => [
+            ...prev,
+            {
+              id: newRuleId(),
+              rule: recurrence,
+              anchorDate: chain.anchorDate,
+              ...(chain.skipDates.length ? { skipDates: chain.skipDates } : {}),
+              template: buildRuleTemplate(newExpense),
+            },
+          ]);
+        } else {
+          const rule: RecurringRule = {
+            id: newRuleId(),
+            rule: recurrence,
+            anchorDate: chain.anchorDate,
+            template: buildRuleTemplate(newExpense),
+          };
+          newExpense.recurrenceOf = rule.id;
+          setRecurringRules((prev) => [...prev, rule]);
+          // Only worth asking about a chain that starts today or earlier: a
+          // schedule beginning next month has no past rows of its own.
+          const matches = findPastSeriesMatches(expenses, newExpense);
+          if (matches.length > 0) setPendingBackTag({ rule, ids: matches.map((m) => m.id), name: newExpense.description });
+        }
       }
 
-      // Add to expenses list
-      setExpenses([newExpense, ...expenses]);
-      track('transaction_added', { type: transactionType, hasSource: !!selectedSourceId });
+      // Add to expenses list - unless the whole point was that nothing is
+      // recorded until the day arrives.
+      if (!scheduledAhead) {
+        setExpenses([newExpense, ...expenses]);
+        track('transaction_added', { type: transactionType, hasSource: !!selectedSourceId });
+      } else {
+        track('schedule_added_from_add', { type: transactionType });
+      }
       
       // Force refresh of Dashboard and Activity
       setRefreshKey(prev => prev + 1);
@@ -2112,9 +2152,16 @@ export default function App() {
 
 
       hapticSuccess();
-      toast.success(t('toast.saved', { amt: formattedToastAmount, cat: categoryName ?? '' }), {
-        duration: 1400,
-      });
+      if (scheduledAhead) {
+        // Saving and seeing nothing appear in Activity reads as a failure, so
+        // this says both halves out loud: when it starts, and that the ledger
+        // is deliberately untouched until then.
+        toast.success(t('toast.scheduledFrom', { date: formatFullDate(date) }), { duration: 2600 });
+      } else {
+        toast.success(t('toast.saved', { amt: formattedToastAmount, cat: categoryName ?? '' }), {
+          duration: 1400,
+        });
+      }
     }
     
     finishAddFlow(wasEditing);

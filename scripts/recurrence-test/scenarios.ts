@@ -23,6 +23,7 @@ import {
   nextDueDate,
   upcomingSchedules,
   anchorForStart,
+  planNewChain,
   anchorPlanForStart,
   strandedRules,
   generatesOn,
@@ -211,6 +212,7 @@ scenarioNothingHidden();
 scenarioSkipPurge();
 scenarioReprice();
 scenarioMonthEndStart();
+scenarioAddScreenStart();
 // ── A shared bill stays shared, month after month ───────────────────────────
 // The rent is the clearest case for splitting there is, and it was the one
 // thing sharing could not survive: the chip on the Add screen applied to the
@@ -1019,4 +1021,63 @@ function scenarioMonthEndStart() {
   expect('nothing materialises before the chosen start',
     String(dates.filter((d) => d < '2026-03-31').length), '0');
   expect('and the first row IS the chosen start', dates[0], '2026-03-31');
+}
+
+// 18. Starting a chain from the Add screen, on a date that has not arrived.
+//
+// Reported on a real setup: on 28 August, a rent set for 1 September repeating
+// monthly announced itself as starting 1 OCTOBER. The September charge was
+// there - as a row recorded for a day that had not happened - but every
+// surface said the schedule began the month after, which is not a thing a
+// person should have to reconcile.
+//
+// A date still ahead is a schedule, not a payment: nothing recorded, anchor
+// backdated one period, first fire exactly on the chosen day.
+function scenarioAddScreenStart() {
+  heading('18. A chain started from Add, for a future date');
+  const AUG28 = new Date(2026, 7, 28);
+
+  const ahead = planNewChain('2026-09-01', 'Every month', AUG28);
+  expect('a future date records nothing now', String(ahead.record), 'false');
+  expect('and anchors one period back, so the first fire IS the day picked',
+    ahead.anchorDate, '2026-08-01');
+
+  const rule: RecurringRule = {
+    id: 'r-add', rule: 'Every month', anchorDate: ahead.anchorDate,
+    ...(ahead.skipDates.length ? { skipDates: ahead.skipDates } : {}),
+    template: { description: 'Affitto', amount: 900, currency: 'EUR', category: cat, type: 'expense' },
+  };
+  // The bug, in one line: this used to read 2026-10-01.
+  expect('the app announces the month the user asked for',
+    nextDueDates(rule, AUG28, 3).join(' '), '2026-09-01 2026-10-01 2026-11-01');
+
+  // Nothing is in the ledger until the day arrives, and then exactly one row.
+  expect('nothing materialises while the day is still ahead',
+    String(processRecurrence([], [rule], AUG28).transactions.length), '0');
+  expect('on the day, one row',
+    processRecurrence([], [rule], new Date(2026, 8, 1)).transactions.map((t) => t.date).join(' '),
+    '2026-09-01');
+  expect('and a month later, two - not three',
+    processRecurrence([], [rule], new Date(2026, 9, 1)).transactions.map((t) => t.date).sort().join(' '),
+    '2026-09-01 2026-10-01');
+
+  // Today and the past are unchanged: the row is real and IS the first
+  // instance, so the chain anchors on it and the engine takes it from there.
+  const now = planNewChain('2026-08-28', 'Every month', AUG28);
+  expect('today still records the row', String(now.record), 'true');
+  expect('anchored on the row itself', now.anchorDate, '2026-08-28');
+  const past = planNewChain('2026-08-01', 'Every month', AUG28);
+  expect('a past date too', String(past.record), 'true');
+  expect('anchored on the row itself', past.anchorDate, '2026-08-01');
+
+  // The month-end trap still applies on this road: a future 31st must not
+  // clamp its way onto the 28th forever.
+  const endOfMonth = planNewChain('2026-10-31', 'Every month', AUG28);
+  const emRule: RecurringRule = {
+    id: 'r-add-em', rule: 'Every month', anchorDate: endOfMonth.anchorDate,
+    ...(endOfMonth.skipDates.length ? { skipDates: endOfMonth.skipDates } : {}),
+    template: rule.template,
+  };
+  expect('a future month-end start fires on the day picked',
+    nextDueDates(emRule, AUG28, 3).join(' '), '2026-10-31 2026-11-30 2026-12-31');
 }

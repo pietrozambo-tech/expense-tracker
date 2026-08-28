@@ -458,6 +458,7 @@ export const it: Record<keyof typeof en, string> = {
   'toast.incCatAdded': 'Categoria di entrata aggiunta',
   'toast.incCatUpdated': 'Categoria di entrata aggiornata',
   'toast.incCatDeleted': 'Categoria di entrata eliminata',
+  'toast.scheduledFrom': 'Pianificata dal {date}. Fino ad allora non viene registrato nulla.',
   'toast.txDeleted': 'Transazione eliminata',
   'toast.txUpdated': 'Transazione aggiornata',
   'toast.demoLoaded': 'Dati di esempio caricati',
