@@ -103,11 +103,21 @@ const enterSelect = async (p) => {
   // ticked that are no longer on screen.
   ok(await p.locator('[data-period-chip]').count() === 0, 'and the filter bar steps aside while selecting');
 
+  // The header must not change height on the first tick. It used to grow a
+  // line when the total appeared, which pushed the whole list down a notch as
+  // you selected and pulled it back up on the last untick.
+  //
+  // Measured on the row already at the top: clicking scrolls a row into view
+  // first, so any row further down moves for a reason that is not the header.
+  const first = p.locator('[data-row-id]').first();
+  const firstId = await first.getAttribute('data-row-id');
+  const beforeY = (await first.boundingBox()).y;
+
   // The one regression that would matter most: a tap must tick, not navigate.
-  await p.locator('[data-row-id="e0"]').click();
+  await first.click();
   await p.waitForTimeout(300);
   ok(
-    await p.locator('[data-row-id="e0"] [data-select-dot="on"]').count() === 1,
+    await p.locator(`[data-row-id="${firstId}"] [data-select-dot="on"]`).count() === 1,
     'tapping a row ticks it',
   );
   ok(
@@ -116,7 +126,14 @@ const enterSelect = async (p) => {
   );
   ok(await p.locator('[data-sel-bar]').count() === 1, 'and stays on Activity rather than opening the row');
 
-  await p.locator('[data-row-id="e0"]').click();
+  const afterY = (await first.boundingBox()).y;
+  ok(Math.abs(afterY - beforeY) < 1, `the list does not shift when the first row is ticked (${beforeY} -> ${afterY})`);
+  // A figure on its own under a count reads as a stray measurement. It has to
+  // say what it is a total OF.
+  const totalLine = (await p.locator('[data-sel-total]').innerText()).trim();
+  ok(/in total$/.test(totalLine), `the amount says what it is ("${totalLine}")`);
+
+  await first.click();
   await p.waitForTimeout(250);
   ok(await p.locator('[data-select-dot="on"]').count() === 0, 'tapping again unticks it');
 

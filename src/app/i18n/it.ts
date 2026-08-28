@@ -248,7 +248,9 @@ export const it: Record<keyof typeof en, string> = {
 
   // Activity - selezione multipla
   'sel.count': '{n} selezionate',
-  'sel.none': 'Tocca per selezionare',
+  'sel.none': 'Seleziona',
+  'sel.hint': 'Tocca le righe',
+  'sel.totalOf': 'in totale',
   'sel.all': 'Seleziona tutto',
   'sel.clear': 'Deseleziona',
   'sel.delete': 'Elimina',

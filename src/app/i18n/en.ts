@@ -247,7 +247,12 @@ export const en = {
 
   // Activity - selecting several rows at once
   'sel.count': '{n} selected',
-  'sel.none': 'Tap to select',
+  // Short on purpose: this line shares a 390px row with a round button and a
+  // Select all pill, and Italian runs longer than English on both.
+  'sel.none': 'Select',
+  'sel.hint': 'Tap the rows',
+  // Follows the amount, so the figure is never a bare number under a count.
+  'sel.totalOf': 'in total',
   'sel.all': 'Select all',
   'sel.clear': 'Clear',
   'sel.delete': 'Delete',

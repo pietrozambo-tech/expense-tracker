@@ -592,12 +592,16 @@ export function Activity({
       {/* Fixed Header - Always Visible */}
       <div className="flex-shrink-0 pt-0" style={{ backgroundColor: 'var(--bg-page)' }}>
         {selectMode ? (
-          // The header the selection gets: what is ticked, what it comes to,
-          // and the two ways out. The count is the only claim on this screen
-          // about rows that may be scrolled past the cap, so it carries the
-          // total with it - a figure is checkable, "37 selected" is not.
-          <div className="px-6 pb-4 flex items-start justify-between gap-3">
-            <div className="flex items-start gap-3 min-w-0">
+          // Title over meta line, the same two-tier shape the tab's own header
+          // uses ("Activity" over "55 transactions · …"). Both tiers are always
+          // present: an amount that appears on the first tick and vanishes on
+          // the last moved the whole list up and down by a line.
+          //
+          // The amount is never on its own. A bare figure under a count reads
+          // as a stray measurement - it has to say what it is a total OF, the
+          // way every other number on this screen does.
+          <div className="px-6 pb-4 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
               <button
                 data-sel-done
                 onClick={exitSelect}
@@ -610,22 +614,44 @@ export function Activity({
               <div className="min-w-0">
                 <h1
                   data-sel-count
+                  className="truncate"
                   style={{ color: 'var(--ink)', fontSize: '24px', fontWeight: '800', letterSpacing: '-0.6px' }}
                 >
                   {selectedRows.length ? t('sel.count', { n: selectedRows.length }) : t('sel.none')}
                 </h1>
-                {selectedRows.length > 0 && (
-                  <p style={{ color: 'var(--ink-2)', fontSize: '14px', marginTop: '2px' }}>
-                    <AmountText amount={selectedTotal} currency={currency} decimals={2} />
-                  </p>
-                )}
+                <p
+                  data-sel-total
+                  className="truncate"
+                  style={{ color: 'var(--ink-2)', fontSize: '13.5px', marginTop: '1px' }}
+                >
+                  {selectedRows.length ? (
+                    <>
+                      <AmountText amount={selectedTotal} currency={currency} decimals={2} />
+                      {' '}
+                      {t('sel.totalOf')}
+                    </>
+                  ) : (
+                    t('sel.hint')
+                  )}
+                </p>
               </div>
             </div>
+            {/* A filled pill, not bare blue text: the X opposite it is a
+                filled circle, and a hairline of text across from one reads as
+                an afterthought rather than the other half of a pair.
+                --wash-accent2 rather than --bg-inset, which is four units off
+                the page colour and disappears against it - the same wash the
+                ticked rows wear, so the whole mode speaks one colour. */}
             <button
               data-sel-all
               onClick={toggleSelectAll}
-              className="flex-shrink-0 text-sm font-semibold px-2 py-1.5 rounded-lg active:bg-neutral-100"
-              style={{ color: 'var(--accent-ink)' }}
+              className="flex-shrink-0 rounded-full px-3 py-1.5 transition-opacity active:opacity-60"
+              style={{
+                backgroundColor: 'var(--wash-accent2)',
+                color: 'var(--accent-ink)',
+                fontSize: 13,
+                fontWeight: 600,
+              }}
             >
               {allSelected ? t('sel.clear') : t('sel.all')}
             </button>
