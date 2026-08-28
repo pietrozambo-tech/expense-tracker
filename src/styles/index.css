@@ -113,6 +113,27 @@
      same hue lifted, because there text sits on near-black. */
   --accent-ink: #3D5CE0;
   --accent-text: #4F74F3;
+  /* Series colours: telling PARTS of one thing apart.
+   *
+   * A trip's breakdown started as one hue at five opacities, on the reasoning
+   * that every row belongs to one category. It read as a gradient - you had to
+   * match a pale dot to a pale segment by lightness alone, at 8px. The bar
+   * encodes IDENTITY (which subcategory), not magnitude, and identity wants
+   * distinct hues.
+   *
+   * Five slots, from the app's own category palette, ordered so neighbours in
+   * a stack stay apart. Validated as a set against the card each mode actually
+   * paints on - white here, #232329 in dark - for lightness band, chroma,
+   * colour-blind separation of adjacent pairs, and 3:1 against the surface.
+   * Changing one of these means re-running that check, not eyeballing it. */
+  --series-1: #2563EB;
+  --series-2: #EA580C;
+  --series-3: #0D9488;
+  --series-4: #7C3AED;
+  --series-5: #DB2777;
+  /* Not an entity: rows with no subcategory, and the folded tail. */
+  --series-none: #A0A0A8;
+  --series-rest: #C7C7CC;
   /* Header rows (Trend's toggle + filter rows, Activity's filter bar) carry
    * no surface of their own in either theme: the controls sit directly on the
    * page. Tried as a card-coloured bar (read as grey stripes), then as a
@@ -147,6 +168,16 @@ html[data-theme="dark"] {
   --tone-danger: #FF6B6B;
   --accent-ink: #8FA5FF;
   --accent-text: #8AA4FF;
+  /* The same five hues, stepped for the dark card rather than flipped: the
+   * light steps for blue, violet and pink fall outside the dark lightness
+   * band, orange and teal already sit in it. Validated on #232329. */
+  --series-1: #3B82F6;
+  --series-2: #EA580C;
+  --series-3: #0D9488;
+  --series-4: #8B5CF6;
+  --series-5: #EC4899;
+  --series-none: #6C6C74;
+  --series-rest: #55555D;
   --ink: #F2F2F4;
   --ink-2: #A6A6AE;
   --ink-3: #A8A8B0;

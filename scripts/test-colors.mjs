@@ -82,5 +82,44 @@ const dupes = hexes.filter((h, i) => hexes.indexOf(h) !== i);
 if (dupes.length) fail(`two colours share a hex: ${[...new Set(dupes)].join(', ')}`);
 else pass(`all ${hexes.length} hexes are distinct`);
 
+// --- 5. the series palette still passes the checks it was chosen by -----
+//
+// --series-1..5 paint the parts of a trip's breakdown, and their whole job is
+// to be told apart at 8px. They were picked by running the six checks - not by
+// eye - so a hand edit that "just darkens one" has to face the same checks or
+// the bar quietly goes back to being a gradient.
+//
+// Both themes, each against the card its mode actually paints on.
+{
+  const { validate } = await import('./palette/validate.mjs');
+  const css = read('src/styles/index.css');
+  const seriesIn = (block) =>
+    [1, 2, 3, 4, 5].map((i) => {
+      const m = new RegExp(`--series-${i}:\\s*(#[0-9A-Fa-f]{6})`).exec(block);
+      return m?.[1];
+    });
+
+  // The dark block redefines them; everything before it is the light set.
+  const darkAt = css.indexOf('html[data-theme="dark"]');
+  const modes = [
+    { mode: 'light', surface: '#FFFFFF', hexes: seriesIn(css.slice(0, darkAt)) },
+    { mode: 'dark', surface: '#232329', hexes: seriesIn(css.slice(darkAt)) },
+  ];
+
+  for (const { mode, surface, hexes } of modes) {
+    if (hexes.some((h) => !h)) {
+      fail(`${mode}: --series-1..5 are not all defined in index.css`);
+      continue;
+    }
+    const { report, ok } = validate(hexes, { mode, surface });
+    if (ok) pass(`series palette passes all checks on the ${mode} card`);
+    else {
+      for (const [name, status, detail] of report) {
+        if (status === 'fail') fail(`${mode} series palette - ${name}: ${detail}`);
+      }
+    }
+  }
+}
+
 console.log(failures === 0 ? '\nEvery category colour resolves to paint that exists.' : `\n${failures} check(s) failed.`);
 process.exit(failures === 0 ? 0 : 1);

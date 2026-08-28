@@ -1,6 +1,5 @@
 import { X } from 'lucide-react';
 import { AmountText } from './AmountText';
-import { categoryTint } from './categoryColors';
 import { t } from '../i18n';
 import { monthsShort } from '../i18n/store';
 import type { Trip } from '../lib/trips';
@@ -18,18 +17,39 @@ interface TripsSheetProps {
  *  subcategory gets a sliver nobody can see and a legend entry anyway. */
 const MAX_PARTS = 5;
 
+const SLOTS = 5;
+
 /**
- * One hue, stepped. Every row in a trip is the SAME category, so five
- * unrelated colours would say five categories; the ramp says one thing seen in
- * parts.
+ * Which colour a subcategory wears - decided by the subcategory, never by how
+ * much it happens to have cost.
  *
- * The floor is 0.34 rather than the 0.2 this started at because the tint is
- * alpha over the category's solid, composited against whatever is behind it:
- * on a dark card the faintest steps came out within a few units of the card
- * itself, and the last two segments - plus their legend dots - simply were not
- * there.
+ * Taking the slots in amount order was the obvious thing and the wrong one:
+ * Hotel would be blue on one trip and orange on the next, and adding a dinner
+ * that overtook it would repaint both. The user's own subcategory order is
+ * stable, means something to them, and gives Hotel the same colour on every
+ * card in the sheet.
+ *
+ * A collision - two subcategories five apart in a long list - walks to the
+ * next free slot, so within one card no two parts ever share a colour.
  */
-const ALPHAS = [1, 0.82, 0.64, 0.48, 0.34];
+function assignSlots(names: (string | null)[], order: string[]): Map<string, number> {
+  const used = new Set<number>();
+  const slots = new Map<string, number>();
+  for (const name of names) {
+    if (name === null || slots.has(name)) continue;
+    const i = order.indexOf(name);
+    let s = i >= 0
+      ? i % SLOTS
+      // Not one of the category's own subcategories (renamed, or arrived with
+      // an import): a stable hash still beats a running counter, which would
+      // shift every colour when a row above it changed.
+      : [...name].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 9973, 7) % SLOTS;
+    for (let guard = 0; guard < SLOTS && used.has(s); guard++) s = (s + 1) % SLOTS;
+    used.add(s);
+    slots.set(name, s);
+  }
+  return slots;
+}
 
 function monthLabel(month: string): string {
   const [year, m] = month.split('-');
@@ -43,9 +63,18 @@ function TripCard({ trip, travel, currency, onOpen }: { trip: Trip; travel: Cate
   const head = trip.parts.slice(0, MAX_PARTS - 1);
   const tail = trip.parts.slice(MAX_PARTS - 1);
   const tailAmount = tail.reduce((sum, p) => sum + p.amount, 0);
-  const parts = tail.length > 1
-    ? [...head, { name: t('trips.other'), amount: tailAmount }]
+  const folded = tail.length > 1;
+  const parts = folded
+    ? [...head, { name: null as string | null, amount: tailAmount }]
     : trip.parts.slice(0, MAX_PARTS);
+
+  const slots = assignSlots(parts.map((p) => p.name), travel.subcategories ?? []);
+  const paint = (name: string | null, isRest: boolean) =>
+    name === null
+      ? `var(--series-${isRest ? 'rest' : 'none'})`
+      : `var(--series-${(slots.get(name) ?? 0) + 1})`;
+  const label = (name: string | null, isRest: boolean) =>
+    name === null ? (isRest ? t('trips.other') : t('tcb.noSub')) : name;
 
   return (
     <button
@@ -76,7 +105,7 @@ function TripCard({ trip, travel, currency, onOpen }: { trip: Trip; travel: Cate
             key={`${p.name}-${i}`}
             style={{
               width: `${trip.total > 0 ? (p.amount / trip.total) * 100 : 0}%`,
-              backgroundColor: categoryTint(travel.color, ALPHAS[i] ?? 0.2),
+              backgroundColor: paint(p.name, folded && i === parts.length - 1),
             }}
           />
         ))}
@@ -87,9 +116,9 @@ function TripCard({ trip, travel, currency, onOpen }: { trip: Trip; travel: Cate
           <span key={`l-${p.name}-${i}`} className="inline-flex items-center gap-1.5">
             <i
               className="inline-block rounded-sm"
-              style={{ width: 7, height: 7, backgroundColor: categoryTint(travel.color, ALPHAS[i] ?? 0.2) }}
+              style={{ width: 7, height: 7, backgroundColor: paint(p.name, folded && i === parts.length - 1) }}
             />
-            {p.name ?? t('tcb.noSub')}{' '}
+            {label(p.name, folded && i === parts.length - 1)}{' '}
             <b style={{ color: 'var(--ink)', fontWeight: 600 }} className="tabular-nums">
               <AmountText amount={p.amount} currency={currency} decimals={2} />
             </b>
