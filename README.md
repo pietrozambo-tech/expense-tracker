@@ -36,7 +36,8 @@ Every transaction, in one searchable place.
 - **Grouped by day** with per-day net totals, "Today" and "Yesterday" labels.
 - **All / Expenses / Income** switch with net or per-type totals in the header.
 - **Filters**: year, month, one-off vs recurring, source, category and subcategory - plus **free-text search**.
-- **Tap to edit, swipe left to delete.**
+- **Tap to edit, swipe left to delete** - or use the bin beside the close button once a transaction is open, which asks the same question naming the row.
+- **No future months.** The period picker stops at the one you are in, whatever dates the ledger holds, so a flight booked for December never opens December.
 - **Select several at once** (⋯ ▸ Select): tick rows, then move them to another
   category and subcategory, put them on an account, put them in a trip (or
   take them out of one), or delete them. Built for the hour after an import,
@@ -73,6 +74,8 @@ Set the rent once, never type it again.
 - Occurrences appear **on their scheduled day** - and if you have not opened the app for a while, missed ones are back-filled automatically.
 - Editing or deleting a recurring transaction asks the familiar calendar question: **"Only this transaction"** or **"This and future ones"**. Raising the rent from August never rewrites what July recorded.
 - Auto-created occurrences say so on their edit screen, so you always know where a transaction came from.
+- **Set one up from Add with a date still ahead** and it behaves as a schedule, not a payment: nothing is recorded until that day arrives, and the first occurrence lands **on the day you picked** - not the period after it. A date today or earlier still records the row, which is the chain's first instance.
+- Schedules pick a **subcategory** as well as a category, using the same grid as the Add screen, so every occurrence they create arrives fully filed.
 
 ## 📈 Trend
 
