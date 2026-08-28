@@ -1,4 +1,5 @@
 import type { LucideIcon } from 'lucide-react';
+import type { CategoryOrder } from '../lib/categoryOrder';
 import { Bell, Lightbulb, ChevronRight, ChevronLeft, Wrench, ArrowLeftRight, UserCircle, Wallet, HelpCircle, ShieldCheck, ScrollText, Layers, FlaskConical, Trash2, Landmark, Cloud, LogOut, Upload, Copy, Download, FileSpreadsheet, Palmtree, UserX, Mail, LifeBuoy, CheckCircle2, Globe, CalendarClock, Sparkles, Palette, Sun, Moon, SunMoon, Split, Plus, Eraser } from 'lucide-react';
 import { getCategoryIcon } from './categoryIcons';
 import { composeSupportMessage, sendSupportMessage, supportLimitReached, type SupportTopic } from '../lib/support';
@@ -187,6 +188,9 @@ interface SettingsProps {
   devDiag?: DevDiag;
   categories: any[];
   incomeCategories: any[];
+  /** Passed through to the schedule editor's category grid, so the order
+   *  chosen on the Add screen holds there too. */
+  categoryOrder?: CategoryOrder;
   // First day of the week for day-of-week views: 1 Monday, 0 Sunday, 6 Saturday
   weekStartsOn?: number;
   onSetWeekStartsOn?: (day: number) => void;
@@ -288,6 +292,7 @@ export function Settings({
   unmappedCategories = [],
   onMapCategory,
   categories,
+  categoryOrder,
   incomeCategories,
   weekStartsOn = 1,
   onSetWeekStartsOn,

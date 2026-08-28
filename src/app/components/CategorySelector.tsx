@@ -1,7 +1,8 @@
-import { Fragment } from 'react';
+import { Fragment, useState } from 'react';
 import { t } from '../i18n';
-import { X } from 'lucide-react';
+import { ArrowDownAZ, Check, Flame, X } from 'lucide-react';
 import { getCategoryIcon } from './categoryIcons';
+import { orderCategories, type CategoryOrder } from '../lib/categoryOrder';
 
 interface Category {
   id: string;
@@ -29,6 +30,18 @@ interface CategorySelectorProps {
    * one inside the other doubles the gutter.
    */
   padded?: boolean;
+  /**
+   * How the grid is ordered, and - when the screen offers it - the pill that
+   * changes it.
+   *
+   * The pill only appears where `onChangeOrder` is given: the Add screen, where
+   * you are hunting for a tile several times a day. The schedule editor honours
+   * the same stored choice without carrying the control.
+   */
+  order?: CategoryOrder;
+  onChangeOrder?: (order: CategoryOrder) => void;
+  /** The whole ledger, for the "most used" count. */
+  transactions?: { category?: { id?: string } | null }[];
 }
 
 export function CategorySelector({
@@ -38,12 +51,15 @@ export function CategorySelector({
   subcategories = [],
   selectedSubcategory = null,
   onSelectSubcategory,
-  padded = true
+  padded = true,
+  order = 'alpha',
+  onChangeOrder,
+  transactions = []
 }: CategorySelectorProps) {
-  // Show categories alphabetically; re-sorts live as categories are added/removed.
-  const sortedCategories = [...categories].sort((a, b) =>
-    a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
-  );
+  const [orderOpen, setOrderOpen] = useState(false);
+  // Alphabetical, or by how often each one is actually used - see
+  // lib/categoryOrder. Re-sorts live as categories are added or removed.
+  const sortedCategories = orderCategories(categories, transactions, order);
 
   // Insert the subcategory panel right after the row that holds the selected
   // category. With a 2-column grid, that row ends at the odd index of the pair.
@@ -59,7 +75,69 @@ export function CategorySelector({
       {/* The same quiet label the Schedule editor uses for these fields -
           a bare h3 inherited 18px here, which put form labels on a heading
           scale and made the sheet shout its own structure. */}
-      <h3 className="mb-1.5" style={{ color: 'var(--ink-2)', fontSize: 12, fontWeight: 600, letterSpacing: 0.2 }}>{t('add.category')}</h3>
+      <div className="mb-1.5 flex items-center gap-2 relative">
+        <h3 style={{ color: 'var(--ink-2)', fontSize: 12, fontWeight: 600, letterSpacing: 0.2 }}>{t('add.category')}</h3>
+        {onChangeOrder && (
+          <>
+            {/* Small on purpose. It is a preference, not a step: it sits beside
+                the label at label size, and says which order is in force so
+                the answer is readable without opening anything. */}
+            <button
+              type="button"
+              data-cat-order
+              aria-label={t('add.order.aria')}
+              onClick={() => setOrderOpen((v) => !v)}
+              className="flex items-center gap-1 rounded-full px-2 py-0.5 active:opacity-60 transition-opacity"
+              style={{ backgroundColor: 'var(--bg-field)', color: 'var(--ink-2)', fontSize: 11, fontWeight: 600 }}
+            >
+              {order === 'used'
+                ? <Flame size={11} strokeWidth={2.4} />
+                : <ArrowDownAZ size={11} strokeWidth={2.4} />}
+              {t(order === 'used' ? 'add.order.used' : 'add.order.alpha')}
+            </button>
+            {orderOpen && (
+              <>
+                <div className="fixed inset-0 z-[55]" onClick={() => setOrderOpen(false)} />
+                <div
+                  data-cat-order-menu
+                  className="absolute left-0 top-6 z-[56] rounded-2xl overflow-hidden"
+                  style={{
+                    minWidth: 176,
+                    backgroundColor: 'var(--bg-card)',
+                    border: '1px solid var(--line-2)',
+                    boxShadow: '0 12px 28px rgba(0,0,0,0.16)',
+                  }}
+                >
+                  {(['alpha', 'used'] as const).map((opt, i) => (
+                    <button
+                      key={opt}
+                      type="button"
+                      data-cat-order-opt={opt}
+                      onClick={() => {
+                        onChangeOrder(opt);
+                        setOrderOpen(false);
+                      }}
+                      className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-left active:bg-neutral-100"
+                      style={{
+                        color: 'var(--ink)',
+                        fontSize: 13.5,
+                        fontWeight: 500,
+                        borderTop: i ? '1px solid var(--line-2)' : undefined,
+                      }}
+                    >
+                      {opt === 'used'
+                        ? <Flame size={14} style={{ color: 'var(--ink-2)' }} />
+                        : <ArrowDownAZ size={14} style={{ color: 'var(--ink-2)' }} />}
+                      <span className="flex-1">{t(opt === 'used' ? 'add.order.used' : 'add.order.alpha')}</span>
+                      {order === opt && <Check size={14} style={{ color: 'var(--accent-ink)' }} strokeWidth={2.6} />}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </>
+        )}
+      </div>
 
       <div className="grid grid-cols-2 gap-2.5">
         {sortedCategories.map((category, index) => {

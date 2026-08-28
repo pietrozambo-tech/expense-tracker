@@ -81,6 +81,7 @@ import { buildImport, applyImportDecision, type ImportPayload, type ImportResult
 import { applyBulkCategory, applyBulkDelete, applyBulkSource, planBulkDelete } from './lib/bulkEdit';
 import { applyBulkTrip, travelCategoryOf } from './lib/trips';
 import { formatFullDate } from './lib/dates';
+import { DEFAULT_CATEGORY_ORDER, type CategoryOrder } from './lib/categoryOrder';
 import { ImportSummaryDialog } from './components/ImportSummaryDialog';
 import { ImportReviewDialog } from './components/ImportReviewDialog';
 import { buildBackup, downloadBackup, isBackupFile } from './lib/backup';
@@ -433,6 +434,9 @@ export default function App() {
   // First day of the week for the day-of-week breakdown: 1 Monday (default),
   // 0 Sunday, 6 Saturday.
   const [weekStartsOn, setWeekStartsOn] = useState<number>(() => loadSettings().weekStartsOn ?? 1);
+  const [categoryOrder, setCategoryOrder] = useState<CategoryOrder>(
+    () => loadSettings().categoryOrder ?? DEFAULT_CATEGORY_ORDER,
+  );
   // The i18n store is initialised from settings in main.tsx, before this
   // renders; this state mirrors it so React owns persistence and sync.
   const [language, setAppLanguage] = useState<Language>(() => getLanguage());
@@ -611,8 +615,9 @@ export default function App() {
       defaultSourceIncome,
       weekStartsOn,
       language,
+      categoryOrder,
     });
-  }, [hasCompletedOnboarding, userName, userCurrency, monthlyBudget, budgetNudgeDismissed, insightsEnabled, hasSeenIntro, defaultSourceExpense, defaultSourceIncome, weekStartsOn, language]);
+  }, [hasCompletedOnboarding, userName, userCurrency, monthlyBudget, budgetNudgeDismissed, insightsEnabled, hasSeenIntro, defaultSourceExpense, defaultSourceIncome, weekStartsOn, language, categoryOrder]);
 
   // Warm the tab chunks once the first screen has settled. Deliberately on an
   // idle callback with a timeout rather than straight after mount: the point
@@ -706,6 +711,7 @@ export default function App() {
       defaultSourceIncome,
       weekStartsOn,
       language,
+      categoryOrder,
     },
   });
 
@@ -732,6 +738,7 @@ export default function App() {
     setDefaultSourceExpense(s.defaultSourceExpense ?? DEFAULT_SOURCE_EXPENSE);
     setDefaultSourceIncome(s.defaultSourceIncome ?? DEFAULT_SOURCE_INCOME);
     setWeekStartsOn(s.weekStartsOn ?? 1);
+    setCategoryOrder(s.categoryOrder ?? DEFAULT_CATEGORY_ORDER);
     // Absent means English, deliberately - never the device guess: an account
     // that predates the language choice must not flip because the phone is
     // Italian.
@@ -1022,7 +1029,7 @@ export default function App() {
   // budgetNudgeDismissed is in the payload, so it belongs in the deps -
   // without it, dismissing the nudge didn't sync until the next unrelated
   // change, and a re-hydrate on another device could re-show the card.
-  }, [userId, cloudHydrated, syncRetryTick, expenses, recurringRules, categories, incomeCategories, sources, hasCompletedOnboarding, userName, userCurrency, monthlyBudget, budgetNudgeDismissed, insightsEnabled, hasSeenIntro, defaultSourceExpense, defaultSourceIncome, weekStartsOn, language]);
+  }, [userId, cloudHydrated, syncRetryTick, expenses, recurringRules, categories, incomeCategories, sources, hasCompletedOnboarding, userName, userCurrency, monthlyBudget, budgetNudgeDismissed, insightsEnabled, hasSeenIntro, defaultSourceExpense, defaultSourceIncome, weekStartsOn, language, categoryOrder]);
 
   // Coming back to the app pulls anything another device wrote while we were
   // away. Previously returning to the foreground only ever pushed, so a device
@@ -3516,6 +3523,7 @@ export default function App() {
             )}
             {currentTab === 'settings' && (
               <Settings
+                categoryOrder={categoryOrder}
                 devDiag={{
                   zone: typeof Intl !== 'undefined' ? Intl.DateTimeFormat().resolvedOptions().timeZone : '',
                   detected: currentCountry(),
@@ -4153,6 +4161,9 @@ export default function App() {
                 subcategories={subcategories}
                 selectedSubcategory={selectedSubcategory}
                 onSelectSubcategory={setSelectedSubcategory}
+                order={categoryOrder}
+                onChangeOrder={setCategoryOrder}
+                transactions={expenses}
               />
             </div>
 

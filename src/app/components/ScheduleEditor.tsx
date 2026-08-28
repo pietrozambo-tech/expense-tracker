@@ -3,6 +3,7 @@ import { X, ChevronDown } from 'lucide-react';
 import { t } from '../i18n';
 import { translateRecurrence, numberLocale } from '../i18n/store';
 import { CategorySelector } from './CategorySelector';
+import type { CategoryOrder } from '../lib/categoryOrder';
 import { SourceLogo } from './SourceLogo';
 import { switchGlow } from './categoryColors';
 import { CURRENCIES } from '../utils/currency';
@@ -43,6 +44,7 @@ const FIELD_STYLE: React.CSSProperties = { backgroundColor: 'var(--bg-field)', c
 export function ScheduleEditor({
   rule,
   transactions = [],
+  categoryOrder = 'alpha',
   categories,
   incomeCategories,
   sources,
@@ -60,6 +62,8 @@ export function ScheduleEditor({
   transactions?: Transaction[];
   categories: Category[];
   incomeCategories: Category[];
+  /** The order chosen on the Add screen. Read, never set, from here. */
+  categoryOrder?: CategoryOrder;
   sources: Source[];
   currency: string;
   defaultSourceExpense?: string;
@@ -388,6 +392,11 @@ export function ScheduleEditor({
               form, which read as an unrelated field. */}
           <CategorySelector
             padded={false}
+            // Honours the order chosen on the Add screen without carrying the
+            // control: one preference, and a sheet you visit rarely does not
+            // need a way to change it.
+            order={categoryOrder}
+            transactions={transactions}
             selectedCategory={categoryId || category?.id || null}
             onSelectCategory={(id) => {
               setCategoryId(id);

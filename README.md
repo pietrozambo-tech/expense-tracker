@@ -64,6 +64,8 @@ Designed to take seconds.
 - **Categories in alphabetical order** with icons and colors; selecting one reveals its **subcategories inline**.
 - **Source** - which account or card the money moved through, with your default preselected.
 
+- **Order the category grid** from the pill beside its label: alphabetical (the default, and stable - the tile you want stays where it was) or **Most used**, counted from your whole ledger every time. The choice is remembered, and the schedule editor follows it.
+
 ## 🔁 Recurring transactions
 
 Set the rent once, never type it again.

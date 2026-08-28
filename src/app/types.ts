@@ -300,4 +300,7 @@ export interface UserSettings {
   // UI language. Absent means English: existing accounts predate the choice,
   // and must never flip language just because the device is Italian.
   language?: 'en' | 'it';
+  /** How the category grid is ordered when adding. Absent means alphabetical.
+   *  Synced rather than device-local: it is a habit, not an appearance. */
+  categoryOrder?: 'alpha' | 'used';
 }

@@ -12,6 +12,7 @@ import { ScheduleEditor } from './ScheduleEditor';
 import { upcomingSchedules, strandedRules } from '../lib/recurrence';
 import { needsAbbreviation } from '../utils/currency';
 import type { Category, RecurringRule, Source, Transaction, TransactionType } from '../types';
+import type { CategoryOrder } from '../lib/categoryOrder';
 
 // "What is coming" - the only screen in the app that looks forward.
 //
@@ -29,6 +30,8 @@ export interface ScheduledManagerProps {
   /** The ledger, read-only: the editor reads a bill's charge history. */
   transactions: Transaction[];
   categories: Category[];
+  /** Passed straight through to the editor's category grid. */
+  categoryOrder?: CategoryOrder;
   incomeCategories: Category[];
   sources: Source[];
   currency: string;
@@ -79,6 +82,7 @@ export function ScheduledManager({
   rules,
   transactions,
   categories,
+  categoryOrder,
   incomeCategories,
   sources,
   currency,
@@ -239,6 +243,7 @@ export function ScheduledManager({
         <ScheduleEditor
           rule={editing}
           transactions={transactions}
+          categoryOrder={categoryOrder}
           categories={categories}
           incomeCategories={incomeCategories}
           sources={sources}
