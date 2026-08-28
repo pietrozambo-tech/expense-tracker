@@ -284,6 +284,30 @@ export function TrendCategoryBreakdown({
                 const subShare = subcategories.reduce((sum, s) => sum + s.weightPercentage, 0);
                 const restShare = 100 - subShare;
                 const restAvg = item.monthlyAvg - subcategories.reduce((sum, s) => sum + s.monthlyAvg, 0);
+                // One list, ordered like the card above it - biggest first by
+                // default, A-Z when the sort toggle says so.
+                //
+                // It used to come out in whatever order the transactions
+                // happened to be walked in, which reads as no order at all.
+                // And the remainder is sorted WITH the rest rather than pinned
+                // last: it is a real bucket of money and often the biggest row
+                // of the lot - 58% of Travel sitting under a 1% one was most of
+                // what looked random.
+                const rows = [
+                  ...subcategories.map((sub) => ({
+                    key: `sub-${sub.name}`, name: sub.name, share: sub.weightPercentage, avg: sub.monthlyAvg, rest: false,
+                  })),
+                  // Same half-point guard as the bar's tail: a fully
+                  // subcategorised category is left alone rather than given a
+                  // float-error 0% row.
+                  ...(restShare >= 0.5
+                    ? [{ key: 'sub-rest', name: t('tcb.noSub'), share: restShare, avg: restAvg, rest: true }]
+                    : []),
+                ].sort((a, b) =>
+                  categorySortBy === 'amount'
+                    ? b.avg - a.avg || a.name.localeCompare(b.name)
+                    : a.name.localeCompare(b.name),
+                );
                 return (
                 <div className="ml-11 mt-0.5 mb-1 space-y-0.5 border-l-2 border-neutral-100 pl-3">
                   <div
@@ -293,38 +317,26 @@ export function TrendCategoryBreakdown({
                   >
                     {t('tcb.shareOf', { name: item.name })}
                   </div>
-                  {subcategories.map((sub) => {
-                    return (
-                      <div
-                        key={sub.name}
-                        className="flex items-center justify-between gap-3 py-1"
-                      >
-                        <div className="flex-1 min-w-0">
-                          <div className="text-neutral-500 text-xs truncate">{sub.name}</div>
-                        </div>
-                        <div className="flex items-center gap-0.5 flex-shrink-0 ml-1">
-                          <div className="text-neutral-500 text-[10px] tabular-nums text-right w-9">{sub.weightPercentage.toFixed(0)}%</div>
-                          <div className="text-neutral-600 font-normal text-xs tabular-nums text-right w-16">
-                            <AmountText amount={sub.monthlyAvg} currency={currency} abbreviate="summary" />
-                          </div>
+                  {rows.map((row) => (
+                    <div
+                      key={row.key}
+                      className="flex items-center justify-between gap-3 py-1"
+                      {...(row.rest ? { 'data-sub-rest': true } : {})}
+                      data-sub-row={row.name}
+                    >
+                      <div className="flex-1 min-w-0">
+                        <div className="text-neutral-500 text-xs truncate" style={row.rest ? { opacity: 0.75 } : undefined}>
+                          {row.name}
                         </div>
                       </div>
-                    );
-                  })}
-                  {/* Same half-point guard as the bar's tail: a fully
-                      subcategorised category is left alone rather than given
-                      a float-error 0% row. */}
-                  {restShare >= 0.5 && (
-                    <div className="flex items-center justify-between gap-3 py-1" data-sub-rest>
-                      <div className="text-neutral-500 text-xs truncate" style={{ opacity: 0.75 }}>{t('tcb.noSub')}</div>
                       <div className="flex items-center gap-0.5 flex-shrink-0 ml-1">
-                        <div className="text-neutral-500 text-[10px] tabular-nums text-right w-9">{restShare.toFixed(0)}%</div>
+                        <div className="text-neutral-500 text-[10px] tabular-nums text-right w-9">{row.share.toFixed(0)}%</div>
                         <div className="text-neutral-600 font-normal text-xs tabular-nums text-right w-16">
-                          <AmountText amount={restAvg} currency={currency} abbreviate="summary" />
+                          <AmountText amount={row.avg} currency={currency} abbreviate="summary" />
                         </div>
                       </div>
                     </div>
-                  )}
+                  ))}
                 </div>
                 );
               })()}
