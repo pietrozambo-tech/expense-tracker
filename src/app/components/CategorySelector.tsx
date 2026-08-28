@@ -21,6 +21,14 @@ interface CategorySelectorProps {
   subcategories?: string[];
   selectedSubcategory?: string | null;
   onSelectSubcategory?: (subcategory: string | null) => void;
+  /**
+   * Own gutters, or the caller's.
+   *
+   * The Add screen puts this straight into an unpadded column; the schedule
+   * editor's form already has px-6 and its own vertical rhythm, and nesting
+   * one inside the other doubles the gutter.
+   */
+  padded?: boolean;
 }
 
 export function CategorySelector({
@@ -29,7 +37,8 @@ export function CategorySelector({
   categories,
   subcategories = [],
   selectedSubcategory = null,
-  onSelectSubcategory
+  onSelectSubcategory,
+  padded = true
 }: CategorySelectorProps) {
   // Show categories alphabetically; re-sorts live as categories are added/removed.
   const sortedCategories = [...categories].sort((a, b) =>
@@ -46,7 +55,7 @@ export function CategorySelector({
   const showSubcategoryPanel = selectedIndex !== -1 && subcategories.length > 0;
 
   return (
-    <div className="px-6 pb-6">
+    <div className={padded ? 'px-6 pb-6' : ''}>
       {/* The same quiet label the Schedule editor uses for these fields -
           a bare h3 inherited 18px here, which put form labels on a heading
           scale and made the sheet shout its own structure. */}
@@ -134,6 +143,7 @@ export function CategorySelector({
                       return (
                         <button
                           key={subcategory}
+                          data-sub-chip={subcategory}
                           onClick={() =>
                             onSelectSubcategory?.(subSelected ? null : subcategory)
                           }

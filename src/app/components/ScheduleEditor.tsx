@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { X, ChevronDown } from 'lucide-react';
 import { t } from '../i18n';
 import { translateRecurrence, numberLocale } from '../i18n/store';
-import { getCategoryIcon } from './categoryIcons';
+import { CategorySelector } from './CategorySelector';
 import { SourceLogo } from './SourceLogo';
 import { switchGlow } from './categoryColors';
 import { CURRENCIES } from '../utils/currency';
@@ -371,66 +371,24 @@ export function ScheduleEditor({
             </div>
           </div>
 
-          <div>
-            <div style={LABEL} className="mb-1.5">{t('add.category')}</div>
-            <div className="grid grid-cols-2 gap-2">
-              {list.map((c) => {
-                const Icon = getCategoryIcon(c.icon);
-                const on = category?.id === c.id;
-                return (
-                  <button
-                    key={c.id}
-                    onClick={() => {
-                      setCategoryId(c.id);
-                      // A subcategory belongs to the category above it.
-                      if (c.id !== categoryId) setSubcategory(null);
-                    }}
-                    className="flex items-center gap-2 px-3 py-2.5 rounded-xl transition-colors"
-                    style={{ backgroundColor: on ? 'var(--wash-accent)' : 'var(--bg-field)' }}
-                  >
-                    <span className={`w-7 h-7 rounded-lg ${c.bgColor} flex items-center justify-center flex-shrink-0`}>
-                      <Icon className={`w-3.5 h-3.5 ${c.color}`} />
-                    </span>
-                    <span
-                      className="truncate text-[13px]"
-                      style={{ color: on ? '#4F74F3' : 'var(--ink)', fontWeight: on ? 600 : 500 }}
-                    >
-                      {c.name}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {(category?.subcategories?.length ?? 0) > 0 && (
-            <div>
-              <div style={LABEL} className="mb-1.5">{t('add.subcategory')}</div>
-              <div className="flex flex-wrap gap-2">
-                {category!.subcategories!.map((sub) => {
-                  const on = subcategory === sub;
-                  return (
-                    <button
-                      key={sub}
-                      data-sched-sub={sub}
-                      // Tapping the chosen one clears it: a subcategory is
-                      // optional here exactly as it is on the Add screen.
-                      onClick={() => setSubcategory(on ? null : sub)}
-                      className="px-3.5 py-1.5 rounded-lg text-sm border transition-colors"
-                      style={{
-                        backgroundColor: on ? 'var(--wash-accent2)' : 'var(--bg-field)',
-                        borderColor: on ? 'var(--accent-ink)' : 'transparent',
-                        color: on ? 'var(--accent-ink)' : 'var(--ink-2)',
-                        fontWeight: on ? 600 : 500,
-                      }}
-                    >
-                      {sub}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
+          {/* The same picker the Add screen uses, not a second one that looks
+              like it: the subcategories open INSIDE the grid, directly under
+              the row holding the chosen category, so the two screens teach one
+              layout instead of two. It was a separate block at the foot of the
+              form, which read as an unrelated field. */}
+          <CategorySelector
+            padded={false}
+            selectedCategory={categoryId || category?.id || null}
+            onSelectCategory={(id) => {
+              setCategoryId(id);
+              // A subcategory belongs to the category above it.
+              if (id !== categoryId) setSubcategory(null);
+            }}
+            categories={list}
+            subcategories={category?.subcategories ?? []}
+            selectedSubcategory={subcategory}
+            onSelectSubcategory={setSubcategory}
+          />
 
           {sources.length > 0 && !partnerIsPaying && (
             <div>

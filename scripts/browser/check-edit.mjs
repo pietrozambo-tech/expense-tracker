@@ -106,30 +106,40 @@ const open = async () => {
   await p.getByText('Add a recurring transaction', { exact: false }).first().click();
   await p.waitForTimeout(700);
 
-  // The editor opens with the first category already standing in, so the
-  // subcategory row is there from the start - showing that category's own.
-  const onOpen = await p.locator('[data-sched-sub]').allInnerTexts();
+  // The editor opens with the first category already standing in, so its
+  // subcategories are there from the start.
+  const onOpen = await p.locator('[data-sub-chip]').allInnerTexts();
   ok(onOpen.join(',') === 'Rent,Utilities,Cleaning',
-    `the row offers the standing category's subcategories from the start (${onOpen.join(', ')})`);
+    `the standing category's subcategories are offered from the start (${onOpen.join(', ')})`);
+  // And they sit INSIDE the grid, under the row holding the chosen category -
+  // the same layout the Add screen uses - rather than in a field of their own
+  // at the foot of the form.
+  const inGrid = await p.evaluate(() => {
+    const chip = document.querySelector('[data-sub-chip]');
+    const grid = chip?.closest('.grid');
+    const cat = grid?.querySelector('button');
+    return !!grid && !!cat && grid.contains(chip);
+  });
+  ok(inGrid, 'the subcategories open inside the category grid, not below the form');
 
   await p.getByRole('button', { name: 'Housing' }).first().click();
   await p.waitForTimeout(400);
-  const subs = await p.locator('[data-sched-sub]').allInnerTexts();
+  const subs = await p.locator('[data-sub-chip]').allInnerTexts();
   ok(subs.join(',') === 'Rent,Utilities,Cleaning', `picking a category offers its subcategories (${subs.join(', ')})`);
 
-  await p.locator('[data-sched-sub="Rent"]').click();
+  await p.locator('[data-sub-chip="Rent"]').click();
   await p.waitForTimeout(250);
 
   // Switching category cannot carry a subcategory across: Rent under
   // Groceries is not a smaller error than none.
   await p.getByRole('button', { name: 'Groceries' }).first().click();
   await p.waitForTimeout(400);
-  const after = await p.locator('[data-sched-sub]').allInnerTexts();
+  const after = await p.locator('[data-sub-chip]').allInnerTexts();
   ok(after.join(',') === 'Supermarket', 'switching category swaps the list');
 
   await p.getByRole('button', { name: 'Housing' }).first().click();
   await p.waitForTimeout(350);
-  await p.locator('[data-sched-sub="Rent"]').click();
+  await p.locator('[data-sub-chip="Rent"]').click();
   await p.waitForTimeout(250);
 
   await p.getByPlaceholder(/Rent, Salary, Gym|Affitto/).fill('Affitto');
