@@ -46,6 +46,25 @@ export function tripNameOf(description: string | undefined): string | null {
   return name;
 }
 
+/**
+ * Would the app still recognise a trip called this?
+ *
+ * The name IS the identity - there is no trip record to fall back on - so a
+ * rename to something the detector cannot read back does not fail loudly: the
+ * descriptions are rewritten, every row stops matching, and the trip vanishes
+ * from the sheet with no way to find it again except by remembering what it
+ * used to be called.
+ *
+ * So this asks the detector rather than restating its rules. Any limit added
+ * to tripNameOf later is enforced here the same day, which a hand-copied list
+ * of "max 3 words, max 24 chars, no separator" would not be.
+ */
+export function isTripName(name: string): boolean {
+  const clean = name.trim();
+  if (!clean) return false;
+  return tripNameOf(`${clean}${TRIP_SEP}x`) === clean;
+}
+
 /** The description with any trip name taken off the front. */
 export function tripBodyOf(description: string | undefined): string {
   const d = description ?? '';
@@ -198,6 +217,36 @@ export function detectTrips(
  * `null` removes the row from its trip: the name comes off and the category
  * stays where it is, because nothing here knows where it came from.
  */
+/**
+ * The trip this one would be swallowed by, if it were renamed to `name`.
+ *
+ * Grouping is by name and by density, so renaming a trip to something another
+ * trip in the same season is already called MERGES the two into one card. That
+ * is not a bug - two halves of one holiday spelled differently by an import
+ * are exactly what it fixes - but it is a surprise if nobody says so, and it
+ * cannot be undone by renaming back: the two sets of rows now share a name.
+ *
+ * Answered by doing it and looking, not by re-deriving the grouping rules: the
+ * rename is applied to a copy and the trips re-detected, so this agrees with
+ * what the sheet will actually show by construction. Returns null when the
+ * renamed trip lands on a card of its own.
+ */
+export function tripMergeTarget(
+  transactions: Transaction[],
+  trip: Trip,
+  name: string,
+  travel: Category,
+  amountOf: (t: Transaction) => number,
+): { name: string; month: string } | null {
+  if (!isTripName(name)) return null;
+  const ids = new Set(trip.rows.map((r) => r.id));
+  const after = detectTrips(applyBulkTrip(transactions, ids, name, travel), travel, amountOf);
+  const landed = after.find((t) => t.rows.some((r) => ids.has(r.id)));
+  if (!landed) return null;
+  const strangers = landed.rows.some((r) => !ids.has(r.id));
+  return strangers ? { name: landed.name, month: landed.month } : null;
+}
+
 export function applyBulkTrip(
   transactions: Transaction[],
   ids: Set<string>,

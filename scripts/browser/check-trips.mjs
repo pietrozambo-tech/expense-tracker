@@ -230,6 +230,80 @@ const enterSelect = async (p) => {
   await ctx.close();
 }
 
+// ── renaming a trip ───────────────────────────────────────────────────────
+//
+// A trip has no record of its own: the name on the front of every description
+// IS the trip. So renaming is a rewrite of every row, and a name the detector
+// cannot read back does not fail loudly - the rows change, nothing matches,
+// and the trip is gone from this sheet with no way back to it. The editor has
+// to refuse those before the button does anything.
+{
+  // Built as a string, not written into a regex: \u{...} without the u flag is
+  // not an escape, and the assertion would pass or fail for the wrong reason.
+  const FLAGGED = 'Azores \u{1F1F5}\u{1F1F9}';
+  const { ctx, p } = await open();
+  await openMenu(p);
+  await p.locator('[data-act-menu-trips]').click();
+  await p.waitForTimeout(500);
+
+  ok(await p.locator('[data-trip-rename]').count() === 3, 'every trip card offers a pencil');
+  // Newest first, so the first card is the Azores.
+  await p.locator('[data-trip-rename]').first().click();
+  await p.waitForTimeout(400);
+  const input = p.locator('[data-trip-rename-input]');
+  ok(await input.count() === 1, 'tapping it opens the rename sheet');
+  ok(await input.inputValue() === 'Azores', 'prefilled with the name it has');
+  ok(await p.locator('[data-trip-rename-save]').isDisabled(), 'and saving the same name is not an edit');
+
+  // What the detector would refuse, the field refuses first.
+  await input.fill('Weekend lungo con i ragazzi');
+  await p.waitForTimeout(300);
+  ok(await p.locator('[data-trip-rename-error]').count() === 1,
+    'a name the app could not read back is called out');
+  await p.screenshot({ path: `${OUT}/trip-rename-bad.png` });
+  ok(await p.locator('[data-trip-rename-save]').isDisabled(), 'and cannot be saved');
+  await input.fill('Azores - costa nord');
+  await p.waitForTimeout(300);
+  ok(await p.locator('[data-trip-rename-save]').isDisabled(),
+    'nor can one carrying the separator, which would split every description');
+
+  await input.fill(FLAGGED);
+  await p.waitForTimeout(300);
+  ok(await p.locator('[data-trip-rename-error]').count() === 0, 'a flag on the end is fine');
+  const preview = (await p.locator('[data-trip-rename-preview]').innerText()).trim();
+  ok(preview.startsWith(`${FLAGGED} - `), `and the preview shows a real row rewritten ("${preview}")`);
+  ok(await p.locator('[data-trip-rename-save]').isEnabled(), 'now it can be saved');
+  await p.screenshot({ path: `${OUT}/trip-rename.png` });
+
+  await p.locator('[data-trip-rename-save]').click();
+  await p.waitForTimeout(900);
+  const sheet = await p.locator('[data-trips-sheet]').innerText();
+  ok(sheet.includes(FLAGGED), 'the card wears the new name');
+  ok(/12 expenses/.test(sheet), 'still with all twelve rows');
+  const written = await p.evaluate(() =>
+    JSON.parse(localStorage.getItem('expense-tracker.v1.transactions') ?? '[]')
+      .filter((t) => (t.description ?? '').includes('Azores')).map((t) => t.description));
+  ok(written.length === 12 && written.every((d) => d.startsWith(`${FLAGGED} - `)),
+    `every description is rewritten, not stacked (${written.length}: ${written[0]})`);
+
+  // Renaming onto a trip a month away merges the two. Legitimate, and not
+  // undone by renaming back - so it is said before the tap.
+  await p.locator('[data-trip-rename]').first().click();
+  await p.waitForTimeout(400);
+  await p.locator('[data-trip-rename-input]').fill('Formentera');
+  await p.waitForTimeout(400);
+  const merge = await p.locator('[data-trip-rename-merge]').count();
+  ok(merge === 1, 'renaming onto a neighbouring trip warns that they will merge');
+  const mergeText = merge ? (await p.locator('[data-trip-rename-merge]').innerText()).trim() : '';
+  // Aug 2026, not the Jul 2026 card it is being renamed onto - and that is the
+  // point of computing this by re-detecting instead of hunting for a
+  // same-named neighbour. Merged, the twenty-two rows have one peak, so the
+  // card that results is August's. A guess would have named the wrong month.
+  ok(/Formentera/.test(mergeText) && /Aug 2026/.test(mergeText),
+    `naming the card that will actually result ("${mergeText}")`);
+  await ctx.close();
+}
+
 // ── one trip gets the same sheet as three ─────────────────────────────────
 //
 // The reported case, and the one a content-sized sheet gets wrong: with a

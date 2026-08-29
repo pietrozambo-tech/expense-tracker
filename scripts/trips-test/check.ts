@@ -8,8 +8,10 @@
 import {
   applyBulkTrip,
   detectTrips,
+  isTripName,
   travelCategoryOf,
   tripBodyOf,
+  tripMergeTarget,
   tripNameOf,
 } from '../../src/app/lib/trips';
 import type { Category, Transaction } from '../../src/app/types';
@@ -188,6 +190,84 @@ ok(detectTrips([tx('2026-04-01', 'Azores - Cena')], null, amountOf).length === 0
   const after = applyBulkTrip(rows, new Set(['late']), 'Azores', travel);
   const trip = run(after)[0];
   ok(trip.rows.length === 4 && trip.total === 350, `after: it is (${trip.total})`);
+}
+
+// ── renaming a trip ───────────────────────────────────────────────────────
+//
+// The name IS the identity, so a rename is a rewrite of every description and
+// a bad one does not fail loudly: the rows change, nothing matches, and the
+// trip disappears from the sheet. isTripName is what the editor asks before
+// letting the button work, and it asks the detector rather than restating its
+// rules - so these cases are the detector's, seen from the other side.
+{
+  ok(isTripName('Azores') === true, 'a plain name is a name');
+  ok(isTripName('Azores \u{1F1F5}\u{1F1F9}') === true, 'and so is one with a flag on it');
+  ok(isTripName('Formentera 2025') === true, 'two words are fine');
+  ok(isTripName('  Azores  ') === true, 'surrounding space does not count against it');
+  ok(isTripName('') === false, 'an empty name is not one');
+  ok(isTripName('   ') === false, 'nor is a name of spaces');
+  ok(isTripName('Azores - costa nord') === false,
+    'a name containing the separator would split every description in two');
+  ok(isTripName('Weekend lungo con i ragazzi') === false, 'four words is a description');
+  ok(isTripName('Azores estate duemilaventisei') === false, 'and 29 characters is over the limit');
+  // The reason the check is a round trip and not a copy of the rules: this
+  // name passes a naive length count and fails the real one, because a flag
+  // is four UTF-16 units, not one.
+  ok(isTripName('Azori \u{1F1F5}\u{1F1F9}\u{1F1EA}\u{1F1F8}\u{1F1EE}\u{1F1F9}\u{1F1EB}\u{1F1F7}\u{1F1E9}\u{1F1EA}') === false,
+    'emoji cost what they really cost, not one character each');
+
+  // The rename itself, end to end: same write as assigning a selection.
+  const rows = [
+    tx('2026-08-21', 'Azores - Cena', { amount: 20 }),
+    tx('2026-08-22', 'Azores - Hotel', { amount: 100 }),
+    tx('2026-08-23', 'Azores - Volo', { amount: 200 }),
+  ];
+  const ids = new Set(run(rows)[0].rows.map((r) => r.id));
+  const after = applyBulkTrip(rows, ids, 'Azores \u{1F1F5}\u{1F1F9}', travel);
+  const renamed = run(after);
+  ok(renamed.length === 1, 'renaming leaves one trip, not two');
+  ok(renamed[0].name === 'Azores \u{1F1F5}\u{1F1F9}', `it wears the new name (${renamed[0].name})`);
+  ok(renamed[0].rows.length === 3 && renamed[0].total === 320, 'with every row and the same total');
+  ok(after.every((r) => r.description.startsWith('Azores \u{1F1F5}\u{1F1F9} - ')),
+    'and the prefix is rewritten, not stacked');
+  ok(tripBodyOf(after[0].description) === 'Cena', 'the body survives untouched');
+}
+
+// ── renaming onto another trip merges them, and it is said in advance ─────
+{
+  const rows = [
+    tx('2026-07-11', 'Formentera - Pranzo', { amount: 30 }),
+    tx('2026-07-12', 'Formentera - Cena', { amount: 30 }),
+    tx('2026-07-13', 'Formentera - Hotel', { amount: 40 }),
+    tx('2026-08-21', 'Azores - Cena', { amount: 20 }),
+    tx('2026-08-22', 'Azores - Hotel', { amount: 100 }),
+    tx('2026-08-23', 'Azores - Volo', { amount: 200 }),
+  ];
+  const trips = run(rows);
+  ok(trips.length === 2, 'two trips a month apart');
+  const azores = trips.find((t) => t.name === 'Azores')!;
+
+  ok(tripMergeTarget(rows, azores, 'Azores \u{1F1F5}\u{1F1F9}', travel, amountOf) === null,
+    'a name nobody else uses merges with nothing');
+  const target = tripMergeTarget(rows, azores, 'Formentera', travel, amountOf);
+  ok(target?.name === 'Formentera' && target?.month === '2026-07',
+    `renaming onto a neighbouring trip is announced (${JSON.stringify(target)})`);
+  // And it is not a false alarm: doing it really does produce one card.
+  const merged = run(applyBulkTrip(rows, new Set(azores.rows.map((r) => r.id)), 'Formentera', travel));
+  ok(merged.length === 1 && merged[0].rows.length === 6,
+    `the warning matches what actually happens (${merged.length} card(s))`);
+
+  // Far enough apart and the same name is two trips, so there is nothing to
+  // warn about - the summer-after-summer case the grouping exists for.
+  const older = [
+    tx('2025-08-10', 'Ibiza - Cena', { amount: 20 }),
+    tx('2025-08-11', 'Ibiza - Hotel', { amount: 20 }),
+    tx('2025-08-12', 'Ibiza - Volo', { amount: 20 }),
+    ...rows.slice(3),
+  ];
+  const az = run(older).find((t) => t.name === 'Azores')!;
+  ok(tripMergeTarget(older, az, 'Ibiza', travel, amountOf) === null,
+    'a year apart, the same name is two trips and nothing merges');
 }
 
 console.log(failed ? `\n${failed} FAILED` : '\nTrips group the way they should.');
