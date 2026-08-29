@@ -62,6 +62,19 @@ await ctx.addInitScript(seed);
 
   const which = await p.locator('[data-nudge]').getAttribute('data-nudge');
   ok(which === 'customize', `a phone in a browser tab is shown setup, not the install banner (got "${which}")`);
+
+  // The greeting and the title are the top of this screen; the card is a note
+  // about it. Rendered as a sibling of Dashboard rather than inside it, the
+  // card came FIRST - "Two things and you are set", then "Good morning,
+  // Marco", then "Dashboard" - which reads as the app introducing itself with
+  // a chore.
+  const order = await p.evaluate(() => {
+    const h1 = [...document.querySelectorAll('h1')].find((el) => el.textContent.trim() === 'Dashboard');
+    const card = document.querySelector('[data-nudge]');
+    return { h1: Math.round(h1.getBoundingClientRect().bottom), card: Math.round(card.getBoundingClientRect().top) };
+  });
+  ok(order.card >= order.h1,
+    `and it sits under the greeting and title, not above them (card at ${order.card}, title ends at ${order.h1})`);
   ok(await p.locator('[data-setup-task]').count() === 2, 'the card lists both halves of setup');
   ok(await doneOf(p, 'categories') === 'no' && await doneOf(p, 'sources') === 'no',
     'with nothing ticked on factory settings');

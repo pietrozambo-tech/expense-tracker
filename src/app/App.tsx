@@ -3487,17 +3487,6 @@ export default function App() {
         ) : (
           // Other tabs - Parent scrollable
           <div ref={mainScrollRef} className="flex-1 overflow-y-auto pb-32">
-            {/* At most one quiet card of advice, above the Dashboard proper -
-                which one (if any) is lib/nudges.ts's decision. */}
-            {currentTab === 'dashboard' && activeNudge && (
-              <NudgeCenter
-                nudge={activeNudge}
-                recap={recapFacts ?? undefined}
-                setup={{ categories: !setupProgress.catsUntouched, sources: !setupProgress.sourcesUntouched }}
-                onDismiss={dismissNudge}
-                onAction={actOnNudge}
-              />
-            )}
             <Suspense fallback={tabFallback}>
             {currentTab === 'dashboard' && (
               <Dashboard
@@ -3514,6 +3503,21 @@ export default function App() {
                 initialPeriod={dashboardInitialPeriod}
                 viewStateRef={dashboardViewRef}
                 monthlyBudget={monthlyBudget}
+                // At most one quiet card of advice - which one (if any) is
+                // lib/nudges.ts's decision. Handed to Dashboard as a slot
+                // rather than rendered beside it, so it lands UNDER the
+                // greeting instead of above it.
+                nudge={
+                  activeNudge ? (
+                    <NudgeCenter
+                      nudge={activeNudge}
+                      recap={recapFacts ?? undefined}
+                      setup={{ categories: !setupProgress.catsUntouched, sources: !setupProgress.sourcesUntouched }}
+                      onDismiss={dismissNudge}
+                      onAction={actOnNudge}
+                    />
+                  ) : null
+                }
                 budgetNudgeDismissed={budgetNudgeDismissed}
                 insightsEnabled={insightsEnabled}
                 onDisableInsights={() => setInsightsEnabled(false)}

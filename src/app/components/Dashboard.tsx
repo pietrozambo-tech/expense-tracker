@@ -160,6 +160,9 @@ interface DashboardProps {
   viewStateRef?: React.MutableRefObject<DashboardViewState | null>;
   trendStateRef?: React.MutableRefObject<TrendViewState | null>;
   monthlyBudget?: number;
+  /** The one advice card App has decided is worth showing, rendered under
+   *  this screen's header rather than above it. */
+  nudge?: React.ReactNode;
   /** True once the user has waved away the "set a budget" card. */
   budgetNudgeDismissed?: boolean;
   /** Raised while any sheet on this tab is open, so App can hide the floating
@@ -450,7 +453,7 @@ let lastChartWidth = 0;
 // Same idea for the Trend tab's monthly line chart, which has its own box.
 let lastTrendWidth = 0;
 
-export function Dashboard({ expenses, categories, incomeCategories, sources = [], userName, currency, onEditExpense, onDeleteExpense, view = 'overview', onShowOverview, initialPeriod, viewStateRef, trendStateRef, monthlyBudget, budgetNudgeDismissed, insightsEnabled = true, onDisableInsights, onModalOpenChange, onSetMonthlyBudget, onDismissBudgetNudge, onAddFirstExpense, onLoadDemoData, weekStartsOn = 1, recurringRules = [], onManageRecurring, household = null, partner = null, settlements = [], onSettle, sharedNewsCount = 0, sharedNews = null, onSharedModeChange, onOpenBalanceHistory }: DashboardProps) {
+export function Dashboard({ expenses, categories, incomeCategories, sources = [], userName, currency, onEditExpense, onDeleteExpense, view = 'overview', onShowOverview, initialPeriod, viewStateRef, trendStateRef, monthlyBudget, nudge, budgetNudgeDismissed, insightsEnabled = true, onDisableInsights, onModalOpenChange, onSetMonthlyBudget, onDismissBudgetNudge, onAddFirstExpense, onLoadDemoData, weekStartsOn = 1, recurringRules = [], onManageRecurring, household = null, partner = null, settlements = [], onSettle, sharedNewsCount = 0, sharedNews = null, onSharedModeChange, onOpenBalanceHistory }: DashboardProps) {
   // Restore the previous view (period + drilldown) unless a Trend->Overview
   // link supplied an explicit period - that must win and start clean.
   // Subscribing here does two jobs: it re-renders the Dashboard the instant the
@@ -2396,6 +2399,8 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
             {t('tab.dashboard')}
           </h1>
         </div>
+        {/* Same rule on the empty screen: header first, advice under it. */}
+        {nudge}
         <div className="flex-1 flex flex-col justify-center px-6 pt-4 pb-4">
           <div className="rounded-2xl px-6 py-8 text-center" style={{ background: 'var(--bg-card)', boxShadow: '0 8px 24px rgba(0,0,0,0.06)', border: '1px solid var(--line-2)' }}>
             <div className="mx-auto mb-4 flex items-center justify-center" style={{ width: 56, height: 56, borderRadius: 999, background: 'var(--wash-accent2)' }}>
@@ -2607,6 +2612,16 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
           </div>
         </div>
       )}
+
+      {/* Advice, if any - and BELOW the header, never above it.
+          App renders one nudge card for this tab, and rendering it as a
+          sibling put it above everything Dashboard draws: the card came
+          first, then "Good morning, Marco", then the title. The greeting is
+          the top of this screen and the card is a note about it; a note
+          cannot come before the thing it annotates. Passed in as a slot
+          rather than moving the header up into App, because the header owns
+          the period pill, the household switcher and the launch animation. */}
+      {nudge}
 
       {/* Current Month View */}
       {viewType === 'current-month' && (
