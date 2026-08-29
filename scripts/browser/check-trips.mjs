@@ -107,6 +107,26 @@ const enterSelect = async (p) => {
   ok(formentera === 2, `the same name in two summers is two cards (${formentera})`);
   ok(/Aug 2025/.test(sheet) && /Jul 2026/.test(sheet), 'and the month tells them apart');
 
+  // The sheet is a place you went, not a strip that grew to fit. Sized by its
+  // content it sat in the bottom third of the screen and left the transaction
+  // list you were leaving with two thirds of it - a trip summary competing for
+  // attention with the thing it summarises, and losing.
+  const frame = await p.evaluate(() => {
+    const el = document.querySelector('[data-trips-sheet]');
+    const list = el.lastElementChild;
+    return {
+      h: Math.round(el.getBoundingClientRect().height),
+      top: Math.round(el.getBoundingClientRect().top),
+      vh: window.innerHeight,
+      cards: Math.round([...list.children].reduce((h, c) => h + c.getBoundingClientRect().height, 0)),
+    };
+  });
+  ok(frame.h >= frame.vh * 0.6, `the sheet takes two thirds of the screen (${frame.h} of ${frame.vh}px)`);
+  ok(frame.h > frame.cards + 120,
+    `and stands above its own content rather than hugging it (${frame.h}px of sheet, ${frame.cards}px of cards)`);
+  ok(frame.top > 0, `while still showing where closing it lands (${frame.top}px of Activity above)`);
+  globalThis.__sheetHeight = frame.h;
+
   await p.screenshot({ path: `${OUT}/trips.png` });
 
   // Opening one escapes the period: March bookings and August rows together.
@@ -207,6 +227,29 @@ const enterSelect = async (p) => {
   await p.waitForTimeout(500);
   ok(await p.locator('[data-trip-assign]').count() === 0, 'an income row gets no trip sheet');
   ok(/expenses only/.test(await p.locator('body').innerText()), 'it says why');
+  await ctx.close();
+}
+
+// ── one trip gets the same sheet as three ─────────────────────────────────
+//
+// The reported case, and the one a content-sized sheet gets wrong: with a
+// single trip it drew a strip across the bottom third of the screen. The
+// frame is the point - what is in it does not decide how much room it takes.
+{
+  const { ctx, p } = await open(false);
+  await openMenu(p);
+  await p.locator('[data-act-menu-trips]').click();
+  await p.waitForTimeout(500);
+  ok(await p.locator('[data-trip-card]').count() === 1, 'one trip in the ledger, one card');
+  const one = await p.evaluate(() => {
+    const el = document.querySelector('[data-trips-sheet]');
+    return { h: Math.round(el.getBoundingClientRect().height), vh: window.innerHeight };
+  });
+  ok(one.h >= one.vh * 0.6,
+    `and the sheet is just as tall for it (${one.h} of ${one.vh}px)`);
+  ok(one.h === globalThis.__sheetHeight,
+    `exactly as tall as the three-trip one (${one.h} vs ${globalThis.__sheetHeight}px)`);
+  await p.screenshot({ path: `${OUT}/trips-one.png` });
   await ctx.close();
 }
 

@@ -145,11 +145,22 @@ export function TripsSheet({ trips, travel, currency, onOpen, onClose }: TripsSh
   return (
     <div data-overlay className="fixed inset-0 z-[70] flex items-end" onClick={onClose}>
       <div className="absolute inset-0 bg-black/30" />
+      {/* Two thirds of the screen at least, and never the whole of it.
+          With only a maxHeight the sheet hugged its content, so one trip drew
+          a strip across the bottom third: the summary you opened sat in the
+          smallest part of the screen while the transaction list you were
+          leaving kept the rest, and attention stayed on the background.
+          A floor fixes that. A floor of 85vh - the app's other big sheets -
+          does not: a single trip is one card, and five card-heights of empty
+          page below it is a different kind of wrong. Two thirds is enough to
+          own the screen, and the third of Activity left above says where
+          closing it lands. Beyond that the sheet grows with the trips and
+          then scrolls. */}
       <div
         data-trips-sheet
-        className="relative w-full max-w-[430px] mx-auto rounded-t-3xl shadow-xl animate-slide-up flex flex-col"
+        className="relative w-full max-w-[430px] mx-auto rounded-t-3xl shadow-xl animate-slide-up flex flex-col overflow-hidden"
         onClick={(e) => e.stopPropagation()}
-        style={{ backgroundColor: 'var(--bg-page)', maxHeight: '86vh' }}
+        style={{ backgroundColor: 'var(--bg-page)', minHeight: '66vh', maxHeight: '88vh' }}
       >
         <div className="flex items-start justify-between gap-3 px-5 pt-5 pb-3 flex-shrink-0">
           <div className="min-w-0">
