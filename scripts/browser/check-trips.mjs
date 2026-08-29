@@ -294,6 +294,7 @@ const enterSelect = async (p) => {
   await p.waitForTimeout(400);
   const merge = await p.locator('[data-trip-rename-merge]').count();
   ok(merge === 1, 'renaming onto a neighbouring trip warns that they will merge');
+  await p.screenshot({ path: `${OUT}/trip-rename-merge.png` });
   const mergeText = merge ? (await p.locator('[data-trip-rename-merge]').innerText()).trim() : '';
   // Aug 2026, not the Jul 2026 card it is being renamed onto - and that is the
   // point of computing this by re-detecting instead of hunting for a
