@@ -847,7 +847,13 @@ export function Activity({
                     {/* Only for someone who has trips. For everyone else the
                         menu is exactly what it was, which is the whole point
                         of putting this here rather than on a screen. */}
-                    {trips.length > 0 && (
+                    {/* Shown whenever there is a travel category to file one
+                        under, not only once a trip exists. Gating it on
+                        having one meant the way to MAKE the first was only
+                        reachable by someone who already had one - and a
+                        person with none is exactly who needs to be told what
+                        a trip is. */}
+                    {!!travelCategory && (
                       <>
                         <div style={{ height: 1, backgroundColor: 'var(--line-2)' }} />
                         <button

@@ -223,11 +223,15 @@ export function TripsSheet({ trips, travel, currency, transactions, amountOf, on
               {t('trips.title')}
             </h2>
             <p style={{ color: 'var(--ink-2)', fontSize: 13.5, marginTop: 1 }}>
-              {t(trips.length === 1 ? 'trips.meta.one' : 'trips.meta.other', { n: trips.length })}
-              {' · '}
-              <AmountText amount={total} currency={currency} decimals={2} />
-              {' '}
-              {t('trips.inAll')}
+              {trips.length === 0 ? t('trips.meta.none') : (
+                <>
+                  {t(trips.length === 1 ? 'trips.meta.one' : 'trips.meta.other', { n: trips.length })}
+                  {' · '}
+                  <AmountText amount={total} currency={currency} decimals={2} />
+                  {' '}
+                  {t('trips.inAll')}
+                </>
+              )}
             </p>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
@@ -257,6 +261,24 @@ export function TripsSheet({ trips, travel, currency, transactions, amountOf, on
         </div>
 
         <div className="flex-1 overflow-y-auto px-3.5 pb-6 flex flex-col gap-2.5">
+          {/* An empty list with a + in the corner says nothing about what a
+              trip is or why anyone would want one. This is the only screen
+              that ever gets to explain it, so it does. */}
+          {trips.length === 0 && (
+            <div data-trips-empty className="px-2 pt-2">
+              <p style={{ color: 'var(--ink-2)', fontSize: 13.5, lineHeight: 1.5 }}>
+                {t('trips.emptyBody')}
+              </p>
+              <button
+                data-trips-empty-cta
+                onClick={() => setBuilding(true)}
+                className="mt-4 px-4 py-2.5 rounded-xl font-medium active:scale-[0.98] transition-transform"
+                style={{ backgroundColor: '#4F74F3', color: '#FFFFFF', fontSize: 14.5 }}
+              >
+                {t('trips.emptyCta')}
+              </button>
+            </div>
+          )}
           {trips.map((trip) => (
             <TripCard
               key={trip.key}

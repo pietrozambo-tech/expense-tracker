@@ -142,7 +142,12 @@ const enterSelect = async (p) => {
   await ctx.close();
 }
 
-// ── no trips, no entry ────────────────────────────────────────────────────
+// ── no trips: the entry is there, and it explains itself ──────────────────
+//
+// It used to be hidden until you had one, which put the only way to MAKE a
+// first trip behind having a first trip. Someone with none is exactly who
+// needs telling what a trip is, so the sheet opens, says so, and offers the
+// way in.
 {
   const ctx = await b.newContext({ viewport: { width: 390, height: 900 }, locale: 'en-GB' });
   await ctx.route(/supabase\.co/, (r) => r.abort());
@@ -155,10 +160,20 @@ const enterSelect = async (p) => {
     put('categories', cats);
     put('income-categories', income);
     put('sources', [{ id: 'cash', kind: 'cash', mark: 'banknote', name: 'Cash', brand: '#2FA84F' }]);
-    // Two rows sharing an opening word: a coincidence, not a holiday.
+    // Two rows sharing an opening word: a coincidence, not a holiday. Plus
+    // two ordinary ones, because the builder deliberately leaves a row that
+    // already carries a prefix alone - assigning "Milano - Roma treno" to a
+    // trip would overwrite the word "Milano" without saying so.
+    const at = (id, date, amount, description) => ({
+      id, date, type: 'expense', amount, baseAmount: amount, currency: 'EUR', sourceId: 'cash',
+      category: cats[0], createdAt: `${date}T10:00:00.000Z`, updatedAt: `${date}T10:00:00.000Z`,
+      recurrence: 'Never repeat', description,
+    });
     put('transactions', [
-      { id: 'a', date: '2026-08-20', type: 'expense', amount: 30, baseAmount: 30, currency: 'EUR', sourceId: 'cash', category: cats[0], createdAt: '2026-08-20T10:00:00.000Z', updatedAt: '2026-08-20T10:00:00.000Z', recurrence: 'Never repeat', description: 'Milano - Roma treno' },
-      { id: 'b', date: '2026-08-21', type: 'expense', amount: 80, baseAmount: 80, currency: 'EUR', sourceId: 'cash', category: cats[0], createdAt: '2026-08-21T10:00:00.000Z', updatedAt: '2026-08-21T10:00:00.000Z', recurrence: 'Never repeat', description: 'Milano - Hotel' },
+      at('a', '2026-08-20', 30, 'Milano - Roma treno'),
+      at('b', '2026-08-21', 80, 'Milano - Hotel'),
+      at('c', '2026-08-22', 24, 'Cena'),
+      at('d', '2026-08-23', 60, 'Ostello'),
     ]);
   }, [CATS, INCOME]);
   const p = await ctx.newPage();
@@ -167,8 +182,27 @@ const enterSelect = async (p) => {
   await p.getByRole('button', { name: 'Activity' }).first().click();
   await p.waitForTimeout(600);
   await openMenu(p);
-  ok(await p.locator('[data-act-menu-trips]').count() === 0,
-    'two rows sharing a word are no trip, and the menu is exactly what it was');
+  ok(await p.locator('[data-act-menu-trips]').count() === 1,
+    'Trips is in the menu even with none - it is where the first one gets made');
+  await p.locator('[data-act-menu-trips]').click();
+  await p.waitForTimeout(500);
+
+  // Two rows sharing an opening word are still a coincidence, not a holiday.
+  ok(await p.locator('[data-trip-card]').count() === 0,
+    'two rows sharing a word are no trip, and no card claims otherwise');
+  const head = await p.locator('[data-trips-sheet]').innerText();
+  ok(/None yet/.test(head), `the sheet says so rather than showing a total of nothing (${head.split('\n').slice(0, 3).join(' | ')})`);
+  ok(await p.locator('[data-trips-empty]').count() === 1, 'and explains what a trip is, which no other screen ever does');
+  ok(await p.locator('[data-trips-new]').count() === 1, 'the + is there');
+  await p.screenshot({ path: `${OUT}/trips-empty.png` });
+
+  await p.locator('[data-trips-empty-cta]').click();
+  await p.waitForTimeout(500);
+  ok(await p.locator('[data-trip-new-sheet]').count() === 1, 'and the invitation opens the same builder');
+  const offered = await p.evaluate(() =>
+    [...document.querySelectorAll('[data-trip-row]')].map((el) => el.getAttribute('data-trip-row')));
+  ok(offered.sort().join(',') === 'c,d', `with the expenses there are to pick from (${offered.join(',')})`);
+  ok(!offered.includes('a'), 'and not the ones already carrying a prefix, which picking would overwrite');
   await ctx.close();
 }
 
