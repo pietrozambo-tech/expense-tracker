@@ -26,37 +26,53 @@ export interface RecapFacts {
 }
 
 /**
- * What the setup card still has to say, read from the ledger rather than from
- * a stored flag: `true` means that half is done.
+ * What the setup card still has to say, read from the ledger and the settings
+ * rather than from a stored flag: `true` means that line is done.
  *
  * Which is the whole reason it can be a checklist and not a leaflet. Nobody
  * has to tell the app they have finished - touching one category ticks its own
- * line, and when both are ticked the card is not due any more and stops
+ * line, and when all three are ticked the card is not due any more and stops
  * appearing. There is no "mark as done" to forget.
  */
 export interface SetupProgress {
   categories: boolean;
   sources: boolean;
+  budget: boolean;
 }
+
+type SetupKey = 'categories' | 'sources' | 'budget';
 
 export function NudgeCenter({
   nudge,
   recap,
   setup,
+  currencySymbol = '',
   onDismiss,
   onAction,
+  onSetBudget,
 }: {
   nudge: Nudge;
   recap?: RecapFacts;
   setup?: SetupProgress;
+  /** For the budget field - the card does no currency lookups of its own. */
+  currencySymbol?: string;
   onDismiss: () => void;
-  /** recap -> Trend; customize -> the half of Settings the row names. */
+  /** recap -> Trend; customize -> the part of Settings the row names. */
   onAction: (target?: 'categories' | 'sources') => void;
+  onSetBudget?: (amount: number) => void;
 }) {
   // The install card's steps unfold in place: a sheet for three lines of
   // instructions is ceremony, and the unfold keeps Safari's Share button
   // visible below while the user follows them.
   const [showSteps, setShowSteps] = useState(false);
+  // The budget is the one line that is answered HERE rather than somewhere
+  // else: it is a number, not a screenful, and its own card already worked
+  // this way. Sending someone to Settings to type four digits would be a
+  // worse card than the one this replaces.
+  const [budgetOpen, setBudgetOpen] = useState(false);
+  const [budgetValue, setBudgetValue] = useState('');
+  const budgetAmount = parseFloat(budgetValue.replace(',', '.'));
+  const budgetValid = isFinite(budgetAmount) && budgetAmount > 0;
   const Icon = ICONS[nudge];
 
   const title =
@@ -82,14 +98,25 @@ export function NudgeCenter({
     : nudge === 'install' ? (showSteps ? null : t('nudge.installHow'))
     : null; // customize speaks through its checklist below
 
-  const tasks: { key: 'categories' | 'sources'; label: string; done: boolean }[] =
+  const tasks: { key: SetupKey; label: string; done: boolean }[] =
     nudge === 'customize'
       ? [
           { key: 'categories', label: t('nudge.setupCategories'), done: !!setup?.categories },
           { key: 'sources', label: t('nudge.setupSources'), done: !!setup?.sources },
+          { key: 'budget', label: t('nudge.setupBudget'), done: !!setup?.budget },
         ]
       : [];
   const doneCount = tasks.filter((x) => x.done).length;
+
+  const tapTask = (key: SetupKey) => {
+    if (key === 'budget') setBudgetOpen(true);
+    else onAction(key);
+  };
+  const saveBudget = () => {
+    if (!budgetValid) return;
+    onSetBudget?.(budgetAmount);
+    setBudgetOpen(false);
+  };
 
   const steps =
     installPlatform() === 'android'
@@ -116,15 +143,14 @@ export function NudgeCenter({
             <>
               <div className="mt-2">
                 {tasks.map((task, i) => (
+                  <div key={task.key} style={{ borderTop: i ? '1px solid var(--line-2)' : undefined }}>
                   <button
-                    key={task.key}
                     data-setup-task={task.key}
                     data-setup-done={task.done ? 'yes' : 'no'}
-                    onClick={() => (task.done ? undefined : onAction(task.key))}
+                    onClick={() => (task.done ? undefined : tapTask(task.key))}
                     disabled={task.done}
                     aria-label={`${task.label} - ${t('nudge.setupGo')}`}
                     className="w-full flex items-center gap-2.5 py-1.5 text-left"
-                    style={{ borderTop: i ? '1px solid var(--line-2)' : undefined }}
                   >
                     <span
                       className="flex-shrink-0 grid place-items-center rounded-full"
@@ -158,6 +184,49 @@ export function NudgeCenter({
                       <ChevronRight className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--accent-ink)' }} strokeWidth={2.5} />
                     )}
                   </button>
+                  {/* The budget's answer, typed on the spot. */}
+                  {task.key === 'budget' && !task.done && budgetOpen && (
+                    <div className="flex items-center gap-2 pb-1.5 pl-[29px]">
+                      <div
+                        className="flex items-center gap-1.5 px-2.5 rounded-lg flex-1 min-w-0"
+                        style={{ backgroundColor: 'var(--bg-field)' }}
+                      >
+                        <span style={{ color: 'var(--ink-2)', fontSize: 14 }}>{currencySymbol}</span>
+                        <input
+                          autoFocus
+                          data-setup-budget
+                          type="text"
+                          inputMode="decimal"
+                          value={budgetValue}
+                          onChange={(e) => {
+                            const v = e.target.value.replace(',', '.');
+                            if (v === '' || /^\d*\.?\d{0,2}$/.test(v)) setBudgetValue(v);
+                          }}
+                          onKeyDown={(e) => { if (e.key === 'Enter') saveBudget(); }}
+                          placeholder={t('budget.nudge.placeholder')}
+                          aria-label={t('nudge.setupBudget')}
+                          className="flex-1 min-w-0 py-1.5 bg-transparent outline-none tabular-nums"
+                          // 16, not smaller: below that iOS zooms the page in
+                          // on focus. See the form-control floor in theme.css.
+                          style={{ fontSize: 16, color: 'var(--ink)' }}
+                        />
+                      </div>
+                      <button
+                        data-setup-budget-save
+                        onClick={saveBudget}
+                        disabled={!budgetValid}
+                        className="px-3 py-1.5 rounded-lg font-medium flex-shrink-0"
+                        style={{
+                          backgroundColor: budgetValid ? '#4F74F3' : 'var(--line)',
+                          color: budgetValid ? '#FFFFFF' : 'var(--disabled)',
+                          fontSize: 13,
+                        }}
+                      >
+                        {t('budget.nudge.save')}
+                      </button>
+                    </div>
+                  )}
+                  </div>
                 ))}
               </div>
               <div

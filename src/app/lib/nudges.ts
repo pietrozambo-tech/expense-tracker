@@ -9,9 +9,9 @@
 //              about LOSING things, so it outranks the rest and returns
 //              monthly rather than answering "no" forever.
 //   recap      first opens of a new month: last month, told as one line.
-//   customize  one transaction in, categories or sources still exactly as
-//              seeded. A two-line checklist that ticks itself off: the one
-//              screen people do not find on their own.
+//   customize  one transaction in, with categories, sources or a budget still
+//              unset. A three-line checklist that ticks itself off: the
+//              screens people do not find on their own, in one place.
 //   install    a browser visitor who has not installed. Half funnel, half
 //              data safety: an installed app is exempt from Safari's 7-day
 //              storage eviction, a plain tab is not.
@@ -109,6 +109,8 @@ export function dueNudge(args: {
   hasPrevMonthActivity: boolean;
   catsUntouched: boolean;
   sourcesUntouched: boolean;
+  /** A monthly budget is set. Its own card used to ask for this separately. */
+  budgetSet: boolean;
 }): Nudge | null {
   const { prefs, now } = args;
   if (
@@ -123,9 +125,15 @@ export function dueNudge(args: {
   if (prefs.recap && args.hasPrevMonthActivity && prefs.recapSeen !== monthKey(now)) {
     return 'recap';
   }
-  // Either half being untouched is enough. It used to need BOTH, so renaming
-  // one category silenced the advice about accounts for good - two separate
-  // pieces of setup treated as one switch.
+  // Any ONE of the three being outstanding is enough. It used to need BOTH
+  // categories and sources untouched, so renaming one category silenced the
+  // advice about accounts for good - separate pieces of setup treated as one
+  // switch.
+  //
+  // The budget is the third because it was a second card saying the same kind
+  // of thing lower down the same screen: two to-do lists for one head. One
+  // list, one dismissal - and Settings keeps a permanent budget control, so
+  // waving this away strands nothing.
   //
   // And it waits for a transaction rather than for two days. Before the first
   // one the Dashboard's empty state is already saying "add your first
@@ -137,7 +145,7 @@ export function dueNudge(args: {
     prefs.tips &&
     !prefs.customizeDismissed &&
     args.txCount >= 1 &&
-    (args.catsUntouched || args.sourcesUntouched)
+    (args.catsUntouched || args.sourcesUntouched || !args.budgetSet)
   ) {
     return 'customize';
   }

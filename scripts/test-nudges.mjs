@@ -57,10 +57,13 @@ const base = {
   hasPrevMonthActivity: false,
   catsUntouched: true,
   sourcesUntouched: true,
+  // Set, so the scenarios below isolate the half they are about. The budget's
+  // own cases are grouped further down.
+  budgetSet: true,
 };
 const due = (over) => dueNudge({ ...base, ...over, prefs: { ...base.prefs, ...(over.prefs ?? {}) } });
-/** Setup finished - both halves touched. */
-const setUp = { catsUntouched: false, sourcesUntouched: false };
+/** Setup finished - all three lines. */
+const setUp = { catsUntouched: false, sourcesUntouched: false, budgetSet: true };
 
 eq('a fresh month with history leads with the recap', due({ hasPrevMonthActivity: true }), 'recap');
 eq('the recap already seen this month stays quiet',
@@ -95,6 +98,18 @@ eq('categories touched, sources still seeded: half a checklist is still due',
 eq('sources touched, categories still seeded: likewise', due({ sourcesUntouched: false }), 'customize');
 eq('both touched: nothing left to say', due({ ...setUp }), null);
 eq('customize dismissed: never again', due({ prefs: { customizeDismissed: true } }), null);
+
+// The budget was a second card, lower down the same screen, asking the same
+// kind of thing. As a third line it has to be able to hold the card open on
+// its own - otherwise merging it would have quietly deleted the offer for
+// anyone who had already sorted their categories and accounts.
+eq('a missing budget alone keeps the checklist due', due({ ...setUp, budgetSet: false }), 'customize');
+eq('a budget set but the lists still seeded: also due', due({ budgetSet: true }), 'customize');
+eq('all three done: gone', due({ ...setUp }), null);
+eq('one dismissal answers all three, budget included',
+  due({ ...setUp, budgetSet: false, prefs: { customizeDismissed: true } }), null);
+eq('and install still gets the slot afterwards',
+  due({ ...setUp, budgetSet: false, standalone: false, prefs: { customizeDismissed: true } }), 'install');
 
 // ── the backup card: a guest ledger with no recent copy ────────────────────
 const g = { guest: true, txCount: 40, standalone: false };

@@ -75,11 +75,15 @@ await ctx.addInitScript(seed);
   });
   ok(order.card >= order.h1,
     `and it sits under the greeting and title, not above them (card at ${order.card}, title ends at ${order.h1})`);
-  ok(await p.locator('[data-setup-task]').count() === 2, 'the card lists both halves of setup');
-  ok(await doneOf(p, 'categories') === 'no' && await doneOf(p, 'sources') === 'no',
-    'with nothing ticked on factory settings');
-  ok(await p.locator('[data-setup-progress]').getAttribute('data-setup-progress') === '0/2',
+  ok(await p.locator('[data-setup-task]').count() === 3, 'the card lists all three pieces of setup');
+  ok(await doneOf(p, 'categories') === 'no' && await doneOf(p, 'sources') === 'no'
+    && await doneOf(p, 'budget') === 'no', 'with nothing ticked on factory settings');
+  ok(await p.locator('[data-setup-progress]').getAttribute('data-setup-progress') === '0/3',
     'and a progress bar that agrees');
+  // The whole point of merging: ONE to-do card on the screen. The budget used
+  // to ask separately, half a screen lower.
+  ok(!/Set a monthly budget/i.test(await p.locator('body').innerText()),
+    'and the budget no longer asks from a second card of its own');
   // The rows are the call to action; a second "Open Settings" button below
   // them would be asking twice.
   ok(await p.locator('[data-nudge-cta]').count() === 0, 'no separate CTA - the lines themselves are the button');
@@ -112,7 +116,7 @@ await ctx.addInitScript(seed);
   ok(await p.locator('[data-nudge="customize"]').count() === 1, 'one half done: the card stays for the other');
   ok(await doneOf(p, 'categories') === 'yes', 'and the Categories line has ticked itself - nothing marked it done');
   ok(await doneOf(p, 'sources') === 'no', 'while the untouched half stays open');
-  ok(await p.locator('[data-setup-progress]').getAttribute('data-setup-progress') === '1/2', 'the bar moves with it');
+  ok(await p.locator('[data-setup-progress]').getAttribute('data-setup-progress') === '1/3', 'the bar moves with it');
   ok(await p.locator('[data-setup-task="categories"]').isDisabled(), 'a finished line is not a button any more');
 
   await p.locator('[data-setup-task="sources"]').click();
@@ -127,8 +131,27 @@ await ctx.addInitScript(seed);
   await p.waitForTimeout(600);
 
   await toDashboard(p);
+  ok(await p.locator('[data-nudge="customize"]').count() === 1,
+    'two of three done: the card stays for the budget');
+  ok(await p.locator('[data-setup-progress]').getAttribute('data-setup-progress') === '2/3',
+    'and the bar says two of three');
+
+  // The budget is the one line answered HERE. Sending someone to Settings to
+  // type four digits would be a worse card than the one this replaces.
+  ok(await p.locator('[data-setup-budget]').count() === 0, 'the amount field waits to be asked for');
+  await p.locator('[data-setup-task="budget"]').click();
+  await p.waitForTimeout(400);
+  ok(await p.locator('[data-setup-budget]').count() === 1, 'tapping the budget line opens it in place');
+  await p.locator('[data-setup-budget]').fill('1200');
+  await p.screenshot({ path: `${OUT}/setuptip-budget.png` });
+  await p.locator('[data-setup-budget-save]').click();
+  await p.waitForTimeout(800);
+
+  const saved = await p.evaluate(() =>
+    JSON.parse(localStorage.getItem('expense-tracker.v1.settings') ?? '{}').monthlyBudget);
+  ok(saved === 1200, `and the budget is written down, not just displayed (${saved})`);
   ok(await p.locator('[data-nudge="customize"]').count() === 0,
-    'both halves done: the card retires itself, with nothing to dismiss');
+    'all three done: the card retires itself, with nothing to dismiss');
   ok(await p.locator('[data-nudge="install"]').count() === 1,
     'and the install invitation, queued behind it, finally gets its turn');
   await p.close();

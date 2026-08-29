@@ -775,8 +775,9 @@ export default function App() {
       hasPrevMonthActivity: expenses.some((e) => (e.date ?? '').startsWith(prev)),
       catsUntouched: setupProgress.catsUntouched,
       sourcesUntouched: setupProgress.sourcesUntouched,
+      budgetSet: !!monthlyBudget && monthlyBudget > 0,
     });
-  }, [hasCompletedOnboarding, nudgePrefs, setupProgress, expenses, guest]);
+  }, [hasCompletedOnboarding, nudgePrefs, setupProgress, expenses, guest, monthlyBudget]);
 
   // Last month, told as one line. Amounts pre-formatted here so the card
   // stays free of money arithmetic; negative savings are simply not claimed
@@ -3512,18 +3513,21 @@ export default function App() {
                     <NudgeCenter
                       nudge={activeNudge}
                       recap={recapFacts ?? undefined}
-                      setup={{ categories: !setupProgress.catsUntouched, sources: !setupProgress.sourcesUntouched }}
+                      setup={{
+                        categories: !setupProgress.catsUntouched,
+                        sources: !setupProgress.sourcesUntouched,
+                        budget: !!monthlyBudget && monthlyBudget > 0,
+                      }}
+                      currencySymbol={CURRENCIES[userCurrency]?.symbol ?? ''}
                       onDismiss={dismissNudge}
                       onAction={actOnNudge}
+                      onSetBudget={(amount) => setMonthlyBudget(amount)}
                     />
                   ) : null
                 }
-                budgetNudgeDismissed={budgetNudgeDismissed}
                 insightsEnabled={insightsEnabled}
                 onDisableInsights={() => setInsightsEnabled(false)}
                 onModalOpenChange={setIsModalOpen}
-                onSetMonthlyBudget={setMonthlyBudget}
-                onDismissBudgetNudge={() => setBudgetNudgeDismissed(true)}
                 onAddFirstExpense={() => setCurrentTab('add')}
                 onLoadDemoData={handleLoadDemoData}
                 recurringRules={recurringRules}

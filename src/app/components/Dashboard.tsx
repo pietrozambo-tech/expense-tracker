@@ -16,7 +16,7 @@ import { categoryHex, categoryTint, switchGlow } from './categoryColors';
 import { usualCurve, periodCurve } from '../lib/usual';
 import { upcomingSchedules, toDateStr } from '../lib/recurrence';
 import { dayOfWeekBreakdown, dowTakeaway } from '../lib/dayOfWeek';
-import { BudgetBar, BudgetNudge } from './BudgetBar';
+import { BudgetBar } from './BudgetBar';
 import { FitText } from './FitText';
 import { AmountText, AmountFromText } from './AmountText';
 import { parseLocalDate } from '../lib/dates';
@@ -163,8 +163,6 @@ interface DashboardProps {
   /** The one advice card App has decided is worth showing, rendered under
    *  this screen's header rather than above it. */
   nudge?: React.ReactNode;
-  /** True once the user has waved away the "set a budget" card. */
-  budgetNudgeDismissed?: boolean;
   /** Raised while any sheet on this tab is open, so App can hide the floating
    *  dock. Without it the dock sat on top of the period picker's bottom row -
    *  and in the Year view that row IS the years. */
@@ -172,8 +170,6 @@ interface DashboardProps {
   /** False once the user has turned the month-review card off in Settings. */
   insightsEnabled?: boolean;
   onDisableInsights?: () => void;
-  onSetMonthlyBudget?: (value: number) => void;
-  onDismissBudgetNudge?: () => void;
   // First-run: with an empty ledger the Overview shows one clear next action
   // instead of a page of zeros. Both open flows that already exist elsewhere.
   onAddFirstExpense?: () => void;
@@ -453,7 +449,7 @@ let lastChartWidth = 0;
 // Same idea for the Trend tab's monthly line chart, which has its own box.
 let lastTrendWidth = 0;
 
-export function Dashboard({ expenses, categories, incomeCategories, sources = [], userName, currency, onEditExpense, onDeleteExpense, view = 'overview', onShowOverview, initialPeriod, viewStateRef, trendStateRef, monthlyBudget, nudge, budgetNudgeDismissed, insightsEnabled = true, onDisableInsights, onModalOpenChange, onSetMonthlyBudget, onDismissBudgetNudge, onAddFirstExpense, onLoadDemoData, weekStartsOn = 1, recurringRules = [], onManageRecurring, household = null, partner = null, settlements = [], onSettle, sharedNewsCount = 0, sharedNews = null, onSharedModeChange, onOpenBalanceHistory }: DashboardProps) {
+export function Dashboard({ expenses, categories, incomeCategories, sources = [], userName, currency, onEditExpense, onDeleteExpense, view = 'overview', onShowOverview, initialPeriod, viewStateRef, trendStateRef, monthlyBudget, nudge, insightsEnabled = true, onDisableInsights, onModalOpenChange, onAddFirstExpense, onLoadDemoData, weekStartsOn = 1, recurringRules = [], onManageRecurring, household = null, partner = null, settlements = [], onSettle, sharedNewsCount = 0, sharedNews = null, onSharedModeChange, onOpenBalanceHistory }: DashboardProps) {
   // Restore the previous view (period + drilldown) unless a Trend->Overview
   // link supplied an explicit period - that must win and start clean.
   // Subscribing here does two jobs: it re-renders the Dashboard the instant the
@@ -3019,13 +3015,14 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
               usualByNow={budgetView.usualByNow}
             />
           )}
-          {budgetView?.nudge === true && !budgetNudgeDismissed && (
-            <BudgetNudge
-              currency={currency}
-              onSave={(value) => onSetMonthlyBudget?.(value)}
-              onDismiss={() => onDismissBudgetNudge?.()}
-            />
-          )}
+          {/* The "set a monthly budget" card used to sit here, and it was the
+              second to-do card on one screen: the setup checklist at the top
+              asked for categories and accounts, this asked for a budget, half
+              a screen apart and looking like unrelated things. It is the third
+              line of that checklist now - one list, one dismissal. Settings
+              still holds a permanent budget control, so waving the list away
+              strands nothing. The bar above, which reports a budget that
+              EXISTS, is a different job and stays. */}
 
           {/* Expense Type Table Card */}
           <div className="px-6 mb-4">
