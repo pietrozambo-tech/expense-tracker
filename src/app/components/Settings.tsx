@@ -23,6 +23,7 @@ import { toast } from 'sonner';
 import { Categories } from './Categories';
 import { ScheduledManager, type ScheduleDraft } from './ScheduledManager';
 import { upcomingSchedules } from '../lib/recurrence';
+import { detectTrips, travelCategoryOf } from '../lib/trips';
 import type { RecurringRule } from '../types';
 import { SourcesManager } from './SourcesManager';
 import { TracklyLogo } from './TracklyLogo';
@@ -39,7 +40,7 @@ import type { Source } from '../types';
 import type { ImportPayload } from '../lib/importData';
 import { t, type Language as AppLanguage } from '../i18n';
 import { CATCHALL_RE } from '../lib/categoryOps';
-import { dateLocale, daysShort, getLanguage } from '../i18n/store';
+import { dateLocale, daysShort, getLanguage, monthsShort } from '../i18n/store';
 import { isBackupFile } from '../lib/backup';
 
 // One row of the Profile card with an iOS-style switch. Budget and insights
@@ -2680,10 +2681,14 @@ export function Settings({
     // scripts/tricount-import.mjs does: seeded id first, then folded name.
     // When nothing matches, the prompt tells the AI to ask instead of filing a
     // trip under a category that does not exist.
-    const foldName = (x: string) => x.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
-    const travelCat =
-      categories.find((c) => c.id === 'travel') ??
-      categories.find((c) => ['travel', 'viaggi', 'viaggio', 'trips', 'trip'].includes(foldName(c.name)));
+    // travelCategoryOf, not a second copy of its rules: this used to fold and
+    // match names here by hand, so the prompt and the trips sheet could drift
+    // apart on what counts as the travel category.
+    const travelCat = travelCategoryOf(categories as any);
+    // The trips the ledger ALREADY holds, spelled exactly as they are stored.
+    // Amounts are irrelevant here - only the names and months are used - so a
+    // constant stands in for the FX conversion.
+    const knownTrips = detectTrips(transactions as any, travelCat, () => 1);
     const travelRefEn = travelCat
       ? `my "${travelCat.name}" category`
       : 'whichever of MY categories below represents trips - and if none clearly does, ASK me which to use before converting';
@@ -2706,6 +2711,25 @@ export function Settings({
       `${exampleSub ? `, "subcategory": "${exampleSub}"` : ''}, "description": "Example"` +
       `${defaultSrcId ? `, "source": "${defaultSrcId}"` : ''} }`;
     const IT_PROMPT = getLanguage() === 'it';
+    // Trips already in the ledger, named for the assistant.
+    //
+    // A trip IS its prefix, so a second import that spells the name even
+    // slightly differently makes a second trip. That is not hypothetical: a
+    // user answered "Azores \u{1F1F5}\u{1F1F9}" when asked for a trip name, the assistant
+    // wrote plain "Azores" - the rule said "a word or two" and showed two
+    // plain examples, so a flag read as decoration - and the new expenses
+    // landed in a trip of their own beside the fifty already there.
+    //
+    // Showing the names it must match is stronger than any wording: the
+    // assistant no longer has to be told to preserve a flag it cannot see.
+    const tripLine = knownTrips.length === 0 ? '' : (IT_PROMPT
+      ? `\nI viaggi che ho GIÀ (nome esatto fra virgolette, con il mese):\n${knownTrips
+          .map((t) => `- "${t.name}" (${monthsShort()[Number(t.month.slice(5, 7)) - 1]} ${t.month.slice(0, 4)})`)
+          .join('\n')}\nSe queste righe appartengono a uno di questi viaggi, riusa quel nome ESATTAMENTE come è scritto qui - stessi caratteri, stesse emoji, stessi accenti. Non è una preferenza estetica: l'app riconosce un viaggio da quella stringa, quindi "Azzorre" e "Azzorre \u{1F1F5}\u{1F1F9}" diventano due viaggi separati.\n`
+      : `\nTrips I ALREADY have (exact name in quotes, with the month):\n${knownTrips
+          .map((t) => `- "${t.name}" (${monthsShort()[Number(t.month.slice(5, 7)) - 1]} ${t.month.slice(0, 4)})`)
+          .join('\n')}\nIf these rows belong to one of those trips, reuse that name EXACTLY as written here - same characters, same emoji, same accents. This is not a matter of taste: the app recognises a trip by that string, so "Azores" and "Azores \u{1F1F5}\u{1F1F9}" become two separate trips.\n`);
+
     const sourceRule = IT_PROMPT
       ? (hasSources
           ? `- "source": facoltativo. Usa uno dei miei id conto elencati sotto SOLO dove i dati dicono davvero da quale conto viene la transazione (una colonna, il nome di una carta, l'intestazione dell'estratto). Se il file non lo dice, OMETTI IL CAMPO: un conto indovinato è peggio di nessuno, perché sarebbe sbagliato su ogni singola riga.`
@@ -2826,6 +2850,7 @@ Quando i dati sono un viaggio (un export Tricount o Splitwise che sembra una vac
 - Se nessuna delle due è decisiva, LASCIA FUORI la sottocategoria invece di indovinare. Una vuota è un buco che vedo e riempio; una sbagliata è un buco che sembra pieno.
 - Non inventare nuove sottocategorie per questo: usa quelle che ho.
 - CHIEDIMI un NOME BREVE per il viaggio (una o due parole - "Azzorre", "Formentera") e premettilo alla descrizione di OGNI riga importata: "Cena porto" diventa "Formentera - Cena porto". Senza, due viaggi collassano in un unico mucchio indistinguibile di righe di viaggio; il nome è ciò che mi permette di ritrovare un viaggio dopo, cercandolo. Mantieni il resto della descrizione com'era, e non premetterlo a una che inizia già col nome. Se ti dico che non voglio un nome, lascia le descrizioni intatte.
+- USA IL NOME ESATTAMENTE COME LO SCRIVO IO, carattere per carattere. Se ci metto una bandiera, un'emoji o un accento - "Azzorre 🇵🇹" - tienili. Non accorciarlo, non tradurlo, non "pulirlo": l'app riconosce un viaggio da quella stringa esatta, quindi "Azzorre" e "Azzorre 🇵🇹" diventano due viaggi separati e le spese finiscono divise fra i due.${tripLine}
 
 Le MIE categorie di SPESA (con le loro sottocategorie):
 ${expList}
@@ -2915,6 +2940,7 @@ When the data is a trip (a Tricount or Splitwise export that looks like a holida
 - If neither is decisive, LEAVE the subcategory out rather than guessing. An empty one is a gap I can see and fill; a wrong one is a gap that looks filled.
 - Do not invent new subcategories for this: use the ones I have.
 - ASK me for a SHORT NAME for the trip (a word or two - "Azores", "Formentera") and prefix EVERY imported row's description with it: "Cena porto" becomes "Formentera - Cena porto". Without it, two trips collapse into one indistinguishable pile of travel rows; the name is what lets me pull one trip back up later by searching it. Keep the rest of the description as it was, and do not prefix one that already starts with the name. If I say I do not want a name, leave descriptions untouched.
+- USE THE NAME EXACTLY AS I WRITE IT, character for character. If I put a flag, an emoji or an accent in it - "Azores 🇵🇹" - keep them. Do not shorten it, translate it, or tidy it up: the app recognises a trip by that exact string, so "Azores" and "Azores 🇵🇹" become two separate trips and the expenses end up split between them.${tripLine}
 
 MY EXPENSE categories (with their subcategories):
 ${expList}
