@@ -948,6 +948,45 @@ export function anchorPlanForStart(
 }
 
 /**
+ * The dates a rule about to be created would record THE MOMENT it is saved.
+ *
+ * A schedule may start in the past - "I noticed yesterday that Netflix charged
+ * me; bill it monthly from there" - and then saving is not the quiet act the
+ * form's standing note promises. Occurrences are generated from the anchor up
+ * to today, so a start last Tuesday writes last Tuesday's row immediately, and
+ * a start in March writes one row per month since.
+ *
+ * That is the right behaviour and a bad surprise, so the editor says the
+ * number out loud before the button is pressed. This is the same arithmetic
+ * materialisation itself performs - the same due dates, the same skips, the
+ * same refusal to invent a row the ledger already has - which is the point: a
+ * count computed a second way would eventually disagree with reality, and a
+ * promise about what saving does is worth nothing if it is only nearly true.
+ *
+ * Pass the rule as it will be stored (anchor from anchorPlanForStart, and its
+ * skipDates). Returns oldest first.
+ */
+export function backfillDates(
+  rule: RecurringRule,
+  transactions: Transaction[],
+  today: Date = new Date(),
+): string[] {
+  const skip = new Set(rule.skipDates ?? []);
+  const byDate = new Map<string, Transaction[]>();
+  for (const t of transactions) {
+    const slot = byDate.get(t.date);
+    if (slot) slot.push(t);
+    else byDate.set(t.date, [t]);
+  }
+  return dueDatesSince(rule.anchorDate, rule.rule, today).filter(
+    (d) =>
+      generatesOn(rule, d) &&
+      !skip.has(d) &&
+      !(byDate.get(d) ?? []).some((t) => coversOccurrence(t, rule)),
+  );
+}
+
+/**
  * Move a rule's anchor forward so it stops back-filling, without moving the
  * day it falls on.
  *

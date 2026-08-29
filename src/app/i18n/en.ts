@@ -323,6 +323,11 @@ export const en = {
   'sched.saveNew': 'Create',
   'sched.saveEdit': 'Save changes',
   'sched.addNote': 'Nothing is recorded now. Each one is added on the day it falls due.',
+  // A start date in the past is a bill noticed late, not a mistake. Saving
+  // records what it missed on the spot, so the form says how much before the
+  // button is pressed rather than after.
+  'sched.backfillOne': 'Saving records the {date} one right away, then repeats from there.',
+  'sched.backfillMany': 'Saving records {n} past ones right away, from {date}, then repeats from there.',
   'sched.editNote': 'Changes apply from the next occurrence onward. Anything already recorded stays as it is.',
   'sched.editNoteFixing': 'Everything else applies from the next occurrence onward. Only the amount is corrected on what is already recorded.',
   'sched.repriceTitle': 'What changed?',
@@ -339,6 +344,8 @@ export const en = {
   'sched.emptyTitle': 'Nothing recurring yet',
   'sched.emptyBody': 'Add anything that repeats - rent, a salary, a subscription - and it will appear here before it happens.',
   'sched.toastCreated': 'Recurring transaction created',
+  'sched.toastCreatedPast.one': 'Created - 1 past charge recorded',
+  'sched.toastCreatedPast.other': 'Created - {n} past charges recorded',
   'sched.toastUpdated': 'Recurring transaction updated',
   'sched.toastStopped': 'Recurring transaction stopped',
   'sched.count.one': '{n} upcoming',

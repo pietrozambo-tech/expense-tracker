@@ -1181,18 +1181,30 @@ export default function App() {
   useEffect(() => {
     rulesRef.current = recurringRules;
   }, [recurringRules]);
-  const runRecurrence = useCallback(() => {
+  // `silent` is for callers that are about to say something better themselves -
+  // creating a backdated schedule announces the schedule AND its charges in one
+  // line, and two toasts for one action read as two actions.
+  //
+  // The refs are primed with the result rather than waiting for the effects
+  // above to catch up, so a caller can run this immediately after writing a
+  // rule and a second call in the same tick sees the rows the first one made.
+  const runRecurrence = useCallback((opts?: { silent?: boolean }) => {
     const res = processRecurrence(expensesRef.current, rulesRef.current);
-    if (res.rulesChanged) setRecurringRules(res.rules);
+    if (res.rulesChanged) {
+      rulesRef.current = res.rules;
+      setRecurringRules(res.rules);
+    }
     if (res.txnsChanged) {
+      expensesRef.current = res.transactions;
       setExpenses(res.transactions);
       setRefreshKey((prev) => prev + 1);
     }
-    if (res.createdCount > 0) {
+    if (res.createdCount > 0 && !opts?.silent) {
       toast.success(t(res.createdCount === 1 ? 'toast.recAdded.one' : 'toast.recAdded.other', { n: res.createdCount }), {
         duration: 2000,
       });
     }
+    return res.createdCount;
   }, []);
   // Untagged history behind the existing rules: an import drops a year of
   // "Monthly rent" one-offs behind a series that was set up long ago, so the
@@ -2655,27 +2667,42 @@ export default function App() {
     // the clamped day forever - a rent set for the 31st ran on the 28th. The
     // plan anchors where the day fits and skips the clamped fires in between.
     const plan = anchorPlanForStart(draft.start, draft.rule);
-    setRecurringRules((prev) => [
-      ...prev,
-      {
-        id: newRuleId(),
-        rule: draft.rule,
-        anchorDate: plan.anchorDate,
-        ...(plan.skipDates.length ? { skipDates: plan.skipDates } : {}),
-        template: {
-          description: draft.description,
-          amount: draft.amount,
-          currency: draft.currency,
-          category: draft.category,
-          subcategory: draft.subcategory,
-          sourceId: draft.sourceId,
-          type: draft.type,
-          ...(draft.split ? { split: draft.split } : {}),
-        },
+    const created: RecurringRule = {
+      id: newRuleId(),
+      rule: draft.rule,
+      anchorDate: plan.anchorDate,
+      ...(plan.skipDates.length ? { skipDates: plan.skipDates } : {}),
+      template: {
+        description: draft.description,
+        amount: draft.amount,
+        currency: draft.currency,
+        category: draft.category,
+        subcategory: draft.subcategory,
+        sourceId: draft.sourceId,
+        type: draft.type,
+        ...(draft.split ? { split: draft.split } : {}),
       },
-    ]);
+    };
+    // Computed outside the updater, not inside it: the ref has to be primed
+    // with the new list before runRecurrence reads it, and a state updater is
+    // no place for a side effect.
+    const next = [...recurringRules, created];
+    rulesRef.current = next;
+    setRecurringRules(next);
+    // A schedule that starts in the past has charges to write NOW, and the
+    // editor has just promised them by name. Materialisation otherwise only
+    // runs on launch and on returning to the foreground, so without this the
+    // promised row appeared some minutes later, out of nowhere - or on the next
+    // launch, which is worse: the user goes looking for it, does not find it,
+    // and adds it by hand.
+    const backfilled = runRecurrence({ silent: true });
     setRefreshKey((prev) => prev + 1);
-    toast.success(t('sched.toastCreated'), { duration: 1600 });
+    toast.success(
+      backfilled > 0
+        ? t(backfilled === 1 ? 'sched.toastCreatedPast.one' : 'sched.toastCreatedPast.other', { n: String(backfilled) })
+        : t('sched.toastCreated'),
+      { duration: backfilled > 0 ? 2400 : 1600 },
+    );
   };
 
   const handleUpdateSchedule = (ruleId: string, draft: ScheduleDraft) => {

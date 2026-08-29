@@ -25,6 +25,7 @@ import {
   anchorForStart,
   planNewChain,
   anchorPlanForStart,
+  backfillDates,
   strandedRules,
   generatesOn,
   isActiveRule,
@@ -213,6 +214,95 @@ scenarioSkipPurge();
 scenarioReprice();
 scenarioMonthEndStart();
 scenarioAddScreenStart();
+scenarioBackdatedSchedule();
+// ── A schedule that starts in the past ──────────────────────────────────────
+//
+// "I noticed today that Netflix charged me yesterday - bill it monthly from
+// there." Perfectly ordinary, and until now only expressible from the Add
+// screen: the Settings editor floored its date picker at today, so the one
+// case where the user knows the exact first charge was the one it refused.
+//
+// Backdating a NEW chain is safe, and these checks are what says so: the
+// occurrences it missed are written once, existing rows are never doubled, and
+// the cadence carries on from the day picked rather than from today.
+function scenarioBackdatedSchedule() {
+  heading('19. A schedule created in Settings, starting in the past');
+  const AUG29 = new Date(2026, 7, 29);
+  const template = {
+    description: 'Netflix', amount: 12.99, currency: 'EUR', category: cat, type: 'expense' as const,
+  };
+  const from = (start: string, rule = 'Every month'): RecurringRule => {
+    const plan = anchorPlanForStart(start, rule);
+    return {
+      id: 'r-net', rule, anchorDate: plan.anchorDate,
+      ...(plan.skipDates.length ? { skipDates: plan.skipDates } : {}),
+      template,
+    };
+  };
+
+  // Yesterday: exactly one row, dated yesterday - not today, and not a month
+  // of them.
+  const yesterday = from('2026-08-28');
+  expect('a start yesterday records that one day',
+    backfillDates(yesterday, [], AUG29).join(' '), '2026-08-28');
+  expect('and the engine agrees, to the row',
+    processRecurrence([], [yesterday], AUG29).transactions.map((t) => t.date).join(' '),
+    '2026-08-28');
+  expect('then it repeats from the day picked',
+    nextDueDates(yesterday, AUG29, 3).join(' '), '2026-09-28 2026-10-28 2026-11-28');
+
+  // Further back is more rows, and the count is the whole point of the note
+  // the editor shows: four months back is four charges landing at once.
+  const april = from('2026-04-28');
+  expect('four months back names four dates',
+    backfillDates(april, [], AUG29).join(' '),
+    '2026-04-28 2026-05-28 2026-06-28 2026-07-28 2026-08-28');
+  expect('and the note would not be lying',
+    String(processRecurrence([], [april], AUG29).transactions.length),
+    String(backfillDates(april, [], AUG29).length));
+
+  // A charge the user already entered by hand is not entered again - the
+  // preview has to know that too, or it promises rows that never appear.
+  const already: Transaction[] = [{
+    id: 'manual-1', date: '2026-06-28', amount: 12.99, currency: 'EUR', category: cat,
+    type: 'expense', description: 'Netflix', recurrence: 'Never repeat',
+    createdAt: '2026-06-28T09:00:00.000Z', updatedAt: '2026-06-28T09:00:00.000Z',
+  } as Transaction];
+  expect('a month already in the ledger is left out of the count',
+    backfillDates(april, already, AUG29).join(' '),
+    '2026-04-28 2026-05-28 2026-07-28 2026-08-28');
+  expect('and the engine leaves it alone too',
+    String(processRecurrence(already, [april], AUG29).transactions.filter((t) => t.date === '2026-06-28').length),
+    '1');
+
+  // Nothing changes for the ordinary case: a start still ahead records
+  // nothing now, so the form's standing note stays true.
+  expect('a future start still backfills nothing',
+    String(backfillDates(from('2026-09-15'), [], AUG29).length), '0');
+  expect('and today itself is one charge, not none',
+    backfillDates(from('2026-08-29'), [], AUG29).join(' '), '2026-08-29');
+
+  // The month-end trap, backwards. Anchoring "one month before 31 May" lands
+  // in April, which has no 31st, and a clamped anchor fires on the 30th for
+  // good - the day the user picked, lost on the way back. The plan walks to
+  // March instead and skips April, so the first row is the 31st as asked; from
+  // there the ordinary month-end walk applies (June has no 31st, so June's
+  // charge is the 30th, and July returns to the 31st).
+  const em = from('2026-05-31');
+  expect('a backdated month-end start records the day picked, then walks',
+    backfillDates(em, [], AUG29).join(' '), '2026-05-31 2026-06-30 2026-07-31');
+  expect('and keeps returning to the 31st wherever the month has one',
+    nextDueDates(em, AUG29, 3).join(' '), '2026-08-31 2026-09-30 2026-10-31');
+
+  // Weekly, because the count grows fast and the editor's promise is a
+  // number: five weeks back is six charges - the day picked plus one a week
+  // since, today included.
+  const weekly = from('2026-07-25', 'Every week');
+  expect('a weekly chain backdated five weeks names six dates',
+    backfillDates(weekly, [], AUG29).join(' '),
+    '2026-07-25 2026-08-01 2026-08-08 2026-08-15 2026-08-22 2026-08-29');
+}
+
 // ── A shared bill stays shared, month after month ───────────────────────────
 // The rent is the clearest case for splitting there is, and it was the one
 // thing sharing could not survive: the chip on the Add screen applied to the

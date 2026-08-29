@@ -7,7 +7,7 @@ import type { CategoryOrder } from '../lib/categoryOrder';
 import { SourceLogo } from './SourceLogo';
 import { switchGlow } from './categoryColors';
 import { CURRENCIES } from '../utils/currency';
-import { toDateStr, nextDueDate, repriceCandidate } from '../lib/recurrence';
+import { toDateStr, nextDueDate, repriceCandidate, anchorPlanForStart, backfillDates } from '../lib/recurrence';
 import { parseLocalDate } from '../lib/dates';
 import { Split, X as XIcon } from 'lucide-react';
 import { myShareOf, partnerSourceId } from '../lib/shared';
@@ -132,7 +132,49 @@ export function ScheduleEditor({
   // row under whatever happened to sort first.
   const category = list.find((c) => c.id === categoryId) ?? null;
   const amountValue = parseFloat(amount.replace(',', '.'));
-  const valid = description.trim().length > 0 && amountValue > 0 && !!category && start >= today;
+  // A NEW schedule may start in the past; an edit may not. Not a fussy
+  // distinction - the two do different things to the ledger.
+  //
+  // A new chain that backdates simply records the occurrences it missed, and
+  // materialisation refuses to write a row the ledger already covers, so the
+  // worst case is exactly the rows the user asked for. Editing works by ending
+  // the old chain and starting a new one at `start`; backdate that and the new
+  // chain's occurrences land on days the OLD chain has already recorded - and a
+  // row owned by another series never counts as covering one (two schedules may
+  // legitimately share a day), so nothing dedupes them. Every month since would
+  // be charged twice.
+  //
+  // The past someone wants to add belongs to a schedule that does not exist
+  // yet, which is exactly the case that is safe.
+  const past = !rule && start < today;
+  const valid = description.trim().length > 0 && amountValue > 0 && !!category && (!!rule ? start >= today : true);
+
+  // What saving records on the spot, counted the way the engine counts it.
+  const backfill = useMemo(() => {
+    if (!past || !category || !(amountValue > 0)) return [];
+    const plan = anchorPlanForStart(start, cadence);
+    return backfillDates(
+      {
+        id: 'preview',
+        rule: cadence,
+        anchorDate: plan.anchorDate,
+        ...(plan.skipDates.length ? { skipDates: plan.skipDates } : {}),
+        template: {
+          description: description.trim(),
+          amount: amountValue,
+          currency: rule?.template.currency || currency,
+          category,
+          subcategory: subcategory ?? undefined,
+          sourceId: sourceId || undefined,
+          type,
+        },
+      },
+      transactions,
+    );
+  }, [past, start, cadence, category, amountValue, description, subcategory, sourceId, type, currency, rule, transactions]);
+
+  const backfillDate = (d: string) =>
+    parseLocalDate(d).toLocaleDateString(dateLocale(), { day: 'numeric', month: 'short' });
 
   // Ask only when the amount is the thing being changed. Opening the editor to
   // move a date must not raise the question just because the bill's charges
@@ -262,7 +304,12 @@ export function ScheduleEditor({
                   data-sched-start
                   aria-label={t('sched.start')}
                   value={start}
-                  min={today}
+                  // No floor on a new schedule: a bill you only noticed after
+                  // it was charged still starts on the day it was charged, and
+                  // the picker refusing yesterday was the whole reason that had
+                  // to be done from the Add screen instead. An edit keeps the
+                  // floor - see `past` above for why backdating one duplicates.
+                  {...(rule ? { min: today } : {})}
                   onChange={(e) => setStart(e.target.value)}
                   className="absolute inset-0 w-full h-full opacity-0"
                   style={{ minWidth: 0, WebkitAppearance: 'none', appearance: 'none', border: 'none', background: 'transparent' }}
@@ -463,12 +510,33 @@ export function ScheduleEditor({
 
           {/* Says plainly what saving does, because "edit" on a schedule is
               ambiguous until you know it cannot touch what already happened. */}
-          <p style={{ color: 'var(--ink-2)', fontSize: 12, lineHeight: 1.45 }}>
+          <p
+            data-sched-note
+            data-sched-backfill={backfill.length}
+            style={{
+              // A little darker when it is announcing rows rather than
+              // reassuring: this one is the difference between "nothing
+              // happens yet" and "three transactions appear".
+              color: backfill.length ? 'var(--ink)' : 'var(--ink-2)',
+              fontSize: 12,
+              lineHeight: 1.45,
+              fontWeight: backfill.length ? 500 : undefined,
+            }}
+          >
             {/* The standing note promises the past is never rewritten, which
                 is true of every edit except the one the user has just asked
                 for. Saying it anyway would contradict the choice above. */}
+            {/* "Nothing is recorded now" stops being true the moment the
+                start date is behind us, and that is precisely the case where
+                the user most needs to know what the button does. Same slot,
+                because this line's job is to answer "what happens if I press
+                Save" - and now it also answers "how many rows". */}
             {!rule
-              ? t('sched.addNote')
+              ? backfill.length === 1
+                ? t('sched.backfillOne', { date: backfillDate(backfill[0]) })
+                : backfill.length > 1
+                  ? t('sched.backfillMany', { n: String(backfill.length), date: backfillDate(backfill[0]) })
+                  : t('sched.addNote')
               : reprice && means === 'correction'
                 ? t('sched.editNoteFixing')
                 : t('sched.editNote')}
