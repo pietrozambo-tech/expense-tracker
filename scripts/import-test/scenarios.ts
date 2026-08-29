@@ -260,6 +260,63 @@ function scenarioDedupe() {
   expect('description case/whitespace noise is still a duplicate', String(noisy.alreadyImported), '1');
 }
 
+// ── a row with no hash is still a row the ledger already has ─────────────
+//
+// The dedupe read t.importHash and nothing else. That field is written at
+// import time and never recomputed, so a row carrying one matches perfectly -
+// and a row without one is INVISIBLE to it, and the whole file comes back.
+// Rows arrive without one in ordinary ways: imported before the field
+// existed, synced from a device on an older build, restored from an older
+// backup. Somebody re-importing a trip to pick up four new expenses got
+// fifty-two duplicates.
+function scenarioDedupeWithoutHash() {
+  heading('10. Rows that lost their import hash are still recognised');
+  const file = [
+    row({ description: 'Coffee' }),
+    row({ date: '2026-07-11', amount: 55, description: 'Dinner' }),
+    row({ date: '2026-07-12', amount: 9, description: 'Bus' }),
+  ];
+  const first = buildImport({ version: 1, transactions: file } as any, EXP, INC, 'EUR', []);
+  expect('three rows in, three rows out', String(first.added), '3');
+
+  const strip = (rows: any[], ...fields: string[]) =>
+    rows.map((t) => { const c = { ...t }; for (const f of fields) delete c[f]; return c; });
+
+  const noHash = strip(first.transactions, 'importHash');
+  const again = buildImport({ version: 1, transactions: file } as any, EXP, INC, 'EUR', noHash as any);
+  expect('the same file against hash-less copies adds nothing',
+    `${again.added}/${again.alreadyImported}`, '0/3');
+
+  // Only what is genuinely new gets through, hash or no hash.
+  const wider = [...file, row({ date: '2026-08-02', amount: 4, description: 'Gelato' })];
+  const partial = buildImport({ version: 1, transactions: wider } as any, EXP, INC, 'EUR', noHash as any);
+  expect('and a wider file adds only the new row',
+    `${partial.added}/${partial.alreadyImported}`, '1/3');
+
+  // The identity is the row's content, so a trip renamed IN THE APP after
+  // importing keeps its stored hash and is still matched by it.
+  const renamed = first.transactions.map((t) => ({ ...t, description: `Azores \u{1F1F5}\u{1F1F9} - ${t.description}` }));
+  const afterRename = buildImport({ version: 1, transactions: file } as any, EXP, INC, 'EUR', renamed as any);
+  expect('a trip renamed after importing does not re-import',
+    `${afterRename.added}/${afterRename.alreadyImported}`, '0/3');
+
+  // One existing row absorbs ONE file row and no more: two identical coffees
+  // in the file against one in the ledger is one new coffee.
+  const oneCoffee = strip([first.transactions[0]], 'importHash');
+  const twoCoffees = buildImport(
+    { version: 1, transactions: [row({ description: 'Coffee' }), row({ description: 'Coffee' })] } as any,
+    EXP, INC, 'EUR', oneCoffee as any);
+  expect('one stored row cannot stand in for two in the file',
+    `${twoCoffees.added}/${twoCoffees.alreadyImported}`, '1/1');
+
+  // And the line that was drawn deliberately stays drawn: a row TYPED BY HAND
+  // carries neither field, and must never block real spending from a file.
+  const typed = strip(first.transactions, 'importHash', 'importedAt');
+  const vsTyped = buildImport({ version: 1, transactions: file } as any, EXP, INC, 'EUR', typed as any);
+  expect('hand-typed rows still never block an import',
+    `${vsTyped.added}/${vsTyped.alreadyImported}`, '3/0');
+}
+
 console.log(` Import file handling   [${OLD ? 'BEFORE validation' : 'AFTER validation'}]`);
 console.log(' (running the real src/app/lib/importData.ts)');
 
@@ -316,6 +373,7 @@ scenarioProposalEdges();
 if (!OLD) scenarioDedupe();
 // The old copy of this file had its own regex; only the current build can pass.
 if (!OLD) scenarioCatchAllLanguages();
+if (!OLD) scenarioDedupeWithoutHash();
 console.log('\n================================================================');
 console.log(failures === 0 ? ' All checks passed.' : ` ${failures} check(s) FAILED.`);
 console.log('================================================================\n');

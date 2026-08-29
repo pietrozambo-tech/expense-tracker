@@ -187,7 +187,54 @@ export function buildImport(
   let defaulted = 0;
   let uncategorized = 0;
   let alreadyImported = 0;
-  const existingHashes = new Set(existing.map((t) => t.importHash).filter(Boolean));
+  // What the ledger already holds, indexed by every key a row could be
+  // recognised under - and CLAIMED one for one, so an existing row can absorb
+  // at most one row from the file.
+  //
+  // This used to read `t.importHash` and nothing else. That field is written
+  // at import time and never recomputed, so a row that has one is matched
+  // perfectly - and a row that has none is invisible to the dedupe, which
+  // re-adds the whole file. Rows arrive without one in ordinary ways: imported
+  // before the field existed, synced from a device on an older build, restored
+  // from an older backup, or typed by hand. Someone re-importing their trip to
+  // pick up four new expenses got fifty-two duplicates.
+  //
+  // The stored hash IS a content key - date, type, amount, currency and a hash
+  // of the description - so the fix is to compute the same key from the row
+  // itself when the field is missing, rather than to invent a second notion of
+  // sameness. A row registers under both when they differ, which is what keeps
+  // a trip renamed AFTER importing still recognisable: its stored hash still
+  // describes the description the file has.
+  const claimed = new Set<number>();
+  const byKey = new Map<string, number[]>();
+  existing.forEach((t, i) => {
+    // Only rows that came from a FILE take part. A hand-typed row that happens
+    // to match one must still never block an import - that call was made
+    // deliberately, and it stands: across-door dedupe would silently drop real
+    // spending on a guess. importedAt is what tells the two apart, and every
+    // imported row has carried it for longer than the hash has existed, which
+    // is why it can rescue rows the hash cannot.
+    if (!t.importHash && !t.importedAt) return;
+    const keys = new Set<string>();
+    // The within-file occurrence suffix is not part of the identity; two
+    // identical rows are told apart by there being two of them, below.
+    if (t.importHash) keys.add(t.importHash.replace(/#\d+$/, ''));
+    keys.add(importHashOf(t.date, t.type ?? 'expense', t.amount, t.currency || fallbackCurrency, t.description ?? ''));
+    for (const k of keys) {
+      const list = byKey.get(k);
+      if (list) list.push(i);
+      else byKey.set(k, [i]);
+    }
+  });
+  /** True when an unclaimed existing row answers to this key, claiming it. */
+  const claimExisting = (key: string): boolean => {
+    const list = byKey.get(key);
+    if (!list) return false;
+    const hit = list.find((i) => !claimed.has(i));
+    if (hit === undefined) return false;
+    claimed.add(hit);
+    return true;
+  };
   // How many times each base hash has appeared in THIS file, for the
   // occurrence counter.
   const fileSeen = new Map<string, number>();
@@ -241,13 +288,15 @@ export function buildImport(
     // Dedupe against earlier imports, before any category work: a duplicate
     // is a duplicate whatever it would have been filed as.
     const baseHash = importHashOf(date, type, amount, rowCurrency, rec.description || '');
-    const n = (fileSeen.get(baseHash) ?? 0) + 1;
-    fileSeen.set(baseHash, n);
-    const rowHash = n === 1 ? baseHash : `${baseHash}#${n}`;
-    if (existingHashes.has(rowHash)) {
+    if (claimExisting(baseHash)) {
       alreadyImported++;
       continue;
     }
+    // Not already in the ledger. The suffix keeps two identical rows in ONE
+    // file distinguishable in storage; matching strips it again.
+    const n = (fileSeen.get(baseHash) ?? 0) + 1;
+    fileSeen.set(baseHash, n);
+    const rowHash = n === 1 ? baseHash : `${baseHash}#${n}`;
 
     // Resolve the category. If the name doesn't match one of the user's
     // categories, fall back to a catch-all ("Others") rather than dropping the
