@@ -94,13 +94,7 @@ export const en = {
   'budget.perDayPre': 'Up to',
   'budget.perDayPost': 'a day to stay on budget',
   'budget.lastDay': 'Last day',
-  'budget.nudge.title': 'Set a monthly budget',
-  'budget.nudge.body': "Set a monthly limit to track how you're doing",
-  'budget.nudge.hint': 'Change it anytime in Settings - Profile.',
   'budget.nudge.save': 'Save',
-  'budget.nudge.cancel': 'Cancel',
-  'budget.nudge.aria': 'Set a monthly budget',
-  'budget.nudge.hide': 'Hide budget suggestion',
 
   // Categories card
   'cat.title': 'Categories',

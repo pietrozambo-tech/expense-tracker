@@ -1199,12 +1199,12 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
       selectedYear > now.getFullYear() ||
       (selectedYear === now.getFullYear() && selectedMonth > now.getMonth());
     if (isFuture) return null;
-    if (!monthlyBudget || monthlyBudget <= 0) {
-      // No budget yet: offer to set one, but only on the month the user is
-      // actually living in - nudging from inside last March makes no sense.
-      return isCurrentMonth ? { nudge: true as const } : null;
-    }
-    if (!isCurrentMonth) return { nudge: false as const, daysLeft: null, monthProgress: null, usualByNow: null };
+    // No budget yet: nothing to report. Asking for one is the setup
+    // checklist's job now, and this flag was called `nudge` back when the ask
+    // lived here - a name that would have gone on saying "a card offers a
+    // budget" long after the card was deleted.
+    if (!monthlyBudget || monthlyBudget <= 0) return { unset: true as const };
+    if (!isCurrentMonth) return { unset: false as const, daysLeft: null, monthProgress: null, usualByNow: null };
     const daysInMonth = new Date(selectedYear, selectedMonth + 1, 0).getDate();
     const today = now.getDate();
 
@@ -1223,7 +1223,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
     })();
 
     return {
-      nudge: false as const,
+      unset: false as const,
       daysLeft: daysInMonth - today,
       monthProgress: today / daysInMonth,
       usualByNow,
@@ -3005,7 +3005,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
           )}
 
 
-          {budgetView?.nudge === false && (
+          {budgetView?.unset === false && (
             <BudgetBar
               spent={totalSpending}
               budget={monthlyBudget!}

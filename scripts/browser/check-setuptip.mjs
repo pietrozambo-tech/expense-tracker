@@ -177,6 +177,65 @@ await ctx.addInitScript(seed);
 }
 await ctx.close();
 
+// ── saying "no budget" in Settings is an answer ───────────────────────────
+//
+// The budget card this line replaced was careful about this: switching the
+// budget off set a flag, and the card stopped asking. Folding it into the
+// checklist dropped that care - a Dashboard with everything else done put a
+// card back up asking for a budget the moment the user said they did not want
+// one.
+{
+  const done = () => {
+    const put = (k, v) => localStorage.setItem(`expense-tracker.v1.${k}`, typeof v === 'string' ? v : JSON.stringify(v));
+    // The reload must not undo the edit below.
+    if (localStorage.getItem('seeded')) return;
+    localStorage.setItem('seeded', '1');
+    const own = { id: 'x', name: 'Mine', type: 'expense', icon: 'Utensils', color: 'text-orange-600', bgColor: 'bg-orange-50', selectedBg: 'bg-orange-100', subcategories: [] };
+    put('guest', 'true');
+    put('settings', { onboarded: true, userName: 'P', currency: 'EUR', hasSeenIntro: true, weekStartsOn: 1, language: 'en', monthlyBudget: 1000 });
+    put('nudges', { tips: true, recap: false });
+    put('categories', [own]);
+    put('sources', [{ id: 'c', kind: 'cash', mark: 'banknote', name: 'Contanti', brand: '#2FA84F' }]);
+    put('transactions', [{
+      id: 't1', date: '2026-08-10', type: 'expense', amount: 12, baseAmount: 12, currency: 'EUR',
+      sourceId: 'c', category: own, createdAt: '2026-08-10T10:00:00.000Z',
+      updatedAt: '2026-08-10T10:00:00.000Z', recurrence: 'Never repeat', description: 'Lunch',
+    }]);
+  };
+  const ctx3 = await b.newContext({ viewport: { width: 390, height: 844 }, locale: 'en-GB' });
+  await ctx3.route(/supabase\.co/, (r) => r.abort());
+  await ctx3.addInitScript(done);
+  const p = await open(ctx3);
+  ok(await p.locator('[data-nudge]').count() === 0, 'everything set up: no card at all');
+
+  // Exactly what Settings writes when the budget switch goes off.
+  await p.evaluate(() => {
+    const s = JSON.parse(localStorage.getItem('expense-tracker.v1.settings'));
+    delete s.monthlyBudget;
+    s.budgetNudgeDismissed = true;
+    localStorage.setItem('expense-tracker.v1.settings', JSON.stringify(s));
+  });
+  await p.reload({ waitUntil: 'networkidle' });
+  await p.waitForTimeout(1600);
+  ok(await p.locator('[data-nudge="customize"]').count() === 0,
+    'and turning the budget off does not put one back to ask for a budget');
+
+  // It is not a gag order, though: the line reappears with the others.
+  await p.evaluate(() => {
+    const cats = JSON.parse(localStorage.getItem('expense-tracker.v1.categories'));
+    localStorage.setItem('expense-tracker.v1.categories', JSON.stringify(cats));
+    localStorage.removeItem('expense-tracker.v1.categories');
+  });
+  await p.reload({ waitUntil: 'networkidle' });
+  await p.waitForTimeout(1600);
+  ok(await p.locator('[data-nudge="customize"]').count() === 1,
+    'factory categories again: the card returns for them');
+  ok(await doneOf(p, 'budget') === 'no',
+    'with the budget line present and honest about being unanswered');
+  await p.close();
+  await ctx3.close();
+}
+
 // A fresh device: the X is still an answer, and it hands the slot on rather
 // than swallowing it.
 {

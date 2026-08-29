@@ -60,6 +60,7 @@ const base = {
   // Set, so the scenarios below isolate the half they are about. The budget's
   // own cases are grouped further down.
   budgetSet: true,
+  budgetDeclined: false,
 };
 const due = (over) => dueNudge({ ...base, ...over, prefs: { ...base.prefs, ...(over.prefs ?? {}) } });
 /** Setup finished - all three lines. */
@@ -106,6 +107,16 @@ eq('customize dismissed: never again', due({ prefs: { customizeDismissed: true }
 eq('a missing budget alone keeps the checklist due', due({ ...setUp, budgetSet: false }), 'customize');
 eq('a budget set but the lists still seeded: also due', due({ budgetSet: true }), 'customize');
 eq('all three done: gone', due({ ...setUp }), null);
+// Switching the budget off in Settings answers this question. Folding the
+// budget card into the checklist dropped the protection its own card had, so
+// saying "no budget" brought a card back asking for a budget - on a Dashboard
+// where nothing else was outstanding.
+eq('a declined budget cannot hold the card open on its own',
+  due({ ...setUp, budgetSet: false, budgetDeclined: true }), null);
+eq('but it does not silence the other two',
+  due({ budgetSet: false, budgetDeclined: true }), 'customize');
+eq('and declining is not the same as having one',
+  due({ ...setUp, budgetSet: false, budgetDeclined: false }), 'customize');
 eq('one dismissal answers all three, budget included',
   due({ ...setUp, budgetSet: false, prefs: { customizeDismissed: true } }), null);
 eq('and install still gets the slot afterwards',

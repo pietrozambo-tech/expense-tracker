@@ -111,6 +111,9 @@ export function dueNudge(args: {
   sourcesUntouched: boolean;
   /** A monthly budget is set. Its own card used to ask for this separately. */
   budgetSet: boolean;
+  /** The user has said no to a budget - by switching it off in Settings, or
+   *  by waving away the card that used to ask. An answer, not a gap. */
+  budgetDeclined: boolean;
 }): Nudge | null {
   const { prefs, now } = args;
   if (
@@ -135,6 +138,13 @@ export function dueNudge(args: {
   // list, one dismissal - and Settings keeps a permanent budget control, so
   // waving this away strands nothing.
   //
+  // A DECLINED budget cannot hold the card open. Switching the budget off in
+  // Settings is an answer to this exact question, and the card that used to
+  // ask it was careful about that; folding it into the checklist dropped the
+  // care, so saying "no budget" summoned a card on the Dashboard asking for a
+  // budget. The line still shows - unticked, tappable - whenever the card is
+  // up for one of the other two, so nothing is hidden and nothing lies.
+  //
   // And it waits for a transaction rather than for two days. Before the first
   // one the Dashboard's empty state is already saying "add your first
   // expense", and two invitations in one place are neither; after it, the
@@ -145,7 +155,7 @@ export function dueNudge(args: {
     prefs.tips &&
     !prefs.customizeDismissed &&
     args.txCount >= 1 &&
-    (args.catsUntouched || args.sourcesUntouched || !args.budgetSet)
+    (args.catsUntouched || args.sourcesUntouched || (!args.budgetSet && !args.budgetDeclined))
   ) {
     return 'customize';
   }

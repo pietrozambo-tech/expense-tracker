@@ -95,13 +95,7 @@ export const it: Record<keyof typeof en, string> = {
   'budget.perDayPre': 'Fino a',
   'budget.perDayPost': 'al giorno per restare nel budget',
   'budget.lastDay': 'Ultimo giorno',
-  'budget.nudge.title': 'Imposta un budget mensile',
-  'budget.nudge.body': 'Fissa un limite mensile per capire come stai andando',
-  'budget.nudge.hint': 'Puoi cambiarlo quando vuoi in Impostazioni - Profilo.',
   'budget.nudge.save': 'Salva',
-  'budget.nudge.cancel': 'Annulla',
-  'budget.nudge.aria': 'Imposta un budget mensile',
-  'budget.nudge.hide': 'Nascondi il suggerimento budget',
 
   // Categories card
   'cat.title': 'Categorie',

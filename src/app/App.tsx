@@ -776,8 +776,9 @@ export default function App() {
       catsUntouched: setupProgress.catsUntouched,
       sourcesUntouched: setupProgress.sourcesUntouched,
       budgetSet: !!monthlyBudget && monthlyBudget > 0,
+      budgetDeclined: budgetNudgeDismissed,
     });
-  }, [hasCompletedOnboarding, nudgePrefs, setupProgress, expenses, guest, monthlyBudget]);
+  }, [hasCompletedOnboarding, nudgePrefs, setupProgress, expenses, guest, monthlyBudget, budgetNudgeDismissed]);
 
   // Last month, told as one line. Amounts pre-formatted here so the card
   // stays free of money arithmetic; negative savings are simply not claimed
@@ -3651,10 +3652,10 @@ export default function App() {
                 monthlyBudget={monthlyBudget}
                 onMonthlyBudgetChange={(b) => {
                   setMonthlyBudget(b);
-                  // Switching the budget OFF is an answer, and the Dashboard's
-                  // "set a monthly budget" nudge asks the same question - so
-                  // it must not pop up the moment the user says no. Setting
-                  // one re-arms it for the day the budget is removed by an
+                  // Switching the budget OFF is an answer, and the setup
+                  // checklist's third line asks the same question - so it must
+                  // not come back the moment the user says no. Setting one
+                  // re-arms it for the day the budget is removed by an
                   // erase/restore rather than by choice.
                   setBudgetNudgeDismissed(b === undefined);
                 }}
