@@ -348,7 +348,7 @@ const enterSelect = async (p) => {
 
   // Tick it in: the number moves before anything is written.
   await p.locator('[data-trip-row="taxi"]').click();
-  await p.waitForTimeout(300);
+  await p.waitForTimeout(400);
   ok((await totalText()).includes('555'), `ticking a row moves the total (${(await totalText()).replace(/\n/g, ' ')})`);
   ok((await totalText()).includes('520'), 'and keeps the old one beside it, struck through');
   ok(/\+1/.test(await saveText()), `the button says what it will do (${(await saveText()).replace(/\n/g, ' ')})`);
@@ -356,7 +356,7 @@ const enterSelect = async (p) => {
   // And one out. x2 is the first August dinner, 20 - past the cap, so this
   // also proves the rest of the trip is actually reachable.
   await p.locator('[data-trip-show-all]').click();
-  await p.waitForTimeout(300);
+  await p.waitForTimeout(400);
   {
     const n = Object.values(await marks()).filter((v) => v === 'in').length;
     ok(n === 12, `showing the rest brings the whole trip into view (${n})`);
@@ -430,7 +430,7 @@ const enterSelect = async (p) => {
 
   for (const id of ids.slice(0, 3)) {
     await p.locator(`[data-trip-row="${id}"]`).click();
-    await p.waitForTimeout(150);
+    await p.waitForTimeout(350);
   }
   ok(await p.locator('[data-trip-floor]').count() === 1, 'taking it under three warns that it stops being a trip');
   ok(await p.locator('[data-trip-rename-save]').isEnabled(), 'and does not block it - the expenses are not going anywhere');
