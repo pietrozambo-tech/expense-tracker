@@ -398,6 +398,11 @@ export const en = {
   'add.otherCurrencies': 'Others',
   'add.descPlaceholderExpense': 'e.g. Burger, Uber airport, Cinema',
   'add.descPlaceholderIncome': 'e.g. App royalties, PRY dividends',
+  // The trip on the front of the description, as a thing you can see and
+  // remove rather than text you can wipe out by mistake.
+  'add.tripAsk': 'Part of a trip?',
+  'add.tripAdd': 'Put this in {name}',
+  'add.tripRemove': 'Take this out of {name}',
   'add.occurrenceNote': 'Added automatically by your recurring schedule. Edits change only this occurrence.',
   'save.new': 'Save {type}',
   'save.update': 'Update {type}',

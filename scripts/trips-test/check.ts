@@ -11,8 +11,12 @@ import {
   isTripName,
   travelCategoryOf,
   tripBodyOf,
+  tripChoicesFor,
   tripMergeTarget,
   tripNameOf,
+  tripOfDescription,
+  tripSpan,
+  withTripName,
 } from '../../src/app/lib/trips';
 import type { Category, Transaction } from '../../src/app/types';
 
@@ -51,6 +55,19 @@ ok(tripNameOf('Formentera 2025 - Cena') === 'Formentera 2025', 'a couple of word
 ok(tripBodyOf('Azores - Cena porto') === 'Cena porto', 'the body is what is left');
 ok(tripBodyOf('Cena porto') === 'Cena porto', 'and an unprefixed description is all body');
 
+// ── and back again ────────────────────────────────────────────────────────
+// The description field takes the two halves apart to show the name as a
+// chip, so the join has to put back exactly what came off - anything else and
+// editing a description quietly moves the row out of its trip.
+ok(withTripName('Azores', 'Cena porto') === 'Azores - Cena porto', 'the halves go back together');
+ok(withTripName('Azores', '') === 'Azores', 'an empty body leaves the name bare, not a dangling dash');
+ok(withTripName(' Azores ', ' Cena ') === 'Azores - Cena', 'and both halves are trimmed');
+// The description field's whole trick: split for display, join on save. Any
+// description carrying a name has to survive the round trip untouched.
+for (const d of ['Azores - Cena porto', 'Azores 🇵🇹 - Extra night', 'Formentera 2025 - Volo']) {
+  ok(withTripName(tripNameOf(d)!, tripBodyOf(d)) === d, `"${d}" survives being taken apart and put back`);
+}
+
 // ── the travel category is found the way the prompt finds it ──────────────
 ok(travelCategoryOf([cat('travel', 'Anything')])!.id === 'travel', 'by id first');
 ok(travelCategoryOf([cat('x', 'Viaggi')])!.id === 'x', 'then by name, so a renamed one still works');
@@ -76,6 +93,55 @@ ok(travelCategoryOf([cat('x', 'Groceries')]) === null, 'and nothing else passes 
       .split(',').sort((a, b) => Number(b.split(':')[1]) - Number(a.split(':')[1])).join(','),
     `the breakdown is by subcategory, biggest first (${trips[0].parts.map((p) => p.name).join(', ')})`,
   );
+}
+
+// ── which trip to offer, and on what evidence ─────────────────────────────
+//
+// The description field proposes a trip only when it has a reason. NEAR is
+// that reason: the date falls inside the dates the trip's own rows cover. The
+// rest are offered as merely possible, and the flag is what lets the screen
+// stay quiet when there is nothing to say.
+{
+  const rows: Transaction[] = [];
+  // The Azores again: booked in March, a hotel in June, the trip in August.
+  for (let i = 0; i < 6; i++) rows.push(tx('2026-03-13', `Azores - Volo ${i}`, { amount: 50 }));
+  for (let i = 0; i < 2; i++) rows.push(tx('2026-06-28', `Azores - Hotel ${i}`, { amount: 100 }));
+  for (let i = 0; i < 32; i++) rows.push(tx('2026-08-21', `Azores - Cena ${i}`, { amount: 10 }));
+  // A short one in May, entirely inside the Azores' booking-to-trip stretch.
+  for (let i = 0; i < 4; i++) rows.push(tx('2026-05-16', `Trieste - Cena ${i}`, { amount: 25 }));
+  const trips = run(rows);
+
+  const span = tripSpan(trips.find((t) => t.name === 'Azores')!);
+  ok(span.from === '2026-03-13' && span.to === '2026-08-21',
+    `a trip's span is its first row to its last (${span.from} → ${span.to})`);
+
+  const on = (date: string) => tripChoicesFor(trips, date);
+  const named = (date: string) => on(date).map((c) => `${c.trip.name}${c.near ? '*' : ''}`).join(',');
+
+  ok(named('2026-08-22') === 'Azores*,Trieste', 'a date in the middle of a trip proposes it, and marks it as evidence');
+  ok(on('2026-08-24')[0].near, 'three days past the last row still counts as inside');
+  ok(!on('2026-08-30')[0].near, 'nine days past it does not');
+  ok(on('2026-08-30').length === 2, 'though both trips are still offered, just without the claim');
+
+  // May 16 sits inside BOTH spans - Trieste's own, and the Azores' long
+  // booking stretch. The one the month is named after has to lead, or the
+  // trip you are actually on loses to the one you booked flights for.
+  ok(named('2026-05-16') === 'Trieste*,Azores*', 'two trips can both be near, and the closer peak leads');
+
+  ok(tripChoicesFor(trips, '2026-08-22', 1).length === 1, 'the list is capped');
+  ok(tripChoicesFor([], '2026-08-22').length === 0, 'no trips, nothing to offer');
+
+  // ── is this description actually in a trip? ─────────────────────────────
+  // The description field cuts the name off the front and shows it as a chip.
+  // It may only do that for a name that names a real trip: otherwise typing
+  // " - " into a travel expense would split the sentence you are writing and
+  // claim you had joined a trip that does not exist.
+  ok(tripOfDescription('Azores - Cena porto', trips) === 'Azores', 'a real trip name is recognised');
+  ok(tripOfDescription('AZORES - Cena', trips) === 'AZORES',
+    'matched case-insensitively, but handed back as the row spells it');
+  ok(tripOfDescription('Volo - andata', trips) === null, 'a prefix naming no trip is just a description');
+  ok(tripOfDescription('Cena porto', trips) === null, 'and so is one with no prefix at all');
+  ok(tripOfDescription('Azores - Cena', []) === null, 'with no trips in the ledger, nothing is in one');
 }
 
 // ── Formentera twice: one name, two trips ─────────────────────────────────

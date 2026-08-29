@@ -79,7 +79,15 @@ import {
 } from './lib/householdCloud';
 import { buildImport, applyImportDecision, type ImportPayload, type ImportResult } from './lib/importData';
 import { applyBulkCategory, applyBulkDelete, applyBulkSource, planBulkDelete } from './lib/bulkEdit';
-import { applyBulkTrip, travelCategoryOf } from './lib/trips';
+import {
+  applyBulkTrip,
+  detectTrips,
+  travelCategoryOf,
+  tripBodyOf,
+  tripChoicesFor,
+  tripOfDescription,
+  withTripName,
+} from './lib/trips';
 import { formatFullDate } from './lib/dates';
 import { DEFAULT_CATEGORY_ORDER, type CategoryOrder } from './lib/categoryOrder';
 import { ImportSummaryDialog } from './components/ImportSummaryDialog';
@@ -93,7 +101,7 @@ import { BalanceHistory } from './components/BalanceHistory';
 import { DateInput } from './components/DateInput';
 import { CategorySelector } from './components/CategorySelector';
 import { SaveButton } from './components/SaveButton';
-import { DescriptionInput } from './components/DescriptionInput';
+import { DescriptionInput, type DescriptionTrip } from './components/DescriptionInput';
 import { Onboarding } from './components/Onboarding';
 import { useAuth } from './auth/AuthProvider';
 import { processRecurrence, buildRuleTemplate, newRuleId, occurrenceDueDate, isActiveRule, generatesOn, applyFutureEdit, findPastSeriesMatches, findUnclaimedSeriesRows, findGeneratedDuplicates, tagPastSeries, anchorForStart, anchorPlanForStart, planNewChain, toDateStr, chargeHistory, reanchorAfterClear, type SeriesClaim } from './lib/recurrence';
@@ -2943,6 +2951,62 @@ export default function App() {
     }
   };
 
+  // ── the trip this entry belongs to ──────────────────────────────────────
+  //
+  // A trip has no field of its own: it is the name on the front of the
+  // description, which means this screen has always been able to change one -
+  // and until now only by accident. Opening an Azores expense put
+  // "Azores 🇵🇹 - Cena porto" in the box, and rewriting the description to
+  // "Cena al porto" took the row out of the trip: the total dropped, the
+  // expense was still there, and nothing said anything.
+  //
+  // So the name is split off and shown as its own object. The full string
+  // stays the single source of truth in `description` - change detection, the
+  // recurring paths and the save all read it exactly as before - and only the
+  // display is in two pieces.
+  const travelCategory = useMemo(() => travelCategoryOf(categories), [categories]);
+  const trips = useMemo(
+    () => (travelCategory ? detectTrips(expenses, travelCategory, (tx) => mineAmount(tx, userCurrency)) : []),
+    [expenses, travelCategory, userCurrency],
+  );
+  // Both halves of what makes a row a trip row: filed under travel, AND
+  // carrying the name of a trip that really exists. "Milano - Roma" typed
+  // into Transportation is a description, and so is "Volo - andata" in
+  // Travel until two more rows join it.
+  const rowTrip =
+    transactionType === 'expense' && travelCategory && selectedCategory === travelCategory.id
+      ? tripOfDescription(description, trips)
+      : null;
+  const descriptionBody = rowTrip ? tripBodyOf(description) : description;
+
+  const descriptionTrip = useMemo<DescriptionTrip | undefined>(() => {
+    if (!travelCategory || transactionType !== 'expense') return undefined;
+    const choices = rowTrip ? [] : tripChoicesFor(trips, date);
+    // Offered only with a reason to offer: the entry is already being filed
+    // under travel, or its date falls inside a trip that exists. Otherwise
+    // this is an ordinary expense and the screen has nothing to say - the
+    // same rule the import flow uses before it proposes a trip.
+    const worth = selectedCategory === travelCategory.id || choices.some((c) => c.near);
+    return {
+      name: rowTrip,
+      options: worth ? choices.map((c) => c.trip.name) : [],
+      onAttach: (name: string) => {
+        // Both conditions or neither: a row that takes the name while filed
+        // somewhere else would not appear in the trip - an edit that looks
+        // like it worked. Same move applyBulkTrip makes for a selection,
+        // subcategory included: it belonged to the old category.
+        if (selectedCategory !== travelCategory.id) {
+          setSelectedCategory(travelCategory.id);
+          setSelectedSubcategory(null);
+        }
+        setDescription(withTripName(name, tripBodyOf(description)));
+      },
+      // The category stays where it is, exactly as taking a selection out of
+      // a trip does: nothing here knows where the row came from.
+      onDetach: () => setDescription(tripBodyOf(description)),
+    };
+  }, [travelCategory, transactionType, rowTrip, trips, date, selectedCategory, description]);
+
   // Autocomplete under the Description field while ADDING (never editing -
   // there the description is already what the user made it). Computed from
   // existing transactions only; nothing new is stored.
@@ -2951,17 +3015,22 @@ export default function App() {
     return buildDescriptionSuggestions(
       expenses,
       transactionType,
-      description,
+      // The body, not the whole string: with a trip attached, matching on
+      // "Azores 🇵🇹 - Cena" would find nothing a merchant is called.
+      descriptionBody,
       transactionType === 'income' ? incomeCategories : categories,
       sources,
     );
-  }, [editingExpenseId, currentTab, expenses, transactionType, description, categories, incomeCategories, sources]);
+  }, [editingExpenseId, currentTab, expenses, transactionType, descriptionBody, categories, incomeCategories, sources]);
 
   // A pick fills the description and repeats the merchant's usual
   // category/subcategory/source. Amount, date, currency and recurrence are
   // deliberately untouched - those genuinely vary visit to visit.
   const handlePickSuggestion = (s: DescriptionSuggestion) => {
-    setDescription(s.description);
+    // The picked text replaces the BODY. A merchant out of history knows
+    // nothing about the trip the chip is holding, and picking one must not
+    // silently drop the row out of it.
+    setDescription(rowTrip ? withTripName(rowTrip, tripBodyOf(s.description)) : s.description);
     if (s.categoryId) {
       setSelectedCategory(s.categoryId);
       setSelectedSubcategory(s.subcategory);
@@ -4173,11 +4242,15 @@ export default function App() {
               )}
 
               <DescriptionInput
-                value={description}
-                onChange={setDescription}
+                // The field holds the description only. With a trip attached
+                // the name is beside it as a chip, so typing here can no
+                // longer take the row out of its trip by accident.
+                value={descriptionBody}
+                onChange={(body) => setDescription(rowTrip ? withTripName(rowTrip, body) : body)}
                 transactionType={transactionType}
                 suggestions={descriptionSuggestions}
                 onPickSuggestion={handlePickSuggestion}
+                trip={descriptionTrip}
               />
               
               <DateInput 

@@ -73,6 +73,25 @@ export function tripBodyOf(description: string | undefined): string {
 }
 
 /**
+ * A description with a trip name on the front.
+ *
+ * The inverse of tripBodyOf, and the only place the two halves are joined -
+ * the importer, the bulk edit and the description field all write the same
+ * string because they all call this. Written out by hand in three places it
+ * would be three chances for one of them to use a different separator, and a
+ * trip whose rows do not all match is a trip that has silently split.
+ *
+ * An empty body leaves the name alone: a row whose whole description is the
+ * trip name is still in the trip, and appending a bare separator would put a
+ * dangling dash on the screen.
+ */
+export function withTripName(name: string, body: string): string {
+  const clean = name.trim();
+  const rest = body.trim();
+  return rest ? `${clean}${TRIP_SEP}${rest}` : clean;
+}
+
+/**
  * The user's travel category, by id first and then by name.
  *
  * Same resolution the AI prompt and the import script use: `travel` is the
@@ -201,6 +220,90 @@ export function detectTrips(
   return trips.sort((a, b) => b.month.localeCompare(a.month));
 }
 
+/** The first and last dates a trip's rows carry. */
+export function tripSpan(trip: Trip): { from: string; to: string } {
+  let from = trip.rows[0]?.date ?? trip.month;
+  let to = from;
+  for (const r of trip.rows) {
+    if (r.date < from) from = r.date;
+    if (r.date > to) to = r.date;
+  }
+  return { from, to };
+}
+
+/**
+ * The trip a description belongs to, checked against the trips that exist.
+ *
+ * tripNameOf on its own answers "could this be a name", which is the right
+ * question for the importer and the wrong one for a screen. A person typing
+ * "Volo - andata" into a travel expense has written a description; showing
+ * them a "Volo" trip chip - and cutting their sentence in half to do it -
+ * would be the app asserting something it does not believe, since three rows
+ * are needed before any of this is a trip at all.
+ *
+ * So the prefix has to name a trip that is really there. Returned as the
+ * DESCRIPTION spells it, not as the trip does: that spelling is what goes
+ * back on the row when the two halves are rejoined, and a case difference
+ * quietly rewritten here would be an edit nobody asked for.
+ */
+export function tripOfDescription(description: string | undefined, trips: Trip[]): string | null {
+  const name = tripNameOf(description);
+  if (!name) return null;
+  return trips.some((t) => fold(t.name) === fold(name)) ? name : null;
+}
+
+const DAY_MS = 86_400_000;
+/** Whole days from `b` to `a`. Both are 'YYYY-MM-DD', so both parse as UTC
+ *  midnight and the difference carries no timezone in it. */
+const daysBetween = (a: string, b: string) => Math.round((Date.parse(a) - Date.parse(b)) / DAY_MS);
+
+export interface TripChoice {
+  trip: Trip;
+  /** The date falls inside this trip's own dates, give or take a few days. */
+  near: boolean;
+}
+
+/**
+ * The trips worth offering for a transaction on this date.
+ *
+ * Two kinds, and the difference is the whole point of the flag. A trip is
+ * NEAR when the date falls inside the dates its own rows already cover - that
+ * is evidence, and it is what lets the app propose something instead of
+ * asking an open question. Everything else is merely possible, offered
+ * because a screen with the travel category selected and no suggestion at all
+ * is a dead end, and ordered newest-first because that is the trip a person
+ * is most likely to still be adding to.
+ *
+ * The span is the rows' own range rather than the month the trip is named
+ * after, so the Azores - flights in March, a car in June, everything else in
+ * August - stays one candidate for a date anywhere in that stretch. Which
+ * also means a long trip matches generously, so among the near ones the tie
+ * is broken by distance from the PEAK month: the month the trip is called.
+ */
+export function tripChoicesFor(
+  trips: Trip[],
+  date: string,
+  limit = 3,
+  padDays = 3,
+): TripChoice[] {
+  const month = date.slice(0, 7);
+  const scored = trips.map((trip) => {
+    const { from, to } = tripSpan(trip);
+    return {
+      trip,
+      near: daysBetween(date, from) >= -padDays && daysBetween(date, to) <= padDays,
+      gap: monthsApart(trip.month, month),
+    };
+  });
+  const near = scored
+    .filter((s) => s.near)
+    // Closest to what the trip is called; a tie goes to the more recent one.
+    .sort((a, b) => a.gap - b.gap || b.trip.month.localeCompare(a.trip.month));
+  // detectTrips already hands these back newest-first.
+  const rest = scored.filter((s) => !s.near);
+  return [...near, ...rest].slice(0, limit).map(({ trip, near: isNear }) => ({ trip, near: isNear }));
+}
+
 /**
  * Put a selection into a trip, take it out, or move it between trips.
  *
@@ -261,7 +364,7 @@ export function applyBulkTrip(
     if (!clean) {
       return { ...t, description: body, updatedAt: stamp };
     }
-    const description = body ? `${clean}${TRIP_SEP}${body}` : clean;
+    const description = withTripName(clean, body);
     // Already in this category: leave the subcategory alone. Moving in from
     // elsewhere: the old subcategory belongs to the old category, so it goes.
     const sameCategory = t.category?.id === travel.id;

@@ -393,6 +393,11 @@ export const it: Record<keyof typeof en, string> = {
   'add.otherCurrencies': 'Altre',
   'add.descPlaceholderExpense': 'es. Pizza, Uber aeroporto, Cinema',
   'add.descPlaceholderIncome': 'es. Royalties app, Dividendi',
+  // Il viaggio davanti alla descrizione: una cosa che si vede e si toglie,
+  // non testo che si cancella per sbaglio.
+  'add.tripAsk': 'Fa parte di un viaggio?',
+  'add.tripAdd': 'Mettila in {name}',
+  'add.tripRemove': 'Togli da {name}',
   'add.occurrenceNote': 'Aggiunta automaticamente dalla tua ricorrenza. Le modifiche valgono solo per questa occorrenza.',
   'save.new': 'Salva {type}',
   'save.update': 'Aggiorna {type}',

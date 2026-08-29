@@ -295,7 +295,12 @@ html[data-nav="back"]::view-transition-new(root) {
 html[data-theme="dark"] {
   & .bg-white { background-color: var(--bg-card); }
   & .bg-neutral-50, & .hover\:bg-neutral-50:hover, & .active\:bg-neutral-50:active { background-color: #2C2C34; }
-  & .bg-neutral-100, & .hover\:bg-neutral-100:hover, & .active\:bg-neutral-100:active { background-color: #313139; }
+  /* focus and focus-within belong here too: a field that lifts to
+   * neutral-100 while you type is the description box and the search box, and
+   * without these two the fill they lift TO stayed the light-mode grey - a
+   * white slab appearing under the cursor on a dark screen. */
+  & .bg-neutral-100, & .hover\:bg-neutral-100:hover, & .active\:bg-neutral-100:active,
+  & .focus\:bg-neutral-100:focus, & .focus-within\:bg-neutral-100:focus-within { background-color: #313139; }
   & .bg-neutral-200, & .hover\:bg-neutral-200:hover, & .active\:bg-neutral-200:active { background-color: #3E3E47; }
   & .bg-neutral-200\/60 { background-color: rgba(62, 62, 71, 0.6); }
   & .bg-neutral-50\/50, & .hover\:bg-neutral-50\/50:hover { background-color: rgba(44, 44, 52, 0.5); }
