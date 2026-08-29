@@ -452,6 +452,76 @@ const enterSelect = async (p) => {
   await ctx.close();
 }
 
+// ── building a trip out of expenses you already have ──────────────────────
+//
+// This worked before: hold a row down in Activity, tick some more, tap the
+// aeroplane, "New trip...". Every piece of it, reachable only by somebody who
+// already knew. Here it is where a person looking at their trips would reach.
+{
+  const { ctx, p } = await open();
+  await openMenu(p);
+  await p.locator('[data-act-menu-trips]').click();
+  await p.waitForTimeout(500);
+  ok(await p.locator('[data-trips-new]').count() === 1, 'the sheet has a + beside its close button');
+
+  await p.locator('[data-trips-new]').click();
+  await p.waitForTimeout(500);
+  ok(await p.locator('[data-trip-new-sheet]').count() === 1, 'which opens a trip with nothing in it yet');
+  ok(await p.locator('[data-trip-new-save]').isDisabled(), 'and nothing to save');
+
+  const offered = await p.evaluate(() =>
+    [...document.querySelectorAll('[data-trip-row]')].map((el) => el.getAttribute('data-trip-row')));
+  ok(offered.includes('taxi'), `it offers expenses in no trip (${offered.join(',')})`);
+  ok(!offered.includes('inc'), 'not income');
+  ok(!offered.some((id) => id.startsWith('x')), 'and not rows already in a trip');
+  await p.screenshot({ path: `${OUT}/trip-new.png` });
+
+  await p.locator('[data-trip-new-name]').fill('Weekend lungo con i ragazzi');
+  await p.waitForTimeout(300);
+  ok(await p.locator('[data-trip-new-error]').count() === 1,
+    'a name the app could not read back is refused here too');
+  await p.locator('[data-trip-new-name]').fill('Trieste');
+  await p.waitForTimeout(300);
+  ok(await p.locator('[data-trip-new-error]').count() === 0, 'a real one is fine');
+  ok(await p.locator('[data-trip-new-save]').isDisabled(), 'but a trip with no expenses is not a trip');
+
+  await p.locator('[data-trip-row="taxi"]').click();
+  await p.waitForTimeout(400);
+  ok((await p.locator('[data-trip-new-total]').innerText()).includes('35'),
+    `the total builds as you tick (${(await p.locator('[data-trip-new-total]').innerText()).replace(/\n/g, ' ')})`);
+  ok(await p.locator('[data-trip-new-floor]').count() === 1, 'one expense is warned about - it will not read back as a trip');
+  ok(await p.locator('[data-trip-new-save]').isEnabled(), 'and still not blocked');
+
+  await p.locator('[data-trip-new-save]').click();
+  await p.waitForTimeout(1000);
+  const written = await p.evaluate(() =>
+    JSON.parse(localStorage.getItem('expense-tracker.v1.transactions') ?? '[]').find((t) => t.id === 'taxi'));
+  ok(written.description === 'Trieste - Taxi aeroporto', `the picked row takes the name (${written.description})`);
+  ok(written.category.id === 'travel', 'and moves to the travel category');
+  await ctx.close();
+}
+
+// ── naming a new one after a trip that already exists ─────────────────────
+{
+  const { ctx, p } = await open();
+  await openMenu(p);
+  await p.locator('[data-act-menu-trips]').click();
+  await p.waitForTimeout(500);
+  await p.locator('[data-trips-new]').click();
+  await p.waitForTimeout(500);
+  await p.locator('[data-trip-row="taxi"]').click();
+  await p.waitForTimeout(300);
+  await p.locator('[data-trip-new-name]').fill('Azores');
+  await p.waitForTimeout(500);
+  // Same surprise as renaming onto a neighbour, and the same sentence: the
+  // taxi is dated inside the Azores, so it joins that trip rather than
+  // starting one.
+  ok(await p.locator('[data-trip-new-merge]').count() === 1,
+    'naming it after a trip it would join says so before the tap');
+  await p.screenshot({ path: `${OUT}/trip-new-merge.png` });
+  await ctx.close();
+}
+
 // ── one trip gets the same sheet as three ─────────────────────────────────
 //
 // The reported case, and the one a content-sized sheet gets wrong: with a

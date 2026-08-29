@@ -281,7 +281,9 @@ const daysBetween = (a: string, b: string) => Math.round((Date.parse(a) - Date.p
  * waits inside the travel category instead, and a control you opened
  * deliberately does not need evidence before it is allowed to speak.
  */
-const shiftDate = (date: string, days: number) =>
+/** A 'YYYY-MM-DD' shifted by whole days. Both ends parse as UTC midnight, so
+ *  no timezone gets into the arithmetic. */
+export const addDays = (date: string, days: number) =>
   new Date(Date.parse(date) + days * DAY_MS).toISOString().slice(0, 10);
 
 /**
@@ -309,14 +311,28 @@ export function tripCandidates(
   padDays = 7,
   limit = 40,
 ): Transaction[] {
-  const { from, to } = tripSpan(trip);
-  const lo = shiftDate(from, -padDays);
-  const hi = shiftDate(to, padDays);
+  const { from, to } = tripCandidateWindow(trip, padDays);
+  return freeExpenses(transactions, from, to, limit);
+}
+
+/**
+ * Expenses in no trip, inside a window, newest first.
+ *
+ * The rule tripCandidates is made of, with the window handed in rather than
+ * derived - because a trip that does not exist yet has no dates of its own to
+ * derive one from, and picking rows is how it gets any.
+ */
+export function freeExpenses(
+  transactions: Transaction[],
+  from: string,
+  to: string,
+  limit = 40,
+): Transaction[] {
   return transactions
     .filter((t) =>
       t.type === 'expense' &&
       tripNameOf(t.description) === null &&
-      t.date >= lo && t.date <= hi)
+      t.date >= from && t.date <= to)
     .sort((a, b) => b.date.localeCompare(a.date))
     .slice(0, limit);
 }
@@ -324,7 +340,7 @@ export function tripCandidates(
 /** The window tripCandidates is looking at, for the screen to say out loud. */
 export function tripCandidateWindow(trip: Trip, padDays: number): { from: string; to: string } {
   const { from, to } = tripSpan(trip);
-  return { from: shiftDate(from, -padDays), to: shiftDate(to, padDays) };
+  return { from: addDays(from, -padDays), to: addDays(to, padDays) };
 }
 
 export function tripChoicesFor(trips: Trip[], date: string, limit = 3): Trip[] {
@@ -406,19 +422,23 @@ export function tripDatesLabel(trip: Trip, monthsShort: string[]): string {
  * cannot be undone by renaming back: the two sets of rows now share a name.
  *
  * Answered by doing it and looking, not by re-deriving the grouping rules: the
- * rename is applied to a copy and the trips re-detected, so this agrees with
- * what the sheet will actually show by construction. Returns null when the
- * renamed trip lands on a card of its own.
+ * assignment is applied to a copy and the trips re-detected, so this agrees
+ * with what the sheet will actually show by construction. Returns null when
+ * the rows land on a card of their own.
+ *
+ * Takes the ids it is about to write rather than an existing Trip, so a trip
+ * being BUILT can ask the same question - naming a new one "Azores" when an
+ * Azores trip already sits in those weeks is the same surprise as renaming
+ * onto it, and deserves the same sentence.
  */
 export function tripMergeTarget(
   transactions: Transaction[],
-  trip: Trip,
+  ids: Set<string>,
   name: string,
   travel: Category,
   amountOf: (t: Transaction) => number,
 ): { name: string; month: string } | null {
-  if (!isTripName(name)) return null;
-  const ids = new Set(trip.rows.map((r) => r.id));
+  if (!isTripName(name) || ids.size === 0) return null;
   const after = detectTrips(applyBulkTrip(transactions, ids, name, travel), travel, amountOf);
   const landed = after.find((t) => t.rows.some((r) => ids.has(r.id)));
   if (!landed) return null;

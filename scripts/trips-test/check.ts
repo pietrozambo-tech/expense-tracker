@@ -418,9 +418,9 @@ ok(detectTrips([tx('2026-04-01', 'Azores - Cena')], null, amountOf).length === 0
   ok(trips.length === 2, 'two trips a month apart');
   const azores = trips.find((t) => t.name === 'Azores')!;
 
-  ok(tripMergeTarget(rows, azores, 'Azores \u{1F1F5}\u{1F1F9}', travel, amountOf) === null,
+  ok(tripMergeTarget(rows, new Set(azores.rows.map((r) => r.id)), 'Azores \u{1F1F5}\u{1F1F9}', travel, amountOf) === null,
     'a name nobody else uses merges with nothing');
-  const target = tripMergeTarget(rows, azores, 'Formentera', travel, amountOf);
+  const target = tripMergeTarget(rows, new Set(azores.rows.map((r) => r.id)), 'Formentera', travel, amountOf);
   ok(target?.name === 'Formentera' && target?.month === '2026-07',
     `renaming onto a neighbouring trip is announced (${JSON.stringify(target)})`);
   // And it is not a false alarm: doing it really does produce one card.
@@ -437,7 +437,7 @@ ok(detectTrips([tx('2026-04-01', 'Azores - Cena')], null, amountOf).length === 0
     ...rows.slice(3),
   ];
   const az = run(older).find((t) => t.name === 'Azores')!;
-  ok(tripMergeTarget(older, az, 'Ibiza', travel, amountOf) === null,
+  ok(tripMergeTarget(older, new Set(az.rows.map((r) => r.id)), 'Ibiza', travel, amountOf) === null,
     'a year apart, the same name is two trips and nothing merges');
 }
 

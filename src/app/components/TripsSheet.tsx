@@ -1,11 +1,11 @@
 import { useMemo, useState } from 'react';
-import { X, Pencil, AlertTriangle } from 'lucide-react';
+import { X, Pencil, Plus, AlertTriangle } from 'lucide-react';
 import { AmountText } from './AmountText';
 import { t } from '../i18n';
 import { monthsShort } from '../i18n/store';
 import {
-  isTripName, tripBodyOf, tripCandidates, tripCandidateWindow, tripMergeTarget,
-  MIN_TRIP_ROWS, TRIP_SEP, type Trip,
+  addDays, freeExpenses, isTripName, tripBodyOf, tripCandidates, tripCandidateWindow,
+  tripMergeTarget, MIN_TRIP_ROWS, type Trip,
 } from '../lib/trips';
 import type { Category, Transaction } from '../types';
 
@@ -195,6 +195,7 @@ function TripCard({
 export function TripsSheet({ trips, travel, currency, transactions, amountOf, onOpen, onApply, onClose }: TripsSheetProps) {
   const total = trips.reduce((sum, tr) => sum + tr.total, 0);
   const [editing, setEditing] = useState<Trip | null>(null);
+  const [building, setBuilding] = useState(false);
 
   return (
     <div data-overlay className="fixed inset-0 z-[70] flex items-end" onClick={onClose}>
@@ -229,15 +230,30 @@ export function TripsSheet({ trips, travel, currency, transactions, amountOf, on
               {t('trips.inAll')}
             </p>
           </div>
-          <button
-            data-trips-close
-            onClick={onClose}
-            aria-label={t('common.done')}
-            className="flex-shrink-0 w-9 h-9 flex items-center justify-center rounded-full active:bg-neutral-200"
-            style={{ backgroundColor: 'var(--bg-inset)' }}
-          >
-            <X size={18} style={{ color: 'var(--ink)' }} />
-          </button>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            {/* Building a trip out of expenses you already have was only ever
+                reachable by holding a row down in Activity and finding an
+                aeroplane. Here is where somebody looking at their trips and
+                wanting another one actually reaches. */}
+            <button
+              data-trips-new
+              onClick={() => setBuilding(true)}
+              aria-label={t('trips.newTitle')}
+              className="w-9 h-9 flex items-center justify-center rounded-full active:bg-neutral-200"
+              style={{ backgroundColor: 'var(--bg-inset)' }}
+            >
+              <Plus size={19} style={{ color: 'var(--ink)' }} strokeWidth={2.2} />
+            </button>
+            <button
+              data-trips-close
+              onClick={onClose}
+              aria-label={t('common.done')}
+              className="w-9 h-9 flex items-center justify-center rounded-full active:bg-neutral-200"
+              style={{ backgroundColor: 'var(--bg-inset)' }}
+            >
+              <X size={18} style={{ color: 'var(--ink)' }} />
+            </button>
+          </div>
         </div>
 
         <div className="flex-1 overflow-y-auto px-3.5 pb-6 flex flex-col gap-2.5">
@@ -253,6 +269,20 @@ export function TripsSheet({ trips, travel, currency, transactions, amountOf, on
           ))}
         </div>
       </div>
+
+      {building && (
+        <NewTrip
+          travel={travel}
+          transactions={transactions}
+          currency={currency}
+          amountOf={amountOf}
+          onCancel={() => setBuilding(false)}
+          onApply={(change) => {
+            onApply(change);
+            setBuilding(false);
+          }}
+        />
+      )}
 
       {editing && (
         <EditTrip
@@ -272,6 +302,83 @@ export function TripsSheet({ trips, travel, currency, transactions, amountOf, on
   );
 }
 
+
+/**
+ * One expense on a tick list, in the four states it can be in.
+ *
+ * Module-level rather than nested, because the editor and the builder show
+ * the same rows and a second copy of this would be a second chance for the
+ * two screens to drift apart on what a struck-through row looks like.
+ */
+function TripRow({
+  row,
+  mark,
+  onToggle,
+  body,
+  note,
+  currency,
+  amountOf,
+}: {
+  row: Transaction;
+  /** in = in the trip, out = ticked out, off = could join, add = ticked in. */
+  mark: 'in' | 'out' | 'off' | 'add';
+  onToggle: () => void;
+  body: string;
+  note: string;
+  currency: string;
+  amountOf: (t: Transaction) => number;
+}) {
+  const faded = mark === 'out';
+  return (
+    <button
+      data-trip-row={row.id}
+      data-trip-row-mark={mark}
+      onClick={onToggle}
+      className="w-full flex items-center gap-3 py-2 text-left"
+    >
+      <span
+        className="w-5 h-5 rounded-full flex-shrink-0 grid place-items-center"
+        style={
+          mark === 'in' ? { backgroundColor: '#4F74F3', color: '#fff' }
+          : mark === 'add' ? { backgroundColor: '#2E7D52', color: '#fff' }
+          : mark === 'out' ? { border: '1.5px solid var(--tone-over)', color: 'var(--tone-over)' }
+          : { border: '1.5px solid var(--line)' }
+        }
+      >
+        <span style={{ fontSize: 11, fontWeight: 700, lineHeight: 1 }}>
+          {mark === 'in' ? '\u2713' : mark === 'add' ? '+' : mark === 'out' ? '\u2212' : ''}
+        </span>
+      </span>
+      <span className="flex-1 min-w-0">
+        <span
+          className="block truncate"
+          style={{
+            fontSize: 13, fontWeight: 500,
+            color: faded ? 'var(--disabled)' : 'var(--ink)',
+            textDecoration: faded ? 'line-through' : undefined,
+          }}
+        >
+          {body}
+        </span>
+        <span className="block truncate" style={{ fontSize: 11, color: 'var(--ink-2)' }}>{note}</span>
+      </span>
+      <span
+        className="tabular-nums flex-shrink-0"
+        style={{
+          fontSize: 13, fontWeight: 600,
+          color: faded ? 'var(--disabled)' : 'var(--ink)',
+          textDecoration: faded ? 'line-through' : undefined,
+        }}
+      >
+        <AmountText amount={Math.abs(amountOf(row))} currency={currency} decimals={2} />
+      </span>
+    </button>
+  );
+}
+
+/** "13 Mar", in the user's own month names. */
+const dayLabel = (date: string) =>
+  `${Number(date.slice(8, 10))} ${monthsShort()[Number(date.slice(5, 7)) - 1] ?? ''}`;
 
 /**
  * Edit a trip: its name, and who is in it.
@@ -333,8 +440,9 @@ function EditTrip({
   const clean = name.trim();
   const valid = isTripName(clean);
   const renamed = clean !== trip.name;
+  const tripIds = useMemo(() => new Set(trip.rows.map((r) => r.id)), [trip]);
   // Only worth computing once the name would actually survive.
-  const merge = valid && renamed ? tripMergeTarget(transactions, trip, clean, travel, amountOf) : null;
+  const merge = valid && renamed ? tripMergeTarget(transactions, tripIds, clean, travel, amountOf) : null;
 
   const pad = wide ? WIDE_PAD : NEAR_PAD;
   const near = useMemo(() => tripCandidates(transactions, trip, pad), [transactions, trip, pad]);
@@ -364,67 +472,6 @@ function EditTrip({
   };
   const toggleDrop = toggle(dropped, setDropped);
   const toggleAdd = toggle(added, setAdded);
-
-  const dayLabel = (date: string) =>
-    `${Number(date.slice(8, 10))} ${monthsShort()[Number(date.slice(5, 7)) - 1] ?? ''}`;
-
-  const Row = ({
-    row,
-    mark,
-    onToggle,
-    body,
-    note,
-  }: {
-    row: Transaction;
-    mark: 'in' | 'out' | 'off' | 'add';
-    onToggle: () => void;
-    body: string;
-    note: string;
-  }) => (
-    <button
-      data-trip-row={row.id}
-      data-trip-row-mark={mark}
-      onClick={onToggle}
-      className="w-full flex items-center gap-3 py-2 text-left"
-    >
-      <span
-        className="w-5 h-5 rounded-full flex-shrink-0 grid place-items-center"
-        style={
-          mark === 'in' ? { backgroundColor: '#4F74F3', color: '#fff' }
-          : mark === 'add' ? { backgroundColor: 'var(--tone-good, #2E7D52)', color: '#fff' }
-          : mark === 'out' ? { border: '1.5px solid var(--tone-over)', color: 'var(--tone-over)' }
-          : { border: '1.5px solid var(--line)' }
-        }
-      >
-        <span style={{ fontSize: 11, fontWeight: 700, lineHeight: 1 }}>
-          {mark === 'in' ? '✓' : mark === 'add' ? '+' : mark === 'out' ? '−' : ''}
-        </span>
-      </span>
-      <span className="flex-1 min-w-0">
-        <span
-          className="block truncate"
-          style={{
-            fontSize: 13, fontWeight: 500,
-            color: mark === 'out' ? 'var(--disabled)' : 'var(--ink)',
-            textDecoration: mark === 'out' ? 'line-through' : undefined,
-          }}
-        >
-          {body}
-        </span>
-        <span className="block truncate" style={{ fontSize: 11, color: 'var(--ink-2)' }}>{note}</span>
-      </span>
-      <span
-        className="tabular-nums flex-shrink-0"
-        style={{
-          fontSize: 13, fontWeight: 600,
-          color: mark === 'out' ? 'var(--disabled)' : 'var(--ink)',
-          textDecoration: mark === 'out' ? 'line-through' : undefined,
-        }}
-      >
-        <AmountText amount={Math.abs(amountOf(row))} currency={currency} decimals={2} />
-      </span>
-    </button>
-  );
 
   return (
     <div data-overlay className="fixed inset-0 z-[80] flex items-end justify-center" onClick={onCancel}>
@@ -503,7 +550,7 @@ function EditTrip({
           </div>
           <div className="rounded-xl px-3.5 py-1" style={{ backgroundColor: 'var(--bg-card)' }}>
             {(allRows ? trip.rows : trip.rows.slice(0, FIRST_ROWS)).map((row) => (
-              <Row
+              <TripRow
                 key={row.id}
                 row={row}
                 mark={dropped.has(row.id) ? 'out' : 'in'}
@@ -512,6 +559,8 @@ function EditTrip({
                 note={dropped.has(row.id)
                   ? t('trips.takenOut')
                   : `${row.subcategory ?? travel.name} · ${dayLabel(row.date)}`}
+                currency={currency}
+                amountOf={amountOf}
               />
             ))}
             {!allRows && trip.rows.length > FIRST_ROWS && (
@@ -552,13 +601,15 @@ function EditTrip({
           ) : (
             <div className="rounded-xl px-3.5 py-1" style={{ backgroundColor: 'var(--bg-card)' }}>
               {offered.map((row) => (
-                <Row
+                <TripRow
                   key={row.id}
                   row={row}
                   mark={added.has(row.id) ? 'add' : 'off'}
                   onToggle={() => toggleAdd(row.id)}
                   body={row.description}
                   note={`${row.category?.name ?? ''} · ${dayLabel(row.date)}`}
+                  currency={currency}
+                  amountOf={amountOf}
                 />
               ))}
             </div>
@@ -612,6 +663,214 @@ function EditTrip({
                   {` · ${added.size ? `+${added.size}` : ''}${added.size && dropped.size ? ' ' : ''}${dropped.size ? `−${dropped.size}` : ''}`}
                 </span>
               )}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Build a trip out of expenses that are already in the ledger.
+ *
+ * This existed before, in the one place nobody would look for it: hold a row
+ * down in Activity, tick some more, tap the aeroplane, "New trip...". Every
+ * piece of it worked. It was reachable only by somebody who already knew.
+ *
+ * So it moves to the + beside the sheet's close button, where a person
+ * looking at their trips and wanting another one would actually reach - and
+ * it becomes the same screen as the editor rather than a name box: you name
+ * it and pick its expenses in one go, watching the total build.
+ *
+ * The window is recent-first rather than a trip's own dates, because a trip
+ * being built has no dates yet - the rows are what will give it any.
+ */
+const NEW_NEAR_DAYS = 60;
+const NEW_WIDE_DAYS = 365;
+
+function NewTrip({
+  travel,
+  transactions,
+  currency,
+  amountOf,
+  onCancel,
+  onApply,
+}: {
+  travel: Category;
+  transactions: Transaction[];
+  currency: string;
+  amountOf: (t: Transaction) => number;
+  onCancel: () => void;
+  onApply: (change: { assign: string[]; name: string; drop: string[] }) => void;
+}) {
+  const [name, setName] = useState('');
+  const [added, setAdded] = useState<Set<string>>(() => new Set());
+  const [wide, setWide] = useState(false);
+
+  const clean = name.trim();
+  const valid = isTripName(clean);
+
+  const today = new Date().toISOString().slice(0, 10);
+  const from = addDays(today, -(wide ? NEW_WIDE_DAYS : NEW_NEAR_DAYS));
+  const free = useMemo(
+    () => freeExpenses(transactions, from, today, 60),
+    [transactions, from, today],
+  );
+  // Ticked rows stay on screen after the window narrows under them, or the
+  // total would count something invisible.
+  const offered = useMemo(() => {
+    const seen = new Set(free.map((r) => r.id));
+    const strays = transactions.filter((r) => added.has(r.id) && !seen.has(r.id));
+    return [...free, ...strays].sort((a, b) => b.date.localeCompare(a.date));
+  }, [free, transactions, added]);
+
+  const rows = offered.filter((r) => added.has(r.id));
+  const total = rows.reduce((sum, r) => sum + Math.abs(amountOf(r)), 0);
+  const belowFloor = rows.length > 0 && rows.length < MIN_TRIP_ROWS;
+  // Naming a new trip after one that already sits in those weeks joins them.
+  // The same surprise as renaming onto it, so the same sentence.
+  const merge = useMemo(
+    () => (valid && rows.length
+      ? tripMergeTarget(transactions, new Set(rows.map((r) => r.id)), clean, travel, amountOf)
+      : null),
+    [valid, rows, transactions, clean, travel, amountOf],
+  );
+
+  const toggle = (id: string) => {
+    const next = new Set(added);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    setAdded(next);
+  };
+
+  return (
+    <div data-overlay className="fixed inset-0 z-[80] flex items-end justify-center" onClick={onCancel}>
+      <div className="absolute inset-0 bg-black/40" />
+      <div
+        data-trip-new-sheet
+        className="relative w-full max-w-[430px] rounded-t-3xl animate-slide-up flex flex-col overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+        style={{ backgroundColor: 'var(--bg-page)', maxHeight: '92vh', minHeight: '70vh' }}
+      >
+        <div className="px-5 pt-5 pb-3 flex-shrink-0">
+          <h3 style={{ color: 'var(--ink)', fontSize: 17, fontWeight: 700 }}>{t('trips.newTitle')}</h3>
+
+          <input
+            data-trip-new-name
+            autoFocus
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder={t('sel.tripNewPh')}
+            aria-label={t('trips.newTitle')}
+            className="w-full px-4 py-3 rounded-xl mt-2.5"
+            style={{
+              // 16px: below that iOS zooms the page in on focus.
+              fontSize: 16,
+              color: 'var(--ink)',
+              backgroundColor: valid || !clean ? 'var(--bg-card)' : 'var(--wash-over)',
+              border: '1px solid var(--line-2)',
+              outline: 'none',
+            }}
+          />
+
+          {clean && !valid && (
+            <p data-trip-new-error className="mt-2 flex gap-1.5" style={{ color: 'var(--tone-over)', fontSize: 12, lineHeight: 1.4 }}>
+              <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" style={{ marginTop: 1 }} strokeWidth={2.2} />
+              <span>{t('trips.renameInvalid')}</span>
+            </p>
+          )}
+          {merge && (
+            <p data-trip-new-merge className="mt-2 flex gap-1.5" style={{ color: 'var(--ink-2)', fontSize: 12, lineHeight: 1.4 }}>
+              <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" style={{ marginTop: 1, color: 'var(--tone-warn, var(--ink-2))' }} strokeWidth={2.2} />
+              <span>{t('trips.renameMerge', { name: merge.name, month: monthLabel(merge.month) })}</span>
+            </p>
+          )}
+
+          <div data-trip-new-total className="flex items-baseline gap-2 mt-3">
+            <span className="tabular-nums" style={{ fontSize: 21, fontWeight: 700, letterSpacing: '-0.4px', color: 'var(--ink)' }}>
+              <AmountText amount={total} currency={currency} decimals={2} />
+            </span>
+            <span style={{ color: 'var(--ink-2)', fontSize: 12 }}>
+              {t(rows.length === 1 ? 'trips.rows.one' : 'trips.rows.other', { n: rows.length })}
+            </span>
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-5 pb-4">
+          <div className="mt-1 mb-1 flex items-baseline justify-between gap-3">
+            <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '0.07em', color: 'var(--ink-3, var(--ink-2))' }}>
+              {t('trips.pick')}
+            </span>
+            <button
+              data-trip-new-widen
+              onClick={() => setWide((v) => !v)}
+              style={{ fontSize: 11.5, fontWeight: 500, color: 'var(--accent-ink)' }}
+            >
+              {wide ? t('trips.recent') : t('trips.wider')}
+            </button>
+          </div>
+          <div data-trip-new-window className="mb-1.5" style={{ fontSize: 11, color: 'var(--ink-2)' }}>
+            {dayLabel(from)} – {dayLabel(today)}
+          </div>
+
+          {offered.length === 0 ? (
+            <p data-trip-new-none className="px-1 py-3" style={{ fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.45 }}>
+              {t('trips.noNearby')}
+            </p>
+          ) : (
+            <div className="rounded-xl px-3.5 py-1" style={{ backgroundColor: 'var(--bg-card)' }}>
+              {offered.map((row) => (
+                <TripRow
+                  key={row.id}
+                  row={row}
+                  mark={added.has(row.id) ? 'add' : 'off'}
+                  onToggle={() => toggle(row.id)}
+                  body={row.description}
+                  note={`${row.category?.name ?? ''} · ${dayLabel(row.date)}`}
+                  currency={currency}
+                  amountOf={amountOf}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div
+          className="flex-shrink-0 px-5 pt-3"
+          style={{ backgroundColor: 'var(--bg-page)', paddingBottom: 'max(20px, env(safe-area-inset-bottom))' }}
+        >
+          {/* Same cliff as the editor's, said in advance rather than enforced:
+              two expenses will not be read back as a trip, and the rows would
+              sit there wearing a name that groups nothing. */}
+          {belowFloor && (
+            <p data-trip-new-floor className="mb-2.5 flex gap-1.5 px-3 py-2.5 rounded-xl"
+              style={{ backgroundColor: 'var(--wash-over)', color: 'var(--tone-over)', fontSize: 12, lineHeight: 1.4 }}>
+              <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" style={{ marginTop: 1 }} strokeWidth={2.2} />
+              <span>{t('trips.floor', { n: MIN_TRIP_ROWS })}</span>
+            </p>
+          )}
+          <div className="flex gap-2.5">
+            <button
+              onClick={onCancel}
+              className="flex-1 py-3 rounded-xl font-medium"
+              style={{ backgroundColor: 'var(--bg-inset)', color: 'var(--ink)', fontSize: 14.5 }}
+            >
+              {t('common.cancel')}
+            </button>
+            <button
+              data-trip-new-save
+              disabled={!valid || rows.length === 0}
+              onClick={() => onApply({ assign: rows.map((r) => r.id), name: clean, drop: [] })}
+              className="flex-1 py-3 rounded-xl font-medium transition-all active:scale-[0.98]"
+              style={{
+                backgroundColor: valid && rows.length ? '#4F74F3' : 'var(--line)',
+                color: valid && rows.length ? '#FFFFFF' : 'var(--disabled)',
+                fontSize: 14.5,
+              }}
+            >
+              {t('common.save')}
+              {rows.length > 0 && <span style={{ opacity: 0.75, fontWeight: 400 }}>{` · ${rows.length}`}</span>}
             </button>
           </div>
         </div>
