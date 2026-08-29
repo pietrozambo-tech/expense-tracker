@@ -98,7 +98,6 @@ export const it: Record<keyof typeof en, string> = {
   'budget.nudge.title': 'Imposta un budget mensile',
   'budget.nudge.body': 'Fissa un limite mensile per capire come stai andando',
   'budget.nudge.hint': 'Puoi cambiarlo quando vuoi in Impostazioni - Profilo.',
-  'budget.nudge.placeholder': 'Quanto al mese?',
   'budget.nudge.save': 'Salva',
   'budget.nudge.cancel': 'Annulla',
   'budget.nudge.aria': 'Imposta un budget mensile',

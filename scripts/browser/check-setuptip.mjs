@@ -142,6 +142,25 @@ await ctx.addInitScript(seed);
   await p.locator('[data-setup-task="budget"]').click();
   await p.waitForTimeout(400);
   ok(await p.locator('[data-setup-budget]').count() === 1, 'tapping the budget line opens it in place');
+
+  // In proportion with the rows it sits under. The input has to be 16px or
+  // iOS zooms the page in on focus, so it is the largest type in a card of
+  // 13px rows no matter what - the room it takes is the only thing that can
+  // give. Full width with a sentence for a placeholder, it read as a form
+  // that had landed on the checklist.
+  const field = await p.evaluate(() => {
+    const box = (el) => { const b = el.getBoundingClientRect(); return { w: Math.round(b.width), h: Math.round(b.height) }; };
+    return {
+      row: box(document.querySelector('[data-setup-task="categories"]')),
+      field: box(document.querySelector('[data-setup-budget]').parentElement),
+      save: box(document.querySelector('[data-setup-budget-save]')),
+    };
+  });
+  ok(field.field.h <= field.row.h,
+    `and it is no taller than the lines above it (${field.field.h} vs ${field.row.h}px)`);
+  ok(field.field.w + field.save.w <= field.row.w * 0.75,
+    `nor does it stretch across the card (${field.field.w + field.save.w} of ${field.row.w}px)`);
+
   await p.locator('[data-setup-budget]').fill('1200');
   await p.screenshot({ path: `${OUT}/setuptip-budget.png` });
   await p.locator('[data-setup-budget-save]').click();

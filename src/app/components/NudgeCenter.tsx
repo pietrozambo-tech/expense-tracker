@@ -180,18 +180,28 @@ export function NudgeCenter({
                         label is the half that has to be readable. The circle
                         on the left already says this is a task; the chevron
                         says it goes somewhere. */}
-                    {!task.done && (
+                    {/* Gone once the budget field is open: it says "this goes
+                        somewhere", and by then the answer is on screen. */}
+                    {!task.done && !(task.key === 'budget' && budgetOpen) && (
                       <ChevronRight className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--accent-ink)' }} strokeWidth={2.5} />
                     )}
                   </button>
-                  {/* The budget's answer, typed on the spot. */}
+                  {/* The budget's answer, typed on the spot.
+                      Sized like a field, not like a block. The input must be
+                      16px or iOS zooms the page in on focus - which made it the
+                      largest type in a card of 13px rows, and a full-width box
+                      with a sentence for a placeholder ("How much per month?")
+                      read as a form that had landed on the checklist. The type
+                      size is fixed, so the room it takes is what gives: a box
+                      wide enough for the digits, and "0" for a placeholder, the
+                      same as every other amount field in the app. */}
                   {task.key === 'budget' && !task.done && budgetOpen && (
                     <div className="flex items-center gap-2 pb-1.5 pl-[29px]">
                       <div
-                        className="flex items-center gap-1.5 px-2.5 rounded-lg flex-1 min-w-0"
-                        style={{ backgroundColor: 'var(--bg-field)' }}
+                        className="flex items-center gap-1 px-2.5 rounded-lg flex-shrink-0"
+                        style={{ backgroundColor: 'var(--bg-field)', width: 104 }}
                       >
-                        <span style={{ color: 'var(--ink-2)', fontSize: 14 }}>{currencySymbol}</span>
+                        <span style={{ color: 'var(--ink-2)', fontSize: 13 }}>{currencySymbol}</span>
                         <input
                           autoFocus
                           data-setup-budget
@@ -203,9 +213,9 @@ export function NudgeCenter({
                             if (v === '' || /^\d*\.?\d{0,2}$/.test(v)) setBudgetValue(v);
                           }}
                           onKeyDown={(e) => { if (e.key === 'Enter') saveBudget(); }}
-                          placeholder={t('budget.nudge.placeholder')}
+                          placeholder="0"
                           aria-label={t('nudge.setupBudget')}
-                          className="flex-1 min-w-0 py-1.5 bg-transparent outline-none tabular-nums"
+                          className="w-full min-w-0 py-1 bg-transparent outline-none tabular-nums"
                           // 16, not smaller: below that iOS zooms the page in
                           // on focus. See the form-control floor in theme.css.
                           style={{ fontSize: 16, color: 'var(--ink)' }}
@@ -215,11 +225,11 @@ export function NudgeCenter({
                         data-setup-budget-save
                         onClick={saveBudget}
                         disabled={!budgetValid}
-                        className="px-3 py-1.5 rounded-lg font-medium flex-shrink-0"
+                        className="px-2.5 py-1 rounded-lg font-medium flex-shrink-0"
                         style={{
                           backgroundColor: budgetValid ? '#4F74F3' : 'var(--line)',
                           color: budgetValid ? '#FFFFFF' : 'var(--disabled)',
-                          fontSize: 13,
+                          fontSize: 12.5,
                         }}
                       >
                         {t('budget.nudge.save')}

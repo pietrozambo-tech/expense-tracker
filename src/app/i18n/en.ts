@@ -97,7 +97,6 @@ export const en = {
   'budget.nudge.title': 'Set a monthly budget',
   'budget.nudge.body': "Set a monthly limit to track how you're doing",
   'budget.nudge.hint': 'Change it anytime in Settings - Profile.',
-  'budget.nudge.placeholder': 'How much per month?',
   'budget.nudge.save': 'Save',
   'budget.nudge.cancel': 'Cancel',
   'budget.nudge.aria': 'Set a monthly budget',
