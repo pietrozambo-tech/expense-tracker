@@ -281,6 +281,52 @@ const daysBetween = (a: string, b: string) => Math.round((Date.parse(a) - Date.p
  * waits inside the travel category instead, and a control you opened
  * deliberately does not need evidence before it is allowed to speak.
  */
+const shiftDate = (date: string, days: number) =>
+  new Date(Date.parse(date) + days * DAY_MS).toISOString().slice(0, 10);
+
+/**
+ * Expenses that could join this trip.
+ *
+ * ONE rule, and it is the one a person would give: spending near the trip's
+ * own dates that is not in a trip already. "Not in a trip already" is read
+ * off the description rather than from the detected trips, and that stricter
+ * reading is deliberate - a row saying "Milano - Roma treno" is not in any
+ * trip, but assigning it here would rewrite it to "Azores - Roma treno" and
+ * lose the word "Milano" without saying so. Anything already carrying a
+ * prefix belongs to somebody's idea of a group, so it is left alone.
+ *
+ * The window is the trip's own span, padded. Widening it is the caller's
+ * choice because the case that needs it is real - a flight booked in March
+ * for an August trip falls nowhere near the holiday - and the case that does
+ * not is far more common, where a wide window buries three plausible rows in
+ * three hundred.
+ *
+ * Newest first, capped: a list nobody can reach the end of is not a list.
+ */
+export function tripCandidates(
+  transactions: Transaction[],
+  trip: Trip,
+  padDays = 7,
+  limit = 40,
+): Transaction[] {
+  const { from, to } = tripSpan(trip);
+  const lo = shiftDate(from, -padDays);
+  const hi = shiftDate(to, padDays);
+  return transactions
+    .filter((t) =>
+      t.type === 'expense' &&
+      tripNameOf(t.description) === null &&
+      t.date >= lo && t.date <= hi)
+    .sort((a, b) => b.date.localeCompare(a.date))
+    .slice(0, limit);
+}
+
+/** The window tripCandidates is looking at, for the screen to say out loud. */
+export function tripCandidateWindow(trip: Trip, padDays: number): { from: string; to: string } {
+  const { from, to } = tripSpan(trip);
+  return { from: shiftDate(from, -padDays), to: shiftDate(to, padDays) };
+}
+
 export function tripChoicesFor(trips: Trip[], date: string, limit = 3): Trip[] {
   return trips
     .map((trip) => {

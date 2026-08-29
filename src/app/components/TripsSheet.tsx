@@ -1,9 +1,12 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { X, Pencil, AlertTriangle } from 'lucide-react';
 import { AmountText } from './AmountText';
 import { t } from '../i18n';
 import { monthsShort } from '../i18n/store';
-import { isTripName, tripBodyOf, tripMergeTarget, TRIP_SEP, type Trip } from '../lib/trips';
+import {
+  isTripName, tripBodyOf, tripCandidates, tripCandidateWindow, tripMergeTarget,
+  MIN_TRIP_ROWS, TRIP_SEP, type Trip,
+} from '../lib/trips';
 import type { Category, Transaction } from '../types';
 
 interface TripsSheetProps {
@@ -15,9 +18,13 @@ interface TripsSheetProps {
   transactions: Transaction[];
   amountOf: (t: Transaction) => number;
   onOpen: (trip: Trip) => void;
-  /** The same write "assign to trip" makes: the name on the front of every
-   *  one of this trip's descriptions. */
-  onRename: (ids: string[], name: string) => void;
+  /**
+   * The whole edit, in the two writes the app already has: put these rows in
+   * a trip called this, and take those out of one. Nothing else can change a
+   * trip, because a trip is nothing but the name on the front of a
+   * description.
+   */
+  onApply: (change: { assign: string[]; name: string; drop: string[] }) => void;
   onClose: () => void;
 }
 
@@ -69,13 +76,13 @@ function TripCard({
   travel,
   currency,
   onOpen,
-  onRename,
+  onEdit,
 }: {
   trip: Trip;
   travel: Category;
   currency: string;
   onOpen: () => void;
-  onRename: () => void;
+  onEdit: () => void;
 }) {
   // Everything past the fifth subcategory becomes one segment. Named rather
   // than hidden: a trip whose total does not match its own bars is worse than
@@ -125,14 +132,14 @@ function TripCard({
               {' · '}
               {monthLabel(trip.month)}
             </span>
-            {/* Down here, not beside the total: the name is what it edits, and
-                the total is the number people came to read. Swipe was the
-                other candidate and lost - in this app a swipe deletes, and one
-                gesture may not mean two things. */}
+            {/* Down here, not beside the total: what it opens is the trip's
+                own contents, and the total is the number people came to read.
+                Swipe was the other candidate and lost - in this app a swipe
+                deletes, and one gesture may not mean two things. */}
             <button
               data-trip-rename={trip.key}
-              onClick={(e) => { e.stopPropagation(); onRename(); }}
-              aria-label={t('trips.renameAria', { name: trip.name })}
+              onClick={(e) => { e.stopPropagation(); onEdit(); }}
+              aria-label={t('trips.editAria', { name: trip.name })}
               className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 active:scale-90 transition-transform"
               style={{ backgroundColor: 'var(--bg-inset)' }}
             >
@@ -185,9 +192,9 @@ function TripCard({
  * screen that has a period selector at the top - two totals on one screen
  * measuring different spans read as a bug, whichever one is right.
  */
-export function TripsSheet({ trips, travel, currency, transactions, amountOf, onOpen, onRename, onClose }: TripsSheetProps) {
+export function TripsSheet({ trips, travel, currency, transactions, amountOf, onOpen, onApply, onClose }: TripsSheetProps) {
   const total = trips.reduce((sum, tr) => sum + tr.total, 0);
-  const [renaming, setRenaming] = useState<Trip | null>(null);
+  const [editing, setEditing] = useState<Trip | null>(null);
 
   return (
     <div data-overlay className="fixed inset-0 z-[70] flex items-end" onClick={onClose}>
@@ -241,22 +248,23 @@ export function TripsSheet({ trips, travel, currency, transactions, amountOf, on
               travel={travel}
               currency={currency}
               onOpen={() => onOpen(trip)}
-              onRename={() => setRenaming(trip)}
+              onEdit={() => setEditing(trip)}
             />
           ))}
         </div>
       </div>
 
-      {renaming && (
-        <RenameTrip
-          trip={renaming}
+      {editing && (
+        <EditTrip
+          trip={editing}
           travel={travel}
           transactions={transactions}
+          currency={currency}
           amountOf={amountOf}
-          onCancel={() => setRenaming(null)}
-          onSave={(name) => {
-            onRename(renaming.rows.map((r) => r.id), name);
-            setRenaming(null);
+          onCancel={() => setEditing(null)}
+          onApply={(change) => {
+            onApply(change);
+            setEditing(null);
           }}
         />
       )}
@@ -264,116 +272,348 @@ export function TripsSheet({ trips, travel, currency, transactions, amountOf, on
   );
 }
 
+
 /**
- * Rename a trip - which means rewriting the name on the front of every one of
- * its descriptions, because that name is the only thing that makes those rows
- * a trip.
+ * Edit a trip: its name, and who is in it.
  *
- * Two things this sheet owes the user before the button does anything:
- * whether the app will still recognise the trip afterwards, and whether it is
- * about to be merged into another one.
+ * Both are the same write. A trip has no record of its own - it is the name on
+ * the front of its expenses' descriptions - so renaming it, adding a row and
+ * removing one are one operation with different arguments. That is why this is
+ * one sheet rather than a rename here and a membership editor somewhere else:
+ * splitting them would describe a distinction that does not exist underneath.
+ *
+ * NOTHING IS WRITTEN UNTIL SAVE. That is what makes the total at the top worth
+ * having: it moves as you tick, so the trip you are about to end up with is on
+ * screen before you commit to it, rather than something to discover afterwards
+ * by comparing two numbers you never saw side by side.
+ *
+ * Two things it owes the user before the button does anything: whether the app
+ * will still recognise the trip afterwards (the name), and whether the trip is
+ * about to stop existing (the floor).
  */
-function RenameTrip({
+const NEAR_PAD = 7;
+/** Wide enough to reach a flight booked for a summer holiday in March. */
+const WIDE_PAD = 180;
+/**
+ * How much of the trip is shown before "show all".
+ *
+ * Enough to recognise the trip, and no more: the rows already in it are
+ * reference - the total above summarises them - while the short list of rows
+ * that could JOIN is the part with something to do in it. Uncapped, a
+ * fifty-six row holiday pushed that list three thousand pixels down a sheet
+ * nobody scrolls, which is the same as not having built it.
+ */
+const FIRST_ROWS = 5;
+
+function EditTrip({
   trip,
   travel,
   transactions,
+  currency,
   amountOf,
   onCancel,
-  onSave,
+  onApply,
 }: {
   trip: Trip;
   travel: Category;
   transactions: Transaction[];
+  currency: string;
   amountOf: (t: Transaction) => number;
   onCancel: () => void;
-  onSave: (name: string) => void;
+  onApply: (change: { assign: string[]; name: string; drop: string[] }) => void;
 }) {
   const [name, setName] = useState(trip.name);
+  const [dropped, setDropped] = useState<Set<string>>(() => new Set());
+  const [added, setAdded] = useState<Set<string>>(() => new Set());
+  const [wide, setWide] = useState(false);
+  // One-way: a row ticked out after expanding must not be hidden again by
+  // collapsing, or the total would count something invisible.
+  const [allRows, setAllRows] = useState(false);
+
   const clean = name.trim();
   const valid = isTripName(clean);
-  const changed = clean !== trip.name;
+  const renamed = clean !== trip.name;
   // Only worth computing once the name would actually survive.
-  const merge = valid && changed ? tripMergeTarget(transactions, trip, clean, travel, amountOf) : null;
-  // A real row, so the preview is the change rather than a description of it.
-  const sample = tripBodyOf(trip.rows.find((r) => tripBodyOf(r.description))?.description);
+  const merge = valid && renamed ? tripMergeTarget(transactions, trip, clean, travel, amountOf) : null;
+
+  const pad = wide ? WIDE_PAD : NEAR_PAD;
+  const near = useMemo(() => tripCandidates(transactions, trip, pad), [transactions, trip, pad]);
+  const window = tripCandidateWindow(trip, pad);
+
+  // Anything ticked stays on screen even after the window narrows under it -
+  // a row that vanished while still counted in the total would be a number
+  // nobody could account for.
+  const offered = useMemo(() => {
+    const seen = new Set(near.map((r) => r.id));
+    const strays = transactions.filter((r) => added.has(r.id) && !seen.has(r.id));
+    return [...near, ...strays].sort((a, b) => b.date.localeCompare(a.date));
+  }, [near, transactions, added]);
+
+  const kept = trip.rows.filter((r) => !dropped.has(r.id));
+  const joining = offered.filter((r) => added.has(r.id));
+  const rows = [...kept, ...joining];
+  const total = rows.reduce((sum, r) => sum + Math.abs(amountOf(r)), 0);
+  const changed = renamed || dropped.size > 0 || added.size > 0;
+  const belowFloor = rows.length < MIN_TRIP_ROWS;
+
+  const toggle = (set: Set<string>, put: (s: Set<string>) => void) => (id: string) => {
+    const next = new Set(set);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    put(next);
+  };
+  const toggleDrop = toggle(dropped, setDropped);
+  const toggleAdd = toggle(added, setAdded);
+
+  const dayLabel = (date: string) =>
+    `${Number(date.slice(8, 10))} ${monthsShort()[Number(date.slice(5, 7)) - 1] ?? ''}`;
+
+  const Row = ({
+    row,
+    mark,
+    onToggle,
+    body,
+    note,
+  }: {
+    row: Transaction;
+    mark: 'in' | 'out' | 'off' | 'add';
+    onToggle: () => void;
+    body: string;
+    note: string;
+  }) => (
+    <button
+      data-trip-row={row.id}
+      data-trip-row-mark={mark}
+      onClick={onToggle}
+      className="w-full flex items-center gap-3 py-2 text-left"
+    >
+      <span
+        className="w-5 h-5 rounded-full flex-shrink-0 grid place-items-center"
+        style={
+          mark === 'in' ? { backgroundColor: '#4F74F3', color: '#fff' }
+          : mark === 'add' ? { backgroundColor: 'var(--tone-good, #2E7D52)', color: '#fff' }
+          : mark === 'out' ? { border: '1.5px solid var(--tone-over)', color: 'var(--tone-over)' }
+          : { border: '1.5px solid var(--line)' }
+        }
+      >
+        <span style={{ fontSize: 11, fontWeight: 700, lineHeight: 1 }}>
+          {mark === 'in' ? '✓' : mark === 'add' ? '+' : mark === 'out' ? '−' : ''}
+        </span>
+      </span>
+      <span className="flex-1 min-w-0">
+        <span
+          className="block truncate"
+          style={{
+            fontSize: 13, fontWeight: 500,
+            color: mark === 'out' ? 'var(--disabled)' : 'var(--ink)',
+            textDecoration: mark === 'out' ? 'line-through' : undefined,
+          }}
+        >
+          {body}
+        </span>
+        <span className="block truncate" style={{ fontSize: 11, color: 'var(--ink-2)' }}>{note}</span>
+      </span>
+      <span
+        className="tabular-nums flex-shrink-0"
+        style={{
+          fontSize: 13, fontWeight: 600,
+          color: mark === 'out' ? 'var(--disabled)' : 'var(--ink)',
+          textDecoration: mark === 'out' ? 'line-through' : undefined,
+        }}
+      >
+        <AmountText amount={Math.abs(amountOf(row))} currency={currency} decimals={2} />
+      </span>
+    </button>
+  );
 
   return (
     <div data-overlay className="fixed inset-0 z-[80] flex items-end justify-center" onClick={onCancel}>
       <div className="absolute inset-0 bg-black/40" />
       <div
-        data-trip-rename-sheet
-        className="relative w-full max-w-[430px] rounded-t-3xl px-5 pt-5 animate-slide-up"
+        data-trip-edit-sheet
+        className="relative w-full max-w-[430px] rounded-t-3xl animate-slide-up flex flex-col overflow-hidden"
         onClick={(e) => e.stopPropagation()}
-        style={{ backgroundColor: 'var(--bg-card)', paddingBottom: 'max(20px, env(safe-area-inset-bottom))' }}
+        style={{ backgroundColor: 'var(--bg-page)', maxHeight: '92vh', minHeight: '70vh' }}
       >
-        <h3 style={{ color: 'var(--ink)', fontSize: 17, fontWeight: 700 }}>{t('trips.renameTitle')}</h3>
-        <p className="mt-0.5 mb-3" style={{ color: 'var(--ink-2)', fontSize: 12.5, lineHeight: 1.4 }}>
-          {t('trips.renameBody')}
-        </p>
+        <div className="px-5 pt-5 pb-3 flex-shrink-0">
+          <h3 style={{ color: 'var(--ink)', fontSize: 17, fontWeight: 700 }}>{t('trips.editTitle')}</h3>
 
-        <input
-          data-trip-rename-input
-          autoFocus
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'Enter' && valid && changed) onSave(clean); }}
-          aria-label={t('trips.renameTitle')}
-          className="w-full px-4 py-3 rounded-xl"
-          style={{
-            // 16px: below that iOS zooms the page in on focus.
-            fontSize: 16,
-            color: 'var(--ink)',
-            backgroundColor: valid || !clean ? 'var(--bg-field)' : 'var(--wash-over)',
-            border: 'none',
-            outline: 'none',
-          }}
-        />
-
-        {clean && !valid ? (
-          <p data-trip-rename-error className="mt-2 flex gap-1.5" style={{ color: 'var(--tone-over)', fontSize: 12, lineHeight: 1.4 }}>
-            <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" style={{ marginTop: 1 }} strokeWidth={2.2} />
-            <span>{t('trips.renameInvalid')}</span>
-          </p>
-        ) : (
-          <div className="mt-2.5 px-3.5 py-2.5 rounded-xl" style={{ backgroundColor: 'var(--bg-page)' }}>
-            <div style={{ color: 'var(--ink-2)', fontSize: 11 }}>{t('trips.renamePreview')}</div>
-            <div data-trip-rename-preview className="truncate" style={{ color: 'var(--ink)', fontSize: 13, fontWeight: 600, marginTop: 1 }}>
-              {sample ? `${clean || trip.name}${TRIP_SEP}${sample}` : clean || trip.name}
-            </div>
-          </div>
-        )}
-
-        {/* Merging is a legitimate use of this - two spellings of one holiday -
-            but it is not what most people mean, and renaming back does not
-            undo it. Said before the tap, never after. */}
-        {merge && (
-          <p data-trip-rename-merge className="mt-2 flex gap-1.5" style={{ color: 'var(--ink-2)', fontSize: 12, lineHeight: 1.4 }}>
-            <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" style={{ marginTop: 1, color: 'var(--tone-warn, var(--ink-2))' }} strokeWidth={2.2} />
-            <span>{t('trips.renameMerge', { name: merge.name, month: monthLabel(merge.month) })}</span>
-          </p>
-        )}
-
-        <div className="flex gap-2.5 mt-4">
-          <button
-            onClick={onCancel}
-            className="flex-1 py-3 rounded-xl font-medium"
-            style={{ backgroundColor: 'var(--bg-inset)', color: 'var(--ink)', fontSize: 14.5 }}
-          >
-            {t('common.cancel')}
-          </button>
-          <button
-            data-trip-rename-save
-            disabled={!valid || !changed}
-            onClick={() => onSave(clean)}
-            className="flex-1 py-3 rounded-xl font-medium transition-all active:scale-[0.98]"
+          <input
+            data-trip-rename-input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            aria-label={t('trips.renameTitle')}
+            className="w-full px-4 py-3 rounded-xl mt-2.5"
             style={{
-              backgroundColor: valid && changed ? '#4F74F3' : 'var(--line)',
-              color: valid && changed ? '#FFFFFF' : 'var(--disabled)',
-              fontSize: 14.5,
+              // 16px: below that iOS zooms the page in on focus.
+              fontSize: 16,
+              color: 'var(--ink)',
+              backgroundColor: valid || !clean ? 'var(--bg-card)' : 'var(--wash-over)',
+              border: '1px solid var(--line-2)',
+              outline: 'none',
             }}
-          >
-            {t(trip.rows.length === 1 ? 'trips.renameCta.one' : 'trips.renameCta.other', { n: trip.rows.length })}
-          </button>
+          />
+
+          {/* Said only once it applies: a rename is not one row, it is every
+              row the trip has. */}
+          {renamed && valid && (
+            <p data-trip-rename-note className="mt-2" style={{ color: 'var(--ink-2)', fontSize: 12, lineHeight: 1.4 }}>
+              {t('trips.renameBody')}
+            </p>
+          )}
+          {clean && !valid && (
+            <p data-trip-rename-error className="mt-2 flex gap-1.5" style={{ color: 'var(--tone-over)', fontSize: 12, lineHeight: 1.4 }}>
+              <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" style={{ marginTop: 1 }} strokeWidth={2.2} />
+              <span>{t('trips.renameInvalid')}</span>
+            </p>
+          )}
+          {/* Merging is a legitimate use of this - two spellings of one holiday
+              - but it is not what most people mean, and renaming back does not
+              undo it. Said before the tap, never after. */}
+          {merge && (
+            <p data-trip-rename-merge className="mt-2 flex gap-1.5" style={{ color: 'var(--ink-2)', fontSize: 12, lineHeight: 1.4 }}>
+              <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" style={{ marginTop: 1, color: 'var(--tone-warn, var(--ink-2))' }} strokeWidth={2.2} />
+              <span>{t('trips.renameMerge', { name: merge.name, month: monthLabel(merge.month) })}</span>
+            </p>
+          )}
+
+          {/* The number the ticking is for. It moves as you go, so the trip
+              you are about to have is on screen before you commit to it. */}
+          <div data-trip-edit-total className="flex items-baseline gap-2 mt-3">
+            {changed && (
+              <>
+                <span className="tabular-nums" style={{ fontSize: 14, color: 'var(--disabled)', textDecoration: 'line-through' }}>
+                  <AmountText amount={trip.total} currency={currency} decimals={2} />
+                </span>
+                <span style={{ color: 'var(--ink-2)', fontSize: 12 }}>→</span>
+              </>
+            )}
+            <span className="tabular-nums" style={{ fontSize: 21, fontWeight: 700, letterSpacing: '-0.4px', color: 'var(--ink)' }}>
+              <AmountText amount={total} currency={currency} decimals={2} />
+            </span>
+            <span style={{ color: 'var(--ink-2)', fontSize: 12 }}>
+              {t(rows.length === 1 ? 'trips.rows.one' : 'trips.rows.other', { n: rows.length })}
+            </span>
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-5 pb-4">
+          <div className="mt-1 mb-1" style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '0.07em', color: 'var(--ink-3, var(--ink-2))' }}>
+            {t('trips.inTrip')}
+          </div>
+          <div className="rounded-xl px-3.5 py-1" style={{ backgroundColor: 'var(--bg-card)' }}>
+            {(allRows ? trip.rows : trip.rows.slice(0, FIRST_ROWS)).map((row) => (
+              <Row
+                key={row.id}
+                row={row}
+                mark={dropped.has(row.id) ? 'out' : 'in'}
+                onToggle={() => toggleDrop(row.id)}
+                body={tripBodyOf(row.description) || row.description}
+                note={dropped.has(row.id)
+                  ? t('trips.takenOut')
+                  : `${row.subcategory ?? travel.name} · ${dayLabel(row.date)}`}
+              />
+            ))}
+            {!allRows && trip.rows.length > FIRST_ROWS && (
+              <button
+                data-trip-show-all
+                onClick={() => setAllRows(true)}
+                className="w-full py-2.5 text-left"
+                style={{ fontSize: 12.5, fontWeight: 500, color: 'var(--accent-ink)' }}
+              >
+                {t('trips.showAll', { n: trip.rows.length - FIRST_ROWS })}
+              </button>
+            )}
+          </div>
+
+          <div className="mt-4 mb-1 flex items-baseline justify-between gap-3">
+            <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '0.07em', color: 'var(--ink-3, var(--ink-2))' }}>
+              {t('trips.nearby')}
+            </span>
+            {/* The window said out loud, so what is on offer is never a
+                mystery - and a way to widen it, because a flight booked in
+                March for an August trip falls nowhere near the holiday. */}
+            <button
+              data-trip-widen
+              onClick={() => setWide((v) => !v)}
+              style={{ fontSize: 11.5, fontWeight: 500, color: 'var(--accent-ink)' }}
+            >
+              {wide ? t('trips.narrower') : t('trips.wider')}
+            </button>
+          </div>
+          <div data-trip-window className="mb-1.5" style={{ fontSize: 11, color: 'var(--ink-2)' }}>
+            {dayLabel(window.from)} – {dayLabel(window.to)}
+          </div>
+
+          {offered.length === 0 ? (
+            <p data-trip-none className="px-1 py-3" style={{ fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.45 }}>
+              {t('trips.noNearby')}
+            </p>
+          ) : (
+            <div className="rounded-xl px-3.5 py-1" style={{ backgroundColor: 'var(--bg-card)' }}>
+              {offered.map((row) => (
+                <Row
+                  key={row.id}
+                  row={row}
+                  mark={added.has(row.id) ? 'add' : 'off'}
+                  onToggle={() => toggleAdd(row.id)}
+                  body={row.description}
+                  note={`${row.category?.name ?? ''} · ${dayLabel(row.date)}`}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div
+          className="flex-shrink-0 px-5 pt-3"
+          style={{ backgroundColor: 'var(--bg-page)', paddingBottom: 'max(20px, env(safe-area-inset-bottom))' }}
+        >
+          {/* The cliff, said before the tap. It does not block: the rows keep
+              their name and their category, so the trip comes back the moment
+              one of them is put back - and deciding a weekend was not really a
+              trip is a legitimate thing to want. */}
+          {belowFloor && (
+            <p data-trip-floor className="mb-2.5 flex gap-1.5 px-3 py-2.5 rounded-xl"
+              style={{ backgroundColor: 'var(--wash-over)', color: 'var(--tone-over)', fontSize: 12, lineHeight: 1.4 }}>
+              <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" style={{ marginTop: 1 }} strokeWidth={2.2} />
+              <span>{t('trips.floor', { n: MIN_TRIP_ROWS })}</span>
+            </p>
+          )}
+          <div className="flex gap-2.5">
+            <button
+              onClick={onCancel}
+              className="flex-1 py-3 rounded-xl font-medium"
+              style={{ backgroundColor: 'var(--bg-inset)', color: 'var(--ink)', fontSize: 14.5 }}
+            >
+              {t('common.cancel')}
+            </button>
+            <button
+              data-trip-rename-save
+              disabled={!valid || !changed}
+              onClick={() => onApply({
+                // A rename touches every row; adding one touches only what was
+                // added. Rewriting all fifty-six to remove one would stamp
+                // every one of them as changed for the next sync.
+                assign: (renamed ? rows : joining).map((r) => r.id),
+                name: clean,
+                drop: [...dropped],
+              })}
+              className="flex-1 py-3 rounded-xl font-medium transition-all active:scale-[0.98]"
+              style={{
+                backgroundColor: valid && changed ? '#4F74F3' : 'var(--line)',
+                color: valid && changed ? '#FFFFFF' : 'var(--disabled)',
+                fontSize: 14.5,
+              }}
+            >
+              {t('common.save')}
+              {changed && (added.size > 0 || dropped.size > 0) && (
+                <span style={{ opacity: 0.75, fontWeight: 400 }}>
+                  {` · ${added.size ? `+${added.size}` : ''}${added.size && dropped.size ? ' ' : ''}${dropped.size ? `−${dropped.size}` : ''}`}
+                </span>
+              )}
+            </button>
+          </div>
         </div>
       </div>
     </div>

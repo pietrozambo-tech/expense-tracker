@@ -55,6 +55,9 @@ const seed = ([cats, income, full]) => {
     for (let i = 0; i < 5; i++) txns.push(row('2026-07-11', `Formentera - Pranzo ${i}`, 30, { subcategory: 'Food' }));
     // The one that never made it into the tricount.
     txns.push(row('2026-08-22', 'Taxi aeroporto', 35, { id: 'taxi', category: cats[1], subcategory: 'Taxi' }));
+    // Bought for the trip, months before it and outside the editor's default
+    // window: the row the "look further" switch exists for.
+    txns.push(row('2026-01-15', 'Assicurazione viaggio', 45, { id: 'ins', category: cats[1] }));
     txns.push({
       id: 'inc', date: '2026-08-20', type: 'income', amount: 900, baseAmount: 900, currency: 'EUR',
       sourceId: 'cash', category: income[0], createdAt: '2026-08-20T10:00:00.000Z',
@@ -251,7 +254,7 @@ const enterSelect = async (p) => {
   await p.locator('[data-trip-rename]').first().click();
   await p.waitForTimeout(400);
   const input = p.locator('[data-trip-rename-input]');
-  ok(await input.count() === 1, 'tapping it opens the rename sheet');
+  ok(await input.count() === 1, 'tapping it opens the editor');
   ok(await input.inputValue() === 'Azores', 'prefilled with the name it has');
   ok(await p.locator('[data-trip-rename-save]').isDisabled(), 'and saving the same name is not an edit');
 
@@ -270,8 +273,8 @@ const enterSelect = async (p) => {
   await input.fill(FLAGGED);
   await p.waitForTimeout(300);
   ok(await p.locator('[data-trip-rename-error]').count() === 0, 'a flag on the end is fine');
-  const preview = (await p.locator('[data-trip-rename-preview]').innerText()).trim();
-  ok(preview.startsWith(`${FLAGGED} - `), `and the preview shows a real row rewritten ("${preview}")`);
+  ok(await p.locator('[data-trip-rename-note]').count() === 1,
+    'and it says a rename is every row, not this one');
   ok(await p.locator('[data-trip-rename-save]').isEnabled(), 'now it can be saved');
   await p.screenshot({ path: `${OUT}/trip-rename.png` });
 
@@ -302,6 +305,150 @@ const enterSelect = async (p) => {
   // card that results is August's. A guess would have named the wrong month.
   ok(/Formentera/.test(mergeText) && /Aug 2026/.test(mergeText),
     `naming the card that will actually result ("${mergeText}")`);
+  await ctx.close();
+}
+
+// ── the pencil edits the trip, not only its name ──────────────────────────
+//
+// A trip is the name on the front of its rows, so adding one, removing one
+// and renaming the lot are the same write with different arguments. That is
+// why they are one sheet. Nothing is written until Save, which is what makes
+// the total at the top worth having: it moves as you tick.
+{
+  const { ctx, p } = await open();
+  await openMenu(p);
+  await p.locator('[data-act-menu-trips]').click();
+  await p.waitForTimeout(500);
+  await p.locator('[data-trip-rename]').first().click();
+  await p.waitForTimeout(500);
+
+  const marks = () => p.evaluate(() => Object.fromEntries(
+    [...document.querySelectorAll('[data-trip-row]')].map((el) => [el.getAttribute('data-trip-row'), el.getAttribute('data-trip-row-mark')])));
+  const totalText = () => p.locator('[data-trip-edit-total]').innerText();
+  const saveText = () => p.locator('[data-trip-rename-save]').innerText();
+
+  const m0 = await marks();
+  // Capped: the rows already in the trip are reference, and leaving all
+  // fifty-six of a real holiday on screen would push the rows that can JOIN
+  // one below the fold nobody reaches.
+  ok(Object.values(m0).filter((v) => v === 'in').length === 5,
+    `only the first few of the trip's rows are shown (${Object.values(m0).filter((v) => v === 'in').length})`);
+  ok(await p.locator('[data-trip-show-all]').count() === 1, 'with a way to the rest');
+  ok((await totalText()).includes('520'), `and the total is the whole trip either way (${(await totalText()).replace(/\n/g, ' ')})`);
+  ok((await totalText()).includes('12'), 'as is the count');
+
+  // The taxi that never made it into the tricount, dated inside the trip.
+  ok(m0.taxi === 'off', 'the taxi paid outside the tricount is offered');
+  ok(!('inc' in m0), 'income is not - a trip is spending');
+  ok(!Object.keys(m0).some((id) => id === 'ins'), 'and nor is a row outside the window');
+  const offeredIds = Object.entries(m0).filter(([, v]) => v === 'off').map(([k]) => k);
+  ok(!offeredIds.some((id) => id.startsWith('x') && Number(id.slice(1)) >= 12),
+    'rows already in another trip are left alone');
+  await p.screenshot({ path: `${OUT}/trip-edit.png` });
+
+  // Tick it in: the number moves before anything is written.
+  await p.locator('[data-trip-row="taxi"]').click();
+  await p.waitForTimeout(300);
+  ok((await totalText()).includes('555'), `ticking a row moves the total (${(await totalText()).replace(/\n/g, ' ')})`);
+  ok((await totalText()).includes('520'), 'and keeps the old one beside it, struck through');
+  ok(/\+1/.test(await saveText()), `the button says what it will do (${(await saveText()).replace(/\n/g, ' ')})`);
+
+  // And one out. x2 is the first August dinner, 20 - past the cap, so this
+  // also proves the rest of the trip is actually reachable.
+  await p.locator('[data-trip-show-all]').click();
+  await p.waitForTimeout(300);
+  {
+    const n = Object.values(await marks()).filter((v) => v === 'in').length;
+    ok(n === 12, `showing the rest brings the whole trip into view (${n})`);
+  }
+  await p.locator('[data-trip-row="x2"]').click();
+  await p.waitForTimeout(300);
+  ok((await marks()).x2 === 'out', 'a row ticked out is struck rather than removed from view');
+  ok((await totalText()).includes('535'), `the total follows it too (${(await totalText()).replace(/\n/g, ' ')})`);
+  ok(/\+1/.test(await saveText()) && /1/.test(await saveText()), 'and the button counts both directions');
+
+  // Nothing is written yet.
+  const before = await p.evaluate(() =>
+    JSON.parse(localStorage.getItem('expense-tracker.v1.transactions') ?? '[]').find((t) => t.id === 'taxi'));
+  ok(before.description === 'Taxi aeroporto', 'and none of it is written before Save');
+
+  await p.locator('[data-trip-rename-save]').click();
+  await p.waitForTimeout(1000);
+  const after = await p.evaluate(() => {
+    const all = JSON.parse(localStorage.getItem('expense-tracker.v1.transactions') ?? '[]');
+    const by = (id) => all.find((t) => t.id === id);
+    return { taxi: by('taxi'), dropped: by('x2') };
+  });
+  ok(after.taxi.description === 'Azores - Taxi aeroporto', `the added row takes the name (${after.taxi.description})`);
+  ok(after.taxi.category.id === 'travel', 'AND the travel category, or it would not be in the trip');
+  ok(after.dropped.description === 'Cena 0', `the dropped row loses the name (${after.dropped.description})`);
+  ok(after.dropped.category.id === 'travel', 'and keeps its category - nothing here knows where it came from');
+
+  const sheet = await p.locator('[data-trips-sheet]').innerText();
+  ok(/12 expenses/.test(sheet), 'the card is still twelve rows - one out, one in');
+  ok(/535/.test(sheet.replace(/[.,]/g, (c) => c)) || /535/.test(sheet), `and carries the total the editor promised (${sheet.split('\n').slice(0, 4).join(' | ')})`);
+  await ctx.close();
+}
+
+// ── looking further than the trip's own days ──────────────────────────────
+{
+  const { ctx, p } = await open();
+  await openMenu(p);
+  await p.locator('[data-act-menu-trips]').click();
+  await p.waitForTimeout(500);
+  await p.locator('[data-trip-rename]').first().click();
+  await p.waitForTimeout(500);
+
+  ok(await p.locator('[data-trip-row="ins"]').count() === 0,
+    'travel insurance bought in January is outside the trip\'s own days');
+  const narrow = (await p.locator('[data-trip-window]').innerText()).trim();
+  await p.locator('[data-trip-widen]').click();
+  await p.waitForTimeout(400);
+  ok(await p.locator('[data-trip-row="ins"]').count() === 1, 'until the window is widened, and then it is reachable');
+  const wide = (await p.locator('[data-trip-window]').innerText()).trim();
+  ok(narrow !== wide, `and the window says so out loud ("${narrow}" then "${wide}")`);
+  await ctx.close();
+}
+
+// ── the cliff, said before the tap and not blocking it ────────────────────
+//
+// Below three rows the app stops reading a group as a trip. Deciding a
+// weekend was not really one is a legitimate thing to want, and the rows keep
+// their name either way - so this warns and lets you through.
+{
+  const { ctx, p } = await open();
+  await openMenu(p);
+  await p.locator('[data-act-menu-trips]').click();
+  await p.waitForTimeout(500);
+  // Newest first: Azores, Formentera 2026, Formentera 2025. The last has five.
+  await p.locator('[data-trip-rename]').nth(2).click();
+  await p.waitForTimeout(500);
+  const ids = await p.evaluate(() =>
+    [...document.querySelectorAll('[data-trip-row][data-trip-row-mark="in"]')].map((el) => el.getAttribute('data-trip-row')));
+  ok(ids.length === 5, `the 2025 Formentera has five rows (${ids.length})`);
+  ok(await p.locator('[data-trip-floor]').count() === 0, 'and nothing to warn about yet');
+
+  for (const id of ids.slice(0, 3)) {
+    await p.locator(`[data-trip-row="${id}"]`).click();
+    await p.waitForTimeout(150);
+  }
+  ok(await p.locator('[data-trip-floor]').count() === 1, 'taking it under three warns that it stops being a trip');
+  ok(await p.locator('[data-trip-rename-save]').isEnabled(), 'and does not block it - the expenses are not going anywhere');
+  await p.screenshot({ path: `${OUT}/trip-edit-floor.png` });
+
+  await p.locator('[data-trip-rename-save]').click();
+  await p.waitForTimeout(1000);
+  const sheet = await p.locator('[data-trips-sheet]').innerText();
+  // Counted, not matched on text: "2 expenses" is a substring of "12
+  // expenses", and the first version of this passed the Azores card off as
+  // the one that was supposed to have gone.
+  ok(await p.locator('[data-trip-card]').count() === 2,
+    `the card goes, and the other two stay (${sheet.replace(/\n/g, ' | ')})`);
+  ok(!/Aug 2025/.test(sheet), 'with nothing left of it in the sheet');
+  const left = await p.evaluate(() =>
+    JSON.parse(localStorage.getItem('expense-tracker.v1.transactions') ?? '[]')
+      .filter((t) => (t.description ?? '').includes('Formentera')).length);
+  ok(left === 7, `while the expenses stay - two of them still named (${left})`);
   await ctx.close();
 }
 

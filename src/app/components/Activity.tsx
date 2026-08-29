@@ -1211,9 +1211,13 @@ export function Activity({
           transactions={transactions}
           amountOf={(tx) => mineAmount(tx, currency)}
           onOpen={openTrip}
-          // The same write as assigning a selection to a trip: the name on the
-          // front of every description. The trip has no other identity.
-          onRename={(ids, name) => onBulkTrip?.(ids, name)}
+          // The same two writes as assigning a selection to a trip: put these
+          // rows in a trip called this, take those out of one. The trip has no
+          // other identity, so there is nothing else to save.
+          onApply={({ assign, name, drop }) => {
+            if (assign.length) onBulkTrip?.(assign, name);
+            if (drop.length) onBulkTrip?.(drop, null);
+          }}
           onClose={() => {
             setTripsOpen(false);
             onModalOpenChange?.(false);

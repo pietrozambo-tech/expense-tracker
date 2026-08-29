@@ -11,6 +11,8 @@ import {
   isTripName,
   travelCategoryOf,
   tripBodyOf,
+  tripCandidates,
+  tripCandidateWindow,
   tripChoicesFor,
   tripDatesLabel,
   tripMergeTarget,
@@ -194,6 +196,57 @@ ok(travelCategoryOf([cat('x', 'Groceries')]) === null, 'and nothing else passes 
   ])[0];
   ok(tripDatesLabel(newYear, MONTHS) === '28 Dec 2025 - 3 Jan 2026',
     `a trip across New Year names both years (${tripDatesLabel(newYear, MONTHS)})`);
+}
+
+// ── who could still join a trip ───────────────────────────────────────────
+//
+// The pencil offers these. One rule: spending near the trip's own dates that
+// is not in a trip already.
+{
+  const rows: Transaction[] = [
+    tx('2026-08-16', 'Azores - Cena', { amount: 30 }),
+    tx('2026-08-18', 'Azores - Hotel', { amount: 30 }),
+    tx('2026-08-20', 'Azores - Volo', { amount: 30 }),
+    // Travel spending during the trip that never got the name.
+    tx('2026-08-17', 'Noleggio auto', { amount: 210 }),
+    // Filed elsewhere, but dated in the middle of it - the taxi you paid cash
+    // for, outside the Tricount.
+    tx('2026-08-19', 'Taxi aeroporto', { amount: 38, category: transport }),
+    // Just outside the trip, inside the padding.
+    tx('2026-08-24', 'Lavanderia', { amount: 12, category: transport }),
+    // Well outside it.
+    tx('2026-06-02', 'Spesa settimanale', { amount: 40, category: transport }),
+    // The flight, booked in March. Nowhere near the holiday: this is the row
+    // the widening exists for.
+    tx('2026-03-13', 'Volo Lisbona', { amount: 240, category: transport }),
+    // Already carrying somebody's prefix. Assigning it would rewrite
+    // "Milano - Roma treno" into "Azores - Roma treno" and lose a word.
+    tx('2026-08-19', 'Milano - Roma treno', { amount: 60, category: transport }),
+    // Income is not trip spending.
+    tx('2026-08-18', 'Stipendio', { amount: 2000, type: 'income', category: salary }),
+  ];
+  const trip = run(rows)[0];
+  const names = (pad?: number) =>
+    tripCandidates(rows, trip, pad).map((t) => t.description).join(',');
+
+  ok(names() === 'Lavanderia,Taxi aeroporto,Noleggio auto',
+    `spending near the trip that is in no trip, newest first (${names()})`);
+  ok(!names().includes('Stipendio'), 'income is not offered - a trip is spending');
+  ok(!names().includes('Milano'), 'nor is a row already carrying a prefix, which assigning would overwrite');
+  ok(!names().includes('Spesa settimanale'), 'and nor is anything outside the window');
+
+  // Widened, the March flight comes into reach - and nothing that was in the
+  // narrow list drops out of the wide one.
+  ok(names(180).includes('Volo Lisbona'), 'widening the window reaches the flight booked months earlier');
+  for (const n of names().split(',')) {
+    ok(names(180).includes(n), `and "${n}" is still there when it widens`);
+  }
+
+  ok(tripCandidates(rows, trip, 7, 2).length === 2, 'the list is capped');
+
+  const w = tripCandidateWindow(trip, 7);
+  ok(w.from === '2026-08-09' && w.to === '2026-08-27',
+    `the window can be said out loud (${w.from} → ${w.to})`);
 }
 
 // ── Formentera twice: one name, two trips ─────────────────────────────────
