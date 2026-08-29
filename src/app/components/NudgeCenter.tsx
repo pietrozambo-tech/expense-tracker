@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, BarChart3, ArrowDownToLine, SlidersHorizontal, ShieldCheck, ChevronRight } from 'lucide-react';
+import { X, BarChart3, ArrowDownToLine, ListChecks, ShieldCheck, Check, ChevronRight } from 'lucide-react';
 import { t } from '../i18n';
 import { installPlatform, type Nudge } from '../lib/nudges';
 
@@ -13,7 +13,7 @@ const ICONS: Record<Nudge, typeof BarChart3> = {
   backup: ShieldCheck,
   recap: BarChart3,
   install: ArrowDownToLine,
-  customize: SlidersHorizontal,
+  customize: ListChecks,
 };
 
 export interface RecapFacts {
@@ -25,17 +25,33 @@ export interface RecapFacts {
   topCategory: string | null;
 }
 
+/**
+ * What the setup card still has to say, read from the ledger rather than from
+ * a stored flag: `true` means that half is done.
+ *
+ * Which is the whole reason it can be a checklist and not a leaflet. Nobody
+ * has to tell the app they have finished - touching one category ticks its own
+ * line, and when both are ticked the card is not due any more and stops
+ * appearing. There is no "mark as done" to forget.
+ */
+export interface SetupProgress {
+  categories: boolean;
+  sources: boolean;
+}
+
 export function NudgeCenter({
   nudge,
   recap,
+  setup,
   onDismiss,
   onAction,
 }: {
   nudge: Nudge;
   recap?: RecapFacts;
+  setup?: SetupProgress;
   onDismiss: () => void;
-  /** recap -> Trend; customize -> Settings. Install handles itself. */
-  onAction: () => void;
+  /** recap -> Trend; customize -> the half of Settings the row names. */
+  onAction: (target?: 'categories' | 'sources') => void;
 }) {
   // The install card's steps unfold in place: a sheet for three lines of
   // instructions is ceremony, and the unfold keeps Safari's Share button
@@ -64,7 +80,16 @@ export function NudgeCenter({
     nudge === 'backup' ? t('nudge.backupCta')
     : nudge === 'recap' ? t('nudge.recapCta')
     : nudge === 'install' ? (showSteps ? null : t('nudge.installHow'))
-    : t('nudge.customizeCta');
+    : null; // customize speaks through its checklist below
+
+  const tasks: { key: 'categories' | 'sources'; label: string; done: boolean }[] =
+    nudge === 'customize'
+      ? [
+          { key: 'categories', label: t('nudge.setupCategories'), done: !!setup?.categories },
+          { key: 'sources', label: t('nudge.setupSources'), done: !!setup?.sources },
+        ]
+      : [];
+  const doneCount = tasks.filter((x) => x.done).length;
 
   const steps =
     installPlatform() === 'android'
@@ -87,6 +112,66 @@ export function NudgeCenter({
         <div className="flex-1 min-w-0">
           <p style={{ color: 'var(--ink)', fontSize: 14, fontWeight: 600, lineHeight: '18px' }}>{title}</p>
           <p className="mt-0.5" style={{ color: 'var(--ink-2)', fontSize: 12.5, lineHeight: '17px' }}>{body}</p>
+          {tasks.length > 0 && (
+            <>
+              <div className="mt-2">
+                {tasks.map((task, i) => (
+                  <button
+                    key={task.key}
+                    data-setup-task={task.key}
+                    data-setup-done={task.done ? 'yes' : 'no'}
+                    onClick={() => (task.done ? undefined : onAction(task.key))}
+                    disabled={task.done}
+                    aria-label={`${task.label} - ${t('nudge.setupGo')}`}
+                    className="w-full flex items-center gap-2.5 py-1.5 text-left"
+                    style={{ borderTop: i ? '1px solid var(--line-2)' : undefined }}
+                  >
+                    <span
+                      className="flex-shrink-0 grid place-items-center rounded-full"
+                      style={{
+                        width: 19,
+                        height: 19,
+                        backgroundColor: task.done ? 'var(--tone-income)' : 'transparent',
+                        border: task.done ? '1.5px solid transparent' : '1.5px solid var(--ghost)',
+                      }}
+                    >
+                      {task.done && <Check className="w-[11px] h-[11px] text-white" strokeWidth={3.4} />}
+                    </span>
+                    <span
+                      className="flex-1 truncate"
+                      style={{
+                        fontSize: 13,
+                        color: task.done ? 'var(--ink-2)' : 'var(--ink)',
+                        textDecoration: task.done ? 'line-through' : undefined,
+                        textDecorationColor: 'var(--ghost)',
+                      }}
+                    >
+                      {task.label}
+                    </span>
+                    {/* A chevron, not the words "Set up": at 390px those words
+                        cost enough room to truncate "Categories and
+                        subcategories" into "Categories and subcat...", and the
+                        label is the half that has to be readable. The circle
+                        on the left already says this is a task; the chevron
+                        says it goes somewhere. */}
+                    {!task.done && (
+                      <ChevronRight className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--accent-ink)' }} strokeWidth={2.5} />
+                    )}
+                  </button>
+                ))}
+              </div>
+              <div
+                className="mt-2 rounded-full overflow-hidden"
+                data-setup-progress={`${doneCount}/${tasks.length}`}
+                style={{ height: 4, backgroundColor: 'var(--bg-track)' }}
+              >
+                <span
+                  className="block rounded-full"
+                  style={{ height: '100%', width: `${(doneCount / tasks.length) * 100}%`, backgroundColor: '#4F74F3' }}
+                />
+              </div>
+            </>
+          )}
           {nudge === 'install' && showSteps && (
             <ol className="mt-2 flex flex-col gap-1">
               {steps.map((s, i) => (

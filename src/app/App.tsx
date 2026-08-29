@@ -745,28 +745,26 @@ export default function App() {
     adoptLanguage(s.language === 'it' ? 'it' : 'en');
   }, [adoptLanguage]);
 
-  // Start the customize nudge's two-day clock. One effect covers both lives:
-  // a fresh onboarding flips hasCompletedOnboarding and stamps now, and a
-  // device upgrading to this build backfills now on first launch - its clock
-  // starts honestly from the upgrade instead of firing on the spot.
-  useEffect(() => {
-    if (hasCompletedOnboarding) {
-      setNudgePrefs((p) => (p.onboardedAt ? p : { ...p, onboardedAt: new Date().toISOString() }));
-    }
-  }, [hasCompletedOnboarding]);
+  // How far the two-line setup checklist has got. Derived from the ledger, not
+  // from a stored flag, so it ticks itself the moment the user edits anything -
+  // and the same two facts decide whether the card is due at all.
+  //
+  // Seeds come in two languages, and "untouched" must mean untouched in
+  // EITHER: a user who switched app language without ever editing a category
+  // still deserves the tip (their list matches the other seed).
+  const setupProgress = useMemo(() => {
+    const catsUntouched = (['en', 'it'] as const).some(
+      (l) => untouched(categories, defaultCategoriesFor(l)) && untouched(incomeCategories, defaultIncomeCategoriesFor(l))
+    );
+    const sourcesUntouched = (['en', 'it'] as const).some((l) => untouched(sources, defaultSourcesFor(l)));
+    return { catsUntouched, sourcesUntouched };
+  }, [categories, incomeCategories, sources]);
 
   // The one nudge worth the Dashboard's attention right now, if any.
   const activeNudge = useMemo(() => {
     if (!hasCompletedOnboarding) return null;
     const env = runningEnv();
     const prev = prevMonthKey(new Date());
-    // Seeds come in two languages, and "untouched" must mean untouched in
-    // EITHER: a user who switched app language without ever editing a
-    // category still deserves the tip (their list matches the other seed).
-    const catsUntouched = (['en', 'it'] as const).some(
-      (l) => untouched(categories, defaultCategoriesFor(l)) && untouched(incomeCategories, defaultIncomeCategoriesFor(l))
-    );
-    const sourcesUntouched = (['en', 'it'] as const).some((l) => untouched(sources, defaultSourcesFor(l)));
     return dueNudge({
       prefs: nudgePrefs,
       now: new Date(),
@@ -775,10 +773,10 @@ export default function App() {
       guest,
       txCount: expenses.length,
       hasPrevMonthActivity: expenses.some((e) => (e.date ?? '').startsWith(prev)),
-      catsUntouched,
-      sourcesUntouched,
+      catsUntouched: setupProgress.catsUntouched,
+      sourcesUntouched: setupProgress.sourcesUntouched,
     });
-  }, [hasCompletedOnboarding, nudgePrefs, categories, incomeCategories, sources, expenses, guest]);
+  }, [hasCompletedOnboarding, nudgePrefs, setupProgress, expenses, guest]);
 
   // Last month, told as one line. Amounts pre-formatted here so the card
   // stays free of money arithmetic; negative savings are simply not claimed
@@ -817,10 +815,21 @@ export default function App() {
   // Taking the tip consumes it, same as declining - either way it was heard.
   // The backup CTA downloads on the spot - the export itself stamps
   // lastBackupAt, which is what actually retires the card.
-  const actOnNudge = () => {
+  //
+  // The setup checklist is the exception: it opens the half of Settings the
+  // row names and leaves the card standing. Dismissing there would be a lie -
+  // the person is on their way to do the thing, and the OTHER line is still
+  // undone. It retires itself when both halves are touched, which is exactly
+  // when it stops being true.
+  const actOnNudge = (target?: 'categories' | 'sources') => {
+    if (activeNudge === 'customize') {
+      if (target === 'sources') setOpenSourcesOnSettings(true);
+      else setOpenCategoriesOnSettings(true);
+      setCurrentTab('settings');
+      return;
+    }
     if (activeNudge === 'backup') { handleExportData(); return; }
     if (activeNudge === 'recap') setCurrentTab('trend');
-    else if (activeNudge === 'customize') setCurrentTab('settings');
     dismissNudge();
   };
 
@@ -3457,6 +3466,7 @@ export default function App() {
               <NudgeCenter
                 nudge={activeNudge}
                 recap={recapFacts ?? undefined}
+                setup={{ categories: !setupProgress.catsUntouched, sources: !setupProgress.sourcesUntouched }}
                 onDismiss={dismissNudge}
                 onAction={actOnNudge}
               />

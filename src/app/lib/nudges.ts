@@ -9,12 +9,12 @@
 //              about LOSING things, so it outranks the rest and returns
 //              monthly rather than answering "no" forever.
 //   recap      first opens of a new month: last month, told as one line.
+//   customize  one transaction in, categories or sources still exactly as
+//              seeded. A two-line checklist that ticks itself off: the one
+//              screen people do not find on their own.
 //   install    a browser visitor who has not installed. Half funnel, half
 //              data safety: an installed app is exempt from Safari's 7-day
 //              storage eviction, a plain tab is not.
-//   customize  installed for two days, categories and sources still exactly
-//              as seeded. The single highest-leverage setup step, and the one
-//              screen people do not find on their own.
 //
 // Everything here is deliberately DEVICE-LOCAL (like the travel dismissals):
 // the install banner is about this device, the recap is "did this screen show
@@ -34,10 +34,6 @@ export interface NudgePrefs {
   customizeDismissed?: boolean;
   /** The month ('YYYY-MM') whose recap was already shown and dismissed. */
   recapSeen?: string;
-  /** When onboarding finished on this device; backfilled to first-seen for
-   *  devices that predate the field, so their two-day clock starts honestly
-   *  from the upgrade rather than firing on the spot. */
-  onboardedAt?: string;
   /** Backup-nudge clocks. A dismissal snoozes for thirty days rather than
    *  forever - new data keeps accruing, so the risk the card describes only
    *  grows - and any backup export (from the card OR Settings) resets the
@@ -69,7 +65,6 @@ export function untouched(
 export const monthKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 export const prevMonthKey = (d: Date) => monthKey(new Date(d.getFullYear(), d.getMonth() - 1, 1));
 
-const TWO_DAYS = 2 * 24 * 60 * 60 * 1000;
 const THIRTY_DAYS = 30 * 24 * 60 * 60 * 1000;
 
 /** How many transactions make a guest ledger worth a backup warning. Below
@@ -89,9 +84,15 @@ export type Nudge = 'backup' | 'recap' | 'install' | 'customize';
  * The one nudge worth showing right now, or null.
  *
  * Priority is urgency: the backup card guards against permanent loss so it
- * goes first, the recap expires with the month, the install banner waits but
- * matters (an uninstalled guest's data is evictable), the customize tip keeps
- * until it is either taken or refused.
+ * goes first, and the recap expires with the month. Then setup, and only then
+ * the invitation to install.
+ *
+ * That last order used to be the other way round, and it is why nobody ever
+ * saw the setup tip. The card is ONE card: on a phone that has not installed
+ * the app - which is everybody, at first - the install banner won and stayed
+ * won until dismissed, so a tip about categories could not physically appear
+ * in a new user's first days. Installing is worth asking for; it is not worth
+ * more than an app whose categories are somebody else's.
  */
 export function dueNudge(args: {
   prefs: NudgePrefs;
@@ -122,19 +123,26 @@ export function dueNudge(args: {
   if (prefs.recap && args.hasPrevMonthActivity && prefs.recapSeen !== monthKey(now)) {
     return 'recap';
   }
-  if (prefs.tips && !prefs.installDismissed && args.mobile && !args.standalone) {
-    return 'install';
-  }
+  // Either half being untouched is enough. It used to need BOTH, so renaming
+  // one category silenced the advice about accounts for good - two separate
+  // pieces of setup treated as one switch.
+  //
+  // And it waits for a transaction rather than for two days. Before the first
+  // one the Dashboard's empty state is already saying "add your first
+  // expense", and two invitations in one place are neither; after it, the
+  // person has met the category grid and picked an account, so the sentence
+  // finally refers to something they have seen. No standalone check: someone
+  // using the app in a browser tab has exactly the same starter categories.
   if (
     prefs.tips &&
     !prefs.customizeDismissed &&
-    args.standalone &&
-    args.catsUntouched &&
-    args.sourcesUntouched &&
-    prefs.onboardedAt
+    args.txCount >= 1 &&
+    (args.catsUntouched || args.sourcesUntouched)
   ) {
-    const born = Date.parse(prefs.onboardedAt);
-    if (Number.isFinite(born) && now.getTime() - born >= TWO_DAYS) return 'customize';
+    return 'customize';
+  }
+  if (prefs.tips && !prefs.installDismissed && args.mobile && !args.standalone) {
+    return 'install';
   }
   return null;
 }

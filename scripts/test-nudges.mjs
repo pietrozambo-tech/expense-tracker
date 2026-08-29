@@ -45,39 +45,56 @@ eq('monthKey zero-pads', monthKey(new Date(2026, 8, 3)), '2026-09');
 
 // ── dueNudge ───────────────────────────────────────────────────────────────
 const NOW = new Date('2026-08-17T12:00:00Z');
-const THREE_DAYS_AGO = new Date(NOW.getTime() - 3 * 864e5).toISOString();
+// The default state of a new phone: installed nothing, edited nothing, one
+// expense on the books.
 const base = {
-  prefs: { ...DEFAULT_NUDGE_PREFS, onboardedAt: THREE_DAYS_AGO },
+  prefs: { ...DEFAULT_NUDGE_PREFS },
   now: NOW,
   standalone: true,
   mobile: true,
   guest: false,
-  txCount: 0,
+  txCount: 1,
   hasPrevMonthActivity: false,
   catsUntouched: true,
   sourcesUntouched: true,
 };
 const due = (over) => dueNudge({ ...base, ...over, prefs: { ...base.prefs, ...(over.prefs ?? {}) } });
+/** Setup finished - both halves touched. */
+const setUp = { catsUntouched: false, sourcesUntouched: false };
 
-eq('a fresh month with history leads with the recap', due({ hasPrevMonthActivity: true, standalone: false }), 'recap');
+eq('a fresh month with history leads with the recap', due({ hasPrevMonthActivity: true }), 'recap');
 eq('the recap already seen this month stays quiet',
   due({ hasPrevMonthActivity: true, prefs: { recapSeen: '2026-08' } }), 'customize');
 eq('last month\\'s dismissal does not silence THIS month',
   due({ hasPrevMonthActivity: true, prefs: { recapSeen: '2026-07' } }), 'recap');
-eq('recap needs something to recap', due({ hasPrevMonthActivity: false, standalone: false }), 'install');
+eq('recap needs something to recap', due({ hasPrevMonthActivity: false }), 'customize');
 
-eq('a browser visitor on a phone is asked to install', due({ standalone: false }), 'install');
-eq('but never on desktop - the instructions do not exist there', due({ standalone: false, mobile: false }), null);
-eq('and never once installed (customize takes over)', due({}), 'customize');
-eq('an install dismissal is forever', due({ standalone: false, prefs: { installDismissed: true } }), null);
+// ── setup before install ───────────────────────────────────────────────────
+// The order that matters: a phone in a browser tab is EVERY new user at
+// first, so while install outranked setup the setup tip could not physically
+// appear in the days it is about.
+eq('a phone in a browser tab is offered setup before installation', due({ standalone: false }), 'customize');
+eq('once setup is done the install invitation gets its turn', due({ standalone: false, ...setUp }), 'install');
+eq('dismissing the setup tip also lets install through',
+  due({ standalone: false, prefs: { customizeDismissed: true } }), 'install');
+eq('but never on desktop - the instructions do not exist there',
+  due({ standalone: false, mobile: false, ...setUp }), null);
+eq('an install dismissal is forever',
+  due({ standalone: false, ...setUp, prefs: { installDismissed: true } }), null);
+eq('and nothing to install once installed', due({ ...setUp }), null);
 
-eq('two days in with factory settings: the customize tip', due({}), 'customize');
-eq('one day in: not yet',
-  due({ prefs: { onboardedAt: new Date(NOW.getTime() - 1 * 864e5).toISOString() } }), null);
-eq('touched categories: they found the screen', due({ catsUntouched: false }), null);
-eq('touched sources alone also counts', due({ sourcesUntouched: false }), null);
+// ── the setup checklist ────────────────────────────────────────────────────
+eq('factory settings after the first expense: the setup tip', due({}), 'customize');
+eq('before the first expense, the empty state is already doing the asking',
+  due({ txCount: 0 }), null);
+eq('...and install may speak in that gap instead', due({ txCount: 0, standalone: false }), 'install');
+// One list touched is half done, not done: this used to need BOTH untouched,
+// so renaming a single category silenced the advice about accounts forever.
+eq('categories touched, sources still seeded: half a checklist is still due',
+  due({ catsUntouched: false }), 'customize');
+eq('sources touched, categories still seeded: likewise', due({ sourcesUntouched: false }), 'customize');
+eq('both touched: nothing left to say', due({ ...setUp }), null);
 eq('customize dismissed: never again', due({ prefs: { customizeDismissed: true } }), null);
-eq('no onboarding stamp yet: wait for it', due({ prefs: { onboardedAt: undefined } }), null);
 
 // ── the backup card: a guest ledger with no recent copy ────────────────────
 const g = { guest: true, txCount: 40, standalone: false };
@@ -85,22 +102,22 @@ eq('a guest with a real ledger is asked to back up before anything else',
   due({ ...g, hasPrevMonthActivity: true }), 'backup');
 eq('signed in, the ledger has a second home - no alarm',
   due({ ...g, guest: false, hasPrevMonthActivity: true }), 'recap');
-eq('a small ledger is not worth the alarm', due({ ...g, txCount: 24 }), 'install');
+eq('a small ledger is not worth the alarm', due({ ...g, txCount: 24 }), 'customize');
 eq('a fresh backup buys thirty days of quiet',
-  due({ ...g, prefs: { lastBackupAt: new Date(NOW.getTime() - 10 * 864e5).toISOString() } }), 'install');
+  due({ ...g, prefs: { lastBackupAt: new Date(NOW.getTime() - 10 * 864e5).toISOString() } }), 'customize');
 eq('a stale one does not',
   due({ ...g, prefs: { lastBackupAt: new Date(NOW.getTime() - 31 * 864e5).toISOString() } }), 'backup');
 eq('a dismissal snoozes rather than silences',
-  due({ ...g, prefs: { backupSnoozedAt: new Date(NOW.getTime() - 10 * 864e5).toISOString() } }), 'install');
+  due({ ...g, prefs: { backupSnoozedAt: new Date(NOW.getTime() - 10 * 864e5).toISOString() } }), 'customize');
 eq('and the snooze expires after a month',
   due({ ...g, prefs: { backupSnoozedAt: new Date(NOW.getTime() - 31 * 864e5).toISOString() } }), 'backup');
 
 // ── the toggles rule them all ──────────────────────────────────────────────
 eq('tips off silences the backup card too', due({ ...g, prefs: { tips: false } }), null);
-eq('tips off silences install', due({ standalone: false, prefs: { tips: false } }), null);
+eq('tips off silences install', due({ standalone: false, ...setUp, prefs: { tips: false } }), null);
 eq('tips off silences customize', due({ prefs: { tips: false } }), null);
 eq('recap off silences the recap but not the tips',
-  due({ hasPrevMonthActivity: true, standalone: false, prefs: { recap: false } }), 'install');
+  due({ hasPrevMonthActivity: true, prefs: { recap: false } }), 'customize');
 
 console.log(failed ? \`\\n\${failed} FAILED\` : '\\nAll checks passed.');
 process.exit(failed ? 1 : 0);
