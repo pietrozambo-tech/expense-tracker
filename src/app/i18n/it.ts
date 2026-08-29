@@ -401,7 +401,6 @@ export const it: Record<keyof typeof en, string> = {
   'add.tripRemove': 'Togli da {name}',
   // Il selettore, dentro il pannello della categoria Viaggi.
   'add.trip': 'VIAGGIO',
-  'add.tripClear': 'Non fa parte di un viaggio',
   'add.tripAll': 'Tutti i viaggi…',
   'add.occurrenceNote': 'Aggiunta automaticamente dalla tua ricorrenza. Le modifiche valgono solo per questa occorrenza.',
   'save.new': 'Salva {type}',

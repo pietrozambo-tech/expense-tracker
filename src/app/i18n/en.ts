@@ -406,7 +406,6 @@ export const en = {
   'add.tripRemove': 'Take this out of {name}',
   // The picker itself, inside the travel category's panel.
   'add.trip': 'TRIP',
-  'add.tripClear': 'Not part of a trip',
   'add.tripAll': 'All trips…',
   'add.occurrenceNote': 'Added automatically by your recurring schedule. Edits change only this occurrence.',
   'save.new': 'Save {type}',
