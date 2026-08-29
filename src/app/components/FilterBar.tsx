@@ -15,6 +15,8 @@ interface FilterBarProps {
   typeFilter?: string; // "All", "Non-repeated", "Repeated"
   sourceFilter?: string; // 'All' or a source id
   sources?: Source[];
+  /** The name of the trip being shown, when one is. */
+  tripLabel?: string;
   availableYears: string[];
   availableMonths: string[];
   onYearChange: (year: string) => void;
@@ -22,6 +24,8 @@ interface FilterBarProps {
   onOpenCategorySelector: () => void;
   onOpenSubcategorySelector?: () => void;
   onOpenSourceSelector?: () => void;
+  /** Absent for anyone with no trips. */
+  onOpenTripSelector?: () => void;
   onOpenSearch: () => void;
   /** 'date' (newest first, the default) or 'amount' (largest first). */
   sortBy?: 'date' | 'amount';
@@ -33,6 +37,7 @@ interface FilterBarProps {
   onSourceClear?: () => void;
   onCategoryClear?: () => void;
   onSubcategoryClear?: () => void;
+  onTripClear?: () => void;
   /** Lets the shell hide the nav dock while a sheet is up, exactly as the
    *  category/source/search modals already do. */
   onSheetOpenChange?: (open: boolean) => void;
@@ -68,6 +73,7 @@ export function FilterBar({
   typeFilter,
   sourceFilter,
   sources,
+  tripLabel,
   availableYears,
   availableMonths,
   onYearChange,
@@ -75,6 +81,7 @@ export function FilterBar({
   onOpenCategorySelector,
   onOpenSubcategorySelector,
   onOpenSourceSelector,
+  onOpenTripSelector,
   onOpenSearch,
   sortBy = 'date',
   onToggleSort,
@@ -83,6 +90,7 @@ export function FilterBar({
   onSourceClear,
   onCategoryClear,
   onSubcategoryClear,
+  onTripClear,
   onSheetOpenChange
 }: FilterBarProps) {
   const selectedSource = sources?.find((s) => s.id === sourceFilter);
@@ -107,6 +115,9 @@ export function FilterBar({
   if (subcategory && subcategory !== 'All') {
     activeChips.push({ key: 'subcategory', label: subcategory, clear: () => onSubcategoryClear?.() });
   }
+  if (tripLabel) {
+    activeChips.push({ key: 'trip', label: tripLabel, clear: () => onTripClear?.() });
+  }
 
   // "All years" is a whole label, not a year to append a month to - composing
   // it the usual way produced "Full Year all".
@@ -120,6 +131,7 @@ export function FilterBar({
     if (selectedSource) onSourceClear?.();
     if (category !== 'All') onCategoryClear?.();
     if (subcategory && subcategory !== 'All') onSubcategoryClear?.();
+    if (tripLabel) onTripClear?.();
   };
 
   return (
@@ -219,6 +231,7 @@ export function FilterBar({
           {activeChips.map((c) => (
             <button
               key={c.key}
+              data-filter-chip={c.key}
               onClick={c.clear}
               className={`${PILL} font-medium max-w-[160px]`}
               style={{ backgroundColor: FILTER_ACTIVE.bg, borderColor: FILTER_ACTIVE.border, color: FILTER_ACTIVE.text }}
@@ -258,6 +271,8 @@ export function FilterBar({
           sourceLabel={selectedSource ? selectedSource.name : t('act.type.all')}
           categoryLabel={category === 'All' ? t('act.type.all') : category}
           subcategoryLabel={subcategory && subcategory !== 'All' ? subcategory : t('act.type.all')}
+          tripLabel={tripLabel || t('act.type.all')}
+          onOpenTrip={onOpenTripSelector && (() => { openSheet(null); onOpenTripSelector(); })}
           canPickSubcategory={category !== 'All'}
           onTypeChange={onTypeFilterChange}
           onOpenSource={onOpenSourceSelector ? () => { setSheet(null); onOpenSourceSelector(); } : undefined}

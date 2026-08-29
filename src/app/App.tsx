@@ -85,6 +85,7 @@ import {
   travelCategoryOf,
   tripBodyOf,
   tripChoicesFor,
+  tripDatesLabel,
   tripOfDescription,
   withTripName,
 } from './lib/trips';
@@ -102,6 +103,7 @@ import { DateInput } from './components/DateInput';
 import { CategorySelector } from './components/CategorySelector';
 import { SaveButton } from './components/SaveButton';
 import { DescriptionInput, type DescriptionTrip } from './components/DescriptionInput';
+import { TripAssignModal } from './components/TripAssignModal';
 import { Onboarding } from './components/Onboarding';
 import { useAuth } from './auth/AuthProvider';
 import { processRecurrence, buildRuleTemplate, newRuleId, occurrenceDueDate, isActiveRule, generatesOn, applyFutureEdit, findPastSeriesMatches, findUnclaimedSeriesRows, findGeneratedDuplicates, tagPastSeries, anchorForStart, anchorPlanForStart, planNewChain, toDateStr, chargeHistory, reanchorAfterClear, type SeriesClaim } from './lib/recurrence';
@@ -193,6 +195,7 @@ import { categories as initialCategories, incomeCategories as initialIncomeCateg
 import { reassignToOthers, CATCHALL_RE } from './lib/categoryOps';
 import { switchGlow } from './components/categoryColors';
 import { t, getLanguage, setLanguage, type Language } from './i18n';
+import { monthsShort } from './i18n/store';
 import { defaultSourcesFor } from './components/sources';
 
 // Geometry of the frost that surrounds the dock. Shared by its two layers so
@@ -464,6 +467,7 @@ export default function App() {
     () => loadSettings().defaultSourceExpense || DEFAULT_SOURCE_EXPENSE
   );
   const [showSourceSelector, setShowSourceSelector] = useState(false);
+  const [tripPickerOpen, setTripPickerOpen] = useState(false);
   const [openSourcesOnSettings, setOpenSourcesOnSettings] = useState(false); // deep-link Settings → Sources
   const [openRecurringOnSettings, setOpenRecurringOnSettings] = useState(false); // deep-link Settings → Recurring
   const [openCategoriesOnSettings, setOpenCategoriesOnSettings] = useState(false); // deep-link Settings → Categories
@@ -2979,33 +2983,63 @@ export default function App() {
       : null;
   const descriptionBody = rowTrip ? tripBodyOf(description) : description;
 
-  const descriptionTrip = useMemo<DescriptionTrip | undefined>(() => {
+  // Two chips: enough for "the one I am on" and "the one before it", which is
+  // the case that actually happens. More than that and the row wraps into the
+  // subcategories below it.
+  const TRIP_CHIPS = 2;
+
+  const attachTrip = (name: string) => {
+    if (!travelCategory) return;
+    // Both conditions or neither: a row that takes the name while filed
+    // somewhere else would not appear in the trip - an edit that looks like
+    // it worked. Same move applyBulkTrip makes for a selection, subcategory
+    // included, because that one belonged to the old category.
+    if (selectedCategory !== travelCategory.id) {
+      setSelectedCategory(travelCategory.id);
+      setSelectedSubcategory(null);
+    }
+    setDescription(withTripName(name, tripBodyOf(description)));
+  };
+  // The category stays where it is, exactly as taking a selection out of a
+  // trip does: nothing here knows where the row came from.
+  const detachTrip = () => setDescription(tripBodyOf(description));
+
+  /** The chip beside the description: what it is in, and a way out. */
+  const descriptionTrip: DescriptionTrip | undefined =
+    rowTrip ? { name: rowTrip, onDetach: detachTrip } : undefined;
+
+  // Every trip, nearest to this date first, deduped by name - two Formenteras
+  // a year apart are one choice, because putting a row in a trip can only
+  // write a name. The dates on each row are what tell them apart.
+  const tripPickerOptions = useMemo(() => {
+    const seen = new Set<string>();
+    return tripChoicesFor(trips, date, trips.length).flatMap((tr) =>
+      seen.has(tr.name) ? [] : (seen.add(tr.name), [{ name: tr.name, hint: tripDatesLabel(tr, monthsShort()) }]),
+    );
+  }, [trips, date]);
+
+  /**
+   * The picker, handed to the category grid and only while travel is open.
+   *
+   * It used to live under the description and appear whenever the date fell
+   * inside a trip - which, for the fortnight you are actually away, is under
+   * every expense you write, holiday or not. A question that always appears
+   * is not a proposal. Choosing the travel category is the first half of
+   * putting something in a trip anyway, so the second half waits there.
+   */
+  const categoryTrip = useMemo(() => {
     if (!travelCategory || transactionType !== 'expense') return undefined;
-    const choices = rowTrip ? [] : tripChoicesFor(trips, date);
-    // Offered only with a reason to offer: the entry is already being filed
-    // under travel, or its date falls inside a trip that exists. Otherwise
-    // this is an ordinary expense and the screen has nothing to say - the
-    // same rule the import flow uses before it proposes a trip.
-    const worth = selectedCategory === travelCategory.id || choices.some((c) => c.near);
+    if (selectedCategory !== travelCategory.id) return undefined;
+    const shown = tripPickerOptions.slice(0, TRIP_CHIPS);
     return {
       name: rowTrip,
-      options: worth ? choices.map((c) => c.trip.name) : [],
-      onAttach: (name: string) => {
-        // Both conditions or neither: a row that takes the name while filed
-        // somewhere else would not appear in the trip - an edit that looks
-        // like it worked. Same move applyBulkTrip makes for a selection,
-        // subcategory included: it belonged to the old category.
-        if (selectedCategory !== travelCategory.id) {
-          setSelectedCategory(travelCategory.id);
-          setSelectedSubcategory(null);
-        }
-        setDescription(withTripName(name, tripBodyOf(description)));
-      },
-      // The category stays where it is, exactly as taking a selection out of
-      // a trip does: nothing here knows where the row came from.
-      onDetach: () => setDescription(tripBodyOf(description)),
+      options: shown.map((o) => o.name),
+      onPick: attachTrip,
+      onClear: detachTrip,
+      // Only when there is more to show than fits.
+      onMore: tripPickerOptions.length > shown.length ? () => setTripPickerOpen(true) : undefined,
     };
-  }, [travelCategory, transactionType, rowTrip, trips, date, selectedCategory, description]);
+  }, [travelCategory, transactionType, selectedCategory, rowTrip, tripPickerOptions, description]);
 
   // Autocomplete under the Description field while ADDING (never editing -
   // there the description is already what the user made it). Computed from
@@ -4283,6 +4317,7 @@ export default function App() {
                 order={categoryOrder}
                 onChangeOrder={setCategoryOrder}
                 transactions={expenses}
+                trip={categoryTrip}
               />
             </div>
 
@@ -4307,6 +4342,24 @@ export default function App() {
                 setOpenSourcesOnSettings(true);
               }}
             />
+
+            {/* Every trip, from "All trips…" in the panel above. The SAME
+                sheet the Activity selection uses - one list of trips in the
+                app, which also means creating a new one and taking a row out
+                of one already work here without a line of their own. */}
+            {tripPickerOpen && travelCategory && (
+              <TripAssignModal
+                count={1}
+                options={tripPickerOptions}
+                travel={travelCategory}
+                onClose={() => setTripPickerOpen(false)}
+                onApply={(name) => {
+                  setTripPickerOpen(false);
+                  if (name) attachTrip(name);
+                  else detachTrip();
+                }}
+              />
+            )}
           </div>
         )}
       </div>

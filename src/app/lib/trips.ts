@@ -257,51 +257,81 @@ const DAY_MS = 86_400_000;
  *  midnight and the difference carries no timezone in it. */
 const daysBetween = (a: string, b: string) => Math.round((Date.parse(a) - Date.parse(b)) / DAY_MS);
 
-export interface TripChoice {
-  trip: Trip;
-  /** The date falls inside this trip's own dates, give or take a few days. */
-  near: boolean;
+/**
+ * Every trip, ordered for a transaction on this date: nearest first.
+ *
+ * ONE rule, and it fits in a sentence: trips are ordered by how close their
+ * days are to this expense. The trip you were on that day comes first, then
+ * the one that ended most recently.
+ *
+ * That sentence is the whole specification, and it was worth rewriting this
+ * to get. The first version ranked by the MONTH a trip is named after, which
+ * fell apart on the case that matters most - two trips a fortnight apart are
+ * in the same month, the comparison ties, and which one leads becomes
+ * impossible to explain to the person looking at it. Days do not tie.
+ *
+ * The span is the rows' own range, not the month in the title, so the Azores
+ * - flights in March, a car in June, the trip in August - is a candidate for
+ * a date anywhere in that stretch.
+ *
+ * There is no "is this one near enough" flag any more, and its absence is the
+ * point. It existed so the app could decide whether to raise the subject
+ * unprompted, which it did whenever a date fell inside a trip - meaning under
+ * every expense written during the fortnight you were away. The picker now
+ * waits inside the travel category instead, and a control you opened
+ * deliberately does not need evidence before it is allowed to speak.
+ */
+export function tripChoicesFor(trips: Trip[], date: string, limit = 3): Trip[] {
+  return trips
+    .map((trip) => {
+      const { from, to } = tripSpan(trip);
+      // Zero while inside it; otherwise the days to whichever end is closer.
+      const gap = date < from ? daysBetween(from, date) : date > to ? daysBetween(date, to) : 0;
+      return { trip, gap, to, width: daysBetween(to, from) };
+    })
+    .sort((a, b) =>
+      a.gap - b.gap
+      // Both contain the date: the TIGHTER one wins. A five-month stretch
+      // holds a date because flights were booked in March and the holiday
+      // was in August - it is a container. Five days around the date is the
+      // trip you were actually on, and that is the one to offer first.
+      || a.width - b.width
+      // Neither contains it and they are equally far: the one that ended
+      // later, which is the one still being added to.
+      || b.to.localeCompare(a.to))
+    .slice(0, limit)
+    .map(({ trip }) => trip);
 }
 
 /**
- * The trips worth offering for a transaction on this date.
+ * "16-26 Aug 2026", or "28 Dec 2025 - 3 Jan 2026" when it straddles a year.
  *
- * Two kinds, and the difference is the whole point of the flag. A trip is
- * NEAR when the date falls inside the dates its own rows already cover - that
- * is evidence, and it is what lets the app propose something instead of
- * asking an open question. Everything else is merely possible, offered
- * because a screen with the travel category selected and no suggestion at all
- * is a dead end, and ordered newest-first because that is the trip a person
- * is most likely to still be adding to.
+ * The dates are what tells two trips apart when their names do not: a list
+ * showing "Formentera" twice says nothing, and the same list showing
+ * "4-6 Jul 2025" and "4-6 Jul 2026" needs no explaining.
  *
- * The span is the rows' own range rather than the month the trip is named
- * after, so the Azores - flights in March, a car in June, everything else in
- * August - stays one candidate for a date anywhere in that stretch. Which
- * also means a long trip matches generously, so among the near ones the tie
- * is broken by distance from the PEAK month: the month the trip is called.
+ * Which is exactly why the YEAR is always here, though it makes the label
+ * longer than it looks like it needs to be. Formentera in two consecutive
+ * summers is the case this whole label exists for, and those two trips can
+ * easily fall on the same days of the same month - so a label without a year
+ * fails precisely where it is needed and reads fine everywhere it is not.
+ *
+ * Month names are passed in for the same reason the import prompt takes them:
+ * a lookup in here would answer in the browser's language rather than the one
+ * the user chose.
  */
-export function tripChoicesFor(
-  trips: Trip[],
-  date: string,
-  limit = 3,
-  padDays = 3,
-): TripChoice[] {
-  const month = date.slice(0, 7);
-  const scored = trips.map((trip) => {
-    const { from, to } = tripSpan(trip);
-    return {
-      trip,
-      near: daysBetween(date, from) >= -padDays && daysBetween(date, to) <= padDays,
-      gap: monthsApart(trip.month, month),
-    };
-  });
-  const near = scored
-    .filter((s) => s.near)
-    // Closest to what the trip is called; a tie goes to the more recent one.
-    .sort((a, b) => a.gap - b.gap || b.trip.month.localeCompare(a.trip.month));
-  // detectTrips already hands these back newest-first.
-  const rest = scored.filter((s) => !s.near);
-  return [...near, ...rest].slice(0, limit).map(({ trip, near: isNear }) => ({ trip, near: isNear }));
+export function tripDatesLabel(trip: Trip, monthsShort: string[]): string {
+  const { from, to } = tripSpan(trip);
+  const day = (d: string) => String(Number(d.slice(8, 10)));
+  const mon = (d: string) => monthsShort[Number(d.slice(5, 7)) - 1] ?? '';
+  const year = (d: string) => d.slice(0, 4);
+  if (year(from) !== year(to)) {
+    return `${day(from)} ${mon(from)} ${year(from)} - ${day(to)} ${mon(to)} ${year(to)}`;
+  }
+  if (from === to) return `${day(from)} ${mon(from)} ${year(to)}`;
+  return from.slice(0, 7) === to.slice(0, 7)
+    ? `${day(from)}-${day(to)} ${mon(to)} ${year(to)}`
+    : `${day(from)} ${mon(from)} - ${day(to)} ${mon(to)} ${year(to)}`;
 }
 
 /**

@@ -6,6 +6,7 @@ import { ExpenseItem } from './ExpenseItem';
 import { IncomeItem } from './IncomeItem';
 import { CategoryFilterModal } from './CategoryFilterModal';
 import { SubcategoryFilterModal } from './SubcategoryFilterModal';
+import { TripFilterModal } from './TripFilterModal';
 import { SourceFilterModal } from './SourceFilterModal';
 import { SearchModal } from './SearchModal';
 import { ExportScopeModal } from './ExportScopeModal';
@@ -14,7 +15,7 @@ import { ActivitySelectionBar } from './ActivitySelectionBar';
 import { BulkCategoryModal } from './BulkCategoryModal';
 import { TripsSheet } from './TripsSheet';
 import { TripAssignModal } from './TripAssignModal';
-import { detectTrips, travelCategoryOf, type Trip } from '../lib/trips';
+import { detectTrips, travelCategoryOf, tripDatesLabel, type Trip } from '../lib/trips';
 import { clampYear, selectableMonths, selectableYears } from '../lib/periods';
 import { CURRENCIES, mineAmount } from '../utils/currency';
 import { byRecency } from '../lib/shared';
@@ -45,6 +46,8 @@ export interface ActivityViewState {
   searchQuery: string;
   typeFilter: string;
   sourceFilter: string;
+  /** A trip key, or 'All'. */
+  tripFilter?: string;
   sortBy: ActivitySort;
   scrollTop: number;
 }
@@ -176,6 +179,8 @@ export function Activity({
   const [searchQuery, setSearchQuery] = useState(saved?.searchQuery ?? '');
   const [typeFilter, setTypeFilter] = useState(preset?.typeFilter ?? saved?.typeFilter ?? 'All'); // All / One-off / Recurring / Imported
   const [sourceFilter, setSourceFilter] = useState(saved?.sourceFilter ?? 'All'); // 'All' or a source id
+  const [tripFilter, setTripFilter] = useState(saved?.tripFilter ?? 'All'); // 'All' or a trip key
+  const [isTripModalOpen, setIsTripModalOpen] = useState(false);
   const [sortBy, setSortBy] = useState<ActivitySort>(saved?.sortBy ?? 'date');
 
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
@@ -204,10 +209,11 @@ export function Activity({
       searchQuery,
       typeFilter,
       sourceFilter,
+      tripFilter,
       sortBy,
       scrollTop: viewStateRef.current?.scrollTop ?? 0,
     };
-  }, [viewStateRef, activityType, selectedYear, selectedMonth, categoryFilter, subcategoryFilter, searchQuery, typeFilter, sourceFilter, sortBy]);
+  }, [viewStateRef, activityType, selectedYear, selectedMonth, categoryFilter, subcategoryFilter, searchQuery, typeFilter, sourceFilter, tripFilter, sortBy]);
 
   // Put the list back where it was, before the browser paints - restoring in a
   // plain effect would show the top of the list for a frame first. The filters
@@ -255,7 +261,7 @@ export function Activity({
   useEffect(() => {
     setRenderLimit(RENDER_CAP);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedYear, selectedMonth, categoryFilter, subcategoryFilter, sourceFilter, typeFilter, searchQuery, activityType, sortBy]);
+  }, [selectedYear, selectedMonth, categoryFilter, subcategoryFilter, sourceFilter, typeFilter, tripFilter, searchQuery, activityType, sortBy]);
 
   // Auto-adjust selected month if it doesn't exist in the selected year
   useEffect(() => {
@@ -293,6 +299,35 @@ export function Activity({
     };
   };
 
+  // Trips are read out of the WHOLE ledger, never the filtered view: a trip's
+  // flights are booked months before it is taken, so any period would cut one
+  // in half. See lib/trips.ts.
+  const travelCategory = travelCategoryOf(categories);
+  const trips = useMemo(
+    () => detectTrips(transactions, travelCategory, (t) => mineAmount(t, currency)),
+    [transactions, travelCategory, currency],
+  );
+  /**
+   * The rows of the trip being filtered to, by id.
+   *
+   * A trip is not a field, so it cannot be matched row by row like a category
+   * - it is a set the grouping already worked out, and this is that set. It
+   * also handles the case a name match never could: two Formenteras a year
+   * apart are two entries, and picking one means its own rows and not the
+   * other's.
+   *
+   * A key that names no trip any more - renamed, or its rows deleted - is
+   * read as no filter at all rather than as a filter that matches nothing.
+   * The saved view outliving the trip it pointed at is the ordinary case, and
+   * an empty list with no explanation is the worst possible answer to it.
+   */
+  const tripRowIds = useMemo(() => {
+    if (tripFilter === 'All') return null;
+    const hit = trips.find((tr) => tr.key === tripFilter);
+    return hit ? new Set(hit.rows.map((r) => r.id)) : null;
+  }, [tripFilter, trips]);
+  const activeTrip = tripFilter === 'All' ? null : trips.find((tr) => tr.key === tripFilter) ?? null;
+
   const filteredTransactions = typedTransactions.filter((t) => {
     const { start, end } = getDateRange();
     const date = parseLocalDate(t.date);
@@ -301,6 +336,7 @@ export function Activity({
     if (categoryFilter !== 'All' && t.category.name !== categoryFilter) return false;
     if (subcategoryFilter !== 'All' && t.subcategory !== subcategoryFilter) return false;
     if (sourceFilter !== 'All' && t.sourceId !== sourceFilter) return false;
+    if (tripRowIds && !tripRowIds.has(t.id)) return false;
     if (searchQuery && !t.description.toLowerCase().includes(searchQuery.toLowerCase())) return false;
 
     // Recurrence filter
@@ -486,15 +522,15 @@ export function Activity({
   const [tripsOpen, setTripsOpen] = useState(false);
   const [tripAssignOpen, setTripAssignOpen] = useState(false);
 
-  // Trips are read out of the WHOLE ledger, never the filtered view: a trip's
-  // flights are booked months before it is taken, so any period would cut one
-  // in half. See lib/trips.ts.
-  const travelCategory = travelCategoryOf(categories);
-  const trips = useMemo(
-    () => detectTrips(transactions, travelCategory, (t) => mineAmount(t, currency)),
-    [transactions, travelCategory, currency],
-  );
-  const tripNames = useMemo(() => [...new Set(trips.map((t) => t.name))], [trips]);
+  // Newest first, deduped by name: two Formenteras a year apart are one
+  // choice here, because assigning to a name is all the write can do. The
+  // dates tell them apart on the row.
+  const tripOptions = useMemo(() => {
+    const seen = new Set<string>();
+    return trips.flatMap((tr) =>
+      seen.has(tr.name) ? [] : (seen.add(tr.name), [{ name: tr.name, hint: tripDatesLabel(tr, monthsShort()) }]),
+    );
+  }, [trips]);
 
   // What the actions will actually touch: the ticked rows that are still in
   // the list. Re-derived from the filtered set every render rather than
@@ -532,17 +568,37 @@ export function Activity({
    * IS its name in the description, so the filter that finds it is the same
    * one a person would build by hand.
    */
-  const openTrip = (trip: Trip) => {
-    setTripsOpen(false);
-    onModalOpenChange?.(false);
+  /**
+   * Show one trip, and nothing else.
+   *
+   * The period goes to every year, and that is not a convenience: a trip's
+   * flights are booked months before it is taken, so under any single month
+   * the total on screen is a PART of the trip that looks like the whole of
+   * it. Widening is the only reading that cannot mislead - and the period
+   * chip says so plainly, so narrowing back down stays one tap away.
+   *
+   * The category filter is deliberately left alone. It used to be set to
+   * Travel and the trip name pushed into the SEARCH box, which worked because
+   * the name is the prefix - and put two chips on screen for one idea, took
+   * the search box hostage, and would have swept up any other row whose
+   * description happened to contain the word.
+   */
+  const showTrip = (key: string) => {
     setActivityType('all');
     setSelectedYear(ALL_YEARS);
     setSelectedMonth('year');
     setSubcategoryFilter('All');
     setTypeFilter('All');
     setSourceFilter('All');
-    if (travelCategory) setCategoryFilter(travelCategory.name);
-    setSearchQuery(trip.name);
+    setCategoryFilter('All');
+    setSearchQuery('');
+    setTripFilter(key);
+  };
+
+  const openTrip = (trip: Trip) => {
+    setTripsOpen(false);
+    onModalOpenChange?.(false);
+    showTrip(trip.key);
   };
 
   const toggleSelect = (id: string) =>
@@ -580,6 +636,7 @@ export function Activity({
     if (subcategoryFilter !== 'All') bits.push(subcategoryFilter);
     if (typeFilter !== 'All') bits.push(typeFilterLabel(typeFilter));
     if (sourceFilter !== 'All') bits.push(sources.find((s) => s.id === sourceFilter)?.name ?? t('act.oneSource'));
+    if (activeTrip) bits.push(activeTrip.name);
     if (searchQuery) bits.push(`"${searchQuery}"`);
     return bits;
   })();
@@ -860,6 +917,7 @@ export function Activity({
           typeFilter={typeFilter}
           sourceFilter={sourceFilter}
           sources={sources}
+          tripLabel={activeTrip?.name}
           availableYears={availableYears}
           availableMonths={availableMonths}
           onYearChange={(year) => {
@@ -881,6 +939,12 @@ export function Activity({
             setIsSourceModalOpen(true);
             onModalOpenChange?.(true);
           }}
+          // Only for someone who HAS a trip: a filter for a thing you do not
+          // have is a row that only ever says "All".
+          onOpenTripSelector={trips.length > 0 ? () => {
+            setIsTripModalOpen(true);
+            onModalOpenChange?.(true);
+          } : undefined}
           onOpenSearch={() => {
             setIsSearchModalOpen(true);
             onModalOpenChange?.(true);
@@ -893,6 +957,7 @@ export function Activity({
           // filter with no category behind it matches nothing.
           onCategoryClear={() => { setCategoryFilter('All'); setSubcategoryFilter('All'); }}
           onSubcategoryClear={() => setSubcategoryFilter('All')}
+          onTripClear={() => setTripFilter('All')}
         />
         </>)}
       </div>
@@ -1101,7 +1166,7 @@ export function Activity({
       {tripAssignOpen && travelCategory && (
         <TripAssignModal
           count={selectedRows.length}
-          names={tripNames}
+          options={tripOptions}
           travel={travelCategory}
           onClose={() => {
             setTripAssignOpen(false);
@@ -1121,6 +1186,22 @@ export function Activity({
           }}
         />
       )}
+
+      <TripFilterModal
+        isOpen={isTripModalOpen}
+        selected={tripFilter}
+        trips={trips}
+        onSelect={(key) => {
+          if (key === 'All') setTripFilter('All');
+          else showTrip(key);
+          setIsTripModalOpen(false);
+          onModalOpenChange?.(false);
+        }}
+        onClose={() => {
+          setIsTripModalOpen(false);
+          onModalOpenChange?.(false);
+        }}
+      />
 
       {tripsOpen && travelCategory && (
         <TripsSheet

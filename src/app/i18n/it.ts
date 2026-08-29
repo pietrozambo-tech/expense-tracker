@@ -232,6 +232,8 @@ export const it: Record<keyof typeof en, string> = {
   'act.noExport': 'Nessuna transazione da esportare',
   'act.oneSource': 'Un conto',
   'act.subcategory': 'Sottocategoria',
+  'act.trip': 'Viaggio',
+  'ftrip.title': 'Filtra per viaggio',
   'act.ariaYear': 'Filtra per anno',
   'act.ariaMonth': 'Filtra per mese',
   'act.ariaType': 'Filtra per tipo',
@@ -395,9 +397,12 @@ export const it: Record<keyof typeof en, string> = {
   'add.descPlaceholderIncome': 'es. Royalties app, Dividendi',
   // Il viaggio davanti alla descrizione: una cosa che si vede e si toglie,
   // non testo che si cancella per sbaglio.
-  'add.tripAsk': 'Fa parte di un viaggio?',
   'add.tripAdd': 'Mettila in {name}',
   'add.tripRemove': 'Togli da {name}',
+  // Il selettore, dentro il pannello della categoria Viaggi.
+  'add.trip': 'VIAGGIO',
+  'add.tripClear': 'Non fa parte di un viaggio',
+  'add.tripAll': 'Tutti i viaggi…',
   'add.occurrenceNote': 'Aggiunta automaticamente dalla tua ricorrenza. Le modifiche valgono solo per questa occorrenza.',
   'save.new': 'Salva {type}',
   'save.update': 'Aggiorna {type}',

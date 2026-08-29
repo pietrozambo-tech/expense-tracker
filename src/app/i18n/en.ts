@@ -231,6 +231,8 @@ export const en = {
   'act.noExport': 'No transactions to export',
   'act.oneSource': 'One source',
   'act.subcategory': 'Subcategory',
+  'act.trip': 'Trip',
+  'ftrip.title': 'Filter by trip',
   'act.ariaYear': 'Filter by year',
   'act.ariaMonth': 'Filter by month',
   'act.ariaType': 'Filter by type',
@@ -400,9 +402,12 @@ export const en = {
   'add.descPlaceholderIncome': 'e.g. App royalties, PRY dividends',
   // The trip on the front of the description, as a thing you can see and
   // remove rather than text you can wipe out by mistake.
-  'add.tripAsk': 'Part of a trip?',
   'add.tripAdd': 'Put this in {name}',
   'add.tripRemove': 'Take this out of {name}',
+  // The picker itself, inside the travel category's panel.
+  'add.trip': 'TRIP',
+  'add.tripClear': 'Not part of a trip',
+  'add.tripAll': 'All trips…',
   'add.occurrenceNote': 'Added automatically by your recurring schedule. Edits change only this occurrence.',
   'save.new': 'Save {type}',
   'save.update': 'Update {type}',

@@ -12,6 +12,7 @@ import {
   travelCategoryOf,
   tripBodyOf,
   tripChoicesFor,
+  tripDatesLabel,
   tripMergeTarget,
   tripNameOf,
   tripOfDescription,
@@ -95,12 +96,12 @@ ok(travelCategoryOf([cat('x', 'Groceries')]) === null, 'and nothing else passes 
   );
 }
 
-// ── which trip to offer, and on what evidence ─────────────────────────────
+// ── which trip leads, and why ─────────────────────────────────────────────
 //
-// The description field proposes a trip only when it has a reason. NEAR is
-// that reason: the date falls inside the dates the trip's own rows cover. The
-// rest are offered as merely possible, and the flag is what lets the screen
-// stay quiet when there is nothing to say.
+// One rule: trips are ordered by how close their days are to this expense.
+// The whole point of writing it that way is that the order can be explained
+// to the person looking at it, which the first attempt - ranking by the month
+// a trip is named after - could not.
 {
   const rows: Transaction[] = [];
   // The Azores again: booked in March, a hotel in June, the trip in August.
@@ -115,18 +116,16 @@ ok(travelCategoryOf([cat('x', 'Groceries')]) === null, 'and nothing else passes 
   ok(span.from === '2026-03-13' && span.to === '2026-08-21',
     `a trip's span is its first row to its last (${span.from} → ${span.to})`);
 
-  const on = (date: string) => tripChoicesFor(trips, date);
-  const named = (date: string) => on(date).map((c) => `${c.trip.name}${c.near ? '*' : ''}`).join(',');
+  const named = (date: string) => tripChoicesFor(trips, date).map((tr) => tr.name).join(',');
 
-  ok(named('2026-08-22') === 'Azores*,Trieste', 'a date in the middle of a trip proposes it, and marks it as evidence');
-  ok(on('2026-08-24')[0].near, 'three days past the last row still counts as inside');
-  ok(!on('2026-08-30')[0].near, 'nine days past it does not');
-  ok(on('2026-08-30').length === 2, 'though both trips are still offered, just without the claim');
+  ok(named('2026-08-22') === 'Azores,Trieste', 'a date in the middle of a trip puts that trip first');
+  ok(named('2026-08-30') === 'Azores,Trieste', 'and still does nine days later - closest wins, not inside');
 
-  // May 16 sits inside BOTH spans - Trieste's own, and the Azores' long
-  // booking stretch. The one the month is named after has to lead, or the
-  // trip you are actually on loses to the one you booked flights for.
-  ok(named('2026-05-16') === 'Trieste*,Azores*', 'two trips can both be near, and the closer peak leads');
+  // Both contain 16 May - Trieste's own four days, and the Azores' five-month
+  // stretch from a March flight to an August holiday. The tight one is the
+  // trip you were on; the wide one is a container that happens to hold the
+  // date, and offering it first would be answering the wrong question.
+  ok(named('2026-05-16') === 'Trieste,Azores', 'when two trips both contain the date, the tighter one leads');
 
   ok(tripChoicesFor(trips, '2026-08-22', 1).length === 1, 'the list is capped');
   ok(tripChoicesFor([], '2026-08-22').length === 0, 'no trips, nothing to offer');
@@ -142,6 +141,59 @@ ok(travelCategoryOf([cat('x', 'Groceries')]) === null, 'and nothing else passes 
   ok(tripOfDescription('Volo - andata', trips) === null, 'a prefix naming no trip is just a description');
   ok(tripOfDescription('Cena porto', trips) === null, 'and so is one with no prefix at all');
   ok(tripOfDescription('Azores - Cena', []) === null, 'with no trips in the ledger, nothing is in one');
+}
+
+// ── two trips a fortnight apart: the case the first rule could not answer ──
+//
+// Both in August, so ranking by the month a trip is named after ties, and
+// which one leads becomes impossible to explain to the person looking at it.
+// Days do not tie.
+{
+  const rows: Transaction[] = [];
+  for (let i = 0; i < 4; i++) rows.push(tx(`2026-08-0${i + 1}`, `Trieste - Cena ${i}`, { amount: 25 }));
+  for (let i = 0; i < 6; i++) rows.push(tx(`2026-08-${16 + i}`, `Azores - Cena ${i}`, { amount: 30 }));
+  const trips = run(rows);
+  const named = (date: string) => tripChoicesFor(trips, date).map((tr) => tr.name).join(',');
+
+  ok(named('2026-08-20') === 'Azores,Trieste', 'an expense during the second trip leads with the second');
+  ok(named('2026-08-03') === 'Trieste,Azores', 'and one during the first leads with the first');
+  // Right in the gap: 3 days after Trieste ended, 8 before the Azores began.
+  ok(named('2026-08-07') === 'Trieste,Azores', 'in the gap between them, the nearer one leads');
+  ok(named('2026-08-14') === 'Azores,Trieste', 'and the order turns over by itself as the date moves');
+  // Far past both, equally far: the one that ended later leads.
+  ok(named('2026-12-25') === 'Azores,Trieste', 'long after both, the recent one leads');
+
+  const az = trips.find((t) => t.name === 'Azores')!;
+  const tr = trips.find((t) => t.name === 'Trieste')!;
+  const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  ok(tripDatesLabel(az, MONTHS) === '16-21 Aug 2026', `dates inside one month read as a range (${tripDatesLabel(az, MONTHS)})`);
+  ok(tripDatesLabel(tr, MONTHS) === '1-4 Aug 2026', 'and so do the other trip\'s, which is what tells the two apart');
+}
+{
+  // Across a month boundary, and a trip that is all one day.
+  const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const straddle = run([
+    tx('2026-07-28', 'Ponte - Cena'), tx('2026-08-02', 'Ponte - Hotel'), tx('2026-07-30', 'Ponte - Volo'),
+  ])[0];
+  ok(tripDatesLabel(straddle, MONTHS) === '28 Jul - 2 Aug 2026', `two months get both named (${tripDatesLabel(straddle, MONTHS)})`);
+  const oneDay = run([
+    tx('2026-06-06', 'Gita - A'), tx('2026-06-06', 'Gita - B'), tx('2026-06-06', 'Gita - C'),
+  ])[0];
+  ok(tripDatesLabel(oneDay, MONTHS) === '6 Jun 2026', 'and a single day is not written as a range with itself');
+  // The case the year is here for: the same days, a year apart, one name.
+  const twice = run([
+    tx('2025-07-04', 'Formentera - A'), tx('2025-07-05', 'Formentera - B'), tx('2025-07-06', 'Formentera - C'),
+    tx('2026-07-04', 'Formentera - D'), tx('2026-07-05', 'Formentera - E'), tx('2026-07-06', 'Formentera - F'),
+  ]);
+  ok(twice.length === 2, 'two summers under one name are two trips');
+  ok(tripDatesLabel(twice[0], MONTHS) !== tripDatesLabel(twice[1], MONTHS),
+    `and their labels differ, which is the whole job (${twice.map((t) => tripDatesLabel(t, MONTHS)).join(' vs ')})`);
+  // Across New Year both years are named, or the range reads backwards.
+  const newYear = run([
+    tx('2025-12-28', 'Capodanno - A'), tx('2025-12-30', 'Capodanno - B'), tx('2026-01-03', 'Capodanno - C'),
+  ])[0];
+  ok(tripDatesLabel(newYear, MONTHS) === '28 Dec 2025 - 3 Jan 2026',
+    `a trip across New Year names both years (${tripDatesLabel(newYear, MONTHS)})`);
 }
 
 // ── Formentera twice: one name, two trips ─────────────────────────────────

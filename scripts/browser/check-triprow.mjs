@@ -64,6 +64,13 @@ const open = async () => {
       // Same month, but outside the trip's dates and filed elsewhere: there
       // is nothing to say about it.
       row('far', '2026-08-05', 'Spesa settimanale', { category: cats[1], subcategory: 'Supermarket' }),
+      // Two more trips, so there is an order to get wrong and a list to open.
+      row('w1', '2026-08-05', 'Weekend Trieste - Cena'),
+      row('w2', '2026-08-06', 'Weekend Trieste - Ostello'),
+      row('w3', '2026-08-07', 'Weekend Trieste - Treno'),
+      row('o1', '2026-01-10', 'Vecchio - Cena'),
+      row('o2', '2026-01-11', 'Vecchio - Hotel'),
+      row('o3', '2026-01-12', 'Vecchio - Volo'),
       // Income cannot be in a trip at all.
       row('pay', '2026-08-22', 'Stipendio', { type: 'income', category: inc[0], subcategory: undefined }),
     ]);
@@ -90,6 +97,13 @@ const stored = (p, id) => p.evaluate(
   (rowId) => JSON.parse(localStorage.getItem('expense-tracker.v1.transactions') ?? '[]').find((t) => t.id === rowId),
   id,
 );
+// The picker lives inside the travel category's panel now, so getting to it
+// means filing the row there first - which is exactly the point: a trip needs
+// that category to exist at all.
+const pickTravel = async (p) => {
+  await p.getByRole('button', { name: 'Travel' }).first().click();
+  await p.waitForTimeout(400);
+};
 const save = async (p) => {
   await p.getByRole('button', { name: 'Update Expense' }).click();
   await p.waitForTimeout(900);
@@ -140,10 +154,11 @@ const save = async (p) => {
   const { ctx, p } = await open();
   await openRow(p, 'loose');
   ok(await chip(p).count() === 0, 'travel spending with no name shows no chip');
-  ok(await p.locator('[data-trip-options]').count() === 1, 'but it is offered the trip its date falls inside');
+  ok(await p.locator('[data-trip-panel]').count() === 1,
+    'and a row already filed under travel has the picker open in front of it');
   await p.screenshot({ path: `${OUT}/triprow-offer.png` });
 
-  await p.locator(`[data-trip-option="${TRIP}"]`).click();
+  await p.locator(`[data-trip-chip-option="${TRIP}"]`).click();
   await p.waitForTimeout(300);
   ok(await chip(p).count() === 1, 'tapping the trip attaches it');
   ok(await descValue(p) === 'Noleggio auto', 'and the description is untouched');
@@ -157,9 +172,11 @@ const save = async (p) => {
 {
   const { ctx, p } = await open();
   await openRow(p, 'taxi');
-  ok(await p.locator('[data-trip-options]').count() === 1,
-    'an expense dated inside a trip is offered it whatever category it is in');
-  await p.locator(`[data-trip-option="${TRIP}"]`).click();
+  ok(await p.locator('[data-trip-panel]').count() === 0,
+    'an expense filed elsewhere is asked nothing about trips');
+  await pickTravel(p);
+  ok(await p.locator('[data-trip-panel]').count() === 1, 'until it is filed under travel');
+  await p.locator(`[data-trip-chip-option="${TRIP}"]`).click();
   await p.waitForTimeout(400);
   await save(p);
   const after = await stored(p, 'taxi');
@@ -167,7 +184,7 @@ const save = async (p) => {
   // Groceries would not appear in the trip - an edit that looks like it
   // worked and did nothing.
   ok(after.description === `${TRIP} - Taxi aeroporto`, 'it takes the name');
-  ok(after.category.id === 'travel', 'AND moves to the travel category, or it would not be in the trip');
+  ok(after.category.id === 'travel', 'AND is in the travel category, or it would not be in the trip');
   ok(after.subcategory === undefined, 'the old subcategory goes with the old category');
   await ctx.close();
 }
@@ -183,15 +200,40 @@ const save = async (p) => {
 
   await p.getByLabel('Close').click();
   await p.waitForTimeout(800);
+  // THE reason the picker moved. This row is dated during the trip, and under
+  // the old placement it was asked about one - as was every other expense
+  // written that fortnight, holiday or not.
   await openRow(p, 'far');
-  ok(await p.locator('[data-trip-options]').count() === 0,
-    'an ordinary expense far from any trip is asked nothing');
+  ok(await p.locator('[data-trip-panel]').count() === 0,
+    'an ordinary expense is asked nothing, even dated in the middle of a trip');
 
   await p.getByLabel('Close').click();
   await p.waitForTimeout(800);
   await openRow(p, 'pay');
-  ok(await chip(p).count() === 0 && await p.locator('[data-trip-options]').count() === 0,
+  await p.waitForTimeout(300);
+  ok(await chip(p).count() === 0 && await p.locator('[data-trip-panel]').count() === 0,
     'and income is left out of it - a trip is spending');
+  await ctx.close();
+}
+
+// ── the order, and the way to the rest of them ────────────────────────────
+{
+  const { ctx, p } = await open();
+  await openRow(p, 'loose');
+  const chips = await p.locator('[data-trip-chip-option]').allInnerTexts();
+  // Two trips exist; the row is dated inside one of them, so that one leads.
+  ok(chips[0].trim() === TRIP, `the trip the date falls inside comes first (${chips.map((c) => c.trim()).join(' | ')})`);
+  ok(chips.length === 2, 'and only a couple are shown, or the row wraps over the subcategories');
+  ok(await p.locator('[data-trip-more]').count() === 1, 'with a way to the rest of them');
+
+  await p.locator('[data-trip-more]').click();
+  await p.waitForTimeout(500);
+  const sheet = await p.locator('[data-trip-assign]').innerText();
+  ok(/Weekend Trieste/.test(sheet) && /Vecchio/.test(sheet), 'which lists every trip, not just the near ones');
+  // Dates, because two trips with similar names are told apart by when they
+  // were, not by what they are called.
+  ok(/21-24 Aug 2026/.test(sheet), `each one carrying its own dates (${sheet.replace(/\n/g, ' / ')})`);
+  ok(/No trip/i.test(sheet), 'and the way out of a trip is on the same list');
   await ctx.close();
 }
 

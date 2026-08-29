@@ -153,11 +153,13 @@ export function FiltersSheet({
   sourceLabel,
   categoryLabel,
   subcategoryLabel,
+  tripLabel,
   canPickSubcategory,
   onTypeChange,
   onOpenSource,
   onOpenCategory,
   onOpenSubcategory,
+  onOpenTrip,
   onClearAll,
   activeCount,
   onClose,
@@ -167,17 +169,23 @@ export function FiltersSheet({
   sourceLabel: string;
   categoryLabel: string;
   subcategoryLabel: string;
+  tripLabel: string;
   canPickSubcategory: boolean;
   onTypeChange?: (v: string) => void;
   onOpenSource?: () => void;
   onOpenCategory: () => void;
   onOpenSubcategory?: () => void;
+  /** Absent for anyone with no trips - which is most people, most of the
+   *  time, and they should not be shown a filter for a thing they do not
+   *  have. */
+  onOpenTrip?: () => void;
   onClearAll: () => void;
   activeCount: number;
   onClose: () => void;
 }) {
-  const Row = ({ label, value, onClick }: { label: string; value: string; onClick: () => void }) => (
+  const Row = ({ label, value, onClick, ...rest }: { label: string; value: string; onClick: () => void }) => (
     <button
+      {...rest}
       onClick={onClick}
       className="w-full flex items-center justify-between px-6 py-3.5 active:bg-neutral-50 transition-colors border-b border-neutral-100 last:border-b-0"
     >
@@ -220,6 +228,9 @@ export function FiltersSheet({
         {canPickSubcategory && onOpenSubcategory && (
           <Row label={t('act.subcategory')} value={subcategoryLabel} onClick={onOpenSubcategory} />
         )}
+        {/* Last, and only when there is one: a trip is a narrower thing than
+            a category, and it is the row most people will never see. */}
+        {onOpenTrip && <Row label={t('act.trip')} value={tripLabel} onClick={onOpenTrip} data-filter-trip />}
       </div>
       {activeCount > 0 && (
         <div className="px-6 pt-4">

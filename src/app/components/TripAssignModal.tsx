@@ -5,8 +5,11 @@ import type { Category } from '../types';
 
 interface TripAssignModalProps {
   count: number;
-  /** Trip names already in the ledger, newest first. */
-  names: string[];
+  /** The trips in the ledger, in the order the caller wants them read.
+   *  The hint is what tells two of them apart when the names do not - a
+   *  list showing "Formentera" twice says nothing, the same list showing
+   *  "1-5 Aug" and "16-26 Aug" needs no explaining. */
+  options: { name: string; hint?: string }[];
   /** Where trip rows are filed, named in the note so the category move is not
    *  a surprise. */
   travel: Category;
@@ -23,8 +26,8 @@ interface TripAssignModalProps {
  * also why merging two trips needs no feature of its own - select the rows of
  * "Azzorre", pick "Azores", done.
  */
-export function TripAssignModal({ count, names, travel, onApply, onClose }: TripAssignModalProps) {
-  const [creating, setCreating] = useState(names.length === 0);
+export function TripAssignModal({ count, options, travel, onApply, onClose }: TripAssignModalProps) {
+  const [creating, setCreating] = useState(options.length === 0);
   const [draft, setDraft] = useState('');
   const clean = draft.trim();
 
@@ -34,6 +37,7 @@ export function TripAssignModal({ count, names, travel, onApply, onClose }: Trip
     label: string,
     onClick: () => void,
     tone?: string,
+    hint?: string,
   ) => (
     <button
       key={key}
@@ -45,9 +49,12 @@ export function TripAssignModal({ count, names, travel, onApply, onClose }: Trip
       <span className="flex-shrink-0 w-8 h-8 rounded-lg grid place-items-center" style={{ backgroundColor: 'var(--bg-inset)' }}>
         {icon}
       </span>
-      <span style={{ fontSize: 14.5, fontWeight: 500, color: tone ?? 'var(--ink)' }} className="truncate">
+      <span style={{ fontSize: 14.5, fontWeight: 500, color: tone ?? 'var(--ink)' }} className="truncate flex-1 min-w-0">
         {label}
       </span>
+      {hint && (
+        <span className="flex-shrink-0" style={{ fontSize: 11.5, color: 'var(--ink-3, var(--ink-2))' }}>{hint}</span>
+      )}
     </button>
   );
 
@@ -110,12 +117,14 @@ export function TripAssignModal({ count, names, travel, onApply, onClose }: Trip
             )
           )}
 
-          {names.map((name) =>
+          {options.map(({ name, hint }) =>
             row(
               name,
               <Plane size={15} style={{ color: 'var(--ink-2)' }} />,
               name,
               () => onApply(name),
+              undefined,
+              hint,
             ),
           )}
 

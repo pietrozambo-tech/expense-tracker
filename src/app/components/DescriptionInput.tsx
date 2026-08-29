@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plane, X } from 'lucide-react';
+import { X } from 'lucide-react';
 import { t } from '../i18n';
 import type { DescriptionSuggestion } from '../lib/suggestions';
 
@@ -17,16 +17,17 @@ import type { DescriptionSuggestion } from '../lib/suggestions';
  * it: still visible, still removable, but removable ON PURPOSE. Fixing a
  * description and leaving a trip stop being the same gesture.
  *
- * Everything here is decided by the caller - whether there is a trip, which
- * ones are worth offering - because those answers need the ledger and the
- * chosen category, and this component should not need either.
+ * This shows a trip and takes one off. CHOOSING one lives in the travel
+ * category's panel instead - see CategorySelector - because the offer had to
+ * stop appearing here. It was shown whenever a date fell inside a trip, which
+ * during a fortnight's holiday means under every expense you write, holiday
+ * or not: a question that always appears is not a proposal, it is something
+ * to scroll past. Filing under travel is the first half of the decision
+ * anyway, so the second half belongs beside it.
  */
 export interface DescriptionTrip {
-  /** The trip this row is in, or null. */
-  name: string | null;
-  /** Trips worth offering while it is in none. Empty means say nothing. */
-  options: string[];
-  onAttach: (name: string) => void;
+  /** The trip this row is in. Absent when it is in none. */
+  name: string;
   onDetach: () => void;
 }
 
@@ -79,10 +80,6 @@ export function DescriptionInput({
     );
   };
 
-  // Both lists sit under the field, so they must not both be there at once.
-  // The one you are typing into wins.
-  const showOptions = !!trip && !trip.name && trip.options.length > 0 && !open;
-
   return (
     <div className="px-6 pb-6">
       {/* The same quiet label the Schedule editor uses for these fields -
@@ -93,7 +90,7 @@ export function DescriptionInput({
           chip has to sit inside the same shape as the text, or it reads as a
           separate control that happens to be nearby. */}
       <div className="w-full flex items-center gap-2 px-4 py-2.5 rounded-xl bg-neutral-50 focus-within:bg-neutral-100 transition-colors">
-        {trip?.name && (
+        {trip && (
           <span
             data-trip-chip={trip.name}
             className="flex items-center gap-1 pl-2 pr-1 py-1 rounded-lg flex-shrink-0 max-w-[48%]"
@@ -149,25 +146,6 @@ export function DescriptionInput({
               {s.hint && (
                 <span className="text-[10px] text-neutral-400 whitespace-nowrap flex-shrink-0">{s.hint}</span>
               )}
-            </button>
-          ))}
-        </div>
-      )}
-      {showOptions && (
-        <div data-trip-options className="mt-2 flex items-center gap-1.5 flex-wrap">
-          <span style={{ fontSize: 11.5, color: 'var(--ink-2)' }}>{t('add.tripAsk')}</span>
-          {trip!.options.map((name) => (
-            <button
-              key={name}
-              type="button"
-              data-trip-option={name}
-              onClick={() => trip!.onAttach(name)}
-              aria-label={t('add.tripAdd', { name })}
-              className="flex items-center gap-1.5 pl-2 pr-2.5 py-1 rounded-lg max-w-full active:scale-95 transition-transform"
-              style={{ backgroundColor: 'var(--bg-inset)' }}
-            >
-              <Plane className="w-3 h-3 flex-shrink-0" style={{ color: 'var(--ink-2)' }} strokeWidth={2.2} />
-              <span className="truncate" style={{ fontSize: 12.5, fontWeight: 500, color: 'var(--ink)' }}>{name}</span>
             </button>
           ))}
         </div>

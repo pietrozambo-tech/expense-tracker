@@ -42,6 +42,30 @@ interface CategorySelectorProps {
   onChangeOrder?: (order: CategoryOrder) => void;
   /** The whole ledger, for the "most used" count. */
   transactions?: { category?: { id?: string } | null }[];
+  /**
+   * The trip this entry belongs to, and the ones on offer.
+   *
+   * Given only when the SELECTED category is the travel one - this component
+   * has no idea which that is, and the panel below renders under whichever
+   * category is open, so handing it a trip at the wrong moment would file it
+   * under Groceries on screen.
+   *
+   * It lives here rather than under the description, where it started,
+   * because a trip needs the travel category to exist at all: choosing that
+   * category is already half the decision, and the half that was left over
+   * had nowhere better to be. It also stops the offer appearing under every
+   * expense written during a fortnight abroad.
+   */
+  trip?: {
+    /** The trip it is in now, or null. */
+    name: string | null;
+    /** Nearest first. The full list is behind `onMore`. */
+    options: string[];
+    onPick: (name: string) => void;
+    onClear: () => void;
+    /** Absent when the options ARE all of them. */
+    onMore?: () => void;
+  };
 }
 
 export function CategorySelector({
@@ -54,7 +78,8 @@ export function CategorySelector({
   padded = true,
   order = 'alpha',
   onChangeOrder,
-  transactions = []
+  transactions = [],
+  trip
 }: CategorySelectorProps) {
   const [orderOpen, setOrderOpen] = useState(false);
   // Alphabetical, or by how often each one is actually used - see
@@ -69,6 +94,9 @@ export function CategorySelector({
       ? -1
       : Math.min(Math.floor(selectedIndex / 2) * 2 + 1, sortedCategories.length - 1);
   const showSubcategoryPanel = selectedIndex !== -1 && subcategories.length > 0;
+  // A category with no subcategories can still have a trip panel, and a trip
+  // with nothing to offer and nothing chosen has nothing to draw.
+  const showTripPanel = selectedIndex !== -1 && !!trip && (!!trip.name || trip.options.length > 0);
 
   return (
     <div className={padded ? 'px-6 pb-6' : ''}>
@@ -181,6 +209,76 @@ export function CategorySelector({
                   {category.name}
                 </span>
               </button>
+
+              {/* Trip panel — above the subcategory one, because a trip is
+                  the bigger of the two answers: which holiday, then how it
+                  is filed inside it. */}
+              {showTripPanel && index === panelAfterIndex && (
+                <div
+                  data-trip-panel
+                  className="col-span-2 rounded-xl px-3.5 py-3"
+                  style={{
+                    backgroundColor: 'var(--bg-card)',
+                    border: '1px solid var(--line-2)',
+                    boxShadow: '0 1px 4px rgba(0, 0, 0, 0.05)',
+                  }}
+                >
+                  {/* Same fixed-height header as the panel below, so the two
+                      line up and neither resizes when its X appears. */}
+                  <div className="flex items-center justify-between mb-2 h-6">
+                    <span className="text-[11px] font-semibold" style={{ color: 'var(--ink-2)', letterSpacing: '0.06em' }}>
+                      {t('add.trip')}
+                    </span>
+                    <button
+                      onClick={() => trip!.onClear()}
+                      className="w-6 h-6 -mr-1 flex items-center justify-center rounded-full active:bg-neutral-100"
+                      aria-label={t('add.tripClear')}
+                      data-trip-clear
+                      style={{
+                        visibility: trip!.name ? 'visible' : 'hidden',
+                        pointerEvents: trip!.name ? 'auto' : 'none',
+                      }}
+                    >
+                      <X className="w-4 h-4" style={{ color: 'var(--ink-2)' }} />
+                    </button>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2">
+                    {/* The chosen one is always here, even when it is not
+                        among the nearest few - a panel that hid what you had
+                        picked would read as having lost it. */}
+                    {[...(trip!.name && !trip!.options.includes(trip!.name) ? [trip!.name] : []), ...trip!.options].map((name) => {
+                      const on = trip!.name === name;
+                      return (
+                        <button
+                          key={name}
+                          data-trip-chip-option={name}
+                          onClick={() => (on ? trip!.onClear() : trip!.onPick(name))}
+                          aria-label={on ? t('add.tripRemove', { name }) : t('add.tripAdd', { name })}
+                          className={`px-3.5 py-1.5 rounded-lg text-sm border max-w-full truncate ${
+                            on
+                              ? 'bg-blue-50 text-blue-600 border-blue-200'
+                              : 'bg-white text-neutral-600 border-neutral-200 hover:bg-neutral-50'
+                          }`}
+                          style={{ transition: 'background-color 0.15s ease, color 0.15s ease' }}
+                        >
+                          {name}
+                        </button>
+                      );
+                    })}
+                    {trip!.onMore && (
+                      <button
+                        data-trip-more
+                        onClick={() => trip!.onMore!()}
+                        className="px-3.5 py-1.5 rounded-lg text-sm border border-dashed"
+                        style={{ borderColor: 'var(--line)', color: 'var(--accent-ink)' }}
+                      >
+                        {t('add.tripAll')}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {/* Subcategory panel — spans the full width, sits right below the
                   selected category's row */}
