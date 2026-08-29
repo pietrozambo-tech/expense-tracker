@@ -2723,12 +2723,12 @@ export function Settings({
     // Showing the names it must match is stronger than any wording: the
     // assistant no longer has to be told to preserve a flag it cannot see.
     const tripLine = knownTrips.length === 0 ? '' : (IT_PROMPT
-      ? `\nI viaggi che ho GIÀ (nome esatto fra virgolette, con il mese):\n${knownTrips
+      ? `\n\nI viaggi che ho GIÀ (nome esatto fra virgolette, con il mese):\n${knownTrips
           .map((t) => `- "${t.name}" (${monthsShort()[Number(t.month.slice(5, 7)) - 1]} ${t.month.slice(0, 4)})`)
-          .join('\n')}\nSe queste righe appartengono a uno di questi viaggi, riusa quel nome ESATTAMENTE come è scritto qui - stessi caratteri, stesse emoji, stessi accenti. Non è una preferenza estetica: l'app riconosce un viaggio da quella stringa, quindi "Azzorre" e "Azzorre \u{1F1F5}\u{1F1F9}" diventano due viaggi separati.\n`
-      : `\nTrips I ALREADY have (exact name in quotes, with the month):\n${knownTrips
+          .join('\n')}\nSe queste righe appartengono a uno di questi viaggi, riusa quel nome ESATTAMENTE come è scritto qui - stessi caratteri, stesse emoji, stessi accenti - invece di chiedermene uno nuovo.\n`
+      : `\n\nTrips I ALREADY have (exact name in quotes, with the month):\n${knownTrips
           .map((t) => `- "${t.name}" (${monthsShort()[Number(t.month.slice(5, 7)) - 1]} ${t.month.slice(0, 4)})`)
-          .join('\n')}\nIf these rows belong to one of those trips, reuse that name EXACTLY as written here - same characters, same emoji, same accents. This is not a matter of taste: the app recognises a trip by that string, so "Azores" and "Azores \u{1F1F5}\u{1F1F9}" become two separate trips.\n`);
+          .join('\n')}\nIf these rows belong to one of those trips, reuse that name EXACTLY as written here - same characters, same emoji, same accents - instead of asking me for a new one.\n`);
 
     const sourceRule = IT_PROMPT
       ? (hasSources
@@ -2789,6 +2789,7 @@ COME chiedere: metti tutto ciò che ti serve in UN solo messaggio, come breve el
 - Se nei dati non c'è l'ANNO da nessuna parte (es. solo colonne "mese" e "giorno"), CHIEDIMI che anno coprono, e se ne coprono più di uno. Un anno sbagliato archivia in silenzio un intero blocco di transazioni nel posto sbagliato, e dopo niente nell'app sembrerà visibilmente rotto.
 - Se una riga è un TOTALE mensile o settimanale invece di una singola transazione (es. un foglio stipendi con una riga al mese e nessun giorno), chiedimi in che giorno del mese datarla.
 - Apri OGNI foglio, scheda e pagina di quello che ti do. Spesso le entrate stanno in una seconda scheda, e convertire solo la prima perde metà del quadro senza dirlo.
+- QUANDO HO RISPOSTO, prima di convertire ripetimi le mie risposte, una riga breve ciascuna: il nome del viaggio FRA VIRGOLETTE esattamente come l'ho scritto io, e quale colonna hai preso come mia. Non riformularle e non sistemarle. Se quello che riscrivi non è quello che ho scritto io, lo vedo lì in un secondo; una volta nel JSON, quell'errore ce l'ha ogni singola riga.
 
 FORMATO
 - "date": YYYY-MM-DD. Converti qualsiasi formato di data in questo. Se una data è ambigua (es. 03/04/25), deduci l'ordine dalle altre righe e resta coerente.
@@ -2835,7 +2836,7 @@ Prima del JSON, dimmi in tre righe brevi: quale tipo hai trovato e con che prova
 Se righe diverse si contraddicono, o i valori di una riga né sommano al totale né si annullano a zero, FERMATI e chiedimi - le due regole danno risposte plausibili sui file l'una dell'altra, quindi una scelta sbagliata qui è invisibile dopo. Sbagliare sulle righe divise in parti uguali dà per caso il numero giusto e su quelle diseguali no: esattamente l'errore che nessuno coglie a occhio.
 
 - Un valore vuoto o a zero per me significa che non facevo parte di quella spesa: salta la riga. Salta anche ogni riga dove il mio costo risulta 0 (mi hanno rimborsato del tutto): una transazione a zero è rumore, non spesa.
-- Salta del tutto le righe di pareggio: categoria "Payment" o "Rimborso", descrizioni tipo "X paid Y" / "Rimborso", e ogni riga di riepilogo "Total balance". Sono soldi che girano tra persone, non spese.
+- Salta del tutto le righe di pareggio: categoria "Payment", "Reimbursement" o "Rimborso", descrizioni tipo "X paid Y" / "Rimborso", e ogni riga di riepilogo "Total balance". Sono soldi che girano tra persone, non spese.
 - Ma una riga dove UNA SOLA persona ha una quota NON è automaticamente un pareggio - di solito significa che qualcuno ha pagato solo per quella persona ("Escursione Balene", 66.78, tutta mia, pagata da un amico). Quella è mia spesa per intero. Decidi da DESCRIZIONE e categoria, mai dal fatto che la riga porti un solo nome: trattarle da pareggi cancella spese vere in silenzio, spesso le più grandi.
 - La colonna "paid by" dice chi ha anticipato i soldi. Non è mai il mio costo, nemmeno sulle righe che ho pagato io: usa la mia colonna di quota, e nient'altro.
 - Mappa le loro categorie sulle mie come sopra (es. "Dining out" → la mia categoria di cibo più vicina). Una categoria che significa solo "nessuna" - UNCATEGORIZED, OTHER, vuota - NON è una categoria da mappare: deduci quella riga dalla descrizione come ogni riga senza categoria, invece di archiviarla nel contenitore generico.
@@ -2849,8 +2850,9 @@ Quando i dati sono un viaggio (un export Tricount o Splitwise che sembra una vac
 - Decidila dalla DESCRIZIONE quando la categoria di origine non dice nulla di utile - "UNCATEGORIZED", "OTHER", "TRAVEL" o vuota. Su un export di viaggio "TRAVEL" non porta informazione, visto che è tutto viaggio: leggi "Hotel PD Sud" come hotel, "Volo" come volo, "Cena" come cibo, "Benzina" come trasporto.
 - Se nessuna delle due è decisiva, LASCIA FUORI la sottocategoria invece di indovinare. Una vuota è un buco che vedo e riempio; una sbagliata è un buco che sembra pieno.
 - Non inventare nuove sottocategorie per questo: usa quelle che ho.
-- CHIEDIMI un NOME BREVE per il viaggio (una o due parole - "Azzorre", "Formentera") e premettilo alla descrizione di OGNI riga importata: "Cena porto" diventa "Formentera - Cena porto". Senza, due viaggi collassano in un unico mucchio indistinguibile di righe di viaggio; il nome è ciò che mi permette di ritrovare un viaggio dopo, cercandolo. Mantieni il resto della descrizione com'era, e non premetterlo a una che inizia già col nome. Se ti dico che non voglio un nome, lascia le descrizioni intatte.
-- USA IL NOME ESATTAMENTE COME LO SCRIVO IO, carattere per carattere. Se ci metto una bandiera, un'emoji o un accento - "Azzorre 🇵🇹" - tienili. Non accorciarlo, non tradurlo, non "pulirlo": l'app riconosce un viaggio da quella stringa esatta, quindi "Azzorre" e "Azzorre 🇵🇹" diventano due viaggi separati e le spese finiscono divise fra i due.${tripLine}
+- CHIEDIMI un NOME BREVE per il viaggio e premettilo alla descrizione di OGNI riga importata: "Cena porto" diventa "Formentera - Cena porto". Senza, due viaggi collassano in un unico mucchio indistinguibile di righe di viaggio; il nome è ciò che mi permette di ritrovare un viaggio dopo, cercandolo. Mantieni il resto della descrizione com'era, e non premetterlo a una che inizia già col nome. Se ti dico che non voglio un nome, lascia le descrizioni intatte.
+- USA LA MIA RISPOSTA ESATTAMENTE COME LA SCRIVO, carattere per carattere. Se ci metto una bandiera, un'emoji o un accento - "Azzorre 🇵🇹" - tienili. Non accorciarla, non tradurla, non "pulirla". L'app riconosce un viaggio da quella stringa esatta: "Azzorre" e "Azzorre 🇵🇹" sono due viaggi diversi, e le spese finiscono divise fra i due.
+- I LIMITI dell'app per quel nome: al massimo 3 parole e 24 caratteri, e non deve contenere " - " (è il separatore stesso). Le emoji pesano più di un carattere - una bandiera ne vale 4. Se quello che ti do sfora, DIMMELO e chiedimi un nome più corto: non accorciarlo mai di tua iniziativa. Un nome che l'app non sa leggere rende invisibile l'intero viaggio, e un nome accorciato da te crea un secondo viaggio accanto a quello che ho già.${tripLine}
 
 Le MIE categorie di SPESA (con le loro sottocategorie):
 ${expList}
@@ -2860,7 +2862,7 @@ ${incList}
 
 I miei conti (id = nome): ${srcList}
 
-Restituisci SOLO il JSON - senza commenti, senza blocchi di codice - e salvalo come file .json.` : `I want to import my expense & income history into an app called "TracklyLab". ${ownerLine}
+Nel FILE metti SOLO il JSON - niente commenti, niente blocchi di codice dentro - e salvalo come file .json. Le righe che ti ho chiesto di dirmi (cosa hai trovato, quale colonna hai preso come mia, il nome del viaggio, il totale della mia quota) vanno in chat, NON nel file: sono la mia unica occasione di fermarti prima che l'errore finisca su ogni riga.` : `I want to import my expense & income history into an app called "TracklyLab". ${ownerLine}
 
 I'll give you my data in whatever form I have it - an Excel/CSV spreadsheet, a bank or credit-card statement (PDF, CSV, or screenshots), photos or screenshots of a transaction list, or just a pasted table. Read ALL of it and turn EVERY transaction into ONE JSON file in EXACTLY this format:
 
@@ -2880,10 +2882,11 @@ HOW to ask: put everything you need in ONE message, as a short numbered list und
 - If the data has no YEAR anywhere (e.g. only "month" and "day" columns), ASK me which year it covers, and whether it spans more than one. A wrong year silently files a whole set of transactions in the wrong place, and nothing in the app will look obviously broken afterwards.
 - If a row is a monthly or weekly TOTAL rather than one transaction (e.g. a salary tab with one row per month and no day), ask me which day of the month to date it on.
 - Open EVERY sheet, tab and page of what I give you. Files often keep income on a second tab, and converting only the first one loses half the picture without saying so.
+- ONCE I HAVE ANSWERED, repeat my answers back before converting, one short line each: the trip name IN QUOTES exactly as I typed it, and which column you took as mine. Do not rephrase them or tidy them up. If what you write back is not what I typed, I catch it there in a second; once it is in the JSON, every single row carries that mistake.
 
 FORMAT
 - "date": YYYY-MM-DD. Convert any date format to this. If a date is ambiguous (e.g. 03/04/25), infer the order from the other rows and stay consistent.
-- "amount": a plain positive number - no currency symbol, no thousands separators (e.g. 1234.56).
+- "amount": a plain positive number - no currency symbol, no thousands separators, decimal POINT not comma (e.g. 1234.56).
 - "type": "expense" for money going out, "income" for money coming in.
 - A NEGATIVE amount inside an expense list is one of two different things, so read the description before deciding:
   - money back on something I bought (refund, return, cashback): keep "type":"expense" and make "amount" NEGATIVE, so it nets off that category.
@@ -2939,8 +2942,9 @@ When the data is a trip (a Tricount or Splitwise export that looks like a holida
 - Decide it from the DESCRIPTION when the source category says nothing useful - "UNCATEGORIZED", "OTHER", "TRAVEL", or blank. On a trip export "TRAVEL" carries no information, since everything is travel: read "Hotel PD Sud" as a hotel, "Volo" as a flight, "Cena" as food, "Benzina" as transportation.
 - If neither is decisive, LEAVE the subcategory out rather than guessing. An empty one is a gap I can see and fill; a wrong one is a gap that looks filled.
 - Do not invent new subcategories for this: use the ones I have.
-- ASK me for a SHORT NAME for the trip (a word or two - "Azores", "Formentera") and prefix EVERY imported row's description with it: "Cena porto" becomes "Formentera - Cena porto". Without it, two trips collapse into one indistinguishable pile of travel rows; the name is what lets me pull one trip back up later by searching it. Keep the rest of the description as it was, and do not prefix one that already starts with the name. If I say I do not want a name, leave descriptions untouched.
-- USE THE NAME EXACTLY AS I WRITE IT, character for character. If I put a flag, an emoji or an accent in it - "Azores 🇵🇹" - keep them. Do not shorten it, translate it, or tidy it up: the app recognises a trip by that exact string, so "Azores" and "Azores 🇵🇹" become two separate trips and the expenses end up split between them.${tripLine}
+- ASK me for a SHORT NAME for the trip and prefix EVERY imported row's description with it: "Cena porto" becomes "Formentera - Cena porto". Without it, two trips collapse into one indistinguishable pile of travel rows; the name is what lets me pull one trip back up later by searching it. Keep the rest of the description as it was, and do not prefix one that already starts with the name. If I say I do not want a name, leave descriptions untouched.
+- USE MY ANSWER EXACTLY AS I WRITE IT, character for character. If I put a flag, an emoji or an accent in it - "Azores 🇵🇹" - keep them. Do not shorten it, translate it, or tidy it up. The app recognises a trip by that exact string: "Azores" and "Azores 🇵🇹" are two different trips, and the expenses end up split between them.
+- THE APP'S LIMITS on that name: at most 3 words and 24 characters, and it must not contain " - " (that is the separator itself). Emoji cost more than one character each - a flag costs 4. If what I give you breaks one of those, TELL ME and ask for a shorter one: never trim it yourself. A name the app cannot read makes the whole trip invisible, and a name you shortened makes a second trip beside the one I already have.${tripLine}
 
 MY EXPENSE categories (with their subcategories):
 ${expList}
@@ -2950,7 +2954,7 @@ ${incList}
 
 My sources (id = name): ${srcList}
 
-Output ONLY the JSON - no commentary, no code fences - and save it as a .json file.`;
+Put ONLY the JSON in the FILE - no commentary, no code fences inside it - and save it as a .json file. The lines I asked you to tell me (what you found, which column you took as mine, the trip name, my share total) go in the chat, NOT in the file: they are my one chance to stop you before the mistake is on every row.`;
 
     const copyPrompt = async () => {
       try {
