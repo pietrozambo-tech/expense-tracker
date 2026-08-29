@@ -54,7 +54,7 @@ export function TripFilterModal({ isOpen, selected, trips, onSelect, onClose }: 
             }`}
             style={{ transition: 'background-color 0.15s ease' }}
           >
-            {t('act.type.all')}
+            {t('ftrip.all')}
           </button>
 
           {trips.map((trip) => {

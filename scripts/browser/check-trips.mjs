@@ -552,6 +552,12 @@ const enterSelect = async (p) => {
   // starting one.
   ok(await p.locator('[data-trip-new-merge]').count() === 1,
     'naming it after a trip it would join says so before the tap');
+  // One expense would normally trip the floor warning - but these rows are
+  // joining a trip of five, and warning "this will not read as a trip"
+  // beside "this will merge into the Azores" is the sheet arguing with
+  // itself.
+  ok(await p.locator('[data-trip-new-floor]').count() === 0,
+    'and the too-few warning stays quiet - the result is not a trip of one');
   await p.screenshot({ path: `${OUT}/trip-new-merge.png` });
   await ctx.close();
 }

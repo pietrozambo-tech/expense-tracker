@@ -233,6 +233,7 @@ export const en = {
   'act.subcategory': 'Subcategory',
   'act.trip': 'Trip',
   'ftrip.title': 'Filter by trip',
+  'ftrip.all': 'All trips',
   'act.ariaYear': 'Filter by year',
   'act.ariaMonth': 'Filter by month',
   'act.ariaType': 'Filter by type',

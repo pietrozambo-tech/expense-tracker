@@ -234,6 +234,7 @@ export const it: Record<keyof typeof en, string> = {
   'act.subcategory': 'Sottocategoria',
   'act.trip': 'Viaggio',
   'ftrip.title': 'Filtra per viaggio',
+  'ftrip.all': 'Tutti i viaggi',
   'act.ariaYear': 'Filtra per anno',
   'act.ariaMonth': 'Filtra per mese',
   'act.ariaType': 'Filtra per tipo',

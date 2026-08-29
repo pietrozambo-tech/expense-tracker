@@ -749,7 +749,6 @@ function NewTrip({
 
   const rows = offered.filter((r) => added.has(r.id));
   const total = rows.reduce((sum, r) => sum + Math.abs(amountOf(r)), 0);
-  const belowFloor = rows.length > 0 && rows.length < MIN_TRIP_ROWS;
   // Naming a new trip after one that already sits in those weeks joins them.
   // The same surprise as renaming onto it, so the same sentence.
   const merge = useMemo(
@@ -758,6 +757,11 @@ function NewTrip({
       : null),
     [valid, rows, transactions, clean, travel, amountOf],
   );
+  // The floor only matters when these rows will stand alone. If the name
+  // means they JOIN an existing trip, the result is that trip plus these -
+  // and showing "this will not read as a trip" beside "this will merge into
+  // Weekend Trieste" was the sheet contradicting itself.
+  const belowFloor = rows.length > 0 && rows.length < MIN_TRIP_ROWS && !merge;
 
   const toggle = (id: string) => {
     const next = new Set(added);
