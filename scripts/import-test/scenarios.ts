@@ -262,6 +262,47 @@ function scenarioDedupe() {
 
 console.log(` Import file handling   [${OLD ? 'BEFORE validation' : 'AFTER validation'}]`);
 console.log(' (running the real src/app/lib/importData.ts)');
+
+// ── the catch-all bucket is not an English word list ──────────────────────
+//
+// An unmatched row goes into the user's catch-all category with its original
+// category kept as a subcategory, rather than being dropped. Which category
+// that is was decided here by a private English-only regex, while the rest of
+// the app - including the import prompt, which tells the assistant what to
+// file things under - used the shared list that also knows "Altro", the name
+// the Italian seed gives it. So the same file imported clean in English and
+// silently lost rows in Italian.
+function scenarioCatchAllLanguages() {
+  heading('Unmatched rows land in the catch-all, whatever it is called');
+  const wanted = row({ category: 'Dining out' });
+
+  const en = build({ version: 1, transactions: [wanted] } as any,
+    [C('c1', 'Groceries', 'expense', ['Supermarket']), C('c9', 'Others', 'expense')], INC, 'EUR');
+  expect('English: an unknown category lands in Others',
+    `${en.transactions.length} ${en.transactions[0]?.category?.name} ${en.transactions[0]?.subcategory}`,
+    '1 Others Dining out');
+
+  const it = build({ version: 1, transactions: [wanted] } as any,
+    [C('c1', 'Spesa', 'expense', ['Supermercato']), C('c9', 'Altro', 'expense')], INC, 'EUR');
+  expect('Italian: the same row lands in Altro, not skipped',
+    `${it.transactions.length} ${it.transactions[0]?.category?.name} ${it.transactions[0]?.subcategory}`,
+    '1 Altro Dining out');
+  expect('and nothing is dropped on the way', String(it.skipped.length), '0');
+
+  // "Varie" is the other name the shared list knows.
+  const varie = build({ version: 1, transactions: [wanted] } as any,
+    [C('c1', 'Spesa', 'expense'), C('c9', 'Varie', 'expense')], INC, 'EUR');
+  expect('so does a ledger whose bucket is called Varie',
+    `${varie.transactions.length} ${varie.transactions[0]?.category?.name}`, '1 Varie');
+
+  // With no bucket at all, dropping the row is still the honest answer: there
+  // is nowhere to put it that would not be a lie about what it was.
+  const none = build({ version: 1, transactions: [wanted] } as any,
+    [C('c1', 'Spesa', 'expense')], INC, 'EUR');
+  expect('with no catch-all at all, the row is reported as skipped',
+    `${none.transactions.length} ${none.skipped.length}`, '0 1');
+}
+
 console.log('================================================================');
 scenarioDates();
 scenarioType();
@@ -273,6 +314,8 @@ scenarioProposals();
 scenarioProposalEdges();
 // Dedupe exists only in the current build - nothing to compare --before.
 if (!OLD) scenarioDedupe();
+// The old copy of this file had its own regex; only the current build can pass.
+if (!OLD) scenarioCatchAllLanguages();
 console.log('\n================================================================');
 console.log(failures === 0 ? ' All checks passed.' : ` ${failures} check(s) FAILED.`);
 console.log('================================================================\n');

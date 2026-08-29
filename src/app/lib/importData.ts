@@ -1,4 +1,5 @@
 import type { Transaction, Category, TransactionType } from '../types';
+import { CATCHALL_RE } from './categoryOps';
 import { convertAmount, BASE_CURRENCY, CURRENCIES } from '../utils/currency';
 
 // A single transaction in the lightweight import format. Categories are
@@ -58,8 +59,14 @@ export interface ImportResult {
   proposedSubcategories: ProposedSubcategory[];
 }
 
-// A category name that acts as the catch-all bucket for anything unmatched.
-const CATCHALL_RE = /^(other|others|miscellaneous|misc|uncategori[sz]ed)$/i;
+// The catch-all bucket comes from categoryOps, not a second list here.
+//
+// This file kept its own English-only copy, and the Italian seed names that
+// category "Altro". So an unmatched row on an Italian ledger found no bucket
+// and was SKIPPED - silently dropped, where the same row on an English ledger
+// landed in Others with its original category kept as a subcategory. The
+// import prompt reads the shared list, so it had been telling the assistant to
+// file things under a bucket the importer could not find.
 
 /**
  * The stable identity of an imported row, for dedupe across imports.

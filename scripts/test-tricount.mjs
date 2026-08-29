@@ -382,7 +382,7 @@ try {
   mkdirSync(join(tmp, 'src/app/i18n'), { recursive: true });
   mkdirSync(join(tmp, 'scripts/tricount-test'), { recursive: true });
   copyFileSync(join(root, 'src/app/types.ts'), join(tmp, 'src/app/types.ts'));
-  for (const f of ['importData.ts', 'dates.ts', 'fx.ts', 'currencyData.ts']) {
+  for (const f of ['importData.ts', 'dates.ts', 'fx.ts', 'currencyData.ts', 'categoryOps.ts']) {
     copyFileSync(join(root, 'src/app/lib', f), join(tmp, 'src/app/lib', f));
   }
   copyFileSync(join(root, 'src/app/utils/currency.ts'), join(tmp, 'src/app/utils/currency.ts'));

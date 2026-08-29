@@ -30,7 +30,8 @@
     "test:bulkedit": "node scripts/test-bulkedit.mjs",
     "test:trips": "node scripts/test-trips.mjs",
     "test:periods": "node scripts/test-periods.mjs",
-    "test:catorder": "node scripts/test-catorder.mjs"
+    "test:catorder": "node scripts/test-catorder.mjs",
+    "test:prompt": "node scripts/test-prompt.mjs"
   },
   "dependencies": {
     "@capacitor/app": "^8.1.1",
