@@ -6,6 +6,9 @@
 // Run with:  pnpm test:import   (add --before for the pre-validation behaviour)
 
 import { buildImport, applyImportDecision, proposalKey } from './lib/importData';
+import { applyBulkCategory, applyBulkSource } from './lib/bulkEdit';
+import { applyBulkTrip } from './lib/trips';
+import { applyFutureEdit, processRecurrence, tagPastSeries } from './lib/recurrence';
 import { parseLocalDate } from './lib/dates';
 import { homeAmount } from './utils/currency';
 import type { Category } from './types';
@@ -320,6 +323,72 @@ function scenarioDedupeWithoutHash() {
 console.log(` Import file handling   [${OLD ? 'BEFORE validation' : 'AFTER validation'}]`);
 console.log(' (running the real src/app/lib/importData.ts)');
 
+// ── the two fields the dedupe reads must survive being edited ────────────
+//
+// Dedupe recognises a row by importHash, falling back to importedAt plus the
+// row's own content. Both are bookkeeping the user never sees, which is
+// exactly why a write path can drop one without anybody noticing until a
+// re-import doubles a trip - the bug that started all this. Every path that
+// rewrites a stored row is walked here, because reading them once proves
+// nothing about the next edit somebody writes.
+function scenarioIdentitySurvivesEdits() {
+  heading('11. Editing a row never costs it its import identity');
+  const seed = buildImport(
+    { version: 1, transactions: [row({ description: 'Azores - Cena' })] } as any,
+    EXP, INC, 'EUR', []);
+  const original = seed.transactions[0] as any;
+  expect('an imported row starts with both marks',
+    `${!!original.importHash}/${!!original.importedAt}`, 'true/true');
+
+  const travel = C('c1', 'Groceries', 'expense', ['Supermarket']);
+  const ids = new Set([original.id]);
+  const kept = (label: string, rows: any[]) => {
+    const t = rows.find((x) => x.id === original.id);
+    expect(label,
+      `${t?.importHash === original.importHash}/${t?.importedAt === original.importedAt}`,
+      'true/true');
+  };
+
+  kept('a bulk category change keeps them', applyBulkCategory([original], ids, travel, 'Supermarket'));
+  kept('a bulk account change keeps them', applyBulkSource([original], ids, 'cash'));
+  kept('joining a trip keeps them', applyBulkTrip([original], ids, 'Azores', travel));
+  kept('leaving a trip keeps them', applyBulkTrip([original], ids, null, travel));
+  kept('renaming the trip keeps them',
+    applyBulkTrip([original], ids, 'Azores \u{1F1F5}\u{1F1F9}', travel));
+
+  // The shape an in-app edit takes: the form's values spread over the row.
+  kept('editing it in the app keeps them',
+    [{ ...original, amount: 99, description: 'Something else', updatedAt: 'now' }]);
+
+  // A restore re-stamps every row; it must re-stamp, not rebuild.
+  kept('restoring a backup keeps them',
+    [original].map((t: any) => ({ ...t, updatedAt: '2026-09-01T00:00:00.000Z' })));
+
+  // The recurrence engine rewrites rows it did not create (legacy seeds get a
+  // recurrenceOf, skips get purged) - it must leave the rest alone.
+  kept('a recurrence pass keeps them',
+    processRecurrence([original], [], new Date('2026-08-01')).transactions);
+
+  // Declaring a past row recurring, and editing a series forward.
+  const tagged = tagPastSeries([original], ids, 'rule-1');
+  kept('back-tagging it into a series keeps them', tagged);
+  const rule = {
+    id: 'rule-1', rule: 'Every month', anchorDate: '2026-06-10',
+    template: { description: 'Azores - Cena', amount: 10, currency: 'EUR', category: travel, type: 'expense' as const },
+  };
+  kept('a "this and all future" edit keeps them',
+    applyFutureEdit(tagged, [rule] as any, tagged[0] as any, rule as any, { amount: 12 } as any, 'rule-2').transactions);
+
+  // And the point of all that: the row is still recognised by its file.
+  const edited = applyBulkSource(
+    applyBulkTrip([original], ids, 'Azores \u{1F1F5}\u{1F1F9}', travel), ids, 'cash');
+  const reimport = buildImport(
+    { version: 1, transactions: [row({ description: 'Azores - Cena' })] } as any,
+    EXP, INC, 'EUR', edited as any);
+  expect('so re-importing the file adds nothing after all of it',
+    `${reimport.added}/${reimport.alreadyImported}`, '0/1');
+}
+
 // ── the catch-all bucket is not an English word list ──────────────────────
 //
 // An unmatched row goes into the user's catch-all category with its original
@@ -374,6 +443,7 @@ if (!OLD) scenarioDedupe();
 // The old copy of this file had its own regex; only the current build can pass.
 if (!OLD) scenarioCatchAllLanguages();
 if (!OLD) scenarioDedupeWithoutHash();
+if (!OLD) scenarioIdentitySurvivesEdits();
 console.log('\n================================================================');
 console.log(failures === 0 ? ' All checks passed.' : ` ${failures} check(s) FAILED.`);
 console.log('================================================================\n');
