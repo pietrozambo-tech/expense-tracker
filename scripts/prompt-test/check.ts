@@ -57,8 +57,13 @@ const RULES: [string, string, string][] = [
   ['the JSON skeleton', '"version": 1', '"version": 1'],
   ['ask before converting', 'BEFORE YOU CONVERT', 'PRIMA DI CONVERTIRE'],
   ['everything in one message', 'I need from you:', 'Mi serve da te:'],
+  // Assert, then let me correct - the difference between "is this a trip?" and
+  // "this is your Azores trip, right?". One is a word to answer; the other
+  // hands back reading the assistant has already done.
+  ['say what you worked out, then ask', 'SAY WHAT YOU WORKED OUT', 'DIMMI COSA HAI CAPITO'],
   ['which column is me', 'WHICH COLUMN IS ME', 'QUALE COLONNA SONO IO'],
   ['whether it is a trip at all', 'WHETHER IT IS A TRIP', 'SE È UN VIAGGIO'],
+  ['and that one is decided, not asked', 'TELL ME which one you think', 'DIMMI TU quale delle due'],
   ['a file with no year', 'no YEAR anywhere', "non c'è l'ANNO"],
   ['rows that are monthly totals', 'monthly or weekly TOTAL', 'TOTALE mensile o settimanale'],
   ['every sheet and tab', 'Open EVERY sheet', 'Apri OGNI foglio'],
@@ -67,7 +72,12 @@ const RULES: [string, string, string][] = [
   ['decimal point, not comma', 'decimal POINT not comma', 'punto decimale'],
   ['negative amounts are two things', 'A NEGATIVE amount', 'Un importo NEGATIVO'],
   ['never convert a foreign amount', 'do NOT convert it', 'NON convertirlo'],
-  ['clean up cryptic statement text', 'Blue Bottle', 'Blue Bottle'],
+  // Machine noise may go; a person's words may not. The rule used to say only
+  // the first half ("clean up cryptic statement text"), and that licence was
+  // taken on hand-typed Tricount rows: "azzardo peluche" came back as
+  // "macchina peluche" - a description its author could no longer find.
+  ['strip machine noise from statement text', 'Blue Bottle', 'Blue Bottle'],
+  ['but never reword what a person wrote', 'copy across word for word', 'copialo parola per parola'],
   ['exactly one of my categories', 'exactly ONE of MY categories', 'esattamente UNA delle MIE categorie'],
   ['do not invent subcategories', 'EXISTING subcategories', 'ESISTENTI'],
   ['statement noise is skipped', 'balance brought forward', 'saldo riportato'],
@@ -81,7 +91,7 @@ const RULES: [string, string, string][] = [
   ['who paid is not what it cost me', 'never my cost', 'Non è mai il mio costo'],
   ['booking dates are kept', 'dated when they were BOOKED', 'data della PRENOTAZIONE'],
   ['a trip is filed as one thing', 'A TRIP IS ONE THING', 'UN VIAGGIO È UNA COSA SOLA'],
-  ['ask for the trip name', 'ASK me for a SHORT NAME', 'CHIEDIMI un NOME BREVE'],
+  ['propose the trip name, do not ask blind', 'PROPOSE a SHORT NAME', 'PROPONI un NOME BREVE'],
   ['use the answer verbatim', 'EXACTLY AS I WRITE IT', 'ESATTAMENTE COME LA SCRIVO'],
   ["the app's limits on that name", "THE APP'S LIMITS", "I LIMITI dell'app"],
   ['ask rather than trim', 'never trim it yourself', 'non accorciarlo mai'],
@@ -104,9 +114,32 @@ ok(/3 words and 24 characters/.test(en) && /3 parole e 24 caratteri/.test(it),
 ok(/a flag costs 4/.test(en) && /una bandiera ne vale 4/.test(it),
   'and warn that a flag is not one character');
 
+// ── ask by asserting, not by interviewing ─────────────────────────────────
+// Two assistants were given the same file. One asked "is this a trip? what
+// should I call it?"; the other said "this is a trip, and it is your Azores
+// one - confirm the name". The second is the one worth having, and both of
+// these were the wording that produced the first.
+ok(!/ASK me for a SHORT NAME/.test(en) && !/CHIEDIMI un NOME BREVE/.test(it),
+  'nobody is asked for a trip name from nothing any more');
+// The worked example is the part an assistant copies, so it has to model the
+// good shape. Both bodies still QUOTE the open question - as the thing not to
+// do - which is why this pins the old numbered example rather than the words.
+ok(!/2\. Is this a trip\? 3\./.test(en) && !/2\. È un viaggio\? 3\./.test(it),
+  'the numbered example no longer models the open question');
+ok(/I'd call it "Formentera" - right\?/.test(en) && /lo chiamerei "Formentera" - confermi\?/.test(it),
+  'it proposes an answer for me to confirm instead');
+
+// ── descriptions belong to whoever typed them ─────────────────────────────
+ok(/"toy grabber" stays "toy grabber"/.test(en) && /"azzardo peluche" resta "azzardo peluche"/.test(it),
+  'a hand-typed description survives the import verbatim, example and all');
+ok(/expand an abbreviation/.test(en) && /sciogliere un'abbreviazione/.test(it),
+  'and the ways of "improving" one are named, not left to taste');
+
 // ── the trips the ledger already holds ────────────────────────────────────
 ok(en.includes(`- "${FLAG}" (Aug 2026)`), 'English quotes the existing trip by exact name and month');
 ok(it.includes(`- "${FLAG}" (Ago 2026)`), 'Italian does too, with the month in Italian');
+ok(/SAY WHICH ONE/.test(en) && /DIMMI QUALE/.test(it),
+  'and a match against that list is announced rather than turned into a question');
 {
   // "Weekend lungo con i ragazzi" is four words: not a trip name the app can
   // read, so nothing is detected and the list must not appear as a heading
