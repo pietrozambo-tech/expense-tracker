@@ -2,6 +2,7 @@ import { mockExpenses } from '../components/mockExpenses';
 import { convertAmount, BASE_CURRENCY } from '../utils/currency';
 import { getLanguage } from '../i18n/store';
 import { localiseDemoRow, bindDemoRow } from './demoItalian';
+import { tripNameOf } from './trips';
 import { droppedCategoryIdsFor } from '../components/categories';
 import type { Category, Transaction } from '../types';
 
@@ -88,6 +89,11 @@ export function getDemoTransactions(currency: string, userCategories: Category[]
 
     for (const t of mockExpenses) {
       if (monthIndex(t.date) !== template) continue;
+      // Trip rows stay out of the backfill: cloned across a year of months,
+      // one London becomes a dozen phantom Londons, each month its own card
+      // in the Trips sheet. History is chart fodder; the trip lives once, in
+      // the hand-written stretch.
+      if (tripNameOf(t.description)) continue;
       // A tenth of the rows drop out, so no two months are identical.
       if (hashUnit(`${m}:${t.id}`) < 0.1) continue;
       // Scaling every category by the same number made last year a smaller

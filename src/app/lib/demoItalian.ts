@@ -1,5 +1,6 @@
 import type { Transaction } from '../types';
 import type { Category } from '../components/categories';
+import { tripBodyOf, tripNameOf, withTripName } from './trips';
 
 // The sample dataset, spoken in Italian. One dataset, translated at load:
 // keeping a second hand-written mockExpenses in Italian would drift the moment
@@ -45,7 +46,11 @@ const DESC_IT: Record<string, string> = {
   'Evening drink': 'Drink serale',
   Event: 'Evento',
   'Flight booking': 'Prenotazione volo',
-  'Flights to London': 'Voli per Londra',
+  'Flights to visit family': 'Voli per la famiglia',
+  'Return flights': 'Voli andata e ritorno',
+  'Musical in the West End': 'Musical nel West End',
+  'Borough Market lunch': 'Pranzo al Borough Market',
+  'Weekend flights': 'Voli per il weekend',
   Fuel: 'Carburante',
   Gadget: 'Gadget',
   Gifts: 'Regali',
@@ -150,6 +155,23 @@ const SUB_IT: Record<string, string> = {
  * full coverage; scripts/test-demo-i18n.mjs runs this over mockExpenses so a
  * new sample row cannot quietly ship half-English into the Italian demo.
  */
+// Trip names on the front of demo descriptions, translated as names. Split
+// off with the app's own tripNameOf/tripBodyOf rather than re-parsed here, so
+// the demo and the Trips sheet can never disagree about where a name ends. A
+// name missing from this map passes through untranslated - a London trip in
+// an Italian demo is odd, a broken prefix would be a broken trip.
+const TRIP_IT: Record<string, string> = {
+  'London 🇬🇧': 'Londra 🇬🇧',
+};
+
+/** A description translated in halves when it carries a trip name. */
+function localiseDescription(description: string): string {
+  const name = tripNameOf(description);
+  if (!name) return DESC_IT[description] ?? description;
+  const body = tripBodyOf(description);
+  return withTripName(TRIP_IT[name] ?? name, DESC_IT[body] ?? body);
+}
+
 export function demoTranslationGaps(rows: Pick<Transaction, 'description' | 'subcategory'>[]): {
   descriptions: string[];
   subcategories: string[];
@@ -157,7 +179,12 @@ export function demoTranslationGaps(rows: Pick<Transaction, 'description' | 'sub
   const d = new Set<string>();
   const s = new Set<string>();
   for (const row of rows) {
-    if (row.description && !(row.description in DESC_IT)) d.add(row.description);
+    if (row.description) {
+      const name = tripNameOf(row.description);
+      if (name && !(name in TRIP_IT)) d.add(name);
+      const body = name ? tripBodyOf(row.description) : row.description;
+      if (body && !(body in DESC_IT)) d.add(body);
+    }
     if (row.subcategory && !(row.subcategory in SUB_IT)) s.add(row.subcategory);
   }
   return { descriptions: [...d].sort(), subcategories: [...s].sort() };
@@ -184,7 +211,7 @@ export function localiseDemoRow(t: Transaction, userCategories: Category[]): Tra
   }
   return {
     ...t,
-    description: DESC_IT[t.description] ?? t.description,
+    description: localiseDescription(t.description),
     category: cat,
     ...(sub ? { subcategory: sub } : {}),
   };

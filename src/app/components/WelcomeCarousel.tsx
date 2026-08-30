@@ -4,7 +4,7 @@ import { t } from '../i18n';
 import {
   Minus, Plus, Wallet, Gauge, Calendar, Repeat, ChevronDown, ChevronRight,
   ShoppingCart, Car, Home, Clapperboard, Landmark, Layers, Pencil,
-  FlaskConical, Trash2, FileSpreadsheet, Palmtree, UtensilsCrossed, Tv, Split,
+  FlaskConical, Trash2, FileSpreadsheet, Palmtree, Tv, Split,
 } from 'lucide-react';
 import type { Source } from '../types';
 import { SourceLogo } from './SourceLogo';
@@ -308,12 +308,19 @@ function DashboardIllustration() {
 
 function ImportIllustration() {
   // Mirrors the real Import screen's two use-case cards, then shows the
-  // outcome: rows landing in Activity, already categorised.
-  const rows = [
-    { name: 'Ferry a/r', cat: getLanguage() === 'it' ? 'Viaggi' : 'Travel', amt: '-61.60€', Icon: Palmtree, tint: 'var(--wash-accent3)', ink: '#0A84FF' },
-    { name: 'Esselunga', cat: getLanguage() === 'it' ? 'Spesa' : 'Groceries', amt: '-21.04€', Icon: ShoppingCart, tint: 'var(--wash-green)', ink: '#2E9E5B' },
-    { name: 'Cena', cat: getLanguage() === 'it' ? 'Cibo & Bevande' : 'Food & Drinks', amt: '-83.00€', Icon: UtensilsCrossed, tint: '#FFF1E2', ink: '#C77700' },
+  // outcome as a TRIP CARD - the same summary the Trips sheet draws. It used
+  // to show three Activity rows, which proved the rows arrive; the trip card
+  // proves they arrive as something, which is the better half of the promise.
+  // Static sketch like every mock in this tour, but shaped exactly like
+  // TripCard: name, total, segmented bar, legend.
+  const it = getLanguage() === 'it';
+  const parts = [
+    { name: 'Hotel', amt: '246€', slot: 1 },
+    { name: it ? 'Voli' : 'Flights', amt: '148€', slot: 2 },
+    { name: it ? 'Cibo' : 'Food', amt: '75€', slot: 3 },
+    { name: it ? 'Attività' : 'Activities', amt: '67€', slot: 4 },
   ];
+  const total = 536;
   return (
     <div className="flex flex-col gap-3">
       <div className="grid grid-cols-2 gap-3">
@@ -333,24 +340,30 @@ function ImportIllustration() {
         </div>
       </div>
 
-      {/* The result: recognisable Activity rows, already categorised */}
-      <div className="rounded-2xl px-4 py-3" style={{ background: 'var(--bg-card)', boxShadow: '0 8px 24px rgba(0,0,0,0.06)', border: '1px solid var(--line-2)' }}>
-        <div className="flex items-center justify-between mb-1.5">
-          <span className="text-[12px] font-semibold" style={{ color: 'var(--ink)' }}>{t('act.title')}</span>
-          <span className="text-[10px] font-medium rounded-full px-2 py-0.5" style={{ background: 'var(--bg-inset)', color: 'var(--ink-2)' }}>{t('act.type.imported')}</span>
+      {/* The result: the trip, already assembled - name, total, breakdown */}
+      <div className="rounded-2xl px-4 py-3.5" style={{ background: 'var(--bg-card)', boxShadow: '0 8px 24px rgba(0,0,0,0.06)', border: '1px solid var(--line-2)' }}>
+        <div className="flex items-baseline justify-between gap-3 mb-0.5">
+          <span className="text-[15px] font-bold truncate" style={{ color: 'var(--ink)', letterSpacing: '-0.3px' }}>
+            {it ? 'Londra 🇬🇧' : 'London 🇬🇧'}
+          </span>
+          <MockAmount value="536" className="text-[16px] font-bold tabular-nums flex-shrink-0" style={{ color: 'var(--ink)' }} />
         </div>
-        {rows.map((r) => (
-          <div key={r.name} className="flex items-center gap-2.5 py-1.5">
-            <span className="flex items-center justify-center flex-shrink-0" style={{ width: 28, height: 28, borderRadius: 9, background: r.tint }}>
-              <r.Icon style={{ color: r.ink, width: 14, height: 14 }} />
+        <div className="text-[10.5px] mb-2.5" style={{ color: 'var(--ink-2)' }}>
+          {it ? '6 spese · in un solo tocco' : '6 expenses · in one tap'}
+        </div>
+        <div className="flex gap-[2px] h-1.5 rounded-full overflow-hidden mb-2">
+          {parts.map((p) => (
+            <span key={p.name} style={{ width: `${(parseInt(p.amt) / total) * 100}%`, backgroundColor: `var(--series-${p.slot})` }} />
+          ))}
+        </div>
+        <div className="flex flex-wrap" style={{ gap: '2px 10px' }}>
+          {parts.map((p) => (
+            <span key={`l-${p.name}`} className="inline-flex items-center gap-1 text-[10px] font-medium" style={{ color: 'var(--ink-2)' }}>
+              <i className="inline-block rounded-sm" style={{ width: 6, height: 6, backgroundColor: `var(--series-${p.slot})` }} />
+              {p.name} <b className="tabular-nums" style={{ color: 'var(--ink)', fontWeight: 600 }}>{p.amt}</b>
             </span>
-            <div className="flex-1 min-w-0">
-              <div className="text-[13px] font-medium leading-tight" style={{ color: 'var(--ink)' }}>{r.name}</div>
-              <div className="text-[10px]" style={{ color: 'var(--faint)' }}>{r.cat}</div>
-            </div>
-            <MockAmount value={r.amt.replace('\u20AC', '')} className="text-[13px] font-bold tabular-nums" style={{ color: 'var(--ink)' }} />
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
     </div>
   );

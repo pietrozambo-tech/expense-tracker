@@ -817,7 +817,7 @@ const mockExpensesWithoutCurrency = [
   },
   {
     id: 'expense-2025-10-11',
-    description: 'Trip',
+    description: 'Weekend flights',
     amount: 150.00,
     category: getCategoryByName('Travel', 'expense'),
     subcategory: 'Flights',
@@ -1038,7 +1038,7 @@ const mockExpensesWithoutCurrency = [
   },
   {
     id: 'expense-2025-11-11',
-    description: 'Trip',
+    description: 'Flights to visit family',
     amount: 160.00,
     category: getCategoryByName('Travel', 'expense'),
     subcategory: 'Flights',
@@ -1555,19 +1555,26 @@ const mockExpensesWithoutCurrency = [
   // own currency instead of being converted like the rest of the sample - the
   // demo should show what the app actually does with a foreign purchase, not
   // just claim it in the tour.
+  // One real TRIP, name on the front the way the importer writes it - so the
+  // demo shows a card in the Trips sheet, the Trip filter, and the pencil,
+  // instead of an empty state claiming a feature. The flights are booked two
+  // months before the stay: tapping the card widens the period to reach them,
+  // which is the behaviour worth demonstrating. All in GBP, so the card also
+  // shows what a foreign-currency trip looks like. The name translates at
+  // load (London -> Londra); see TRIP_IT in demoItalian.ts.
   {
-    id: 'expense-2026-01-15-gbp1',
-    description: 'Flights to London',
+    id: 'expense-2025-11-14-gbp1',
+    description: 'London 🇬🇧 - Return flights',
     amount: 128.40,
     currency: 'GBP',
     category: getCategoryByName('Travel', 'expense'),
     subcategory: 'Flights',
-    date: '2026-01-15',
+    date: '2025-11-14',
     type: 'expense' as const
   },
   {
     id: 'expense-2026-01-15-gbp2',
-    description: 'Hotel, two nights',
+    description: 'London 🇬🇧 - Hotel, two nights',
     amount: 214.00,
     currency: 'GBP',
     category: getCategoryByName('Travel', 'expense'),
@@ -1577,7 +1584,7 @@ const mockExpensesWithoutCurrency = [
   },
   {
     id: 'expense-2026-01-16-gbp1',
-    description: 'Dinner in Soho',
+    description: 'London 🇬🇧 - Dinner in Soho',
     amount: 46.50,
     currency: 'GBP',
     category: getCategoryByName('Travel', 'expense'),
@@ -1587,12 +1594,32 @@ const mockExpensesWithoutCurrency = [
   },
   {
     id: 'expense-2026-01-16-gbp2',
-    description: 'Oyster card top-up',
+    description: 'London 🇬🇧 - Oyster card top-up',
     amount: 20.00,
     currency: 'GBP',
     category: getCategoryByName('Travel', 'expense'),
     subcategory: 'Transportation',
     date: '2026-01-16',
+    type: 'expense' as const
+  },
+  {
+    id: 'expense-2026-01-16-gbp3',
+    description: 'London 🇬🇧 - Musical in the West End',
+    amount: 58.00,
+    currency: 'GBP',
+    category: getCategoryByName('Travel', 'expense'),
+    subcategory: 'Activities',
+    date: '2026-01-16',
+    type: 'expense' as const
+  },
+  {
+    id: 'expense-2026-01-17-gbp1',
+    description: 'London 🇬🇧 - Borough Market lunch',
+    amount: 18.50,
+    currency: 'GBP',
+    category: getCategoryByName('Travel', 'expense'),
+    subcategory: 'Food',
+    date: '2026-01-17',
     type: 'expense' as const
   },
   {
