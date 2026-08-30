@@ -126,7 +126,13 @@ export function NudgeCenter({
   return (
     <div
       data-nudge={nudge}
-      className="mx-4 mt-3 px-4 py-3.5 bg-white rounded-2xl"
+      // Spaced like the Dashboard, not like itself. This card was written with
+      // its own numbers - mx-4 and no bottom margin - which left it 8px wider
+      // per side than every other card on the screen AND flush against the
+      // hero below it, the two touching with no seam. mx-6 is the gutter the
+      // header, the hero and the category list all use; mb-4 is the hero's own
+      // bottom margin, so the rhythm down the page stays even.
+      className="mx-6 mt-3 mb-4 px-4 py-3.5 bg-white rounded-2xl"
       style={{ boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)' }}
     >
       <div className="flex items-start gap-3">

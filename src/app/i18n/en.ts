@@ -558,7 +558,7 @@ export const en = {
   'nudge.installAnd3': 'Open TracklyLab from its new icon',
   'nudge.customizeTitle': 'Three things and you are set',
   'nudge.customizeBody': 'So every chart is about your life, not our sample one.',
-  'nudge.setupCategories': 'Categories and subcategories',
+  'nudge.setupCategories': 'Categories & subcategories',
   'nudge.setupSources': 'Sources and cards',
   'nudge.setupBudget': 'A monthly budget',
   'nudge.setupGo': 'Set up',
