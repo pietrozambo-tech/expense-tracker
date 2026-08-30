@@ -19,18 +19,23 @@ const fail = []; const ok = (c, m) => { console.log(`${c ? 'PASS' : 'FAIL'}  ${m
 // Onboarded, one expense on the books, and - deliberately - no categories or
 // sources written down at all: the app seeds its own, which is exactly the
 // state the card is about.
-const seed = () => {
+// writtenDaysAgo drives the card's OTHER gate: the checklist is for someone
+// still arriving, so it expires once the ledger is a month old. Relative to
+// today rather than a fixed stamp, or this seed would quietly age past the
+// threshold and take the whole suite with it on a date nobody chose.
+const seed = (writtenDaysAgo = 3) => {
   const put = (k, v) => localStorage.setItem(`expense-tracker.v1.${k}`, typeof v === 'string' ? v : JSON.stringify(v));
   if (localStorage.getItem('seeded')) return;
   localStorage.setItem('seeded', '1');
+  const written = new Date(Date.now() - writtenDaysAgo * 864e5).toISOString();
   put('guest', 'true');
   put('settings', { onboarded: true, userName: 'P', currency: 'EUR', hasSeenIntro: true, weekStartsOn: 1, language: 'en' });
   put('nudges', { tips: true, recap: false });
   put('transactions', [{
-    id: 't1', date: '2026-08-10', type: 'expense', amount: 12, baseAmount: 12, currency: 'EUR',
+    id: 't1', date: written.slice(0, 10), type: 'expense', amount: 12, baseAmount: 12, currency: 'EUR',
     sourceId: 'cash',
     category: { id: 'food', name: 'Food & Drinks', type: 'expense', icon: 'Utensils', color: 'text-orange-600', bgColor: 'bg-orange-50', selectedBg: 'bg-orange-100', subcategories: [] },
-    createdAt: '2026-08-10T10:00:00.000Z', updatedAt: '2026-08-10T10:00:00.000Z',
+    createdAt: written, updatedAt: written,
     recurrence: 'Never repeat', description: 'Lunch',
   }]);
 };
@@ -196,10 +201,14 @@ await ctx.close();
     put('nudges', { tips: true, recap: false });
     put('categories', [own]);
     put('sources', [{ id: 'c', kind: 'cash', mark: 'banknote', name: 'Contanti', brand: '#2FA84F' }]);
+    // Written three days ago, like the main seed: this block ends by putting
+    // the factory categories back and expecting the card to RETURN, which only
+    // means anything while the ledger is still inside the card's window.
+    const written = new Date(Date.now() - 3 * 864e5).toISOString();
     put('transactions', [{
-      id: 't1', date: '2026-08-10', type: 'expense', amount: 12, baseAmount: 12, currency: 'EUR',
-      sourceId: 'c', category: own, createdAt: '2026-08-10T10:00:00.000Z',
-      updatedAt: '2026-08-10T10:00:00.000Z', recurrence: 'Never repeat', description: 'Lunch',
+      id: 't1', date: written.slice(0, 10), type: 'expense', amount: 12, baseAmount: 12, currency: 'EUR',
+      sourceId: 'c', category: own, createdAt: written,
+      updatedAt: written, recurrence: 'Never repeat', description: 'Lunch',
     }]);
   };
   const ctx3 = await b.newContext({ viewport: { width: 390, height: 844 }, locale: 'en-GB' });
@@ -253,6 +262,40 @@ await ctx.close();
   ok(await p.locator('[data-nudge="install"]').count() === 1, 'and install steps into the slot');
   await p.close();
   await ctx2.close();
+}
+
+// An established ledger is not a first run.
+//
+// Reported from a device: the checklist appeared for the first time to
+// somebody months into using the app - it had spent its whole life hidden
+// behind the install banner, so un-hiding it delivered it to everyone at once,
+// including the people for whom "you have not found these screens yet" is
+// plainly false. Same seed as the very first block, same untouched categories:
+// the ONLY difference is that the row was written 200 days ago.
+{
+  const ctx4 = await b.newContext({
+    viewport: { width: 390, height: 844 },
+    locale: 'en-GB',
+    userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1',
+  });
+  await ctx4.route(/supabase\.co/, (r) => r.abort());
+  await ctx4.addInitScript(seed, 200);
+  const p = await open(ctx4);
+  ok(await p.locator('[data-nudge="customize"]').count() === 0,
+    'a ledger 200 days old is not handed a first-run checklist');
+  // Not silence, though: the slot goes to whoever is next in line, which on an
+  // uninstalled iPhone is the install banner.
+  ok(await p.locator('[data-nudge="install"]').count() === 1,
+    'and the slot passes to the next card rather than going dark');
+  // The screens themselves are still there. The card is advice that expired,
+  // not a feature that was taken away.
+  await p.locator('.app-dock button').nth(4).click();
+  await p.waitForTimeout(800);
+  const settings = await p.locator('body').innerText();
+  ok(/Categories/.test(settings), 'while Settings still offers Categories to anyone who wants them');
+  await p.screenshot({ path: `${OUT}/setuptip-established.png` });
+  await p.close();
+  await ctx4.close();
 }
 
 console.log(fail.length ? `\n${fail.length} FAILED` : '\nall good');

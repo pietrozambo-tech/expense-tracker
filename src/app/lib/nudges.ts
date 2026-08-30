@@ -72,6 +72,41 @@ const THIRTY_DAYS = 30 * 24 * 60 * 60 * 1000;
  *  real history sit one cleared cache from gone. */
 export const BACKUP_NUDGE_MIN_TX = 25;
 
+/** How long the setup checklist's premise stays true.
+ *
+ *  The card says, in effect, "you have not found these screens yet". That is a
+ *  fair guess in someone's first weeks and an insult after that: a person with
+ *  months of their own rows has been round the app, and if they are still on
+ *  our categories it is because they are fine with them. Past this many days
+ *  the checklist stops asking and Settings keeps every one of its screens. */
+export const SETUP_NUDGE_MAX_LEDGER_DAYS = 30;
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * How long this person has been keeping a ledger: the age in days of the
+ * OLDEST row they wrote themselves. null when they have written none.
+ *
+ * Written, not dated. Importing a year of history is something a NEW user does
+ * on their first afternoon, and dating the ledger by its oldest expense would
+ * read that as a veteran; `createdAt` is stamped when the row was added, so an
+ * import lands as one day old, which is what it is.
+ *
+ * A row carrying no createdAt counts as old rather than new. The app has always
+ * stamped one, so a row without it arrived from a restored backup or a device
+ * older than the field - both of which describe somebody established.
+ */
+export function ledgerAgeDays(rows: { createdAt?: string }[], now: Date): number | null {
+  if (rows.length === 0) return null;
+  let oldest = 0;
+  for (const row of rows) {
+    const ts = row.createdAt ? Date.parse(row.createdAt) : NaN;
+    if (!Number.isFinite(ts)) return Infinity;
+    oldest = Math.max(oldest, (now.getTime() - ts) / DAY_MS);
+  }
+  return oldest;
+}
+
 /** True when the clock is unset, unparseable, or thirty days stale. */
 const backupClockDue = (iso: string | undefined, now: Date): boolean => {
   const ts = iso ? Date.parse(iso) : NaN;
@@ -115,6 +150,9 @@ export function dueNudge(args: {
    *  a brand-new guest straight past the threshold and told them to back up a
    *  ledger they had not written a line of. */
   ownTxCount: number;
+  /** Age in days of the oldest row they wrote themselves (see ledgerAgeDays);
+   *  null when they have written none, which is as new as it gets. */
+  ledgerAgeDays: number | null;
   /** Any transaction dated in the previous calendar month. */
   hasPrevMonthActivity: boolean;
   catsUntouched: boolean;
@@ -161,10 +199,19 @@ export function dueNudge(args: {
   // person has met the category grid and picked an account, so the sentence
   // finally refers to something they have seen. No standalone check: someone
   // using the app in a browser tab has exactly the same starter categories.
+  //
+  // And it is for someone still ARRIVING. The card was hidden behind the
+  // install banner for its whole life until it was un-hidden, at which point
+  // it appeared for the first time to people who had been using the app for
+  // months - reading, correctly, as a first-run task list handed to a veteran.
+  // The three lines are not urgent for them: they have been past Settings, and
+  // still having our categories after all that time is a choice. So the
+  // checklist now expires with its own premise.
   if (
     prefs.tips &&
     !prefs.customizeDismissed &&
     args.txCount >= 1 &&
+    (args.ledgerAgeDays === null || args.ledgerAgeDays <= SETUP_NUDGE_MAX_LEDGER_DAYS) &&
     (args.catsUntouched || args.sourcesUntouched || (!args.budgetSet && !args.budgetDeclined))
   ) {
     return 'customize';

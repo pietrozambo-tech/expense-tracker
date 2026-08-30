@@ -3,6 +3,7 @@ import { getLanguage } from '../i18n/store';
 import { Mail, ArrowLeft } from 'lucide-react';
 import { useAuth } from './AuthProvider';
 import { TracklyLogo } from '../components/TracklyLogo';
+import { hasLocalLedger, loadOwner } from '../lib/storage';
 
 // Placeholder tagline — swap for the final one once decided.
 const TAGLINE = 'Your Expense Lens';
@@ -50,6 +51,24 @@ export function SignIn() {
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Someone who has been here before, standing at the sign-in screen.
+  //
+  // This screen is written for a first run, and it is not always a first run.
+  // A refresh token can be rejected outright - it rotates, and if the response
+  // to the rotating request never reaches the phone (a flight, a tunnel, a
+  // second copy of the app refreshing first) the next launch presents a token
+  // the server has already retired. Supabase then signs the session out, which
+  // is correct, and the app showed this page: the cold welcome, no mention of
+  // the ledger sitting in storage two inches behind it.
+  //
+  // Read once at mount, from storage rather than from any auth state, because
+  // by the time this screen renders the session is gone and the two durable
+  // facts are all that is left: whose data this is, and that there is some.
+  const [returning] = useState(() => {
+    const owner = loadOwner();
+    return owner && hasLocalLedger() ? owner : null;
+  });
 
   const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
   // Supabase's code length is a dashboard setting (6-10 digits); accept the
@@ -137,6 +156,34 @@ export function SignIn() {
                   <span style={{ fontWeight: 600 }}>{getLanguage() === 'it' ? "L'accesso non è andato a buon fine." : "Sign-in didn't complete."}</span> {authError}
                 </p>
                 <button onClick={clearAuthError} className="mt-1.5 text-[13px] font-medium" style={{ color: '#C4271C' }}>{getLanguage() === 'it' ? 'Chiudi' : 'Dismiss'}</button>
+              </div>
+            )}
+
+            {/* Not an error, so it does not look like one: the calm note, in
+                the card colours, saying the one thing this person wants to
+                know before they touch anything. It names the account too -
+                signing back in with a DIFFERENT provider mints an empty one
+                and reads as lost data (see the Hide My Email note below). */}
+            {returning && (
+              <div
+                data-signin-returning
+                className="mb-4 px-4 py-3 rounded-xl"
+                style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--line)' }}
+              >
+                <p style={{ color: 'var(--ink)', fontSize: 13, lineHeight: 1.45 }}>
+                  <span style={{ fontWeight: 600 }}>
+                    {getLanguage() === 'it'
+                      ? 'I tuoi dati sono ancora su questo telefono.'
+                      : 'Your data is still on this phone.'}
+                  </span>{' '}
+                  {getLanguage() === 'it'
+                    ? returning.email
+                      ? `Rientra con ${returning.email} e torna a sincronizzarsi: non si è perso niente.`
+                      : 'Rientra con lo stesso account e torna a sincronizzarsi: non si è perso niente.'
+                    : returning.email
+                      ? `Sign back in with ${returning.email} and it picks up syncing again - nothing was lost.`
+                      : 'Sign back in with the same account and it picks up syncing again - nothing was lost.'}
+                </p>
               </div>
             )}
 

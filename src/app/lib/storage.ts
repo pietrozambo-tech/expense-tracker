@@ -134,6 +134,24 @@ export const saveSources = (sources: Source[]) => write(KEYS.sources, sources);
 
 export const loadTransactions = () => read<Transaction[]>(KEYS.transactions, []);
 
+/**
+ * Is there a ledger on this device at all?
+ *
+ * Answered without parsing it. The sign-in screen asks this to decide whether
+ * the person in front of it is coming back to something, and it has no use for
+ * the rows themselves - an empty array has no brace in it, a populated one
+ * does. Parsing five thousand transactions to learn "more than none" would be
+ * the most expensive question that screen asks.
+ */
+export const hasLocalLedger = (): boolean => {
+  try {
+    const raw = getItem(KEYS.transactions);
+    return !!raw && raw.includes('{');
+  } catch {
+    return false;
+  }
+};
+
 export const loadRecurringRules = () => read<RecurringRule[]>(KEYS.recurringRules, []);
 export const saveRecurringRules = (rules: RecurringRule[]) => write(KEYS.recurringRules, rules);
 export const saveTransactions = (transactions: Transaction[]) =>

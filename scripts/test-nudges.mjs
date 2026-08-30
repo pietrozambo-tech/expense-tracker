@@ -18,7 +18,7 @@ if (!esbuild) {
 }
 
 const SCENARIOS = `
-import { DEFAULT_NUDGE_PREFS, dueNudge, monthKey, prevMonthKey, untouched } from './lib/nudges';
+import { DEFAULT_NUDGE_PREFS, dueNudge, ledgerAgeDays, monthKey, prevMonthKey, untouched } from './lib/nudges';
 
 let failed = 0;
 const eq = (name, got, want) => {
@@ -55,6 +55,8 @@ const base = {
   guest: false,
   txCount: 1,
   ownTxCount: 1,
+  // Two days in - the setup checklist's own window.
+  ledgerAgeDays: 2,
   hasPrevMonthActivity: false,
   catsUntouched: true,
   sourcesUntouched: true,
@@ -122,6 +124,41 @@ eq('one dismissal answers all three, budget included',
   due({ ...setUp, budgetSet: false, prefs: { customizeDismissed: true } }), null);
 eq('and install still gets the slot afterwards',
   due({ ...setUp, budgetSet: false, standalone: false, prefs: { customizeDismissed: true } }), 'install');
+
+// ── the checklist expires with its premise ─────────────────────────────────
+//
+// Reported from a real device: the card appeared for the first time to
+// somebody months into using the app, reading as a first-run task list handed
+// to a veteran. It had been invisible behind the install banner its whole
+// life, so un-hiding it delivered it to everybody at once - including people
+// for whom "you have not found these screens yet" is simply untrue.
+eq('a month-old ledger still gets the checklist', due({ ledgerAgeDays: 29 }), 'customize');
+eq('a ledger older than that does not', due({ ledgerAgeDays: 31 }), null);
+eq('and install may have the slot instead',
+  due({ ledgerAgeDays: 31, standalone: false }), 'install');
+eq('nobody has written a row yet: as new as it gets', due({ ledgerAgeDays: null }), 'customize');
+eq('an old ledger does not silence the backup card, which is about loss',
+  due({ guest: true, txCount: 40, ownTxCount: 40, standalone: false, ledgerAgeDays: 400 }), 'backup');
+eq('nor the recap, which describes the month either way',
+  due({ ledgerAgeDays: 400, hasPrevMonthActivity: true }), 'recap');
+
+// ledgerAgeDays itself: written, not dated.
+const iso = (daysAgo) => new Date(NOW.getTime() - daysAgo * 864e5).toISOString();
+eq('no rows: null', ledgerAgeDays([], NOW), null);
+eq('one row written today', Math.round(ledgerAgeDays([{ createdAt: iso(0) }], NOW)), 0);
+eq('the OLDEST row sets the age',
+  Math.round(ledgerAgeDays([{ createdAt: iso(3) }, { createdAt: iso(90) }, { createdAt: iso(1) }], NOW)), 90);
+// Importing a year of history is a first-afternoon thing to do. Dating the
+// ledger by its oldest EXPENSE would read that as a veteran; createdAt is
+// stamped at import, so the whole batch is one day old.
+eq('a year of history imported yesterday is one day old',
+  Math.round(ledgerAgeDays([{ createdAt: iso(1) }, { createdAt: iso(1) }], NOW)), 1);
+// Infinity and null both stringify to "null", so these compare identity - a
+// row with no stamp must read as OLD, which is the opposite of null's meaning.
+eq('a row with no createdAt counts as old, not as new',
+  ledgerAgeDays([{ createdAt: iso(1) }, {}], NOW) === Infinity, true);
+eq('and an unparseable one too', ledgerAgeDays([{ createdAt: 'whenever' }], NOW) === Infinity, true);
+eq('which is not the same as having written nothing', ledgerAgeDays([], NOW) === null, true);
 
 // ── the backup card: a guest ledger with no recent copy ────────────────────
 const g = { guest: true, txCount: 40, ownTxCount: 40, standalone: false };

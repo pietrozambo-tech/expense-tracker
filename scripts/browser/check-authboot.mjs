@@ -127,6 +127,65 @@ const waitUsable = async (p, capMs) => {
   await ctx.close();
 }
 
+// 4. The refresh is REJECTED - and the person is not a stranger.
+//
+// Reported after a flight: opened in airplane mode, closed, reopened with
+// signal, and the app asked for a login. That much is the server's verdict and
+// stands - a refresh token rotates, and when the response to the rotating
+// request never lands the next launch presents one the server has retired.
+// What the app owes them is the other half: the ledger is still on the device.
+// It used to answer with the cold first-run welcome and no mention of it.
+{
+  const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, locale: 'en-GB' });
+  // The real rejection, with the real message.
+  await ctx.route('**/auth/v1/**', (r) => r.fulfill({
+    status: 400, contentType: 'application/json',
+    body: JSON.stringify({ error: 'invalid_grant', error_description: 'Invalid Refresh Token: Already Used' }),
+  }));
+  await ctx.route(`**${REF}**`, (r) => r.fulfill({ status: 200, contentType: 'application/json', body: '{}' }));
+  await ctx.route('**posthog**/**', (r) => r.fulfill({ status: 200, body: '{}' }));
+  await ctx.addInitScript((args) => {
+    const [ref, session] = args;
+    if (localStorage.getItem('seeded')) return;
+    localStorage.setItem('seeded', '1');
+    const put = (k, v) => localStorage.setItem(`expense-tracker.v1.${k}`, typeof v === 'string' ? v : JSON.stringify(v));
+    put('settings', { onboarded: true, userName: 'Pietro', currency: 'EUR', hasSeenIntro: true, weekStartsOn: 1, language: 'en' });
+    put('nudges', { tips: false, recap: false });
+    put('owner', { id: 'u1', email: 'pietro@example.com' });
+    put('transactions', [{
+      id: 't1', date: '2026-08-10', type: 'expense', amount: 12, baseAmount: 12, currency: 'EUR',
+      category: { id: 'food', name: 'Food', type: 'expense', icon: 'Utensils', color: '', bgColor: '', selectedBg: '', subcategories: [] },
+      createdAt: '2026-08-10T10:00:00.000Z', updatedAt: '2026-08-10T10:00:00.000Z',
+      recurrence: 'Never repeat', description: 'Lunch',
+    }]);
+    localStorage.setItem(`sb-${ref}-auth-token`, JSON.stringify(session));
+  }, [REF, staleSession()]);
+  const p = await ctx.newPage();
+  p.on('pageerror', (e) => console.log('[pageerror]', e.message));
+  await p.goto(URL, { waitUntil: 'domcontentloaded' });
+  await p.waitForTimeout(6000);
+
+  const note = p.locator('[data-signin-returning]');
+  ok(await note.count() === 1, 'a rejected refresh lands on the sign-in screen with the returning note, not the cold welcome');
+  const text = (await note.count()) ? await note.innerText() : '';
+  ok(/still on this phone/.test(text), `saying the data is still here ("${text.slice(0, 60)}")`);
+  ok(/pietro@example\.com/.test(text), 'and naming the account to come back with, so a second one is not created by accident');
+  // The rows themselves: untouched by any of this.
+  const kept = await p.evaluate(() => JSON.parse(localStorage.getItem('expense-tracker.v1.transactions') || '[]').length);
+  ok(kept === 1, `and the ledger is still in storage behind it (${kept} row)`);
+  await p.screenshot({ path: `${OUT}/authboot-rejected.png` });
+  await ctx.close();
+}
+
+// 5. A genuine first run gets none of it - the note must not greet a stranger.
+{
+  const { ctx, p } = await boot({ authBehaviour: 'none', signedIn: false });
+  await p.waitForSelector('button', { timeout: 15000 });
+  ok(await p.locator('[data-signin-returning]').count() === 0,
+    'a first run is not told its data is still here - there is none');
+  await ctx.close();
+}
+
 console.log(fail.length ? `\n${fail.length} FAILED` : '\nall good');
 await b.close();
 process.exit(fail.length ? 1 : 0);

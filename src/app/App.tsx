@@ -47,7 +47,7 @@ import {
   saveTravelOverride,
 } from './lib/storage';
 import { STORAGE_BROKEN_EVENT, isStorageBroken } from './lib/kv';
-import { dueNudge, monthKey, prevMonthKey, runningEnv, untouched, type NudgePrefs } from './lib/nudges';
+import { dueNudge, ledgerAgeDays, monthKey, prevMonthKey, runningEnv, untouched, type NudgePrefs } from './lib/nudges';
 import { NudgeCenter, type RecapFacts } from './components/NudgeCenter';
 import { hapticHeavy, hapticSelect, hapticSuccess, hapticTick } from './lib/haptics';
 import { pingActivity } from './lib/activityPing';
@@ -776,15 +776,21 @@ export default function App() {
   const activeNudge = useMemo(() => {
     if (!hasCompletedOnboarding) return null;
     const env = runningEnv();
-    const prev = prevMonthKey(new Date());
+    const now = new Date();
+    const prev = prevMonthKey(now);
+    const own = expenses.filter((e) => !isDemoRow(e));
     return dueNudge({
       prefs: nudgePrefs,
-      now: new Date(),
+      now,
       standalone: env.standalone,
       mobile: env.mobile,
       guest,
       txCount: expenses.length,
-      ownTxCount: expenses.filter((e) => !isDemoRow(e)).length,
+      ownTxCount: own.length,
+      // Sample rows are excluded here for the same reason they are excluded
+      // from the backup count: they say nothing about how long this person has
+      // been keeping a ledger.
+      ledgerAgeDays: ledgerAgeDays(own, now),
       hasPrevMonthActivity: expenses.some((e) => (e.date ?? '').startsWith(prev)),
       catsUntouched: setupProgress.catsUntouched,
       sourcesUntouched: setupProgress.sourcesUntouched,
