@@ -8,6 +8,16 @@
 //
 // NOT LEGAL ADVICE. A lawyer should read this before launch.
 //
+// ENGLISH ONLY, deliberately (owner's call, 30 Aug 2026). The rest of the app
+// is a hand-maintained pair of language twins; these two documents are not,
+// and the asymmetry is the decision rather than an oversight. A translation
+// here is not a translation - it is the text Italian users would actually rely
+// on, so a shade of difference between the two versions is a legal question,
+// not a wording one. It waits for a lawyer to read both. The screens that
+// OPEN these are localised (Settings, and the consent line on the sign-in
+// screen), so the labels are in the user's language and the documents are in
+// English; if that ever changes, the English stays the reference version.
+//
 // OWNER_COUNTRY drives the governing-law clause in the Terms. It must be the
 // owner's actual country of residence - change it there and the clause follows.
 //
