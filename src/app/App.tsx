@@ -319,7 +319,23 @@ export default function App() {
   const [amount, setAmount] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [selectedSubcategory, setSelectedSubcategory] = useState<string | null>(null);
+  // The description WITHOUT any trip name: just what the person typed.
   const [description, setDescription] = useState('');
+  // The trip this row is being put in, held here rather than read back out of
+  // the description on every keystroke.
+  //
+  // A trip is stored as the name on the front of the description, and the
+  // sheet used to treat that string as the source of truth - splitting it to
+  // draw the chip, rejoining it on every letter. It made the chip a function
+  // of the text, which is wrong twice over. It ate the space bar (the join and
+  // the split both tidied, so a trailing space never survived the round trip),
+  // and it made the chip vanish the moment the description was emptied: a body
+  // of nothing leaves a bare name with no separator in it, and nothing can
+  // read that back as a trip.
+  //
+  // Now the sheet simply remembers which trip you attached. The text is text,
+  // the trip is a decision, and the two are joined once - on save.
+  const [sheetTrip, setSheetTrip] = useState<string | null>(null);
   // Post-import summary dialog - set only when the import has anything worth
   // reading (uncategorized rows or unreadable ones); clean imports stay a toast.
   const [importSummary, setImportSummary] = useState<ImportResult | null>(null);
@@ -503,6 +519,7 @@ export default function App() {
   const [originalValues, setOriginalValues] = useState<{
     amount: string;
     description: string;
+    trip: string | null;
     date: string;
     category: string | null;
     subcategory: string | null;
@@ -1286,7 +1303,16 @@ export default function App() {
     // Set transaction type first, then other form data
     setTransactionType(expense.type || 'expense');
     setAmount(expense.amount.toString());
-    setDescription(expense.description);
+    // Split ONCE, here, on the way in - and only when the row really is in a
+    // trip: filed under travel AND carrying the name of a trip that exists.
+    // A description like "Volo - andata" under Transport names no trip, so it
+    // stays whole in the field, which is the sentence the person wrote.
+    const openTrip =
+      expense.type === 'expense' && travelCategory && expense.category?.id === travelCategory.id
+        ? tripOfDescription(expense.description, trips)
+        : null;
+    setSheetTrip(openTrip);
+    setDescription(openTrip ? tripBodyOf(expense.description) : expense.description);
     setDate(expense.date);
     setSelectedCategory(expense.category.id);
     setSelectedSubcategory(expense.subcategory || null);
@@ -1307,7 +1333,12 @@ export default function App() {
     // Store original values for change detection
     setOriginalValues({
       amount: expense.amount.toString(),
-      description: expense.description,
+      // The BODY, matching what the field holds - and the trip beside it as
+      // its own field, because it is one now. Comparing against the whole
+      // stored string would read every trip row as edited the moment it
+      // opened.
+      description: openTrip ? tripBodyOf(expense.description) : expense.description,
+      trip: openTrip,
       date: expense.date,
       category: expense.category.id,
       subcategory: expense.subcategory || null,
@@ -1331,6 +1362,7 @@ export default function App() {
     setSelectedCategory(null);
     setSelectedSubcategory(null);
     setDescription('');
+    setSheetTrip(null);
     setTransactionType('expense'); // Reset to default expense type
     setSelectedSourceId(defaultSourceExpense); // Reset to the expense default source
     setRecurrence('Never repeat'); // Reset recurrence
@@ -2023,16 +2055,30 @@ export default function App() {
 
     // Get category data from the correct source based on transaction type
     const categoryData = activeCategories.find(c => c.id === selectedCategory);
-    
+
+    // The one place the two halves are joined, and the only place anything is
+    // tidied. While the sheet is open "Hertz " is somebody halfway through
+    // "Hertz fee" and has to survive; by the time it is a row in the ledger it
+    // is a trailing space nobody wants.
+    //
+    // A trip row with no description of its own takes the category's name as
+    // its body rather than standing as a bare trip name. That is not a style
+    // choice: a trip is recognised by the SEPARATOR, so "Azores 🇵🇹" alone
+    // reads back as an ordinary description and the row would sit outside the
+    // trip it was just put in - the exact silent detachment the chip exists to
+    // prevent. It is also what the field already does with an empty
+    // description and no trip, so the two cases now behave alike.
+    const fallbackDescription = categoryData?.name || (transactionType === 'expense' ? 'Expense' : 'Income');
+    const typedDescription = rowTrip
+      ? withTripName(rowTrip, description.trim() || fallbackDescription)
+      : tidyDescription(description) || fallbackDescription;
+
     // Store whether we're editing before resetting the state
     const wasEditing = !!editingExpenseId;
     
     if (editingExpenseId) {
       const values: Partial<Transaction> = {
-        // Tidied HERE and nowhere else: the description field's split/join
-        // runs on every keystroke and must not touch whitespace, or the space
-        // bar stops working inside a trip. See tidyDescription.
-        description: tidyDescription(description) || categoryData?.name || (transactionType === 'expense' ? 'Expense' : 'Income'),
+        description: typedDescription,
         amount: parseFloat(amount),
         category: categoryData!,
         subcategory: selectedSubcategory || undefined,
@@ -2113,10 +2159,7 @@ export default function App() {
       const newExpense: Transaction = {
         id: `${transactionType}-${Date.now()}`,
         createdAt: new Date().toISOString(),
-        // Tidied HERE and nowhere else: the description field's split/join
-        // runs on every keystroke and must not touch whitespace, or the space
-        // bar stops working inside a trip. See tidyDescription.
-        description: tidyDescription(description) || categoryData?.name || (transactionType === 'expense' ? 'Expense' : 'Income'),
+        description: typedDescription,
         amount: parseFloat(amount),
         category: categoryData!,
         subcategory: selectedSubcategory || undefined,
@@ -2236,6 +2279,7 @@ export default function App() {
       setSelectedCategory(null);
       setSelectedSubcategory(null);
       setDescription('');
+      setSheetTrip(null);
       setTransactionType('expense'); // Reset to default expense type
       setRecurrence('Never repeat'); // Reset recurrence
       setDate(() => {
@@ -2580,6 +2624,12 @@ export default function App() {
   const hasChanges = editingExpenseId && originalValues
     ? amount !== originalValues.amount ||
       description !== originalValues.description ||
+      // Attaching or removing a trip is an edit. It used to be invisible here
+      // for a good reason - it rewrote the description, so the line above
+      // caught it - and once the trip became a field of its own, moving a row
+      // into a trip left Save greyed out with nothing on screen explaining
+      // why.
+      sheetTrip !== originalValues.trip ||
       date !== originalValues.date ||
       selectedCategory !== originalValues.category ||
       selectedSubcategory !== originalValues.subcategory ||
@@ -2987,15 +3037,17 @@ export default function App() {
     () => (travelCategory ? detectTrips(expenses, travelCategory, (tx) => mineAmount(tx, userCurrency)) : []),
     [expenses, travelCategory, userCurrency],
   );
-  // Both halves of what makes a row a trip row: filed under travel, AND
-  // carrying the name of a trip that really exists. "Milano - Roma" typed
-  // into Transportation is a description, and so is "Volo - andata" in
-  // Travel until two more rows join it.
+  // Both halves of what makes a row a trip row: filed under travel, AND a trip
+  // actually attached. The second half is now something the sheet REMEMBERS
+  // rather than something it reads back out of the text - see sheetTrip. The
+  // first half still gates it, so moving the row to another category takes the
+  // chip away, the same way it always did: a row carrying a trip name while
+  // filed elsewhere would not appear in the trip, and a chip promising it
+  // would be lying.
   const rowTrip =
     transactionType === 'expense' && travelCategory && selectedCategory === travelCategory.id
-      ? tripOfDescription(description, trips)
+      ? sheetTrip
       : null;
-  const descriptionBody = rowTrip ? tripBodyOf(description) : description;
 
   // Two chips: enough for "the one I am on" and "the one before it", which is
   // the case that actually happens. More than that and the row wraps into the
@@ -3012,11 +3064,13 @@ export default function App() {
       setSelectedCategory(travelCategory.id);
       setSelectedSubcategory(null);
     }
-    setDescription(withTripName(name, tripBodyOf(description)));
+    // The typed text is not touched. Attaching a trip is a decision about
+    // where the row is filed, and it has no business rewriting the sentence.
+    setSheetTrip(name);
   };
   // The category stays where it is, exactly as taking a selection out of a
   // trip does: nothing here knows where the row came from.
-  const detachTrip = () => setDescription(tripBodyOf(description));
+  const detachTrip = () => setSheetTrip(null);
 
   /** The chip beside the description: what it is in, and a way out. */
   const descriptionTrip: DescriptionTrip | undefined =
@@ -3053,7 +3107,7 @@ export default function App() {
       // Only when there is more to show than fits.
       onMore: tripPickerOptions.length > shown.length ? () => setTripPickerOpen(true) : undefined,
     };
-  }, [travelCategory, transactionType, selectedCategory, rowTrip, tripPickerOptions, description]);
+  }, [travelCategory, transactionType, selectedCategory, rowTrip, tripPickerOptions]);
 
   // Autocomplete under the Description field while ADDING (never editing -
   // there the description is already what the user made it). Computed from
@@ -3063,13 +3117,13 @@ export default function App() {
     return buildDescriptionSuggestions(
       expenses,
       transactionType,
-      // The body, not the whole string: with a trip attached, matching on
-      // "Azores 🇵🇹 - Cena" would find nothing a merchant is called.
-      descriptionBody,
+      // The state is the body already - the trip name is never in it - so
+      // matching against a merchant works with a chip attached or without.
+      description,
       transactionType === 'income' ? incomeCategories : categories,
       sources,
     );
-  }, [editingExpenseId, currentTab, expenses, transactionType, descriptionBody, categories, incomeCategories, sources]);
+  }, [editingExpenseId, currentTab, expenses, transactionType, description, categories, incomeCategories, sources]);
 
   // A pick fills the description and repeats the merchant's usual
   // category/subcategory/source. Amount, date, currency and recurrence are
@@ -3078,7 +3132,7 @@ export default function App() {
     // The picked text replaces the BODY. A merchant out of history knows
     // nothing about the trip the chip is holding, and picking one must not
     // silently drop the row out of it.
-    setDescription(rowTrip ? withTripName(rowTrip, tripBodyOf(s.description)) : s.description);
+    setDescription(rowTrip ? tripBodyOf(s.description) : s.description);
     if (s.categoryId) {
       setSelectedCategory(s.categoryId);
       setSelectedSubcategory(s.subcategory);
@@ -4293,8 +4347,8 @@ export default function App() {
                 // The field holds the description only. With a trip attached
                 // the name is beside it as a chip, so typing here can no
                 // longer take the row out of its trip by accident.
-                value={descriptionBody}
-                onChange={(body) => setDescription(rowTrip ? withTripName(rowTrip, body) : body)}
+                value={description}
+                onChange={setDescription}
                 transactionType={transactionType}
                 suggestions={descriptionSuggestions}
                 onPickSuggestion={handlePickSuggestion}

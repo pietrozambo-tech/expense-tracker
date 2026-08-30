@@ -259,9 +259,6 @@ const save = async (p) => {
   // value in a single change and would have sailed past this bug for as long
   // as it existed. The bug is in what happens between keystrokes.
   //
-  // Never emptied, also deliberately - emptying the field is a different bug,
-  // still open: a description of nothing leaves the joined string with no
-  // separator in it, so the chip vanishes and the name drops into the box.
   await field.fill('Hertz');
   await p.waitForTimeout(200);
   await field.pressSequentially(' fee', { delay: 40 });
@@ -286,6 +283,72 @@ const save = async (p) => {
     `the saved row is tidy, prefix and all ("${after.description}")`);
   await ctx.close();
 }
+
+// ── emptying the description does not empty the trip ──────────────────────
+//
+// The chip used to be a function of the text: the trip was read back out of
+// the description on every keystroke, and a description of nothing leaves a
+// bare name with no separator in it, which nothing can read back as a trip.
+// So clearing the field made the chip vanish and dropped the trip name into
+// the box as ordinary words - the silent detachment this screen exists to
+// prevent, reached by pressing backspace enough times.
+//
+// The trip is a decision the sheet remembers now, so the text can be anything,
+// including nothing.
+{
+  const { ctx, p } = await open();
+  await openRow(p, 'loose');
+  await p.locator(`[data-trip-chip-option="${TRIP}"]`).click();
+  await p.waitForTimeout(300);
+
+  const field = p.locator('[data-desc-input]');
+  await field.fill('');
+  await p.waitForTimeout(250);
+  ok(await descValue(p) === '', 'the description can be emptied');
+  ok(await chip(p).count() === 1, 'and the trip stays attached with nothing typed');
+  ok(await chipText(p).then((t) => t.startsWith(TRIP)), 'the name on the chip, not loose in the text box');
+
+  // Typing again starts from empty rather than from the trip's name.
+  await field.pressSequentially('Parcheggio', { delay: 30 });
+  await p.waitForTimeout(200);
+  ok(await descValue(p) === 'Parcheggio', `and typing resumes from empty ("${await descValue(p)}")`);
+
+  await field.fill('');
+  await save(p);
+  const after = await stored(p, 'loose');
+  // Saved with no body: the category's name stands in. A bare trip name has
+  // no separator, so the row would sit outside the trip it was just put in.
+  ok(after.description === `${TRIP} - Travel`,
+    `saved with nothing typed, the category stands in as the body ("${after.description}")`);
+  ok(after.category.id === 'travel', 'and the row is still filed under travel');
+  await ctx.close();
+}
+
+// ── the trip survives a detour through another category ───────────────────
+//
+// Filing the row elsewhere hides the chip, because a row carrying a trip name
+// while filed outside travel would not appear in the trip and the chip would
+// be promising something untrue. But hiding is not forgetting: the trip is a
+// decision the sheet holds, so coming back to Travel brings it back rather
+// than making the person pick it again.
+{
+  const { ctx, p } = await open();
+  await openRow(p, 't1');
+  ok(await chip(p).count() === 1, 'the row opens in its trip');
+  await p.getByRole('button', { name: 'Groceries' }).first().click();
+  await p.waitForTimeout(400);
+  ok(await chip(p).count() === 0, 'filing it elsewhere takes the chip away');
+  ok(await descValue(p) === 'Cena porto', 'and the trip name does not fall into the text box');
+  await pickTravel(p);
+  ok(await chip(p).count() === 1, 'coming back to Travel brings the same trip back');
+  await ctx.close();
+}
+
+// (Taking the trip off and saving is the "taking it out, on purpose" block
+// near the top. It is worth knowing that it now covers more than it did: the
+// ✕ used to rewrite the description, so change detection saw an edit for
+// free. The trip is its own field now, and that block is what proves Save
+// still lights up when the trip is the ONLY thing that changed.)
 
 // A row with no trip is tidied on save too - it never used to be.
 {
