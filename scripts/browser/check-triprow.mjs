@@ -237,6 +237,69 @@ const save = async (p) => {
   await ctx.close();
 }
 
+// ── the space bar, with a trip attached ───────────────────────────────────
+//
+// Reported from a phone: "Avrei voluto scrivere Hertz fee" - and what came out
+// was "Hertzfee". With a chip on the field the description is split on the way
+// in and joined on the way out, once per keystroke, and both halves trimmed:
+// the space ending "Hertz " was gone before the next letter could follow it,
+// so React put the field back a character short every time.
+//
+// Typed key by key on purpose. fill() sets the value in one go and would have
+// sailed past this for as long as it existed.
+{
+  const { ctx, p } = await open();
+  await openRow(p, 'loose');
+  await p.locator(`[data-trip-chip-option="${TRIP}"]`).click();
+  await p.waitForTimeout(300);
+  ok(await chip(p).count() === 1, 'a trip is attached, which is when this broke');
+
+  const field = p.locator('[data-desc-input]');
+  // Seeded in one shot and then TYPED INTO, deliberately: fill() sets the
+  // value in a single change and would have sailed past this bug for as long
+  // as it existed. The bug is in what happens between keystrokes.
+  //
+  // Never emptied, also deliberately - emptying the field is a different bug,
+  // still open: a description of nothing leaves the joined string with no
+  // separator in it, so the chip vanishes and the name drops into the box.
+  await field.fill('Hertz');
+  await p.waitForTimeout(200);
+  await field.pressSequentially(' fee', { delay: 40 });
+  await p.waitForTimeout(250);
+  ok(await descValue(p) === 'Hertz fee', `the space bar works ("${await descValue(p)}")`);
+  ok(await chipText(p).then((t) => t.startsWith(TRIP)), 'and the row is still in the trip while being typed');
+
+  // Mid-word: the trailing space has to SURVIVE, because it is a person about
+  // to type the next word. This is the exact state the old code destroyed.
+  await field.pressSequentially(' and', { delay: 40 });
+  await field.press('Backspace');
+  await field.press('Backspace');
+  await field.press('Backspace');
+  await p.waitForTimeout(200);
+  ok(await descValue(p) === 'Hertz fee ', `a trailing space is held while the next word is coming ("${await descValue(p)}")`);
+
+  // And it is tidied ONCE, on the way to storage - the ledger gets no
+  // trailing space even though the field was holding one.
+  await save(p);
+  const after = await stored(p, 'loose');
+  ok(after.description === `${TRIP} - Hertz fee`,
+    `the saved row is tidy, prefix and all ("${after.description}")`);
+  await ctx.close();
+}
+
+// A row with no trip is tidied on save too - it never used to be.
+{
+  const { ctx, p } = await open();
+  await openRow(p, 'taxi');
+  const field = p.locator('[data-desc-input]');
+  await field.fill('Taxi');
+  await field.pressSequentially('  ', { delay: 40 });
+  await save(p);
+  const after = await stored(p, 'taxi');
+  ok(after.description === 'Taxi', `a description with no trip is trimmed on save ("${after.description}")`);
+  await ctx.close();
+}
+
 console.log(fail.length ? `\n${fail.length} FAILED` : '\nall good');
 await b.close();
 process.exit(fail.length ? 1 : 0);

@@ -83,6 +83,7 @@ import {
   applyBulkTrip,
   detectTrips,
   travelCategoryOf,
+  tidyDescription,
   tripBodyOf,
   tripChoicesFor,
   tripDatesLabel,
@@ -2028,7 +2029,10 @@ export default function App() {
     
     if (editingExpenseId) {
       const values: Partial<Transaction> = {
-        description: description || categoryData?.name || (transactionType === 'expense' ? 'Expense' : 'Income'),
+        // Tidied HERE and nowhere else: the description field's split/join
+        // runs on every keystroke and must not touch whitespace, or the space
+        // bar stops working inside a trip. See tidyDescription.
+        description: tidyDescription(description) || categoryData?.name || (transactionType === 'expense' ? 'Expense' : 'Income'),
         amount: parseFloat(amount),
         category: categoryData!,
         subcategory: selectedSubcategory || undefined,
@@ -2109,7 +2113,10 @@ export default function App() {
       const newExpense: Transaction = {
         id: `${transactionType}-${Date.now()}`,
         createdAt: new Date().toISOString(),
-        description: description || categoryData?.name || (transactionType === 'expense' ? 'Expense' : 'Income'),
+        // Tidied HERE and nowhere else: the description field's split/join
+        // runs on every keystroke and must not touch whitespace, or the space
+        // bar stops working inside a trip. See tidyDescription.
+        description: tidyDescription(description) || categoryData?.name || (transactionType === 'expense' ? 'Expense' : 'Income'),
         amount: parseFloat(amount),
         category: categoryData!,
         subcategory: selectedSubcategory || undefined,

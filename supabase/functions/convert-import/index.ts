@@ -265,7 +265,11 @@ function shapeAnswer(
     const name = ctx.trip.name;
     for (const t of transactions) {
       if (t.type !== 'expense') continue;
-      const body = tripBodyOf(typeof t.description === 'string' ? t.description : '');
+      // Trimmed here: tripBodyOf keeps whitespace exactly as it found it, so
+      // that the app's description field can be typed in without the space bar
+      // being eaten. This is a STORAGE path, not a field, and what arrives is
+      // a model's output rather than a person mid-word.
+      const body = tripBodyOf(typeof t.description === 'string' ? t.description : '').trim();
       t.description = body ? `${name}${TRIP_SEP}${body}` : name;
       // Membership requires the travel category - the same rule the trips
       // sheet applies - or the prefix would be there and the trip empty.
@@ -792,8 +796,8 @@ function isTripName(name) {
 }
 function tripBodyOf(description) {
   const d = description ?? "";
-  const name = tripNameOf(d);
-  return name ? d.slice(name.length + TRIP_SEP.length).trim() : d.trim();
+  if (tripNameOf(d) === null) return d;
+  return d.slice(d.indexOf(TRIP_SEP) + TRIP_SEP.length);
 }
 function travelCategoryOf(categories) {
   return categories.find((c) => c.id === "travel") ?? categories.find((c) => ["travel", "viaggi", "viaggio", "trips", "trip"].includes(fold(c.name))) ?? null;

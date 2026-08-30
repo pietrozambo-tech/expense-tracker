@@ -19,6 +19,7 @@ import {
   tripNameOf,
   tripOfDescription,
   tripSpan,
+  tidyDescription,
   withTripName,
 } from '../../src/app/lib/trips';
 import type { Category, Transaction } from '../../src/app/types';
@@ -64,7 +65,12 @@ ok(tripBodyOf('Cena porto') === 'Cena porto', 'and an unprefixed description is 
 // editing a description quietly moves the row out of its trip.
 ok(withTripName('Azores', 'Cena porto') === 'Azores - Cena porto', 'the halves go back together');
 ok(withTripName('Azores', '') === 'Azores', 'an empty body leaves the name bare, not a dangling dash');
-ok(withTripName(' Azores ', ' Cena ') === 'Azores - Cena', 'and both halves are trimmed');
+// The name is trimmed and the body is not, and the asymmetry is the point.
+// A name is an identity - every row of the trip has to spell it the same way
+// or the trip splits - while a body is a sentence somebody is in the middle
+// of typing. This line used to trim both, which is the whole reason the space
+// bar stopped working; see the round-trip block at the foot of this file.
+ok(withTripName(' Azores ', ' Cena ') === 'Azores -  Cena ', 'the name is trimmed, the body is left as typed');
 // The description field's whole trick: split for display, join on save. Any
 // description carrying a name has to survive the round trip untouched.
 for (const d of ['Azores - Cena porto', 'Azores 🇵🇹 - Extra night', 'Formentera 2025 - Volo']) {
@@ -439,6 +445,40 @@ ok(detectTrips([tx('2026-04-01', 'Azores - Cena')], null, amountOf).length === 0
   const az = run(older).find((t) => t.name === 'Azores')!;
   ok(tripMergeTarget(older, new Set(az.rows.map((r) => r.id)), 'Ibiza', travel, amountOf) === null,
     'a year apart, the same name is two trips and nothing merges');
+}
+
+// ── the description field's round trip is lossless ────────────────────────
+//
+// Reported from a phone: with a trip selected, the space bar did nothing.
+// "Hertz fee" came out "Hertzfee". The field splits the description on the way
+// in and joins it on the way out, once per keystroke, and both halves trimmed
+// - so the space that ends "Hertz " was gone before it could be followed by
+// anything. Whatever either half tidies is a character the field refuses.
+{
+  const roundTrip = (name: string, body: string) => tripBodyOf(withTripName(name, body));
+  ok(roundTrip('Azores', 'Hertz ') === 'Hertz ',
+    'a body still being typed keeps its trailing space');
+  ok(roundTrip('Azores', 'Hertz fee') === 'Hertz fee', 'and the finished words survive too');
+  ok(roundTrip('Azores', ' Hertz') === ' Hertz', 'a leading space is the typist\'s business as well');
+  ok(roundTrip('Azores 🇵🇹', 'Cena ') === 'Cena ', 'the same with a flag in the name, which is not one character');
+  ok(roundTrip('Azores', 'Volo - andata') === 'Volo - andata',
+    'a body carrying its own separator comes back whole - the FIRST one is the trip');
+  // The empty cases the join has always guarded: no dangling separator.
+  ok(withTripName('Azores', '') === 'Azores', 'an empty body leaves the name alone');
+  ok(withTripName('Azores', '   ') === 'Azores', 'and so does a body of nothing but spaces');
+  // Measured from the separator, not the name: tripNameOf trims what it
+  // returns, so on a leading-space description the name is shorter than the
+  // text it stands for and counting characters lands one short.
+  ok(tripBodyOf(' Azores - Hertz') === 'Hertz', 'a leading space before the name does not shift the body');
+}
+
+// ── tidying happens once, on the way to storage ───────────────────────────
+{
+  ok(tidyDescription('Azores - Hertz fee  ') === 'Azores - Hertz fee', 'a saved row loses the trailing space');
+  ok(tidyDescription('Azores -  Hertz') === 'Azores - Hertz', 'and the double space after the separator');
+  ok(tidyDescription('  Hertz fee  ') === 'Hertz fee', 'a row with no trip is tidied too - it never was before');
+  ok(tidyDescription('Azores -   ') === 'Azores', 'a body of spaces leaves the trip name by itself');
+  ok(tidyDescription('') === '', 'and nothing typed stays nothing, for the caller to replace');
 }
 
 console.log(failed ? `\n${failed} FAILED` : '\nTrips group the way they should.');

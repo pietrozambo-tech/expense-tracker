@@ -65,11 +65,28 @@ export function isTripName(name: string): boolean {
   return tripNameOf(`${clean}${TRIP_SEP}x`) === clean;
 }
 
-/** The description with any trip name taken off the front. */
+/**
+ * The description with any trip name taken off the front.
+ *
+ * Whitespace is left exactly as it was found, and that is the whole point.
+ * This and withTripName are a round trip - the description field splits on the
+ * way in and joins on the way out, once per keystroke - so anything either of
+ * them tidies is a character the field refuses to accept. Both used to trim,
+ * and the result was that WITH A TRIP SELECTED the space bar did nothing:
+ * typing "Hertz" then space stored "Azores 🇵🇹 - Hertz", read it back as
+ * "Hertz", and React put the field back where it had been. "Hertz fee" came
+ * out "Hertzfee". Cleaning up is the save path's job, where it happens once,
+ * and not the job of a function called on every letter.
+ *
+ * Sliced from the SEPARATOR rather than from the name's length, because
+ * tripNameOf trims what it returns: on " Azores - x" the name is 6 characters
+ * and the separator is at 7, and measuring by the name lands one short. The
+ * old trim hid that; without it, it would be an off-by-one.
+ */
 export function tripBodyOf(description: string | undefined): string {
   const d = description ?? '';
-  const name = tripNameOf(d);
-  return name ? d.slice(name.length + TRIP_SEP.length).trim() : d.trim();
+  if (tripNameOf(d) === null) return d;
+  return d.slice(d.indexOf(TRIP_SEP) + TRIP_SEP.length);
 }
 
 /**
@@ -84,11 +101,32 @@ export function tripBodyOf(description: string | undefined): string {
  * An empty body leaves the name alone: a row whose whole description is the
  * trip name is still in the trip, and appending a bare separator would put a
  * dangling dash on the screen.
+ *
+ * The body goes in AS GIVEN - see tripBodyOf for why the two must not tidy
+ * anything. Emptiness is still judged on the trimmed body, so a body of
+ * nothing but spaces leaves the name alone rather than hanging a separator off
+ * it; that decision reads the body without rewriting it.
  */
 export function withTripName(name: string, body: string): string {
   const clean = name.trim();
-  const rest = body.trim();
-  return rest ? `${clean}${TRIP_SEP}${rest}` : clean;
+  return body.trim() ? `${clean}${TRIP_SEP}${body}` : clean;
+}
+
+/**
+ * A description as it should be STORED.
+ *
+ * The one place the tidying happens, and it happens once, on save. Splitting
+ * it out is what lets the round trip above stay lossless: while the field is
+ * being typed in, "Hertz " is a person halfway through "Hertz fee" and must
+ * survive; by the time it is a row in the ledger it is a trailing space and
+ * nobody wants it.
+ *
+ * Rebuilt through withTripName rather than trimmed end to end, so a body typed
+ * with a leading space does not leave a double space after the separator.
+ */
+export function tidyDescription(description: string): string {
+  const name = tripNameOf(description);
+  return name ? withTripName(name, tripBodyOf(description).trim()) : description.trim();
 }
 
 /**
@@ -456,7 +494,9 @@ export function applyBulkTrip(
   const clean = name?.trim() ?? null;
   return transactions.map((t) => {
     if (!ids.has(t.id) || t.type !== 'expense') return t;
-    const body = tripBodyOf(t.description);
+    // Trimmed, unlike the description field's own split: this writes rows to
+    // the ledger rather than backing a control somebody is typing into.
+    const body = tripBodyOf(t.description).trim();
     if (!clean) {
       return { ...t, description: body, updatedAt: stamp };
     }
