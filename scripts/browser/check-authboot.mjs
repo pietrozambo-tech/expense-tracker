@@ -37,8 +37,14 @@ const staleSession = () => {
 };
 
 // authBehaviour: 'hang' (never answers) | 'abort' (fails outright) | 'none'
-const boot = async ({ authBehaviour, signedIn }) => {
-  const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, locale: 'en-GB' });
+// guest:true skips the sign-in screen entirely - which is the point of the
+// guest scenario and a trap for every other one: an assertion about what the
+// sign-in screen says passes trivially when there is no sign-in screen.
+const boot = async ({ authBehaviour, signedIn, language = 'en', guest = true }) => {
+  const ctx = await b.newContext({
+    viewport: { width: 390, height: 844 },
+    locale: language === 'it' ? 'it-IT' : 'en-GB',
+  });
   // Nothing may leave for the real project, in any of these scenarios.
   let escaped = 0;
   await ctx.route(`**${REF}**`, (route) => {
@@ -49,16 +55,16 @@ const boot = async ({ authBehaviour, signedIn }) => {
   });
   await ctx.route('**posthog**/**', (r) => r.fulfill({ status: 200, body: '{}' }));
   await ctx.addInitScript((args) => {
-    const [ref, session] = args;
+    const [ref, session, lang, asGuest] = args;
     if (localStorage.getItem('seeded')) return;
     localStorage.setItem('seeded', '1');
     localStorage.setItem('expense-tracker.v1.settings', JSON.stringify({
-      onboarded: true, userName: 'Pietro', currency: 'EUR', hasSeenIntro: true, weekStartsOn: 1, language: 'en',
+      onboarded: true, userName: 'Pietro', currency: 'EUR', hasSeenIntro: true, weekStartsOn: 1, language: lang,
     }));
     localStorage.setItem('expense-tracker.v1.nudges', JSON.stringify({ tips: false, recap: false }));
     if (session) localStorage.setItem(`sb-${ref}-auth-token`, JSON.stringify(session));
-    else localStorage.setItem('expense-tracker.v1.guest', 'true');
-  }, [REF, signedIn ? staleSession() : null]);
+    else if (asGuest) localStorage.setItem('expense-tracker.v1.guest', 'true');
+  }, [REF, signedIn ? staleSession() : null, language, guest]);
   const p = await ctx.newPage();
   p.on('pageerror', (e) => console.log('[pageerror]', e.message));
   await p.goto(URL, { waitUntil: 'domcontentloaded' });
@@ -179,10 +185,38 @@ const waitUsable = async (p, capMs) => {
 
 // 5. A genuine first run gets none of it - the note must not greet a stranger.
 {
-  const { ctx, p } = await boot({ authBehaviour: 'none', signedIn: false });
+  const { ctx, p } = await boot({ authBehaviour: 'none', signedIn: false, guest: false });
   await p.waitForSelector('button', { timeout: 15000 });
+  await p.waitForTimeout(500);
+  // Proving it is the sign-in screen first: with the guest flag set there is
+  // no sign-in screen at all, and "the note is absent" would pass on an empty
+  // Dashboard without ever testing anything.
+  ok(/By continuing you agree/.test(await p.locator('body').innerText()),
+    'a first run lands on the sign-in screen');
   ok(await p.locator('[data-signin-returning]').count() === 0,
-    'a first run is not told its data is still here - there is none');
+    'and is not told its data is still here - there is none');
+  await ctx.close();
+}
+
+// 6. The screen is one language or the other, all the way down.
+//
+// It was not: an Italian phone got "By continuing you agree to our Termini &
+// Privacy Policy" - one word translated inside an English sentence - and "OR"
+// between the buttons. The bottom of a sign-in screen is where consent is
+// given, so it is the last place to be half-legible.
+{
+  const { ctx, p } = await boot({ authBehaviour: 'none', signedIn: false, language: 'it', guest: false });
+  await p.waitForSelector('button', { timeout: 15000 });
+  await p.waitForTimeout(600);
+  const screen = await p.locator('body').innerText();
+  ok(/Continuando accetti i nostri Termini di Servizio e la nostra Privacy Policy/.test(screen),
+    'the Italian consent line is an Italian sentence, both documents named');
+  ok(!/By continuing|\bOR\b/.test(screen),
+    'with no English left on the screen around it');
+  // Settings calls them the same thing; two names for one document is how a
+  // person ends up wondering which one they agreed to.
+  ok(/Termini di Servizio/.test(screen), 'and the names match what Settings calls them');
+  await p.screenshot({ path: `${OUT}/authboot-consent-it.png` });
   await ctx.close();
 }
 

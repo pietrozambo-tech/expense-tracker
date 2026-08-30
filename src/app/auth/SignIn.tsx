@@ -8,6 +8,10 @@ import { hasLocalLedger, loadOwner } from '../lib/storage';
 // Placeholder tagline — swap for the final one once decided.
 const TAGLINE = 'Your Expense Lens';
 
+// The two document names in the consent line, lifted out of the sentence so
+// both languages emphasise them the same way rather than each carrying a copy.
+const LEGAL_EM = { color: 'var(--ink-2)', fontWeight: 500 } as const;
+
 // Live since 20 Aug 2026: Apple Developer Program + a Services ID, key and
 // signed client secret configured in Supabase. App Store guideline 4.8 makes
 // this mandatory once Google sign-in is offered, and Apple's own guidance puts
@@ -236,7 +240,8 @@ export function SignIn() {
                 {/* Divider */}
                 <div className="flex items-center gap-3 my-4">
                   <div className="flex-1 h-px" style={{ background: 'var(--hairline)' }} />
-                  <span style={{ color: 'var(--disabled)', fontSize: 12, fontWeight: 500 }}>OR</span>
+                  {/* The other word on this screen that stayed English. */}
+                  <span style={{ color: 'var(--disabled)', fontSize: 12, fontWeight: 500 }}>{getLanguage() === 'it' ? 'OPPURE' : 'OR'}</span>
                   <div className="flex-1 h-px" style={{ background: 'var(--hairline)' }} />
                 </div>
 
@@ -309,10 +314,25 @@ export function SignIn() {
             <button onClick={continueAsGuest} className="w-full py-3 mt-2 text-[15px] font-medium" style={{ color: 'var(--ink-2)' }}>
               {getLanguage() === 'it' ? 'Continua senza account' : 'Continue without an account'}
             </button>
+            {/* Half of this line used to stay in English on an Italian phone:
+                only the word "Termini" was translated, so the sentence around
+                it and "Privacy Policy" read as English. The document names now
+                match what Settings calls them, which is where these two are
+                actually opened - one name per document, everywhere. */}
             <p className="text-center mt-3 px-4" style={{ color: 'var(--disabled)', fontSize: 12, lineHeight: 1.5 }}>
-              By continuing you agree to our{' '}
-              <span style={{ color: 'var(--ink-2)', fontWeight: 500 }}>{getLanguage() === 'it' ? 'Termini' : 'Terms'}</span> &{' '}
-              <span style={{ color: 'var(--ink-2)', fontWeight: 500 }}>Privacy Policy</span>.
+              {getLanguage() === 'it' ? (
+                <>
+                  Continuando accetti i nostri{' '}
+                  <span style={LEGAL_EM}>Termini di Servizio</span> e la nostra{' '}
+                  <span style={LEGAL_EM}>Privacy Policy</span>.
+                </>
+              ) : (
+                <>
+                  By continuing you agree to our{' '}
+                  <span style={LEGAL_EM}>Terms of Service</span> and{' '}
+                  <span style={LEGAL_EM}>Privacy Policy</span>.
+                </>
+              )}
             </p>
           </>
         ) : (
