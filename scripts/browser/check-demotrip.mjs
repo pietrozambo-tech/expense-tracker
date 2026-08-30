@@ -98,6 +98,46 @@ const openWithDemo = async (lang) => {
   await ctx.close();
 }
 
+// ── loading the demo does not ask a guest to back it up ───────────────────
+//
+// The reported case, walked end to end: first run as a guest, tap "load demo
+// data", land on the Dashboard. The backup card fired - telling someone to
+// save a ledger they had not written a line of - because the demo adds
+// hundreds of rows and the threshold counted all of them.
+{
+  const ctx = await b.newContext({ viewport: { width: 390, height: 900 }, locale: 'it-IT' });
+  await ctx.route(/supabase\.co/, (r) => r.abort());
+  await ctx.addInitScript(() => {
+    const put = (k, v) => localStorage.setItem(`expense-tracker.v1.${k}`, typeof v === 'string' ? v : JSON.stringify(v));
+    if (localStorage.getItem('seeded')) return;
+    localStorage.setItem('seeded', '1');
+    put('guest', 'true');
+    // Tips ON and no backup ever taken - the state a first run really is.
+    put('settings', { onboarded: true, userName: 'Marco', currency: 'EUR', hasSeenIntro: true, weekStartsOn: 1, language: 'it' });
+    put('nudges', { tips: true, recap: false });
+  });
+  const p = await ctx.newPage();
+  p.on('pageerror', (e) => console.log('[pageerror]', e.message));
+  await p.goto(URL, { waitUntil: 'networkidle' });
+  await p.waitForTimeout(1500);
+  await p.getByRole('button', { name: 'Impostazioni' }).first().click();
+  await p.waitForTimeout(600);
+  await p.getByText('Carica dati di esempio', { exact: false }).first().click();
+  await p.waitForTimeout(400);
+  await p.getByRole('button', { name: 'Carica', exact: true }).click();
+  await p.waitForTimeout(1400);
+  await p.getByRole('button', { name: 'Dashboard' }).first().click();
+  await p.waitForTimeout(1000);
+
+  const which = await p.locator('[data-nudge]').getAttribute('data-nudge').catch(() => null);
+  ok(which !== 'backup',
+    `a guest who only loaded the demo is not told to back it up (card shown: ${which ?? 'none'})`);
+  ok(!/Scarica backup/.test(await p.locator('body').innerText()),
+    'and the download-a-backup line is nowhere on the screen');
+  await p.screenshot({ path: `${OUT}/demo-guest-nudge.png` });
+  await ctx.close();
+}
+
 console.log(fail.length ? `\n${fail.length} FAILED` : '\nall good');
 await b.close();
 process.exit(fail.length ? 1 : 0);

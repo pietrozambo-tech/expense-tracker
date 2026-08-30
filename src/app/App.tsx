@@ -55,7 +55,7 @@ import { HapticOverlay } from './components/HapticOverlay';
 import { DEFAULT_SOURCES, DEFAULT_SOURCE_EXPENSE, DEFAULT_SOURCE_INCOME } from './components/sources';
 import { SourceLogo } from './components/SourceLogo';
 import { SourceSelectorModal } from './components/SourceSelectorModal';
-import { getDemoTransactions } from './lib/demoData';
+import { getDemoTransactions, isDemoRow } from './lib/demoData';
 import { filterableSources, myShareOf, newHousehold, partnerSource, partnerSourceId, selectableSources, sharedNews, unseenKind } from './lib/shared';
 import { acceptCountry, currencyOfCountry, currentCountry, dismissCountry, homeCountry, observeCountry, travelSuggestion } from './lib/travel';
 import type { CountryVisit } from './lib/travel';
@@ -784,6 +784,7 @@ export default function App() {
       mobile: env.mobile,
       guest,
       txCount: expenses.length,
+      ownTxCount: expenses.filter((e) => !isDemoRow(e)).length,
       hasPrevMonthActivity: expenses.some((e) => (e.date ?? '').startsWith(prev)),
       catsUntouched: setupProgress.catsUntouched,
       sourcesUntouched: setupProgress.sourcesUntouched,
@@ -2887,7 +2888,7 @@ export default function App() {
         },
       };
     });
-    setExpenses((prev) => [...seeded, ...prev.filter((e) => !e.id.startsWith('demo-'))]);
+    setExpenses((prev) => [...seeded, ...prev.filter((e) => !isDemoRow(e))]);
     setRefreshKey(prev => prev + 1);
     setCurrentTab('dashboard');
     track('demo_loaded');
@@ -2900,7 +2901,7 @@ export default function App() {
   // Demo transactions carry a `demo-` id prefix, so they can be removed on
   // their own without touching the user's real data. The splits ride ON those
   // rows, so the household side of the samples goes out with them.
-  const hasDemoData = expenses.some((e) => e.id.startsWith('demo-'));
+  const hasDemoData = expenses.some(isDemoRow);
   /**
    * `stay` keeps the screen you are on. The Data row wants the jump - erasing
    * from Settings and landing on the Dashboard shows you it happened - but the
@@ -2912,7 +2913,7 @@ export default function App() {
    * as `true`.
    */
   const handleEraseDemoData = (opts?: { stay?: boolean }) => {
-    setExpenses((prev) => prev.filter((e) => !e.id.startsWith('demo-')));
+    setExpenses((prev) => prev.filter((e) => !isDemoRow(e)));
     setRefreshKey((prev) => prev + 1);
     if (!opts?.stay) setCurrentTab('dashboard');
     toast.success(t('toast.demoRemoved'), { duration: 1400 });

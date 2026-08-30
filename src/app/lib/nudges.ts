@@ -67,8 +67,8 @@ export const prevMonthKey = (d: Date) => monthKey(new Date(d.getFullYear(), d.ge
 
 const THIRTY_DAYS = 30 * 24 * 60 * 60 * 1000;
 
-/** How many transactions make a guest ledger worth a backup warning. Below
- *  this, the stakes are a demo or a first afternoon; above it, months of
+/** How many of the user's OWN transactions make a guest ledger worth a backup
+ *  warning. Below this, the stakes are a first afternoon; above it, months of
  *  real history sit one cleared cache from gone. */
 export const BACKUP_NUDGE_MIN_TX = 25;
 
@@ -103,8 +103,18 @@ export function dueNudge(args: {
   mobile: boolean;
   /** No account: this device's storage is the only copy of everything. */
   guest: boolean;
-  /** Total transactions - the size of what a guest stands to lose. */
+  /** Everything on the Dashboard, sample rows included. Answers "is this
+   *  screen empty", which is all the setup checklist needs to know. */
   txCount: number;
+  /** The user's OWN transactions - demo rows excluded.
+   *
+   *  The two counts differ, and the backup card is why. Its premise is that
+   *  the only copy of months of work is in one browser's storage; sample data
+   *  is one tap from being regenerated, so it is not work and cannot be lost.
+   *  Counting it meant loading the demo - which adds hundreds of rows - shot
+   *  a brand-new guest straight past the threshold and told them to back up a
+   *  ledger they had not written a line of. */
+  ownTxCount: number;
   /** Any transaction dated in the previous calendar month. */
   hasPrevMonthActivity: boolean;
   catsUntouched: boolean;
@@ -119,7 +129,7 @@ export function dueNudge(args: {
   if (
     prefs.tips &&
     args.guest &&
-    args.txCount >= BACKUP_NUDGE_MIN_TX &&
+    args.ownTxCount >= BACKUP_NUDGE_MIN_TX &&
     backupClockDue(prefs.lastBackupAt, now) &&
     backupClockDue(prefs.backupSnoozedAt, now)
   ) {

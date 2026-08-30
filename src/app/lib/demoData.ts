@@ -46,6 +46,17 @@ function hashUnit(seed: string): number {
   return ((h >>> 0) % 10000) / 10000;
 }
 
+/**
+ * Is this row sample data rather than the user's own?
+ *
+ * Demo rows are stamped with a `demo-` id prefix when they are generated,
+ * which is what "Erase demo data" removes them by. The predicate is here, as
+ * one function, because the prefix is a fact about how the demo is built and
+ * four hand-written copies of a magic string is how one of them ends up
+ * checking something subtly different.
+ */
+export const isDemoRow = (t: { id: string }): boolean => t.id.startsWith('demo-');
+
 export function getDemoTransactions(currency: string, userCategories: Category[] = []): Transaction[] {
   const now = new Date();
   const sampleMonths = mockExpenses.map((t) => monthIndex(t.date));

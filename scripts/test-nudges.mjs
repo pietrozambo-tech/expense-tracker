@@ -54,6 +54,7 @@ const base = {
   mobile: true,
   guest: false,
   txCount: 1,
+  ownTxCount: 1,
   hasPrevMonthActivity: false,
   catsUntouched: true,
   sourcesUntouched: true,
@@ -123,12 +124,12 @@ eq('and install still gets the slot afterwards',
   due({ ...setUp, budgetSet: false, standalone: false, prefs: { customizeDismissed: true } }), 'install');
 
 // ── the backup card: a guest ledger with no recent copy ────────────────────
-const g = { guest: true, txCount: 40, standalone: false };
+const g = { guest: true, txCount: 40, ownTxCount: 40, standalone: false };
 eq('a guest with a real ledger is asked to back up before anything else',
   due({ ...g, hasPrevMonthActivity: true }), 'backup');
 eq('signed in, the ledger has a second home - no alarm',
   due({ ...g, guest: false, hasPrevMonthActivity: true }), 'recap');
-eq('a small ledger is not worth the alarm', due({ ...g, txCount: 24 }), 'customize');
+eq('a small ledger is not worth the alarm', due({ ...g, txCount: 24, ownTxCount: 24 }), 'customize');
 eq('a fresh backup buys thirty days of quiet',
   due({ ...g, prefs: { lastBackupAt: new Date(NOW.getTime() - 10 * 864e5).toISOString() } }), 'customize');
 eq('a stale one does not',
@@ -137,6 +138,32 @@ eq('a dismissal snoozes rather than silences',
   due({ ...g, prefs: { backupSnoozedAt: new Date(NOW.getTime() - 10 * 864e5).toISOString() } }), 'customize');
 eq('and the snooze expires after a month',
   due({ ...g, prefs: { backupSnoozedAt: new Date(NOW.getTime() - 31 * 864e5).toISOString() } }), 'backup');
+
+// ── sample data is not work, and cannot be lost ────────────────────────────
+//
+// The reported case: first run as a guest, tap "load demo data", and the
+// backup card fires - telling someone to save a ledger they have not written
+// a line of. The demo adds hundreds of rows, so a count of everything on
+// screen shot straight past the threshold. The card is about losing WORK, and
+// sample data is one tap from being regenerated.
+eq('a guest with nothing but demo data is not told to back it up',
+  due({ guest: true, txCount: 400, ownTxCount: 0, standalone: false }), 'customize');
+// The recap is left alone deliberately: it DESCRIBES what is on the screen,
+// and on a demo screen everything is demo - the hero, the charts and the
+// recap agree. The backup card is different in kind. It does not describe the
+// data, it hands the user a responsibility, and it did so on a false premise.
+eq('though the recap still speaks over demo data - it narrates the screen',
+  due({ guest: true, txCount: 400, ownTxCount: 0, standalone: false, hasPrevMonthActivity: true }),
+  'recap');
+eq('nor when a couple of their own rows sit among it',
+  due({ guest: true, txCount: 400, ownTxCount: 3, standalone: false }), 'customize');
+eq('but a real ledger under the demo still counts',
+  due({ guest: true, txCount: 400, ownTxCount: 30, standalone: false }), 'backup');
+// The setup checklist reads the OTHER count on purpose: its whole pitch is
+// "make the categories yours so the charts stop describing the sample", which
+// is exactly the advice a demo-only screen needs.
+eq('and the setup tip still speaks over demo data, which is who it is for',
+  due({ txCount: 400, ownTxCount: 0 }), 'customize');
 
 // ── the toggles rule them all ──────────────────────────────────────────────
 eq('tips off silences the backup card too', due({ ...g, prefs: { tips: false } }), null);
