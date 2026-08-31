@@ -87,7 +87,7 @@ function region(name) {
 
 const SURFACE = [
   'buildImportPrompt', 'TRIP_SEP', 'isTripName', 'tripBodyOf', 'travelCategoryOf',
-  'Refused', 'readTrip', 'readAnswers', 'readUploads', 'shapeAnswer', 'RowStream',
+  'Refused', 'readTrip', 'readAnswers', 'readUploads', 'shapeAnswer', 'expandRow', 'RowStream',
 ];
 
 const SCENARIOS = `
@@ -199,34 +199,43 @@ const ctx = (over = {}) => ({
   remaining: 3, model: 'test', usage: { input: 0, output: 0 }, ...over,
 });
 
+// The wire spells rows with one-letter keys (see RECORD_SCHEMA); everything
+// the caller receives spells them out. expandRow is that seam, and every
+// shapeAnswer fixture below feeds the wire shape on purpose - a fixture in
+// the long shape would pass against a function that forgot to expand.
 {
   const out = edge.shapeAnswer(answer({
-    transactions: [{ date: '2026-08-03', amount: 12.5, type: 'expense', category: 'Travel', subcategory: '', description: 'Caffè', source: '', currency: '' }],
+    transactions: [{ d: '2026-08-03', a: 12.5, t: 'e', c: 'Travel', s: '', x: 'Caffè', src: '', cur: '' }],
   }), ctx());
-  eq('empty optional fields are dropped, not passed on as blanks',
+  eq('a wire row leaves saying the words, empty optionals dropped rather than passed on as blanks',
     out.payload.transactions[0],
     { date: '2026-08-03', amount: 12.5, type: 'expense', category: 'Travel', description: 'Caffè' });
   eq('and the payload is the shape buildImport already reads', [out.payload.version, out.payload.currency], [1, 'EUR']);
 }
 {
+  eq('income says its name from one letter',
+    edge.expandRow({ d: '2026-08-05', a: 50, t: 'i', c: 'Salary' }).type, 'income');
+}
+{
   // THE one that matters. The user tapped a chip carrying a flag; the model
-  // wrote the name without it. The app's copy wins.
+  // wrote the name without it (row 1) or - as the addendum now tells it to -
+  // wrote no prefix at all (row 2). The app's copy wins either way.
   const out = edge.shapeAnswer(answer({
     transactions: [
-      { date: '2026-08-03', amount: 12.5, type: 'expense', category: 'Others', description: 'Azores - Caffè' },
-      { date: '2026-08-04', amount: 9, type: 'expense', category: 'Travel', description: 'Pranzo' },
-      { date: '2026-08-05', amount: 50, type: 'income', category: 'Salary', description: 'Rimborso' },
+      { d: '2026-08-03', a: 12.5, t: 'e', c: 'Others', x: 'Azores - Caffè' },
+      { d: '2026-08-04', a: 9, t: 'e', c: 'Travel', x: 'Pranzo' },
+      { d: '2026-08-05', a: 50, t: 'i', c: 'Salary', x: 'Rimborso' },
     ],
   }), ctx({ trip: { is_trip: true, name: FLAG } }));
   const t = out.payload.transactions;
   eq('a trip name the model got wrong is replaced with the one the user tapped', t[0].description, FLAG + ' - Caffè');
-  eq('a row with no prefix at all gets one', t[1].description, FLAG + ' - Pranzo');
+  eq('a row with no prefix at all gets one - which is now the instructed shape', t[1].description, FLAG + ' - Pranzo');
   eq('and the rows are moved into the travel category, or the trip would be empty', [t[0].category, t[1].category], ['Travel', 'Travel']);
   eq('income is left alone - it is not trip spending', [t[2].description, t[2].category], ['Rimborso', 'Salary']);
 }
 {
   const out = edge.shapeAnswer(answer({
-    transactions: [{ date: '2026-08-03', amount: 12.5, type: 'expense', category: 'Others', description: 'Azores - Caffè' }],
+    transactions: [{ d: '2026-08-03', a: 12.5, t: 'e', c: 'Others', x: 'Azores - Caffè' }],
   }), ctx({ trip: { is_trip: false } }));
   eq('with no trip, nothing is rewritten', out.payload.transactions[0].description, 'Azores - Caffè');
   eq('and the category the model chose stands', out.payload.transactions[0].category, 'Others');
@@ -241,7 +250,7 @@ const ctx = (over = {}) => ({
   eq('and what it worked out on its own kept separate', out.notes, ['Le colonne sono quote']);
 }
 {
-  const e = refusal(() => edge.shapeAnswer('{"status":"ok","transactions":[{"date":"2026-0', ctx()));
+  const e = refusal(() => edge.shapeAnswer('{"status":"ok","transactions":[{"d":"2026-0', ctx()));
   ok(e && e.code === 'too_big', 'an answer cut off mid-row is named as too long, not as a parse error');
 }
 
@@ -295,6 +304,13 @@ const stream = (chunks) => {
 {
   eq('an empty list yields nothing rather than throwing', stream(['{"transactions":[]}']), []);
   eq('and a document that never reaches the array yields nothing', stream(['{"status":"need']), []);
+}
+{
+  // The stream and the seam together: the bytes the model actually writes,
+  // to the shape the reading screen is actually handed.
+  const doc = '{"transactions":[{"d":"2026-08-03","a":5,"t":"e","c":"Travel","x":"Caffè"}]}';
+  eq('a wire row leaves the stream saying the words', stream([doc]).map(edge.expandRow)[0],
+    { date: '2026-08-03', amount: 5, type: 'expense', category: 'Travel', description: 'Caffè' });
 }
 
 console.log(failed ? \`\\n\${failed} FAILED\` : '\\nthe function holds together');

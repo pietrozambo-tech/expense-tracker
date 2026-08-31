@@ -235,21 +235,7 @@ function shapeAnswer(
   }
 
   const raw = Array.isArray(parsed.transactions) ? (parsed.transactions as Record<string, unknown>[]) : [];
-  const transactions = raw.map((r) => {
-    const out: Record<string, unknown> = {
-      date: r.date, amount: r.amount, type: r.type, category: r.category,
-    };
-    // An empty string is not an absent field: "" as a source id matches no
-    // account, and buildImport would rather see the key missing than see
-    // nothing where something was promised. The schema marks these optional,
-    // but a model that fills every key anyway must not seed the ledger with
-    // blanks.
-    for (const key of ['subcategory', 'description', 'source', 'currency']) {
-      const v = r[key];
-      if (typeof v === 'string' && v.trim()) out[key] = v.trim();
-    }
-    return out;
-  });
+  const transactions = raw.map(expandRow);
 
   // The trip name, written by the app rather than trusted from the answer.
   //
@@ -278,6 +264,35 @@ function shapeAnswer(
   }
 
   return { status: 'ok', payload: { version: 1, currency: ctx.currency, transactions }, ...rest };
+}
+
+/**
+ * The wire row (one-letter keys - see RECORD_SCHEMA) said the long way.
+ *
+ * The answer costs its key names once per row, and a 65-row statement pays
+ * "description" sixty-five times. On the wire the keys are one letter each;
+ * this is the ONLY place that spelling exists, so the client, buildImport
+ * and every test of the output shape keep reading the words. A model that
+ * answers with the long keys anyway (it cannot, under the schema, but
+ * defence is cheap) falls through to undefined and the row is dropped by
+ * buildImport's own field checks.
+ */
+function expandRow(r: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = {
+    date: r.d, amount: r.a, type: r.t === 'i' ? 'income' : 'expense', category: r.c,
+  };
+  // An empty string is not an absent field: "" as a source id matches no
+  // account, and buildImport would rather see the key missing than see
+  // nothing where something was promised. The schema marks these optional,
+  // but a model that fills every key anyway must not seed the ledger with
+  // blanks.
+  const optional: [string, unknown][] = [
+    ['subcategory', r.s], ['description', r.x], ['source', r.src], ['currency', r.cur],
+  ];
+  for (const [key, v] of optional) {
+    if (typeof v === 'string' && v.trim()) out[key] = v.trim();
+  }
+  return out;
 }
 // #endregion shape -------------------------------------------------------
 
@@ -372,22 +387,27 @@ class RowStream {
 // words, which removes the whole class of "it replied with prose around the
 // JSON" - and, more usefully, makes "I do not have enough to go on" a
 // first-class answer instead of a sentence somebody has to detect.
+// One-letter keys on the wire, deliberately: every key name is paid for once
+// per row, and on a 65-row statement the long spellings alone were roughly a
+// third of the answer - which is a third of the wait. expandRow() (in the
+// shape region) says them the long way before anything else reads them; the
+// client, buildImport and the manual copy-paste path never see this shape.
 const RECORD_SCHEMA = {
   type: 'object',
   additionalProperties: false,
-  required: ['date', 'amount', 'type', 'category'],
+  required: ['d', 'a', 't', 'c'],
   properties: {
-    date: { type: 'string', description: 'YYYY-MM-DD' },
-    amount: {
+    d: { type: 'string', description: 'date, YYYY-MM-DD' },
+    a: {
       type: 'number',
-      description: 'Positive. Negative only for money that came back on an expense row (a refund).',
+      description: 'amount. Positive; negative only for money that came back on an expense row (a refund).',
     },
-    type: { type: 'string', enum: ['expense', 'income'] },
-    category: { type: 'string', description: "Exactly one of the user's own category names." },
-    subcategory: { type: 'string' },
-    description: { type: 'string' },
-    source: { type: 'string', description: "One of the user's source ids, only when the data says so." },
-    currency: { type: 'string', description: "ISO code, only when this row is NOT in the file's currency." },
+    t: { type: 'string', enum: ['e', 'i'], description: 'type: e = expense, i = income' },
+    c: { type: 'string', description: "category: exactly one of the user's own category names." },
+    s: { type: 'string', description: 'subcategory' },
+    x: { type: 'string', description: 'description' },
+    src: { type: 'string', description: "source: one of the user's source ids, only when the data says so." },
+    cur: { type: 'string', description: "currency: ISO code, only when this row is NOT in the file's currency." },
   },
 } as const;
 
@@ -453,9 +473,15 @@ function apiAddendum(language: 'en' | 'it'): string {
     '2. When you do have enough, set "status": "ok" and return EVERY transaction. What you worked',
     `   out on your own - a share column, a balance, a date format - goes in "notes", one short`,
     `   line each, in ${lang}. Never fold an inference into a question.`,
-    '3. The trip name is re-applied by the app afterwards, character for character, from what I',
-    '   typed. Prefix the descriptions as instructed above, but do not agonise over the exact',
-    '   spelling of the name itself - it cannot be lost here.',
+    '3. If WHAT I HAVE ALREADY TOLD YOU names the trip, do NOT write the trip prefix into any',
+    '   description - the app prefixes every expense row itself afterwards, character for',
+    '   character, from what I typed. Write only what the row itself says; repeating the name',
+    '   sixty times would only slow the answer down. (If no trip is named there, follow the',
+    '   trip instructions above as written.)',
+    '4. The instructions above show the transaction fields by their full names; the schema here',
+    '   wants them one letter each - d=date, a=amount, t=type (e=expense, i=income), c=category,',
+    '   s=subcategory, x=description, src=source, cur=currency. Same fields, same rules,',
+    '   shorter to write.',
     // The data-not-instructions warning used to live here, which protected the
     // API path and left the copy-paste path - the one where twenty people hand
     // this prompt to their own chatbots - bare. It moved into the shared
@@ -702,7 +728,10 @@ function streamed(
         stream.on('text', (delta: string) => {
           for (const row of rows.feed(delta)) {
             seen += 1;
-            send('row', { n: seen, row });
+            // Said the long way before it leaves: the one-letter wire keys
+            // are a private economy between schema and expandRow, and the
+            // app renders words.
+            send('row', { n: seen, row: expandRow(row) });
           }
         });
         const msg = await stream.finalMessage();
