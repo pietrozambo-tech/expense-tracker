@@ -295,6 +295,11 @@ const pickCsv = (p) => p.locator('[data-ai-door] input[type="file"]').setInputFi
   ok(/Nothing has been added/.test(err), 'and the screen says nothing was added');
   ok(await p.locator('[data-ai-cta="retry"]').count() === 1, 'with a retry for when the line returns');
   await p.screenshot({ path: `${OUT}/aiimport-offline.png` });
+  // The only way OFF a retry-only screen. It used to sit under the centred
+  // body's negative margin - visible, and silently dead to every tap.
+  await p.locator('[data-ai-flow] button[aria-label]').first().click();
+  await p.waitForTimeout(300);
+  ok(await p.locator('[data-ai-flow]').count() === 0, 'and the top-left X actually closes the screen');
   await ctx.close();
 }
 
@@ -426,14 +431,35 @@ const pickCsv = (p) => p.locator('[data-ai-door] input[type="file"]').setInputFi
   });
   await p.waitForTimeout(600);
   ok(await p.locator('[data-ai-flow][data-ai-step="trip"]').count() === 1
-    && /Are these a trip\?/.test(await p.locator('[data-ai-flow]').innerText()),
+    && /Is this a trip\?/.test(await p.locator('[data-ai-flow]').innerText()),
     'a tight run of unknown dates asks the trip question locally, before any read is spent');
+  // "No" is the lit default, and under it an optional line of context - the
+  // pre-emption of the model's next question, one round cheaper.
+  ok(await p.locator('[data-ai-context]').count() === 1
+    && (await p.locator('[data-ai-context]').getAttribute('placeholder'))?.includes('Tell me more'),
+    'saying No opens a "tell me more" line instead of going quiet');
   await p.locator('[data-ai-chip="other"]').click();
+  ok((await p.locator('[data-ai-trip-name]').getAttribute('placeholder')) === 'Trip name…',
+    'and saying yes asks for a trip name by name, not a "new name"');
   await p.locator('[data-ai-trip-name]').fill('Ottobre');
   await p.locator('[data-ai-cta="go"]').click();
   await p.waitForSelector('[data-ai-flow][data-ai-step="ready"]', { timeout: 10000 });
   ok(lastBody?.trip?.is_trip === true && lastBody?.trip?.name === 'Ottobre',
     `and the answer rides on the FIRST call (${JSON.stringify(lastBody?.trip)})`);
+  // The other branch: No, with words. They must reach the function as an
+  // answer on the first call.
+  await p.locator('[data-ai-flow] button[aria-label]').first().click();
+  await p.waitForTimeout(300);
+  await p.locator('[data-ai-door] input[type="file"]').setInputFiles({
+    name: 'ottobre.csv', mimeType: 'text/csv', buffer: Buffer.from(csv),
+  });
+  await p.waitForTimeout(600);
+  await p.locator('[data-ai-context]').fill('Sono le spese di casa, colonna Pit sono io');
+  await p.locator('[data-ai-cta="go"]').click();
+  await p.waitForSelector('[data-ai-flow][data-ai-step="ready"]', { timeout: 10000 });
+  ok(lastBody?.trip?.is_trip === false
+    && lastBody?.answers?.[0]?.answer === 'Sono le spese di casa, colonna Pit sono io',
+    `and a No with words attached sends the words along (${JSON.stringify(lastBody?.answers)})`);
   await ctx.close();
 }
 

@@ -86,6 +86,10 @@ export function AiImport({
   // 'trip' pre-answer state: which chip is lit.
   const [chip, setChip] = useState<'yes' | 'other' | 'no'>(evidence?.trip ? 'yes' : 'no');
   const [otherName, setOtherName] = useState('');
+  // Volunteered context on the ask-variant's "No" ("spese di casa", "sono
+  // io la colonna Pit") - it rides on the FIRST call as an answer, so the
+  // model has one less reason to spend a whole round asking.
+  const [context, setContext] = useState('');
   const [rows, setRows] = useState<{ n: number; description: string; category: string; sub?: string; amount: number; currency: string }[]>([]);
   const [runningTotal, setRunningTotal] = useState(0);
   const [questions, setQuestions] = useState<AiQuestion[]>([]);
@@ -186,7 +190,13 @@ export function AiImport({
       : chip === 'other' && otherName.trim() ? { is_trip: true, name: otherName.trim() }
       : { is_trip: false };
     setTripAnswer(answer);
-    start(answer);
+    // "No" with words attached: sent in the shape the model already reads
+    // answers in, so a "these are my house expenses, I'm the Pit column"
+    // can pre-empt the question it would otherwise cost a round to ask.
+    const volunteered = !answer.is_trip && context.trim()
+      ? [{ ask: 'Anything worth knowing about this file?', answer: context.trim() }]
+      : undefined;
+    start(answer, volunteered);
   };
 
   const goFromQuestions = () => {
@@ -266,7 +276,7 @@ export function AiImport({
         // dates are plainly one tight run - it asks the yes/no HERE, because
         // the alternative is the model asking it in a round of its own, at
         // the price of a whole read from the daily allowance.
-        const nameRow = (exclude?: string) => (
+        const nameRow = (exclude?: string, placeholder?: string) => (
           <div className="mt-3 flex flex-wrap gap-2">
             {trips.filter((tr) => tr.name !== exclude).slice(0, 4).map((tr) =>
               chipBtn(otherName === tr.name, tr.name, () => setOtherName(tr.name)),
@@ -275,7 +285,7 @@ export function AiImport({
               data-ai-trip-name
               value={otherName}
               onChange={(e) => setOtherName(e.target.value)}
-              placeholder={t('ai.tripNew')}
+              placeholder={placeholder ?? t('ai.tripNew')}
               className="px-3.5 py-2 rounded-full bg-transparent outline-none"
               style={{ border: '1.5px solid var(--line)', color: 'var(--ink)', fontSize: 16, minWidth: 140 }}
             />
@@ -311,7 +321,19 @@ export function AiImport({
                 {chipBtn(chip === 'no', t('ai.tripNo'), () => setChip('no'), 'no')}
                 {chipBtn(chip === 'other', t('ai.tripYesNew'), () => setChip('other'), 'other')}
               </div>
-              {chip === 'other' && nameRow()}
+              {chip === 'other' && nameRow(undefined, t('ai.tripNamePh'))}
+              {chip === 'no' && (
+                // Not a trip - then what is it? Optional, free, and worth a
+                // whole round when it pre-empts the model's next question.
+                <input
+                  data-ai-context
+                  value={context}
+                  onChange={(e) => setContext(e.target.value)}
+                  placeholder={t('ai.tellMore')}
+                  className="mt-3 w-full px-3.5 py-2 rounded-full bg-transparent outline-none"
+                  style={{ border: '1.5px solid var(--line)', color: 'var(--ink)', fontSize: 16 }}
+                />
+              )}
             </div>
             {cta(t('ai.go'), goFromTrip, chip === 'other' && !otherName.trim())}
           </>
@@ -514,12 +536,18 @@ export function AiImport({
         const Icon = fam.icon;
         return (
           <>
-            <div className="px-6 pt-4">
+            {/* relative+z: the centred body below used to ride up over this
+                row on a negative margin, and the X - the only way OFF a
+                retry-only error screen - silently stopped taking taps. */}
+            <div className="px-6 pt-4 relative z-10">
               <button onClick={onClose} className="p-2 -ml-2 rounded-lg" aria-label={t('ai.close')}>
                 <X className="w-5 h-5" style={{ color: 'var(--ink-2)' }} />
               </button>
             </div>
-            <div className="flex-1 flex flex-col items-center justify-center px-10 text-center -mt-10">
+            {/* pb-10, not -mt-10: same optical lift of the centred block,
+                but padding cannot overlap the close row the way a negative
+                margin did. */}
+            <div className="flex-1 flex flex-col items-center justify-center px-10 pb-10 text-center">
               <span className="grid place-items-center rounded-full mb-5" style={{ width: 64, height: 64, backgroundColor: 'var(--wash-accent2)' }}>
                 <Icon className="w-7 h-7" style={{ color: 'var(--accent-ink)' }} strokeWidth={1.8} />
               </span>

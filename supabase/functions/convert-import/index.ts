@@ -658,7 +658,12 @@ async function handle(req: Request): Promise<Response> {
   ];
 
   const client = new Anthropic({ apiKey: API_KEY });
-  const model = Deno.env.get('CONVERT_MODEL') ?? DEFAULT_MODEL;
+  // A wrong-box secret must degrade, not kill: CONVERT_MODEL was once found
+  // holding "30" (a daily-limit value pasted one row off in the dashboard),
+  // and every import died on a 404 the user could not act on. Anything that
+  // does not even look like a model id falls back to the default.
+  const configuredModel = (Deno.env.get('CONVERT_MODEL') ?? '').trim();
+  const model = /^claude-/.test(configuredModel) ? configuredModel : DEFAULT_MODEL;
   const maxTokens = Number(Deno.env.get('CONVERT_MAX_TOKENS') ?? DEFAULT_MAX_TOKENS) || DEFAULT_MAX_TOKENS;
   const request = {
     model,
@@ -795,6 +800,12 @@ function apiFailure(e: unknown): Refused {
   const message = e instanceof Error ? e.message : String(e);
   if (status === 401 || status === 403) {
     return new Refused(503, 'not_configured', 'The import key was refused. Check ANTHROPIC_API_KEY.');
+  }
+  // A 404 from the API is "no such model" - configuration, not the file.
+  // Naming it as such also refunds the read (see the release calls), since
+  // nothing was read and the user could not have done anything differently.
+  if (status === 404) {
+    return new Refused(503, 'not_configured', `The model in CONVERT_MODEL was refused: ${message}`);
   }
   if (status === 429) return new Refused(503, 'busy', 'Too many imports at once. Try again in a minute.');
   if (status && status >= 500) return new Refused(503, 'busy', 'The reader is unavailable right now.');

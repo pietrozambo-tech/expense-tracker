@@ -611,8 +611,10 @@ export const en = {
   // model never has to spend one of the day's reads asking it instead.
   'ai.tripSubWindow': 'Most of them between {window}.',
   'ai.tripSubWindowAll': 'All between {window}.',
-  'ai.tripAskNew': 'Are these a trip?',
+  'ai.tripAskNew': 'Is this a trip?',
   'ai.tripYesNew': "Yes, it's a trip",
+  'ai.tripNamePh': 'Trip name…',
+  'ai.tellMore': 'Tell me more (optional)…',
   'ai.tripYes': 'Yes, {name}',
   'ai.tripOther': 'Another trip',
   'ai.tripNo': 'No',
