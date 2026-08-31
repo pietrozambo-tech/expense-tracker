@@ -294,16 +294,30 @@ html[data-nav="back"]::view-transition-new(root) {
  * nothing is generated - so light mode never routes through this block. */
 html[data-theme="dark"] {
   & .bg-white { background-color: var(--bg-card); }
-  & .bg-neutral-50, & .hover\:bg-neutral-50:hover, & .active\:bg-neutral-50:active { background-color: #2C2C34; }
+  & .bg-neutral-50, & .active\:bg-neutral-50:active { background-color: #2C2C34; }
   /* focus and focus-within belong here too: a field that lifts to
    * neutral-100 while you type is the description box and the search box, and
    * without these two the fill they lift TO stayed the light-mode grey - a
    * white slab appearing under the cursor on a dark screen. */
-  & .bg-neutral-100, & .hover\:bg-neutral-100:hover, & .active\:bg-neutral-100:active,
+  & .bg-neutral-100, & .active\:bg-neutral-100:active,
   & .focus\:bg-neutral-100:focus, & .focus-within\:bg-neutral-100:focus-within { background-color: #313139; }
-  & .bg-neutral-200, & .hover\:bg-neutral-200:hover, & .active\:bg-neutral-200:active { background-color: #3E3E47; }
+  & .bg-neutral-200, & .active\:bg-neutral-200:active { background-color: #3E3E47; }
   & .bg-neutral-200\/60 { background-color: rgba(62, 62, 71, 0.6); }
-  & .bg-neutral-50\/50, & .hover\:bg-neutral-50\/50:hover { background-color: rgba(44, 44, 52, 0.5); }
+  & .bg-neutral-50\/50 { background-color: rgba(44, 44, 52, 0.5); }
+  /* The hover restatements live behind the same guard Tailwind v4 puts its
+   * own hover: utilities behind, and the guard is the bug fix. Unguarded,
+   * these four selectors made dark mode the ONLY theme that painted hover on
+   * a touch screen: iOS applies :hover to whatever a scroll first touched and
+   * leaves it there until the next tap, so swiping down the Settings list lit
+   * the row under the finger and kept it lit - reported from a phone, dark
+   * only, because light mode's hover never escapes Tailwind's guard. Press
+   * feedback is untouched: that is :active, above, on both kinds of screen. */
+  @media (hover: hover) {
+    & .hover\:bg-neutral-50:hover { background-color: #2C2C34; }
+    & .hover\:bg-neutral-100:hover { background-color: #313139; }
+    & .hover\:bg-neutral-200:hover { background-color: #3E3E47; }
+    & .hover\:bg-neutral-50\/50:hover { background-color: rgba(44, 44, 52, 0.5); }
+  }
   & .bg-gray-100 { background-color: #313139; }
   & .divide-neutral-50 > :not([hidden]) ~ :not([hidden]) { border-color: #2C2C34; }
   & .border-neutral-100 { border-color: #34343C; }
