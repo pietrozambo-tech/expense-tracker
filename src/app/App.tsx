@@ -3840,6 +3840,10 @@ export default function App() {
                 onSetNudgePref={(patch) => setNudgePrefs((p) => ({ ...p, ...patch }))}
                 hasDemoData={hasDemoData}
                 onImportData={handleImportData}
+                // The AI door: an account to bill the daily cap against, and
+                // a cloud row for the function to read categories from.
+                aiImportReady={!!userId}
+                trips={trips}
                 onExportData={handleExportData}
                 onExportCsv={handleExportCsv}
                 sources={pickableSources}

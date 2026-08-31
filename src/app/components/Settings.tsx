@@ -24,6 +24,9 @@ import { Categories } from './Categories';
 import { ScheduledManager, type ScheduleDraft } from './ScheduledManager';
 import { upcomingSchedules } from '../lib/recurrence';
 import { buildImportPrompt } from '../lib/importPrompt';
+import { AiImport } from './AiImport';
+import { AiImportError, readFiles, type AiFile } from '../lib/aiImport';
+import type { Trip } from '../lib/trips';
 import type { RecurringRule } from '../types';
 import { SourcesManager } from './SourcesManager';
 import { TracklyLogo } from './TracklyLogo';
@@ -185,6 +188,13 @@ export interface DevDiag {
 }
 
 interface SettingsProps {
+  /** Signed in with a cloud to call: the AI import's door only exists then.
+   *  Guests keep the manual path whole - no account, no row for the function
+   *  to read categories from, no way to know who is spending. */
+  aiImportReady?: boolean;
+  /** The trips the app already knows, for the "you have Azores in those
+   *  days" assertion before a conversion starts. */
+  trips?: Trip[];
   /** Absent in any build that does not want the developer screen at all. */
   devDiag?: DevDiag;
   categories: any[];
@@ -337,6 +347,8 @@ export function Settings({
   onClearTransactions,
   hasDemoData,
   onImportData,
+  aiImportReady,
+  trips,
   onExportData,
   onExportCsv,
   sources,
@@ -374,6 +386,31 @@ export function Settings({
   const [showAbout, setShowAbout] = useState(false);
   const [legalDoc, setLegalDoc] = useState<LegalDoc | null>(null);
   const [showImport, setShowImport] = useState(false);
+  // The manual path, folded behind one quiet line once the AI door exists.
+  const [manualOpen, setManualOpen] = useState(false);
+  // Files picked for the AI import; set = the flow overlay is up.
+  const [aiFiles, setAiFiles] = useState<AiFile[] | null>(null);
+  const aiInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Read and gate the picked files; a refusal is a sentence, never a spinner
+  // that goes nowhere. The server enforces its own copy of every bound.
+  const handleAiFiles = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const list = Array.from(e.target.files ?? []);
+    e.target.value = '';
+    if (!list.length) return;
+    try {
+      setAiFiles(await readFiles(list));
+    } catch (err) {
+      const code = err instanceof AiImportError ? err.code : 'failed';
+      const key =
+        code === 'spreadsheet' ? 'ai.errSpreadsheet'
+        : code === 'file_type' ? 'ai.errFileType'
+        : code === 'too_many' ? 'ai.errTooMany'
+        : code === 'too_big' ? 'ai.errTooBig'
+        : 'ai.errSub';
+      toast.error(t(key as Parameters<typeof t>[0]));
+    }
+  };
   const [categoryType, setCategoryType] = useState<'expense' | 'income'>('expense');
   const [showCurrencySelector, setShowCurrencySelector] = useState(false);
   const [showLanguage, setShowLanguage] = useState(false);
@@ -2723,6 +2760,52 @@ export function Settings({
         </div>
 
         <div className="flex-1 overflow-y-auto px-6" style={{ paddingBottom: DOCK_CLEARANCE }}>
+          {/* ONE DOOR. Whoever opens this screen wants to add expenses, not
+              pick a conversion method - so when the AI path exists there is a
+              single action, and the manual road survives as a quiet line
+              underneath. Guests never see the door: no account means no row
+              for the function to read and nobody to count the spend against,
+              so for them the screen below is whole, exactly as it was. */}
+          {aiImportReady && (
+            <>
+              <div className="pt-2 pb-4">
+                <h2 style={{ color: 'var(--ink)', fontSize: 22, fontWeight: 700, letterSpacing: '-0.02em' }}>{t('ai.doorTitle')}</h2>
+                <p style={{ color: 'var(--ink-3)', fontSize: 15, lineHeight: 1.5, marginTop: 8 }}>{t('ai.doorSub')}</p>
+              </div>
+              <div data-ai-door className="bg-white rounded-2xl shadow-sm p-5">
+                <div className="w-11 h-11 rounded-xl flex items-center justify-center mb-3" style={{ backgroundColor: 'var(--wash-accent3)' }}>
+                  <FileSpreadsheet className="w-5 h-5" style={{ color: '#0A84FF' }} strokeWidth={2} />
+                </div>
+                <div style={{ color: 'var(--ink)', fontSize: 15, fontWeight: 700 }}>{t('ai.browse')}</div>
+                <p style={{ color: 'var(--ink-3)', fontSize: 12.5, lineHeight: 1.45, marginTop: 4 }}>{t('ai.pickHint')}</p>
+                <input
+                  ref={aiInputRef}
+                  type="file"
+                  multiple
+                  accept=".csv,.txt,.tsv,application/pdf,image/*,text/csv,text/plain"
+                  onChange={handleAiFiles}
+                  style={{ display: 'none' }}
+                />
+                <button
+                  data-ai-browse
+                  onClick={() => aiInputRef.current?.click()}
+                  className="w-full mt-4 py-3.5 rounded-2xl font-semibold text-[15px] active:scale-[0.98] transition-transform"
+                  style={{ backgroundColor: '#4F74F3', color: '#FFFFFF' }}
+                >
+                  {t('ai.browse')}
+                </button>
+              </div>
+              <button
+                data-ai-manual-line
+                onClick={() => setManualOpen((v) => !v)}
+                className="w-full py-3 mt-2 text-center"
+                style={{ color: 'var(--ink-3)', fontSize: 13, fontWeight: 500 }}
+              >
+                {t('ai.manualLine')}
+              </button>
+            </>
+          )}
+          {(!aiImportReady || manualOpen) && (<>
           {/* Intro */}
           <div className="pt-2 pb-4">
             <h2 style={{ color: 'var(--ink)', fontSize: 22, fontWeight: 700, letterSpacing: '-0.02em' }}>
@@ -2855,7 +2938,20 @@ export function Settings({
               ? 'Le transazioni importate si aggiungono ai tuoi dati attuali. Se scegli un file di backup TracklyLab (da Esporta), viene invece ripristinato.'
               : 'Imported transactions are added to your current data. Choosing a TracklyLab backup file (from Export) restores it instead.'}
           </p>
+          </>)}
         </div>
+        {aiFiles && (
+          <AiImport
+            files={aiFiles}
+            trips={trips ?? []}
+            categories={categories}
+            incomeCategories={incomeCategories}
+            userCurrency={userCurrency}
+            transactions={transactions}
+            onCommit={(payload) => onImportData?.(payload)}
+            onClose={() => setAiFiles(null)}
+          />
+        )}
       </div>
     );
   }

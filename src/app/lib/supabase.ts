@@ -12,6 +12,14 @@ const SUPABASE_ANON_KEY =
 
 export const supabaseConfigured = Boolean(SUPABASE_URL && SUPABASE_ANON_KEY);
 
+// For the one caller that cannot go through supabase.functions.invoke: the
+// AI import reads its answer as a server-sent event stream, and invoke()
+// buffers the whole response - which would turn the reading screen back into
+// the spinner it exists to replace. lib/aiImport.ts fetches the function URL
+// itself and needs these two to build the request the gateway accepts.
+export const SUPABASE_FUNCTIONS_URL = `${SUPABASE_URL}/functions/v1`;
+export const SUPABASE_ANON = SUPABASE_ANON_KEY;
+
 // A single shared client. persistSession keeps the user logged in across
 // reloads; detectSessionInUrl lets the magic-link redirect complete the login.
 export const supabase: SupabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
