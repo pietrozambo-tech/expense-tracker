@@ -600,6 +600,34 @@ export default function App() {
   useEffect(() => {
     saveNudges(nudgePrefs);
   }, [nudgePrefs]);
+  // Converge with the OTHER copies of this app. The installed PWA and a
+  // Safari tab (or a page iOS suspended and later resumed) each hold the
+  // prefs they woke up with - so the August recap, dismissed in one context,
+  // greeted the user again in every other. Reported verbatim on Sep 1.
+  //
+  // The stored copy is always at least as new as this context's state (the
+  // effect above saves synchronously on every change), so re-reading it on
+  // wake can only LEARN a dismissal, never lose one. The storage event covers
+  // two live tabs; visibilitychange covers a resumed page, where storage
+  // events fired while it slept were never delivered.
+  useEffect(() => {
+    const refresh = () => setNudgePrefs((p) => {
+      const stored = loadNudges();
+      return JSON.stringify(stored) === JSON.stringify(p) ? p : stored;
+    });
+    const onStorage = (e: StorageEvent) => {
+      if (!e.key || e.key.endsWith('.nudges')) refresh();
+    };
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') refresh();
+    };
+    window.addEventListener('storage', onStorage);
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      window.removeEventListener('storage', onStorage);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, []);
   // One observation per launch. Idempotent within a day, so a phone left open
   // over midnight simply records the new date the next time it wakes.
   useEffect(() => {
