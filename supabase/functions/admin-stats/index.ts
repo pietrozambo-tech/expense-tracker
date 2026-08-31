@@ -251,6 +251,45 @@ export function aggregate(args: {
     },
   };
 }
+/** One UTC day of AI-import spend, summed across every account. */
+export interface AiSpendDay {
+  day: string;
+  conversions: number;
+  tokensIn: number;
+  tokensOut: number;
+  /** How many distinct accounts imported that day. */
+  users: number;
+}
+
+/**
+ * The AI import's burn, by day, newest first.
+ *
+ * ai_import_usage keeps one row per (user, day) - the cap needs nothing more -
+ * so the owner's question ("what is this costing me today?") is a sum across
+ * users. Cost itself is NOT computed here: prices are a fact about Anthropic's
+ * list and the model in CONVERT_MODEL, both of which change without this
+ * function redeploying, so the screen multiplies tokens by prices at display
+ * time and this stays a token count that cannot go stale.
+ *
+ * Everyone is counted, the owner included. excludeIds exists so a developer's
+ * forty daily opens do not read as an audience; the bill has no such nuance -
+ * the owner's own test imports cost exactly what everyone else's do.
+ */
+export function aggregateAiSpend(
+  rows: { day: string; conversions: number; tokens_in: number; tokens_out: number }[],
+): AiSpendDay[] {
+  const byDay = new Map<string, AiSpendDay>();
+  for (const r of rows) {
+    const cur = byDay.get(r.day) ?? { day: r.day, conversions: 0, tokensIn: 0, tokensOut: 0, users: 0 };
+    cur.conversions += r.conversions ?? 0;
+    // bigint columns arrive as strings through PostgREST; Number() both ways.
+    cur.tokensIn += Number(r.tokens_in ?? 0);
+    cur.tokensOut += Number(r.tokens_out ?? 0);
+    cur.users += 1;
+    byDay.set(r.day, cur);
+  }
+  return [...byDay.values()].sort((a, b) => b.day.localeCompare(a.day));
+}
 // #endregion aggregate ---------------------------------------------------
 
 // Bounds. A hobby project's user list is small, but the shape of this endpoint
@@ -444,6 +483,18 @@ async function handle(req: Request): Promise<Response> {
     allOpens.push({ userId: r.user_id, day: r.day });
   }
 
+  // The AI import's daily burn against the owner's Anthropic key. A missing
+  // table is not an error - the feature may simply not be set up yet - so a
+  // failed read leaves the list empty and the screen hides the section.
+  let aiSpend: AiSpendDay[] = [];
+  const { data: aiRows } = await admin
+    .from('ai_import_usage')
+    .select('day, conversions, tokens_in, tokens_out')
+    .gte('day', since);
+  if (Array.isArray(aiRows)) {
+    aiSpend = aggregateAiSpend(aiRows as { day: string; conversions: number; tokens_in: number; tokens_out: number }[]);
+  }
+
   const { days, totals, accounts } = aggregate({
     accounts: users.map((u) => ({ id: u.id, email: u.email ?? null, createdAt: u.created_at ?? null })),
     opens: allOpens,
@@ -463,5 +514,11 @@ async function handle(req: Request): Promise<Response> {
     totals,
     days,
     accounts,
+    aiSpend,
+    // Which model convert-import is spending on RIGHT NOW, read from the same
+    // secret it reads. The screen turns tokens into money with a per-model
+    // price list, and taking the model from here means changing the secret
+    // can never leave the counter pricing yesterday's model.
+    aiModel: Deno.env.get('CONVERT_MODEL') ?? 'claude-haiku-4-5',
   });
 }

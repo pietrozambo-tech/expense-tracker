@@ -22,7 +22,7 @@ if (!esbuild) {
 }
 
 const SCENARIOS = `
-import { aggregate, windowDays } from './aggregate';
+import { aggregate, aggregateAiSpend, windowDays } from './aggregate';
 
 let failed = 0;
 const eq = (name, got, want) => {
@@ -124,6 +124,25 @@ const run = (opens, over = {}) => aggregate({
   ]);
   eq('an open by an account that no longer exists is ignored', r.days[0].active, 0);
   eq('and an out-of-window day never lands anywhere', r.days.every((x) => x.active === 0), true);
+}
+
+// ── the AI import's burn, by day ──────────────────────────────────────────
+{
+  const r = aggregateAiSpend([
+    { day: '2026-08-19', conversions: 2, tokens_in: 10000, tokens_out: 4000 },
+    { day: '2026-08-19', conversions: 1, tokens_in: 5000, tokens_out: 1000 },
+    { day: '2026-08-18', conversions: 1, tokens_in: 700, tokens_out: 300 },
+  ]);
+  eq('two accounts on one day sum into one line',
+    r[0], { day: '2026-08-19', conversions: 3, tokensIn: 15000, tokensOut: 5000, users: 2 });
+  eq('newest day first', r.map((x) => x.day), ['2026-08-19', '2026-08-18']);
+  eq('one account alone still counts itself', r[1].users, 1);
+  // PostgREST hands bigint columns over as strings; the sum must not become
+  // "07000" concatenation.
+  const s2 = aggregateAiSpend([{ day: '2026-08-19', conversions: 1, tokens_in: '7000', tokens_out: '2000' }]);
+  eq('bigints arriving as strings are numbers by the time they are summed',
+    [s2[0].tokensIn, s2[0].tokensOut], [7000, 2000]);
+  eq('no usage is an empty list, not a crash', aggregateAiSpend([]), []);
 }
 
 console.log(failed ? \`\\n\${failed} FAILED\` : '\\nAll checks passed.');

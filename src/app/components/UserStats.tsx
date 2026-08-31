@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import type { AdminStats, AdminDay, AdminAccount } from '../lib/adminStats';
+import { aiCostUsd } from '../lib/adminStats';
+import type { AdminStats, AdminDay, AdminAccount, AiSpendDay } from '../lib/adminStats';
 
 // The developer screen's user dashboard: a KPI row, thirty days of stacked
 // bars, and the addresses behind them.
@@ -155,6 +156,11 @@ export function UserStats({ stats, dark }: { stats: AdminStats; dark: boolean })
         </div>
       )}
 
+      {/* What the AI import is costing. Absent entirely until the feature has
+          spent its first token - a permanent zero would just be furniture.
+          English like the rest of this screen: it is the owner's console. */}
+      {stats.aiSpend.length > 0 && <AiSpendCard spend={stats.aiSpend} model={stats.aiModel} />}
+
       {/* The table view: every chart here has one, and on a phone it is often
           the part actually read. */}
       <div className="mt-3 pt-3" style={{ borderTop: '1px solid var(--line-2)' }}>
@@ -172,6 +178,59 @@ export function UserStats({ stats, dark }: { stats: AdminStats; dark: boolean })
             </div>
           ))
         )}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * The AI import's bill, said in money.
+ *
+ * The server counts tokens (ai_import_usage, one row per user per UTC day);
+ * this multiplies them by the priced model's list rates at display time - see
+ * aiCostUsd for why the money is never computed server-side. "~" on every
+ * figure because tokens-times-list-price is an estimate, not an invoice: the
+ * real number is on the Anthropic console, and this exists so a surprise
+ * there could never have been a surprise.
+ */
+function AiSpendCard({ spend, model }: { spend: AiSpendDay[]; model: string }) {
+  const todayKey = new Date().toISOString().slice(0, 10);
+  const today = spend.find((d) => d.day === todayKey) ?? null;
+  const total = spend.reduce(
+    (acc, d) => ({
+      conversions: acc.conversions + d.conversions,
+      in: acc.in + d.tokensIn,
+      out: acc.out + d.tokensOut,
+    }),
+    { conversions: 0, in: 0, out: 0 },
+  );
+  const usd = (tin: number, tout: number) => {
+    const v = aiCostUsd(model, tin, tout);
+    if (v === null) return null; // unpriced model: tokens speak for themselves
+    return v > 0 && v < 0.01 ? '<$0.01' : `~$${v.toFixed(2)}`;
+  };
+  const tok = (n: number) => (n >= 10000 ? `${Math.round(n / 1000)}K` : String(n));
+  const line = (label: string, row: { conversions: number; in: number; out: number }) => (
+    <div className="flex items-baseline gap-2" style={{ fontSize: 11.5, ...ink('--ink-2') }}>
+      <span style={{ width: 84, flexShrink: 0 }}>{label}</span>
+      <span data-ai-conversions={row.conversions}>
+        {row.conversions} conversion{row.conversions === 1 ? '' : 's'} · {tok(row.in)} in / {tok(row.out)} out
+      </span>
+      <span className="ml-auto" style={{ fontWeight: 600, ...ink('--ink') }}>
+        {usd(row.in, row.out) ?? '—'}
+      </span>
+    </div>
+  );
+
+  return (
+    <div data-ai-spend className="mt-3 rounded-xl px-3 py-2.5" style={{ backgroundColor: 'var(--bg-inset)' }}>
+      <div className="flex items-center gap-1.5 mb-1.5">
+        <span style={{ fontSize: 11, fontWeight: 600, ...ink('--ink-2') }}>AI imports</span>
+        <span className="ml-auto" style={{ fontSize: 10.5, ...ink('--ink-3') }}>{model}</span>
+      </div>
+      <div className="flex flex-col gap-1">
+        {line('Today', today ? { conversions: today.conversions, in: today.tokensIn, out: today.tokensOut } : { conversions: 0, in: 0, out: 0 })}
+        {line(`${spend.length} day${spend.length === 1 ? '' : 's'} total`, total)}
       </div>
     </div>
   );

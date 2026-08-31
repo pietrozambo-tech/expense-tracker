@@ -41,6 +41,40 @@ export interface AdminAccount {
   days: string[];
 }
 
+/** One UTC day of AI-import spend, summed across every account. */
+export interface AiSpendDay {
+  day: string;
+  conversions: number;
+  tokensIn: number;
+  tokensOut: number;
+  users: number;
+}
+
+/**
+ * USD per million tokens, by model - Anthropic's list prices.
+ *
+ * The tokens come counted from the server (ai_import_usage, via admin-stats);
+ * the MONEY is worked out here at display time, so a price change is one edit
+ * to this table and never a redeploy of anything. Which model to price is
+ * also the server's answer (aiModel - the CONVERT_MODEL secret as the
+ * function reads it), so switching the secret can never leave this screen
+ * pricing yesterday's model. An unknown model shows tokens without money
+ * rather than money computed from a guess.
+ */
+const MODEL_PRICES: Record<string, { inPerM: number; outPerM: number }> = {
+  'claude-haiku-4-5': { inPerM: 1, outPerM: 5 },
+  'claude-sonnet-5': { inPerM: 3, outPerM: 15 },
+  'claude-sonnet-4-6': { inPerM: 3, outPerM: 15 },
+  'claude-opus-5': { inPerM: 5, outPerM: 25 },
+};
+
+/** Estimated USD for one day's tokens, or null when the model is not priced. */
+export function aiCostUsd(model: string, tokensIn: number, tokensOut: number): number | null {
+  const p = MODEL_PRICES[model];
+  if (!p) return null;
+  return (tokensIn / 1e6) * p.inPerM + (tokensOut / 1e6) * p.outPerM;
+}
+
 export interface AdminStats {
   generatedAt: string;
   /** Whether the owner's own account is counted in these numbers. */
@@ -60,6 +94,10 @@ export interface AdminStats {
   };
   days: AdminDay[];
   accounts: AdminAccount[];
+  /** AI-import burn by day, newest first. Empty until the feature is set up. */
+  aiSpend: AiSpendDay[];
+  /** The model convert-import is spending on right now, per the server. */
+  aiModel: string;
 }
 
 export async function fetchAdminStats(includeSelf = false): Promise<{ stats: AdminStats | null; error: string | null }> {
@@ -144,6 +182,15 @@ function normalise(data: unknown): { stats: AdminStats | null; error: string | n
         active: num(d?.active), new: num(d?.new), returning: num(d?.returning),
         emails: list(d?.emails), newEmails: list(d?.newEmails),
       })),
+      // Absent from an older deployed function: an empty list, never a crash.
+      aiSpend: Array.isArray(raw.aiSpend)
+        ? raw.aiSpend.map((r: Record<string, unknown>) => ({
+            day: typeof r?.day === 'string' ? r.day : '',
+            conversions: num(r?.conversions), tokensIn: num(r?.tokensIn),
+            tokensOut: num(r?.tokensOut), users: num(r?.users),
+          }))
+        : [],
+      aiModel: typeof raw.aiModel === 'string' ? raw.aiModel : 'claude-haiku-4-5',
     },
     error: null,
   };
