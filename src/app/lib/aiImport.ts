@@ -157,8 +157,20 @@ const DATE_RES = [
   /\b(\d{1,2})\/(\d{1,2})\/(\d{2})\b/g, // dd/mm/yy
 ];
 
-/** The window of dates a text file talks about, or null when it has none. */
-export function scanFileDates(text: string): { from: string; to: string; count: number } | null {
+/**
+ * The window of dates a text file talks about, or null when it has none.
+ *
+ * from/to are the DOMINANT CLUSTER, not min..max. A trip file carries its
+ * bookings - flights bought in March, hotels in June, for rows lived in
+ * August - and a min..max window spanning half a year matched no trip and
+ * silenced the one screen this scan exists to draw. The cluster is the
+ * tightest run holding 70% of the dates, grown to swallow any neighbour
+ * within a week of its edge; allIn says whether it holds every date, which
+ * is the difference between saying "all" and "most" out loud.
+ */
+export function scanFileDates(
+  text: string,
+): { from: string; to: string; count: number; allIn: boolean } | null {
   const found: string[] = [];
   for (const re of DATE_RES) {
     for (const m of text.matchAll(re)) {
@@ -182,7 +194,28 @@ export function scanFileDates(text: string): { from: string; to: string; count: 
   }
   if (found.length < 3) return null; // fewer is a header, not a ledger
   found.sort();
-  return { from: found[0], to: found[found.length - 1], count: found.length };
+  const day = (s: string) => Date.parse(s) / 86_400_000;
+  // The tightest run of 70% of the dates, by sliding a fixed-size window.
+  const need = Math.ceil(found.length * 0.7);
+  let bi = 0;
+  let bspan = Infinity;
+  for (let i = 0; i + need - 1 < found.length; i += 1) {
+    const span = day(found[i + need - 1]) - day(found[i]);
+    if (span < bspan) { bspan = span; bi = i; }
+  }
+  // Grown outward: the 71st percentile is not an outlier.
+  let lo = bi;
+  let hi = bi + need - 1;
+  while (lo > 0 && day(found[lo]) - day(found[lo - 1]) <= 7) lo -= 1;
+  while (hi < found.length - 1 && day(found[hi + 1]) - day(found[hi]) <= 7) hi += 1;
+  // Only a cluster that is actually tight earns the right to shed dates: a
+  // year of groceries has no "trip window", and pretending it did would say
+  // "most of them between Jan and Nov" - true and useless.
+  const TIGHT_DAYS = 45;
+  if (day(found[hi]) - day(found[lo]) <= TIGHT_DAYS && hi - lo + 1 < found.length) {
+    return { from: found[lo], to: found[hi], count: found.length, allIn: false };
+  }
+  return { from: found[0], to: found[found.length - 1], count: found.length, allIn: true };
 }
 
 /**

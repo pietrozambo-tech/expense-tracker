@@ -65,16 +65,23 @@ export function AiImport({
   files, trips, categories, incomeCategories, userCurrency, transactions, onCommit, onClose,
 }: AiImportProps) {
   // The local evidence, gathered once: dates out of whatever text arrived.
+  // askTrip: the file is trip-shaped (a tight run of dates) but no known trip
+  // fits - so the question is asked HERE, once, instead of costing one of the
+  // day's reads for the model to ask it in its own round.
   const evidence = useMemo(() => {
     for (const f of files) {
       if (!f.text) continue;
       const scan = scanFileDates(f.text);
-      if (scan) return { ...scan, trip: tripForWindow(trips, scan.from, scan.to) };
+      if (scan) {
+        const trip = tripForWindow(trips, scan.from, scan.to);
+        const spanDays = (Date.parse(scan.to) - Date.parse(scan.from)) / 86_400_000;
+        return { ...scan, trip, askTrip: !trip && spanDays <= 45 };
+      }
     }
     return null;
   }, [files, trips]);
 
-  const [step, setStep] = useState<Step>(evidence?.trip ? 'trip' : 'reading');
+  const [step, setStep] = useState<Step>(evidence?.trip || evidence?.askTrip ? 'trip' : 'reading');
   const [tripAnswer, setTripAnswer] = useState<{ is_trip: boolean; name?: string } | null>(null);
   // 'trip' pre-answer state: which chip is lit.
   const [chip, setChip] = useState<'yes' | 'other' | 'no'>(evidence?.trip ? 'yes' : 'no');
@@ -167,7 +174,7 @@ export function AiImport({
   useEffect(() => {
     if (startedRef.current) return;
     startedRef.current = true;
-    if (!evidence?.trip) start(null);
+    if (!evidence?.trip && !evidence?.askTrip) start(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -253,38 +260,63 @@ export function AiImport({
 
   return (
     <div data-ai-flow data-ai-step={step} className="fixed inset-0 z-[70] flex flex-col max-w-[430px] mx-auto" style={{ backgroundColor: 'var(--bg-page)' }}>
-      {step === 'trip' && evidence?.trip && (
-        <>
-          {header(
-            t('ai.tripTitle', { n: String(evidence.count) }),
-            t('ai.tripSub', { window: windowLabel(evidence.from, evidence.to), name: evidence.trip.name }),
-          )}
-          <div className="flex-1 px-6 pt-2">
-            <p className="mb-3" style={{ color: 'var(--ink)', fontSize: 15, fontWeight: 600 }}>{t('ai.tripAsk')}</p>
-            <div className="flex flex-wrap gap-2">
-              {chipBtn(chip === 'yes', t('ai.tripYes', { name: evidence.trip.name }), () => setChip('yes'), 'yes')}
-              {chipBtn(chip === 'other', t('ai.tripOther'), () => setChip('other'), 'other')}
-              {chipBtn(chip === 'no', t('ai.tripNo'), () => setChip('no'), 'no')}
-            </div>
-            {chip === 'other' && (
-              <div className="mt-3 flex flex-wrap gap-2">
-                {trips.filter((tr) => tr.name !== evidence.trip!.name).slice(0, 4).map((tr) =>
-                  chipBtn(otherName === tr.name, tr.name, () => setOtherName(tr.name)),
-                )}
-                <input
-                  data-ai-trip-name
-                  value={otherName}
-                  onChange={(e) => setOtherName(e.target.value)}
-                  placeholder={t('ai.tripNew')}
-                  className="px-3.5 py-2 rounded-full bg-transparent outline-none"
-                  style={{ border: '1.5px solid var(--line)', color: 'var(--ink)', fontSize: 16, minWidth: 140 }}
-                />
-              </div>
+      {step === 'trip' && evidence && (() => {
+        // One screen, two postures. With a known trip in the window the app
+        // ASSERTS and lets you correct; without one - but with a file whose
+        // dates are plainly one tight run - it asks the yes/no HERE, because
+        // the alternative is the model asking it in a round of its own, at
+        // the price of a whole read from the daily allowance.
+        const nameRow = (exclude?: string) => (
+          <div className="mt-3 flex flex-wrap gap-2">
+            {trips.filter((tr) => tr.name !== exclude).slice(0, 4).map((tr) =>
+              chipBtn(otherName === tr.name, tr.name, () => setOtherName(tr.name)),
             )}
+            <input
+              data-ai-trip-name
+              value={otherName}
+              onChange={(e) => setOtherName(e.target.value)}
+              placeholder={t('ai.tripNew')}
+              className="px-3.5 py-2 rounded-full bg-transparent outline-none"
+              style={{ border: '1.5px solid var(--line)', color: 'var(--ink)', fontSize: 16, minWidth: 140 }}
+            />
           </div>
-          {cta(t('ai.go'), goFromTrip, chip === 'other' && !otherName.trim())}
-        </>
-      )}
+        );
+        const win = windowLabel(evidence.from, evidence.to);
+        return evidence.trip ? (
+          <>
+            {header(
+              t('ai.tripTitle', { n: String(evidence.count) }),
+              t(evidence.allIn ? 'ai.tripSub' : 'ai.tripSubMost', { window: win, name: evidence.trip.name }),
+            )}
+            <div className="flex-1 px-6 pt-2">
+              <p className="mb-3" style={{ color: 'var(--ink)', fontSize: 15, fontWeight: 600 }}>{t('ai.tripAsk')}</p>
+              <div className="flex flex-wrap gap-2">
+                {chipBtn(chip === 'yes', t('ai.tripYes', { name: evidence.trip.name }), () => setChip('yes'), 'yes')}
+                {chipBtn(chip === 'other', t('ai.tripOther'), () => setChip('other'), 'other')}
+                {chipBtn(chip === 'no', t('ai.tripNo'), () => setChip('no'), 'no')}
+              </div>
+              {chip === 'other' && nameRow(evidence.trip.name)}
+            </div>
+            {cta(t('ai.go'), goFromTrip, chip === 'other' && !otherName.trim())}
+          </>
+        ) : (
+          <>
+            {header(
+              t('ai.tripTitle', { n: String(evidence.count) }),
+              t(evidence.allIn ? 'ai.tripSubWindowAll' : 'ai.tripSubWindow', { window: win }),
+            )}
+            <div className="flex-1 px-6 pt-2">
+              <p className="mb-3" style={{ color: 'var(--ink)', fontSize: 15, fontWeight: 600 }}>{t('ai.tripAskNew')}</p>
+              <div className="flex flex-wrap gap-2">
+                {chipBtn(chip === 'no', t('ai.tripNo'), () => setChip('no'), 'no')}
+                {chipBtn(chip === 'other', t('ai.tripYesNew'), () => setChip('other'), 'other')}
+              </div>
+              {chip === 'other' && nameRow()}
+            </div>
+            {cta(t('ai.go'), goFromTrip, chip === 'other' && !otherName.trim())}
+          </>
+        );
+      })()}
 
       {step === 'reading' && (
         <>
@@ -471,7 +503,14 @@ export function AiImport({
             }
           : error.code === 'too_big' ? { icon: AlertCircle, title: t('ai.errTitle'), sub: t('ai.errBig'), retry: false }
           : error.code === 'not_configured' ? { icon: AlertCircle, title: t('ai.errTitle'), sub: t('ai.errOff'), retry: false }
-          : { icon: AlertCircle, title: t('ai.errTitle'), sub: t('ai.errSub'), retry: true };
+          : error.code === 'busy' ? { icon: Hourglass, title: t('ai.errBusyTitle'), sub: t('ai.errBusySub'), retry: true }
+          : {
+              icon: AlertCircle, title: t('ai.errTitle'), sub: t('ai.errSub'), retry: true,
+              // The server's own words, small and grey: "non sono riuscito a
+              // leggerlo" with no reason attached was reported from a device
+              // as exactly the kind of wall this flow promised not to build.
+              detail: error.message && error.message !== error.code ? error.message.slice(0, 200) : undefined,
+            };
         const Icon = fam.icon;
         return (
           <>
@@ -486,6 +525,11 @@ export function AiImport({
               </span>
               <h2 style={{ color: 'var(--ink)', fontSize: 22, fontWeight: 700, letterSpacing: '-0.02em' }}>{fam.title}</h2>
               <p className="mt-2" style={{ color: 'var(--ink-2)', fontSize: 14, lineHeight: 1.5 }}>{fam.sub}</p>
+              {'detail' in fam && fam.detail && (
+                <p data-ai-detail className="mt-3" style={{ color: 'var(--ink-3)', fontSize: 11.5, lineHeight: 1.45, wordBreak: 'break-word' }}>
+                  {fam.detail}
+                </p>
+              )}
             </div>
             {fam.retry
               ? cta(t('ai.retry'), () => start(tripAnswer), false, 'retry')

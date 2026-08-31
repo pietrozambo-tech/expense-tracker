@@ -372,6 +372,95 @@ const pickCsv = (p) => p.locator('[data-ai-door] input[type="file"]').setInputFi
   await ctx.close();
 }
 
+// ── the bookings do not hide the trip ─────────────────────────────────────
+//
+// From the user's real file: the flights and hotels of an August trip are
+// BOOKED in March and June, and a min..max date window spanning half a year
+// matched no trip - so the assertion screen never appeared and the model
+// spent a whole read asking what the app already knew. The scan now takes
+// the dominant cluster, and says "most of them" instead of "all".
+{
+  const { ctx, p } = await open({
+    session: true,
+    convert: () => ({ res: { status: 200, contentType: 'text/event-stream', body: sse([...ROWS, ['done', OK_DONE]]) } }),
+  });
+  const csv = ['date,description,amount',
+    ...['2026-08-21', '2026-08-22', '2026-08-22', '2026-08-23', '2026-08-23', '2026-08-24', '2026-08-24', '2026-08-24']
+      .map((d, i) => `${d},Row ${i},10`),
+    '2026-03-13,Voli da Madrid,490',
+    '2026-03-14,Macchina,230',
+    '2026-06-28,Hotel FLW,747',
+  ].join('\n');
+  await p.locator('[data-ai-door] input[type="file"]').setInputFiles({
+    name: 'azores-with-bookings.csv', mimeType: 'text/csv', buffer: Buffer.from(csv),
+  });
+  await p.waitForTimeout(600);
+  ok(await p.locator('[data-ai-flow][data-ai-step="trip"]').count() === 1,
+    'booking rows from months before no longer hide the trip the file is about');
+  const text = await p.locator('[data-ai-flow]').innerText();
+  ok(/Most of them between/.test(text) && text.includes(TRIP),
+    `and the assertion says "most", which is the truth (${text.split('\n')[1] ?? ''})`);
+  await ctx.close();
+}
+
+// ── trip-shaped, but no known trip ────────────────────────────────────────
+//
+// A tight run of dates the ledger has no trip for: the yes/no is asked HERE,
+// once, with the name typed or tapped - because the alternative is the model
+// asking the same thing in a round of its own, which costs a whole read from
+// the daily allowance. The answer rides on the FIRST call.
+{
+  let lastBody = null;
+  const { ctx, p } = await open({
+    session: true,
+    convert: (n, body) => {
+      lastBody = body;
+      return { res: { status: 200, contentType: 'text/event-stream', body: sse([...ROWS, ['done', OK_DONE]]) } };
+    },
+  });
+  const csv = ['date,description,amount',
+    '2026-10-03,Cena,20', '2026-10-05,Hotel,90', '2026-10-07,Museo,12', '2026-10-09,Treno,35',
+  ].join('\n');
+  await p.locator('[data-ai-door] input[type="file"]').setInputFiles({
+    name: 'ottobre.csv', mimeType: 'text/csv', buffer: Buffer.from(csv),
+  });
+  await p.waitForTimeout(600);
+  ok(await p.locator('[data-ai-flow][data-ai-step="trip"]').count() === 1
+    && /Are these a trip\?/.test(await p.locator('[data-ai-flow]').innerText()),
+    'a tight run of unknown dates asks the trip question locally, before any read is spent');
+  await p.locator('[data-ai-chip="other"]').click();
+  await p.locator('[data-ai-trip-name]').fill('Ottobre');
+  await p.locator('[data-ai-cta="go"]').click();
+  await p.waitForSelector('[data-ai-flow][data-ai-step="ready"]', { timeout: 10000 });
+  ok(lastBody?.trip?.is_trip === true && lastBody?.trip?.name === 'Ottobre',
+    `and the answer rides on the FIRST call (${JSON.stringify(lastBody?.trip)})`);
+  await ctx.close();
+}
+
+// ── the crowded reader, and the reason on the generic wall ────────────────
+{
+  const { ctx, p } = await open({
+    session: true,
+    convert: (n) => n === 1
+      ? { res: { status: 503, contentType: 'application/json', body: JSON.stringify({ code: 'busy', error: 'Too many imports at once. Try again in a minute.' }) } }
+      : { res: { status: 502, contentType: 'application/json', body: JSON.stringify({ code: 'unreadable', error: 'Could not read the file: boom' }) } },
+  });
+  await pickCsv(p);
+  await p.waitForTimeout(400);
+  await p.locator('[data-ai-cta="go"]').click();
+  await p.waitForSelector('[data-ai-flow][data-ai-step="error"]', { timeout: 8000 });
+  const busy = await p.locator('[data-ai-flow]').innerText();
+  ok(/It's busy right now/.test(busy), 'a crowded reader is its own calm sentence, not a generic failure');
+  ok(await p.locator('[data-ai-cta="retry"]').count() === 1, 'with a retry, because a minute fixes it');
+  await p.locator('[data-ai-cta="retry"]').click();
+  await p.waitForSelector('[data-ai-detail]', { timeout: 8000 });
+  const err = await p.locator('[data-ai-flow]').innerText();
+  ok(/I couldn't read it/.test(err), 'anything unnamed still lands on the generic screen');
+  ok(/Could not read the file: boom/.test(err),
+    'which now carries the server\'s own words - "non sono riuscito a leggerlo" with no reason was the reported wall');
+  await ctx.close();
+}
+
 // ── the Italian twin, in the dark ─────────────────────────────────────────
 {
   const ctx = await b.newContext({ viewport: { width: 390, height: 900 }, locale: 'it-IT', colorScheme: 'dark' });

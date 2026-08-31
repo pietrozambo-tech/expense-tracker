@@ -603,7 +603,16 @@ export const en = {
   'ai.manualLine': 'Prefer using your own assistant?',
   'ai.tripTitle': '{n} expenses',
   'ai.tripSub': 'All between {window}. You have {name} in those days.',
+  // The same assertion when the file also carries a few earlier rows - the
+  // flights and hotels booked months before the trip they belong to.
+  'ai.tripSubMost': 'Most of them between {window}. You have {name} in those days.',
   'ai.tripAsk': 'Shall I put them there?',
+  // The file is trip-shaped but no known trip fits: asked HERE, once, so the
+  // model never has to spend one of the day's reads asking it instead.
+  'ai.tripSubWindow': 'Most of them between {window}.',
+  'ai.tripSubWindowAll': 'All between {window}.',
+  'ai.tripAskNew': 'Are these a trip?',
+  'ai.tripYesNew': "Yes, it's a trip",
   'ai.tripYes': 'Yes, {name}',
   'ai.tripOther': 'Another trip',
   'ai.tripNo': 'No',
@@ -653,6 +662,10 @@ export const en = {
   'ai.manualBack': 'Back to the automatic import',
   'ai.wrongDoorTitle': 'This button only reads the .json',
   'ai.wrongDoorDesc': 'For CSV, PDF, Excel or photos, use "Choose a file" above - it does the whole job itself.',
+  // A crowded reader (the API rate-limiting or overloaded) is its own
+  // sentence: transient, blameless, worth a retry in a minute.
+  'ai.errBusyTitle': "It's busy right now",
+  'ai.errBusySub': 'Nothing has been touched. Try again in a minute.',
   'ai.errStallTitle': "It's not answering",
   'ai.errStallSub': 'I stopped rather than keep you waiting on nothing. Nothing has been added - try again.',
   'ai.errOfflineTitle': "You're offline",
