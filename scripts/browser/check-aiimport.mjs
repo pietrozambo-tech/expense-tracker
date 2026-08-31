@@ -105,6 +105,7 @@ const open = async ({ session, convert }) => {
     // rather than a frame it always misses.
     await new Promise((r) => setTimeout(r, reply.delay ?? 0));
     if (reply.abort) return route.abort('internetdisconnected');
+    if (reply.hang) return; // held open forever - the watchdog's case
     return route.fulfill(reply.res);
   });
   await ctx.addInitScript(seed, [REF, session ? freshSession() : null]);
@@ -250,19 +251,48 @@ const pickCsv = (p) => p.locator('[data-ai-door] input[type="file"]').setInputFi
   await ctx.close();
 }
 
+// ── the function that never answers ───────────────────────────────────────
+//
+// Reported from a device, verbatim: 'stuck here since +3 minutes, no
+// messages to the user at all'. The route holds the request open forever;
+// the client's watchdog (shortened via its localStorage override, because
+// no test waits ninety seconds) must abort on its own and land on a screen
+// that says what happened and what was not touched.
+{
+  const { ctx, p } = await open({ session: true, convert: () => ({ hang: true }) });
+  await p.evaluate(() => localStorage.setItem('expense-tracker.v1.ai-first-ms', '1500'));
+  await pickCsv(p);
+  await p.waitForTimeout(400);
+  await p.locator('[data-ai-cta="go"]').click();
+  await p.waitForSelector('[data-ai-flow][data-ai-step="error"]', { timeout: 8000 });
+  const err = await p.locator('[data-ai-flow]').innerText();
+  ok(/It's not answering/.test(err), 'a function that goes quiet is interrupted by the app itself');
+  ok(/Nothing has been added/.test(err), 'saying out loud that nothing was touched');
+  ok(await p.locator('[data-ai-cta="retry"]').count() === 1, 'with a retry in reach');
+  await p.screenshot({ path: `${OUT}/aiimport-stalled.png` });
+  await ctx.close();
+}
+
 // ── the door, for the eye ─────────────────────────────────────────────────
 {
   const { ctx, p } = await open({ session: true, convert: () => ({ abort: true }) });
   await p.screenshot({ path: `${OUT}/aiimport-door.png`, fullPage: true });
   const door = await p.locator('body').innerText();
-  ok((await p.locator('[data-ai-door]').innerText()).includes('Tricount, Splitwise'),
-    'the door shows its breadth - both split apps named in the tiles');
-  ok(/Banks & cards/.test(door) && /Trips & split expenses/.test(door),
-    'the WHY cards are back above the button');
+  ok(/Banks & cards/.test(door) && /Trips & split expenses/.test(door) && /Splitwise/.test(door),
+    'the WHY is on the door - banks, trips, Splitwise - before any button asks');
   ok(/matched to your categories/.test(door),
-    'and the door says the matching is fitted to YOUR setup');
+    'and it says the matching is fitted to YOUR setup');
   ok(await p.locator('a[href*="tricount-exporter"]').count() === 1,
     'Tricount - which has no export of its own - links to the tool that makes one');
+  // The user's own complaint, pinned: on a real phone height the whole door
+  // - reasons, button, hint, manual line - fits with NOTHING under the fold.
+  await p.setViewportSize({ width: 390, height: 844 });
+  await p.waitForTimeout(300);
+  const fit = await p.evaluate(() => {
+    const sc = document.querySelector('[data-ai-door]').closest('.overflow-y-auto');
+    return { sh: sc.scrollHeight, ch: sc.clientHeight };
+  });
+  ok(fit.sh <= fit.ch + 2, `the door fits an iPhone screen without scrolling (${fit.sh} vs ${fit.ch})`);
   await ctx.close();
 }
 

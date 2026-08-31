@@ -86,6 +86,9 @@ export function AiImport({
   const [done, setDone] = useState<AiDone | null>(null);
   const [preview, setPreview] = useState<ImportResult | null>(null);
   const [error, setError] = useState<AiImportError | null>(null);
+  // True once the opening has visibly overstayed its welcome: the line under
+  // the pulse changes, so a slow function never reads as a frozen screen.
+  const [openingSlow, setOpeningSlow] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   const startedRef = useRef(false);
 
@@ -96,6 +99,8 @@ export function AiImport({
     setRows([]);
     setRunningTotal(0);
     setError(null);
+    setOpeningSlow(false);
+    const slow = window.setTimeout(() => setOpeningSlow(true), 25_000);
     const ctrl = new AbortController();
     abortRef.current = ctrl;
     convertWithAi({
@@ -103,6 +108,7 @@ export function AiImport({
       answers: priorAnswers,
       signal: ctrl.signal,
       onRow: (r) => {
+        window.clearTimeout(slow);
         const row = r.row as { description?: unknown; category?: unknown; subcategory?: unknown; amount?: unknown; currency?: unknown };
         const amount = typeof row.amount === 'number' ? row.amount : 0;
         setRows((prev) => [...prev.slice(-2), {
@@ -117,6 +123,7 @@ export function AiImport({
       },
     })
       .then((d) => {
+        window.clearTimeout(slow);
         setDone(d);
         if (d.status === 'need_input') {
           setQuestions(d.questions ?? []);
@@ -133,6 +140,7 @@ export function AiImport({
         setStep('ready');
       })
       .catch((e) => {
+        window.clearTimeout(slow);
         if (ctrl.signal.aborted) return; // the user left; nothing to draw
         setError(e instanceof AiImportError ? e : new AiImportError('failed', String(e)));
         setStep('error');
@@ -271,7 +279,7 @@ export function AiImport({
                 // Before the first row there is nothing to count, and a card
                 // reading "0 / 0€" looks broken rather than busy.
                 <div className="animate-pulse py-2" data-ai-opening style={{ color: 'rgba(255,255,255,0.75)', fontSize: 14, fontWeight: 500 }}>
-                  {t('ai.opening')}
+                  {openingSlow ? t('ai.openingLong') : t('ai.opening')}
                 </div>
               ) : (
                 <>
@@ -408,6 +416,7 @@ export function AiImport({
         // allowed.
         const fam =
           error.code === 'offline' ? { icon: WifiOff, title: t('ai.errOfflineTitle'), sub: t('ai.errOfflineSub'), retry: true }
+          : error.code === 'stalled' ? { icon: Hourglass, title: t('ai.errStallTitle'), sub: t('ai.errStallSub'), retry: true }
           : error.code === 'daily_limit' ? { icon: Hourglass, title: t('ai.errLimitTitle'), sub: t('ai.errLimitSub'), retry: false }
           : error.code === 'too_big' ? { icon: AlertCircle, title: t('ai.errTitle'), sub: t('ai.errBig'), retry: false }
           : error.code === 'not_configured' ? { icon: AlertCircle, title: t('ai.errTitle'), sub: t('ai.errOff'), retry: false }

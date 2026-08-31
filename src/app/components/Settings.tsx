@@ -1,6 +1,6 @@
 import type { LucideIcon } from 'lucide-react';
 import type { CategoryOrder } from '../lib/categoryOrder';
-import { Bell, Lightbulb, ChevronRight, ChevronLeft, Wrench, ArrowLeftRight, UserCircle, Wallet, HelpCircle, ShieldCheck, ScrollText, Layers, FlaskConical, Trash2, Landmark, Cloud, LogOut, Upload, Copy, Download, FileSpreadsheet, Palmtree, UserX, Mail, LifeBuoy, CheckCircle2, Globe, CalendarClock, Sparkles, Palette, Sun, Moon, SunMoon, Split, Plus, Eraser, FileText, Camera } from 'lucide-react';
+import { Bell, Lightbulb, ChevronRight, ChevronLeft, Wrench, ArrowLeftRight, UserCircle, Wallet, HelpCircle, ShieldCheck, ScrollText, Layers, FlaskConical, Trash2, Landmark, Cloud, LogOut, Upload, Copy, Download, FileSpreadsheet, Palmtree, UserX, Mail, LifeBuoy, CheckCircle2, Globe, CalendarClock, Sparkles, Palette, Sun, Moon, SunMoon, Split, Plus, Eraser } from 'lucide-react';
 import { getCategoryIcon } from './categoryIcons';
 import { composeSupportMessage, sendSupportMessage, supportLimitReached, type SupportTopic } from '../lib/support';
 import { fetchAdminStats, type AdminStats } from '../lib/adminStats';
@@ -2768,61 +2768,35 @@ export function Settings({
               so for them the screen below is whole, exactly as it was. */}
           {aiImportReady && (
             <>
-              <div className="pt-2 pb-4">
+              {/* Sized to FIT: title, one confident line, one card of three
+                  reasons, the button. The first cut of this page stacked
+                  three cards and a tile row and pushed its own CTA under the
+                  fold - a door you have to scroll to open. */}
+              <div className="pt-2 pb-3">
                 <h2 style={{ color: 'var(--ink)', fontSize: 22, fontWeight: 700, letterSpacing: '-0.02em' }}>{t('ai.doorTitle')}</h2>
-                <p style={{ color: 'var(--ink-3)', fontSize: 15, lineHeight: 1.5, marginTop: 8 }}>{t('ai.doorSub')}</p>
+                <p style={{ color: 'var(--ink-3)', fontSize: 15, lineHeight: 1.5, marginTop: 6 }}>{t('ai.doorSub')}</p>
               </div>
-              {/* WHY, before HOW. The two jobs this does and the thing that
-                  makes it worth trusting - matched to YOUR setup - shown
-                  before any button asks for anything. */}
-              <div className="grid grid-cols-2 gap-3 mb-3">
-                <div className="bg-white rounded-2xl shadow-sm p-4">
-                  <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-2.5" style={{ backgroundColor: 'var(--wash-green)' }}>
-                    <Landmark className="w-5 h-5" style={{ color: '#2E9E5B' }} strokeWidth={2} />
-                  </div>
-                  <div style={{ color: 'var(--ink)', fontSize: 14, fontWeight: 700, lineHeight: 1.3 }}>{t('ai.card1Title')}</div>
-                  <p style={{ color: 'var(--ink-3)', fontSize: 12, lineHeight: 1.45, marginTop: 4 }}>{t('ai.card1Body')}</p>
-                </div>
-                <div className="bg-white rounded-2xl shadow-sm p-4">
-                  <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-2.5" style={{ backgroundColor: 'var(--wash-accent3)' }}>
-                    <Palmtree className="w-5 h-5" style={{ color: '#0A84FF' }} strokeWidth={2} />
-                  </div>
-                  <div style={{ color: 'var(--ink)', fontSize: 14, fontWeight: 700, lineHeight: 1.3 }}>{t('ai.card2Title')}</div>
-                  <p style={{ color: 'var(--ink-3)', fontSize: 12, lineHeight: 1.45, marginTop: 4 }}>
-                    {t('ai.card2a')}{' '}
-                    {/* Tricount has no export button of its own, so its name
-                        links to the tool that makes one from a share link.
-                        Splitwise exports natively and needs no link. */}
-                    <a href="https://tricount-exporter.pages.dev" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent-ink)', fontWeight: 600, textDecoration: 'underline' }}>Tricount</a>{' '}
-                    {t('ai.card2b')}
-                  </p>
-                </div>
-              </div>
-              <div data-ai-smart className="bg-white rounded-2xl shadow-sm p-4 mb-3 flex items-start gap-3">
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: 'var(--wash-accent2)' }}>
-                  <Sparkles className="w-5 h-5" style={{ color: 'var(--accent-ink)' }} strokeWidth={2} />
-                </div>
-                <div>
-                  <div style={{ color: 'var(--ink)', fontSize: 14, fontWeight: 700, lineHeight: 1.3 }}>{t('ai.smartTitle')}</div>
-                  <p style={{ color: 'var(--ink-3)', fontSize: 12, lineHeight: 1.45, marginTop: 4 }}>{t('ai.smartBody')}</p>
-                </div>
-              </div>
-              <div data-ai-door className="bg-white rounded-2xl shadow-sm p-5">
-                {/* What it eats, at a glance - the pitch is the breadth. Four
-                    tiles do the job the old pair of value cards did, in a
-                    quarter of the height and before a single word is read. */}
-                <div className="grid grid-cols-4 gap-2 mb-4">
+              <div data-ai-door>
+                <div className="bg-white rounded-2xl shadow-sm px-4 py-1.5 mb-4">
                   {([
-                    [FileText, t('ai.kind1'), 'var(--wash-accent3)', '#0A84FF'],
-                    [FileSpreadsheet, t('ai.kind2'), 'var(--wash-green)', '#2E9E5B'],
-                    [Camera, t('ai.kind3'), 'var(--wash-accent2)', 'var(--accent-ink)'],
-                    [Palmtree, t('ai.kind4'), 'var(--wash-over)', '#E0762E'],
-                  ] as const).map(([Icon, label, wash, tint]) => (
-                    <div key={label} className="flex flex-col items-center gap-1.5">
-                      <span className="w-11 h-11 rounded-xl grid place-items-center" style={{ backgroundColor: wash }}>
-                        <Icon className="w-5 h-5" style={{ color: tint }} strokeWidth={2} />
+                    [Landmark, 'var(--wash-green)', '#2E9E5B', t('ai.card1Title'), <>{t('ai.card1Body')}</>],
+                    [Palmtree, 'var(--wash-accent3)', '#0A84FF', t('ai.card2Title'), <>
+                      {t('ai.card2a')}{' '}
+                      {/* Tricount has no export button of its own, so its
+                          name links to the tool that makes one. Splitwise
+                          exports natively and needs no link. */}
+                      <a href="https://tricount-exporter.pages.dev" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent-ink)', fontWeight: 600, textDecoration: 'underline' }}>Tricount</a>{t('ai.card2b')}
+                    </>],
+                    [Sparkles, 'var(--wash-accent2)', 'var(--accent-ink)', t('ai.smartTitle'), <>{t('ai.smartBody')}</>],
+                  ] as const).map(([Icon, wash, tint, title, body], i) => (
+                    <div key={title} className="flex items-center gap-3 py-2.5" style={{ borderTop: i ? '1px solid var(--line-2)' : undefined }}>
+                      <span className="w-9 h-9 rounded-xl grid place-items-center flex-shrink-0" style={{ backgroundColor: wash }}>
+                        <Icon className="w-[18px] h-[18px]" style={{ color: tint }} strokeWidth={2} />
                       </span>
-                      <span className="text-center" style={{ color: 'var(--ink-2)', fontSize: 10.5, lineHeight: 1.2 }}>{label}</span>
+                      <div className="min-w-0">
+                        <div style={{ color: 'var(--ink)', fontSize: 13.5, fontWeight: 650, lineHeight: 1.3 }}>{title}</div>
+                        <p style={{ color: 'var(--ink-3)', fontSize: 12, lineHeight: 1.4, marginTop: 1 }}>{body}</p>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -2847,11 +2821,14 @@ export function Settings({
                     aiInputRef.current?.click();
                   }}
                   className="w-full py-3.5 rounded-2xl font-semibold text-[15px] active:scale-[0.98] transition-transform"
-                  style={{ backgroundColor: '#4F74F3', color: '#FFFFFF', boxShadow: '0 6px 18px rgba(79,116,243,0.35)' }}
+                  // The dark button, like Export and the JSON path's own
+                  // chooser - the owner's call: the blue read as one accent
+                  // too many on a page that already leads with washes.
+                  style={{ backgroundColor: 'var(--chip-ink)', color: '#fff', boxShadow: '0 6px 18px rgba(28,28,30,0.20)' }}
                 >
                   {t('ai.browse')}
                 </button>
-                <p className="text-center" style={{ color: 'var(--ink-3)', fontSize: 12, marginTop: 10 }}>{t('ai.pickHint')}</p>
+                <p className="text-center" style={{ color: 'var(--ink-3)', fontSize: 12, marginTop: 8 }}>{t('ai.pickHint')}</p>
               </div>
               <button
                 data-ai-manual-line

@@ -217,10 +217,55 @@ export interface ConvertArgs {
  * parse of the whole document - the rows handed to onRow are a preview and
  * nothing more), or throws AiImportError with the server's code.
  */
+/** How long silence is tolerated before the flow gives up on its own.
+ *  A reading screen that sits mute for minutes is the failure the user
+ *  reported, verbatim - so silence itself is now an error. First answer:
+ *  the function has to say SOMETHING (headers, a row, anything) within 90s,
+ *  which covers a cold start plus a big PDF being ingested. Between events:
+ *  60s, since a model mid-answer emits rows far faster than that.
+ *  The localStorage override exists for the browser checks, which cannot
+ *  wait a minute and a half to see the watchdog bite. */
+const stallMs = (key: string, fallback: number): number => {
+  try {
+    const v = Number(localStorage.getItem(`expense-tracker.v1.${key}`));
+    return Number.isFinite(v) && v > 0 ? v : fallback;
+  } catch {
+    return fallback;
+  }
+};
+
 export async function convertWithAi(args: ConvertArgs): Promise<AiDone> {
   const { data: sess } = await supabase.auth.getSession();
   const token = sess?.session?.access_token;
   if (!token) throw new AiImportError('signed_out', 'no session');
+
+  // The watchdog: an internal controller so a stall can abort the request,
+  // chained to the caller's signal so leaving the screen still cancels.
+  const FIRST_MS = stallMs('ai-first-ms', 90_000);
+  const QUIET_MS = stallMs('ai-quiet-ms', 60_000);
+  const ctrl = new AbortController();
+  let stalled = false;
+  const onCallerAbort = () => ctrl.abort();
+  args.signal?.addEventListener('abort', onCallerAbort);
+  let watchdog: ReturnType<typeof setTimeout> | undefined;
+  const arm = (ms: number) => {
+    clearTimeout(watchdog);
+    watchdog = setTimeout(() => {
+      stalled = true;
+      ctrl.abort();
+    }, ms);
+  };
+  const disarm = () => {
+    clearTimeout(watchdog);
+    args.signal?.removeEventListener('abort', onCallerAbort);
+  };
+  const aborted = () => args.signal?.aborted === true;
+  const bail = (e: unknown): never => {
+    disarm();
+    if (stalled && !aborted()) throw new AiImportError('stalled', 'the function went quiet');
+    throw e;
+  };
+  arm(FIRST_MS);
 
   // Said before a byte moves, and said again if the fetch itself dies: a
   // dropped line is the most ordinary failure this flow will ever meet, and
@@ -234,7 +279,7 @@ export async function convertWithAi(args: ConvertArgs): Promise<AiDone> {
   try {
     res = await fetch(`${SUPABASE_FUNCTIONS_URL}/convert-import`, {
     method: 'POST',
-    signal: args.signal,
+    signal: ctrl.signal,
     headers: {
       'Content-Type': 'application/json',
       Accept: 'text/event-stream',
@@ -250,11 +295,13 @@ export async function convertWithAi(args: ConvertArgs): Promise<AiDone> {
     }),
     });
   } catch (e) {
-    if (args.signal?.aborted) throw e; // the user left - not a failure to name
+    if (aborted()) throw e; // the user left - not a failure to name
+    if (stalled) bail(e);
     // fetch throws a bare TypeError for every network-shaped death - DNS,
     // reset, airplane mode engaged between the check above and the send.
-    throw new AiImportError('offline', e instanceof Error ? e.message : 'network');
+    bail(new AiImportError('offline', e instanceof Error ? e.message : 'network'));
   }
+  arm(FIRST_MS); // headers arrived; the body now owes its first event
 
   // A refusal (cap reached, file too big, key unset) is a plain JSON answer.
   if (!res.ok || !(res.headers.get('content-type') ?? '').includes('text/event-stream')) {
@@ -316,6 +363,7 @@ export async function convertWithAi(args: ConvertArgs): Promise<AiDone> {
     for (;;) {
       const { value, done: eof } = await reader.read();
       if (value) {
+        arm(QUIET_MS);
         buffer += decoder.decode(value, { stream: true });
         let cut;
         while ((cut = buffer.indexOf('\n\n')) !== -1) {
@@ -326,12 +374,14 @@ export async function convertWithAi(args: ConvertArgs): Promise<AiDone> {
       if (eof) break;
     }
   } catch (e) {
-    if (args.signal?.aborted) throw e;
+    if (aborted()) throw e;
+    if (stalled) bail(e);
     // The line died with the answer half-said. The server had already read
     // the file by then, so no promise of a refund - just the truth: nothing
     // was added, and trying again is allowed.
-    throw new AiImportError('offline', e instanceof Error ? e.message : 'stream lost');
+    bail(new AiImportError('offline', e instanceof Error ? e.message : 'stream lost'));
   }
+  disarm();
   if (failed) throw failed;
   if (!done) throw new AiImportError('cut_off', 'the stream ended without an answer');
   return done;
