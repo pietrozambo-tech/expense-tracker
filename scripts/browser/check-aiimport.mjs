@@ -104,6 +104,7 @@ const open = async ({ session, convert }) => {
     // A beat of latency, so the reading screen is a state the test can see
     // rather than a frame it always misses.
     await new Promise((r) => setTimeout(r, reply.delay ?? 0));
+    if (reply.abort) return route.abort('internetdisconnected');
     return route.fulfill(reply.res);
   });
   await ctx.addInitScript(seed, [REF, session ? freshSession() : null]);
@@ -222,6 +223,35 @@ const pickCsv = (p) => p.locator('[data-ai-door] input[type="file"]').setInputFi
   const err = await p.locator('[data-ai-flow]').innerText();
   ok(/That's it for today/.test(err), `the cap is a calm sentence, not an error code (${err.split('\n')[1] ?? ''})`);
   ok(await p.locator('[data-ai-cta="retry"]').count() === 0, 'with no retry button pointing at the same wall');
+  await ctx.close();
+}
+
+// ── the line dies ─────────────────────────────────────────────────────────
+//
+// The most ordinary failure this flow will ever meet, so it gets its own
+// sentence and its own screen - not a shrug. The route aborts the way a
+// dead connection does; the screen must say offline, say nothing was
+// added, and leave a retry in reach.
+{
+  const { ctx, p } = await open({ session: true, convert: () => ({ abort: true }) });
+  await pickCsv(p);
+  await p.waitForTimeout(400);
+  await p.locator('[data-ai-cta="go"]').click();
+  await p.waitForSelector('[data-ai-flow][data-ai-step="error"]', { timeout: 8000 });
+  const err = await p.locator('[data-ai-flow]').innerText();
+  ok(/You're offline/.test(err), `a dead line is named as offline (${err.split('\n').find((l) => l.trim()) ?? ''})`);
+  ok(/Nothing has been added/.test(err), 'and the screen says nothing was added');
+  ok(await p.locator('[data-ai-cta="retry"]').count() === 1, 'with a retry for when the line returns');
+  await p.screenshot({ path: `${OUT}/aiimport-offline.png` });
+  await ctx.close();
+}
+
+// ── the door, for the eye ─────────────────────────────────────────────────
+{
+  const { ctx, p } = await open({ session: true, convert: () => ({ abort: true }) });
+  await p.screenshot({ path: `${OUT}/aiimport-door.png` });
+  ok((await p.locator('[data-ai-door]').innerText()).includes('Tricount'),
+    'the door shows its breadth - four formats before a word is read');
   await ctx.close();
 }
 

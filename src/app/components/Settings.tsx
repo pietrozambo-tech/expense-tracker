@@ -1,6 +1,6 @@
 import type { LucideIcon } from 'lucide-react';
 import type { CategoryOrder } from '../lib/categoryOrder';
-import { Bell, Lightbulb, ChevronRight, ChevronLeft, Wrench, ArrowLeftRight, UserCircle, Wallet, HelpCircle, ShieldCheck, ScrollText, Layers, FlaskConical, Trash2, Landmark, Cloud, LogOut, Upload, Copy, Download, FileSpreadsheet, Palmtree, UserX, Mail, LifeBuoy, CheckCircle2, Globe, CalendarClock, Sparkles, Palette, Sun, Moon, SunMoon, Split, Plus, Eraser } from 'lucide-react';
+import { Bell, Lightbulb, ChevronRight, ChevronLeft, Wrench, ArrowLeftRight, UserCircle, Wallet, HelpCircle, ShieldCheck, ScrollText, Layers, FlaskConical, Trash2, Landmark, Cloud, LogOut, Upload, Copy, Download, FileSpreadsheet, Palmtree, UserX, Mail, LifeBuoy, CheckCircle2, Globe, CalendarClock, Sparkles, Palette, Sun, Moon, SunMoon, Split, Plus, Eraser, FileText, Table, Camera } from 'lucide-react';
 import { getCategoryIcon } from './categoryIcons';
 import { composeSupportMessage, sendSupportMessage, supportLimitReached, type SupportTopic } from '../lib/support';
 import { fetchAdminStats, type AdminStats } from '../lib/adminStats';
@@ -2773,11 +2773,24 @@ export function Settings({
                 <p style={{ color: 'var(--ink-3)', fontSize: 15, lineHeight: 1.5, marginTop: 8 }}>{t('ai.doorSub')}</p>
               </div>
               <div data-ai-door className="bg-white rounded-2xl shadow-sm p-5">
-                <div className="w-11 h-11 rounded-xl flex items-center justify-center mb-3" style={{ backgroundColor: 'var(--wash-accent3)' }}>
-                  <FileSpreadsheet className="w-5 h-5" style={{ color: '#0A84FF' }} strokeWidth={2} />
+                {/* What it eats, at a glance - the pitch is the breadth. Four
+                    tiles do the job the old pair of value cards did, in a
+                    quarter of the height and before a single word is read. */}
+                <div className="grid grid-cols-4 gap-2 mb-4">
+                  {([
+                    [FileText, t('ai.kind1'), 'var(--wash-accent3)', '#0A84FF'],
+                    [Table, t('ai.kind2'), 'var(--wash-green)', '#2E9E5B'],
+                    [Camera, t('ai.kind3'), 'var(--wash-accent2)', 'var(--accent-ink)'],
+                    [Palmtree, t('ai.kind4'), 'var(--wash-over)', '#E0762E'],
+                  ] as const).map(([Icon, label, wash, tint]) => (
+                    <div key={label} className="flex flex-col items-center gap-1.5">
+                      <span className="w-11 h-11 rounded-xl grid place-items-center" style={{ backgroundColor: wash }}>
+                        <Icon className="w-5 h-5" style={{ color: tint }} strokeWidth={2} />
+                      </span>
+                      <span className="text-center" style={{ color: 'var(--ink-2)', fontSize: 10.5, lineHeight: 1.2 }}>{label}</span>
+                    </div>
+                  ))}
                 </div>
-                <div style={{ color: 'var(--ink)', fontSize: 15, fontWeight: 700 }}>{t('ai.browse')}</div>
-                <p style={{ color: 'var(--ink-3)', fontSize: 12.5, lineHeight: 1.45, marginTop: 4 }}>{t('ai.pickHint')}</p>
                 <input
                   ref={aiInputRef}
                   type="file"
@@ -2788,12 +2801,22 @@ export function Settings({
                 />
                 <button
                   data-ai-browse
-                  onClick={() => aiInputRef.current?.click()}
-                  className="w-full mt-4 py-3.5 rounded-2xl font-semibold text-[15px] active:scale-[0.98] transition-transform"
-                  style={{ backgroundColor: '#4F74F3', color: '#FFFFFF' }}
+                  onClick={() => {
+                    // The one pre-flight that saves a whole dead-end: reading
+                    // needs a line, and saying so now beats a picker, a wait
+                    // and an error screen later.
+                    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+                      toast.error(t('ai.errOfflineTitle'), { description: t('ai.errOfflineSub'), duration: 2600 });
+                      return;
+                    }
+                    aiInputRef.current?.click();
+                  }}
+                  className="w-full py-3.5 rounded-2xl font-semibold text-[15px] active:scale-[0.98] transition-transform"
+                  style={{ backgroundColor: '#4F74F3', color: '#FFFFFF', boxShadow: '0 6px 18px rgba(79,116,243,0.35)' }}
                 >
                   {t('ai.browse')}
                 </button>
+                <p className="text-center" style={{ color: 'var(--ink-3)', fontSize: 12, marginTop: 10 }}>{t('ai.pickHint')}</p>
               </div>
               <button
                 data-ai-manual-line

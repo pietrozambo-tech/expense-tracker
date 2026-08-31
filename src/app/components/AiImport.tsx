@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Check, ChevronLeft, X } from 'lucide-react';
+import { AlertCircle, Check, ChevronLeft, Hourglass, WifiOff, X } from 'lucide-react';
 import { t } from '../i18n';
 import { getLanguage, monthsShort } from '../i18n/store';
 import {
@@ -267,14 +267,24 @@ export function AiImport({
           {header(t('ai.readingTitle'), t('ai.readingSub'))}
           <div className="flex-1 px-6 pt-1 flex flex-col min-h-0">
             <div className="rounded-2xl px-4 py-4" style={{ background: 'linear-gradient(152deg, #22222B, #121217)' }}>
-              <div data-ai-count style={{ color: 'rgba(255,255,255,0.55)', fontSize: 12 }}>
-                {evidence && evidence.count > 0 && rows.length > 0
-                  ? t('ai.countOf', { n: String(rows.length ? rows[rows.length - 1].n : 0), total: String(evidence.count) })
-                  : String(rows.length ? rows[rows.length - 1].n : 0)}
-              </div>
-              <div data-ai-total style={{ color: '#FFFFFF', fontSize: 32, fontWeight: 700, letterSpacing: '-1px', marginTop: 4 }}>
-                {fmtAmount(runningTotal, done?.payload?.currency ?? rows[rows.length - 1]?.currency ?? userCurrency)}
-              </div>
+              {rows.length === 0 ? (
+                // Before the first row there is nothing to count, and a card
+                // reading "0 / 0€" looks broken rather than busy.
+                <div className="animate-pulse py-2" data-ai-opening style={{ color: 'rgba(255,255,255,0.75)', fontSize: 14, fontWeight: 500 }}>
+                  {t('ai.opening')}
+                </div>
+              ) : (
+                <>
+                  <div data-ai-count style={{ color: 'rgba(255,255,255,0.55)', fontSize: 12 }}>
+                    {evidence && evidence.count > 0
+                      ? t('ai.countOf', { n: String(rows[rows.length - 1].n), total: String(evidence.count) })
+                      : String(rows[rows.length - 1].n)}
+                  </div>
+                  <div data-ai-total style={{ color: '#FFFFFF', fontSize: 32, fontWeight: 700, letterSpacing: '-1px', marginTop: 4 }}>
+                    {fmtAmount(runningTotal, done?.payload?.currency ?? rows[rows.length - 1]?.currency ?? userCurrency)}
+                  </div>
+                </>
+              )}
             </div>
             <div className="mt-4 flex flex-col gap-2">
               {ticks.map((tick) => (
@@ -392,21 +402,37 @@ export function AiImport({
         </>
       )}
 
-      {step === 'error' && error && (
-        <>
-          {header(
-            error.code === 'daily_limit' ? t('ai.errLimitTitle') : t('ai.errTitle'),
-            error.code === 'daily_limit' ? t('ai.errLimitSub')
-              : error.code === 'too_big' ? t('ai.errBig')
-              : error.code === 'not_configured' ? t('ai.errOff')
-              : t('ai.errSub'),
-          )}
-          <div className="flex-1" />
-          {error.code === 'daily_limit' || error.code === 'not_configured'
-            ? cta(t('ai.close'), onClose, false, 'close')
-            : cta(t('ai.retry'), () => start(tripAnswer), false, 'retry')}
-        </>
-      )}
+      {step === 'error' && error && (() => {
+        // One family per sentence. Everything unknown lands on the generic
+        // pair, which still tells the truth: nothing was added, retrying is
+        // allowed.
+        const fam =
+          error.code === 'offline' ? { icon: WifiOff, title: t('ai.errOfflineTitle'), sub: t('ai.errOfflineSub'), retry: true }
+          : error.code === 'daily_limit' ? { icon: Hourglass, title: t('ai.errLimitTitle'), sub: t('ai.errLimitSub'), retry: false }
+          : error.code === 'too_big' ? { icon: AlertCircle, title: t('ai.errTitle'), sub: t('ai.errBig'), retry: false }
+          : error.code === 'not_configured' ? { icon: AlertCircle, title: t('ai.errTitle'), sub: t('ai.errOff'), retry: false }
+          : { icon: AlertCircle, title: t('ai.errTitle'), sub: t('ai.errSub'), retry: true };
+        const Icon = fam.icon;
+        return (
+          <>
+            <div className="px-6 pt-4">
+              <button onClick={onClose} className="p-2 -ml-2 rounded-lg" aria-label={t('ai.close')}>
+                <X className="w-5 h-5" style={{ color: 'var(--ink-2)' }} />
+              </button>
+            </div>
+            <div className="flex-1 flex flex-col items-center justify-center px-10 text-center -mt-10">
+              <span className="grid place-items-center rounded-full mb-5" style={{ width: 64, height: 64, backgroundColor: 'var(--wash-accent2)' }}>
+                <Icon className="w-7 h-7" style={{ color: 'var(--accent-ink)' }} strokeWidth={1.8} />
+              </span>
+              <h2 style={{ color: 'var(--ink)', fontSize: 22, fontWeight: 700, letterSpacing: '-0.02em' }}>{fam.title}</h2>
+              <p className="mt-2" style={{ color: 'var(--ink-2)', fontSize: 14, lineHeight: 1.5 }}>{fam.sub}</p>
+            </div>
+            {fam.retry
+              ? cta(t('ai.retry'), () => start(tripAnswer), false, 'retry')
+              : cta(t('ai.close'), onClose, false, 'close')}
+          </>
+        );
+      })()}
     </div>
   );
 }

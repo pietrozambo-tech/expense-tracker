@@ -182,7 +182,17 @@ export async function convertWithAi(args: ConvertArgs): Promise<AiDone> {
   const token = sess?.session?.access_token;
   if (!token) throw new AiImportError('signed_out', 'no session');
 
-  const res = await fetch(`${SUPABASE_FUNCTIONS_URL}/convert-import`, {
+  // Said before a byte moves, and said again if the fetch itself dies: a
+  // dropped line is the most ordinary failure this flow will ever meet, and
+  // it deserves its own sentence, not a shrug. Nothing has been committed
+  // either way - the commit is a separate, local act at the end.
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+    throw new AiImportError('offline', 'no network');
+  }
+
+  let res: Response;
+  try {
+    res = await fetch(`${SUPABASE_FUNCTIONS_URL}/convert-import`, {
     method: 'POST',
     signal: args.signal,
     headers: {
@@ -198,7 +208,13 @@ export async function convertWithAi(args: ConvertArgs): Promise<AiDone> {
       answers: args.answers ?? [],
       stream: true,
     }),
-  });
+    });
+  } catch (e) {
+    if (args.signal?.aborted) throw e; // the user left - not a failure to name
+    // fetch throws a bare TypeError for every network-shaped death - DNS,
+    // reset, airplane mode engaged between the check above and the send.
+    throw new AiImportError('offline', e instanceof Error ? e.message : 'network');
+  }
 
   // A refusal (cap reached, file too big, key unset) is a plain JSON answer.
   if (!res.ok || !(res.headers.get('content-type') ?? '').includes('text/event-stream')) {
@@ -256,17 +272,25 @@ export async function convertWithAi(args: ConvertArgs): Promise<AiDone> {
     }
   };
 
-  for (;;) {
-    const { value, done: eof } = await reader.read();
-    if (value) {
-      buffer += decoder.decode(value, { stream: true });
-      let cut;
-      while ((cut = buffer.indexOf('\n\n')) !== -1) {
-        handle(buffer.slice(0, cut));
-        buffer = buffer.slice(cut + 2);
+  try {
+    for (;;) {
+      const { value, done: eof } = await reader.read();
+      if (value) {
+        buffer += decoder.decode(value, { stream: true });
+        let cut;
+        while ((cut = buffer.indexOf('\n\n')) !== -1) {
+          handle(buffer.slice(0, cut));
+          buffer = buffer.slice(cut + 2);
+        }
       }
+      if (eof) break;
     }
-    if (eof) break;
+  } catch (e) {
+    if (args.signal?.aborted) throw e;
+    // The line died with the answer half-said. The server had already read
+    // the file by then, so no promise of a refund - just the truth: nothing
+    // was added, and trying again is allowed.
+    throw new AiImportError('offline', e instanceof Error ? e.message : 'stream lost');
   }
   if (failed) throw failed;
   if (!done) throw new AiImportError('cut_off', 'the stream ended without an answer');
