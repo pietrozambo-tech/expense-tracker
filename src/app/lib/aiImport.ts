@@ -20,12 +20,30 @@ import type { ImportPayload } from './importData';
 export const AI_MAX_FILES = 4;
 export const AI_MAX_BYTES = 12 * 1024 * 1024;
 
-/** What the picker offers and the pre-flight accepts. The server also takes
- *  bare text; .xlsx is refused BY NAME here because the server's own refusal
- *  ("wrong_type") is about zip bytes, and the person holding a spreadsheet
- *  deserves the sentence that tells them what to do instead. */
+/** The types that travel as they are. Everything else gets a second look:
+ *  an .xlsx is unpacked to CSV on the phone (see lib/xlsx.ts - as zip bytes
+ *  it reads as nothing), and any unrecognised file whose bytes decode as
+ *  text is sent as text - "whatever file you have" is the promise, and an
+ *  export with an odd extension is still a list of transactions. Only the
+ *  legacy binary spreadsheets (.xls, .numbers) are refused by name, with the
+ *  sentence that says what to do instead. */
 const ACCEPTED = /^(text\/csv|text\/plain|text\/tab-separated-values|application\/pdf|image\/(png|jpe?g|webp|heic|heif))$/i;
-const XLSX_RE = /\.(xlsx|xls|numbers)$/i;
+const XLSX_RE = /\.xlsx$/i;
+const LEGACY_SHEET_RE = /\.(xls|numbers)$/i;
+
+/** Do these bytes read as text? NUL bytes or a spray of control characters
+ *  say binary; a model handed base64 of those reads confidently and wrong. */
+const looksLikeText = (bytes: Uint8Array): boolean => {
+  const n = Math.min(bytes.length, 4096);
+  if (n === 0) return false;
+  let control = 0;
+  for (let i = 0; i < n; i += 1) {
+    const b = bytes[i];
+    if (b === 0) return false;
+    if (b < 9 || (b > 13 && b < 32)) control += 1;
+  }
+  return control / n < 0.02;
+};
 
 export interface AiFile {
   media_type: string;
@@ -67,13 +85,35 @@ export async function readFiles(files: File[]): Promise<AiFile[]> {
   if (files.length > AI_MAX_FILES) throw new AiImportError('too_many', String(AI_MAX_FILES));
   let total = 0;
   const out: AiFile[] = [];
+  const pushText = (name: string, text: string) => {
+    const bytes = new TextEncoder().encode(text);
+    out.push({ media_type: 'text/csv', data: b64(bytes.buffer as ArrayBuffer), name, bytes: bytes.length, text });
+  };
   for (const f of files) {
-    if (XLSX_RE.test(f.name)) throw new AiImportError('spreadsheet', f.name);
-    const type = f.type || (/\.csv$/i.test(f.name) ? 'text/csv' : /\.txt$/i.test(f.name) ? 'text/plain' : '');
-    if (!ACCEPTED.test(type)) throw new AiImportError('file_type', f.name);
+    if (LEGACY_SHEET_RE.test(f.name)) throw new AiImportError('spreadsheet', f.name);
     total += f.size;
     if (total > AI_MAX_BYTES) throw new AiImportError('too_big', f.name);
+    if (XLSX_RE.test(f.name)) {
+      // Unpacked here, sent as the CSV it contains - a few KB instead of the
+      // workbook, and dates as dates instead of Excel's day counts.
+      try {
+        const { xlsxToText } = await import('./xlsx');
+        pushText(f.name.replace(/\.xlsx$/i, '.csv'), await xlsxToText(await f.arrayBuffer()));
+      } catch {
+        throw new AiImportError('spreadsheet', f.name);
+      }
+      continue;
+    }
+    const type = f.type || (/\.csv$/i.test(f.name) ? 'text/csv' : /\.(txt|tsv)$/i.test(f.name) ? 'text/plain' : '');
     const buf = await f.arrayBuffer();
+    if (!ACCEPTED.test(type)) {
+      // Not a type this knows by name - but "whatever file you have" is the
+      // promise, so anything whose bytes read as text goes through as text.
+      const raw = new Uint8Array(buf);
+      if (!looksLikeText(raw)) throw new AiImportError('file_type', f.name);
+      pushText(f.name, new TextDecoder().decode(buf));
+      continue;
+    }
     const isText = /^text\//i.test(type);
     out.push({
       media_type: type,

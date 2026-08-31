@@ -33,7 +33,8 @@
     "test:catorder": "node scripts/test-catorder.mjs",
     "test:prompt": "node scripts/test-prompt.mjs",
     "build:edge-prompt": "node scripts/build-edge-prompt.mjs",
-    "test:edge": "node scripts/test-edge.mjs"
+    "test:edge": "node scripts/test-edge.mjs",
+    "test:xlsx": "node scripts/test-xlsx.mjs"
   },
   "dependencies": {
     "@capacitor/app": "^8.1.1",

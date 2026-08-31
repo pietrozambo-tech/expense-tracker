@@ -249,9 +249,45 @@ const pickCsv = (p) => p.locator('[data-ai-door] input[type="file"]').setInputFi
 // ── the door, for the eye ─────────────────────────────────────────────────
 {
   const { ctx, p } = await open({ session: true, convert: () => ({ abort: true }) });
-  await p.screenshot({ path: `${OUT}/aiimport-door.png` });
-  ok((await p.locator('[data-ai-door]').innerText()).includes('Tricount'),
-    'the door shows its breadth - four formats before a word is read');
+  await p.screenshot({ path: `${OUT}/aiimport-door.png`, fullPage: true });
+  const door = await p.locator('body').innerText();
+  ok((await p.locator('[data-ai-door]').innerText()).includes('Tricount, Splitwise'),
+    'the door shows its breadth - both split apps named in the tiles');
+  ok(/Banks & cards/.test(door) && /Trips & split expenses/.test(door),
+    'the WHY cards are back above the button');
+  ok(/matched to your categories/.test(door),
+    'and the door says the matching is fitted to YOUR setup');
+  ok(await p.locator('a[href*="tricount-exporter"]').count() === 1,
+    'Tricount - which has no export of its own - links to the tool that makes one');
+  await ctx.close();
+}
+
+// ── a real Excel file, unpacked on the phone ──────────────────────────────
+//
+// The workbook is a genuine zip built by the xlsx fixture: shared strings,
+// a styles table, dates stored as day counts, two sheets. If the in-browser
+// converter works, its dates land inside the Azores trip and the assertion
+// screen appears - the same path a CSV takes, because by then it IS one.
+{
+  const { buildWorkbook } = await import('../xlsx-test/fixture.mjs');
+  const { ctx, p } = await open({
+    session: true,
+    convert: (n, body) => ({
+      sawCsv: body.files?.[0]?.media_type,
+      res: { status: 200, contentType: 'text/event-stream', body: sse([...ROWS, ['done', OK_DONE]]) },
+    }),
+  });
+  await p.locator('[data-ai-door] input[type="file"]').setInputFiles({
+    name: 'spese.xlsx',
+    mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    buffer: buildWorkbook(),
+  });
+  await p.waitForTimeout(800);
+  ok(await p.locator('[data-ai-flow][data-ai-step="trip"]').count() === 1,
+    'an .xlsx unpacks on the phone: its serial dates land inside the trip and the assertion appears');
+  await p.locator('[data-ai-cta="go"]').click();
+  await p.waitForSelector('[data-ai-flow][data-ai-step="ready"]', { timeout: 10000 });
+  ok(true, 'and the rest of the flow is the CSV flow, because by then it is one');
   await ctx.close();
 }
 

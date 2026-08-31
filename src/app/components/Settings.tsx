@@ -1,6 +1,6 @@
 import type { LucideIcon } from 'lucide-react';
 import type { CategoryOrder } from '../lib/categoryOrder';
-import { Bell, Lightbulb, ChevronRight, ChevronLeft, Wrench, ArrowLeftRight, UserCircle, Wallet, HelpCircle, ShieldCheck, ScrollText, Layers, FlaskConical, Trash2, Landmark, Cloud, LogOut, Upload, Copy, Download, FileSpreadsheet, Palmtree, UserX, Mail, LifeBuoy, CheckCircle2, Globe, CalendarClock, Sparkles, Palette, Sun, Moon, SunMoon, Split, Plus, Eraser, FileText, Table, Camera } from 'lucide-react';
+import { Bell, Lightbulb, ChevronRight, ChevronLeft, Wrench, ArrowLeftRight, UserCircle, Wallet, HelpCircle, ShieldCheck, ScrollText, Layers, FlaskConical, Trash2, Landmark, Cloud, LogOut, Upload, Copy, Download, FileSpreadsheet, Palmtree, UserX, Mail, LifeBuoy, CheckCircle2, Globe, CalendarClock, Sparkles, Palette, Sun, Moon, SunMoon, Split, Plus, Eraser, FileText, Camera } from 'lucide-react';
 import { getCategoryIcon } from './categoryIcons';
 import { composeSupportMessage, sendSupportMessage, supportLimitReached, type SupportTopic } from '../lib/support';
 import { fetchAdminStats, type AdminStats } from '../lib/adminStats';
@@ -2772,6 +2772,41 @@ export function Settings({
                 <h2 style={{ color: 'var(--ink)', fontSize: 22, fontWeight: 700, letterSpacing: '-0.02em' }}>{t('ai.doorTitle')}</h2>
                 <p style={{ color: 'var(--ink-3)', fontSize: 15, lineHeight: 1.5, marginTop: 8 }}>{t('ai.doorSub')}</p>
               </div>
+              {/* WHY, before HOW. The two jobs this does and the thing that
+                  makes it worth trusting - matched to YOUR setup - shown
+                  before any button asks for anything. */}
+              <div className="grid grid-cols-2 gap-3 mb-3">
+                <div className="bg-white rounded-2xl shadow-sm p-4">
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-2.5" style={{ backgroundColor: 'var(--wash-green)' }}>
+                    <Landmark className="w-5 h-5" style={{ color: '#2E9E5B' }} strokeWidth={2} />
+                  </div>
+                  <div style={{ color: 'var(--ink)', fontSize: 14, fontWeight: 700, lineHeight: 1.3 }}>{t('ai.card1Title')}</div>
+                  <p style={{ color: 'var(--ink-3)', fontSize: 12, lineHeight: 1.45, marginTop: 4 }}>{t('ai.card1Body')}</p>
+                </div>
+                <div className="bg-white rounded-2xl shadow-sm p-4">
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-2.5" style={{ backgroundColor: 'var(--wash-accent3)' }}>
+                    <Palmtree className="w-5 h-5" style={{ color: '#0A84FF' }} strokeWidth={2} />
+                  </div>
+                  <div style={{ color: 'var(--ink)', fontSize: 14, fontWeight: 700, lineHeight: 1.3 }}>{t('ai.card2Title')}</div>
+                  <p style={{ color: 'var(--ink-3)', fontSize: 12, lineHeight: 1.45, marginTop: 4 }}>
+                    {t('ai.card2a')}{' '}
+                    {/* Tricount has no export button of its own, so its name
+                        links to the tool that makes one from a share link.
+                        Splitwise exports natively and needs no link. */}
+                    <a href="https://tricount-exporter.pages.dev" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent-ink)', fontWeight: 600, textDecoration: 'underline' }}>Tricount</a>{' '}
+                    {t('ai.card2b')}
+                  </p>
+                </div>
+              </div>
+              <div data-ai-smart className="bg-white rounded-2xl shadow-sm p-4 mb-3 flex items-start gap-3">
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: 'var(--wash-accent2)' }}>
+                  <Sparkles className="w-5 h-5" style={{ color: 'var(--accent-ink)' }} strokeWidth={2} />
+                </div>
+                <div>
+                  <div style={{ color: 'var(--ink)', fontSize: 14, fontWeight: 700, lineHeight: 1.3 }}>{t('ai.smartTitle')}</div>
+                  <p style={{ color: 'var(--ink-3)', fontSize: 12, lineHeight: 1.45, marginTop: 4 }}>{t('ai.smartBody')}</p>
+                </div>
+              </div>
               <div data-ai-door className="bg-white rounded-2xl shadow-sm p-5">
                 {/* What it eats, at a glance - the pitch is the breadth. Four
                     tiles do the job the old pair of value cards did, in a
@@ -2779,7 +2814,7 @@ export function Settings({
                 <div className="grid grid-cols-4 gap-2 mb-4">
                   {([
                     [FileText, t('ai.kind1'), 'var(--wash-accent3)', '#0A84FF'],
-                    [Table, t('ai.kind2'), 'var(--wash-green)', '#2E9E5B'],
+                    [FileSpreadsheet, t('ai.kind2'), 'var(--wash-green)', '#2E9E5B'],
                     [Camera, t('ai.kind3'), 'var(--wash-accent2)', 'var(--accent-ink)'],
                     [Palmtree, t('ai.kind4'), 'var(--wash-over)', '#E0762E'],
                   ] as const).map(([Icon, label, wash, tint]) => (
@@ -2795,7 +2830,7 @@ export function Settings({
                   ref={aiInputRef}
                   type="file"
                   multiple
-                  accept=".csv,.txt,.tsv,application/pdf,image/*,text/csv,text/plain"
+                  accept=".csv,.txt,.tsv,.xlsx,application/pdf,image/*,text/csv,text/plain,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                   onChange={handleAiFiles}
                   style={{ display: 'none' }}
                 />
