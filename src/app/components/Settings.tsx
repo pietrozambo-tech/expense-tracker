@@ -2864,6 +2864,12 @@ export function Settings({
             </>
           )}
           {(!aiImportReady || manualOpen) && (<>
+          {/* The intro and the value cards exist for the GUEST, for whom this
+              is the whole screen. Unfolded under the AI door they would be a
+              second copy of the pitch the person just read one centimetre up
+              - so for them the fold starts at the steps, which are the only
+              thing this path has that the door does not. */}
+          {!aiImportReady && (<>
           {/* Intro */}
           <div className="pt-2 pb-4">
             <h2 style={{ color: 'var(--ink)', fontSize: 22, fontWeight: 700, letterSpacing: '-0.02em' }}>
@@ -2897,9 +2903,10 @@ export function Settings({
               </p>
             </div>
           </div>
+          </>)}
 
           {/* Steps */}
-          <div className="bg-white rounded-2xl shadow-sm p-5 flex flex-col gap-4">
+          <div className={`bg-white rounded-2xl shadow-sm p-5 flex flex-col gap-4${aiImportReady ? ' mt-1' : ''}`}>
             <Step n={1}>
               {/* The app's first external link. Tricount has no export button
                   of its own, so the name links to the tool that makes one

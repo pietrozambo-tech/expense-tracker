@@ -127,8 +127,9 @@ const pickCsv = (p) => p.locator('[data-ai-door] input[type="file"]').setInputFi
 {
   const { ctx, p } = await open({ session: false, convert: () => ({ res: { status: 500, body: '{}' } }) });
   ok(await p.locator('[data-ai-door]').count() === 0, 'a guest gets no AI door - no account, nobody to bill');
-  ok(/Open any AI assistant/.test(await p.locator('body').innerText()),
-    'and the manual path stands whole, exactly as before');
+  const guestBody = await p.locator('body').innerText();
+  ok(/Open any AI assistant/.test(guestBody), 'and the manual path stands whole, exactly as before');
+  ok(/Bring in your existing data/.test(guestBody), 'intro and value cards included - for them this IS the screen');
   await ctx.close();
 }
 
@@ -143,8 +144,11 @@ const pickCsv = (p) => p.locator('[data-ai-door] input[type="file"]').setInputFi
   ok(!/Open any AI assistant/.test(before), 'with the manual steps folded away');
   await p.locator('[data-ai-manual-line]').click();
   await p.waitForTimeout(300);
-  ok(/Open any AI assistant/.test(await p.locator('body').innerText()),
+  const unfolded = await p.locator('body').innerText();
+  ok(/Open any AI assistant/.test(unfolded),
     'though one quiet line unfolds them for whoever wants that road');
+  ok(!/Bring in your existing data/.test(unfolded) && !/Banks & spreadsheets/.test(unfolded),
+    'unfolded under the door, the fold starts at the steps - no second copy of the pitch just read');
   await p.locator('[data-ai-manual-line]').click();
   await p.waitForTimeout(200);
 
