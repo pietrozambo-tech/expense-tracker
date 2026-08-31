@@ -61,10 +61,27 @@ export class AiImportError extends Error {
      *  the server answered with (limit, not_configured, busy, too_big...). */
     public code: string,
     message: string,
+    /** The daily cap, when a daily_limit refusal named one - so the screen
+     *  can say "all 3 of today's reads" instead of an unexplained wall. */
+    public limit?: number,
   ) {
     super(message);
   }
 }
+
+/** The cap, remembered for the rest of the UTC day it was hit on - so the
+ *  Settings door can warn BEFORE the file picker and the trip question, not
+ *  after. The server stays the authority: this only draws a note, it never
+ *  blocks a call (the owner can raise the cap mid-day and the note is then
+ *  simply wrong until midnight - a note, not a lock). */
+const DAY_DONE_KEY = 'expense-tracker.v1.ai-day-done';
+const utcToday = () => new Date().toISOString().slice(0, 10);
+const markAiDayDone = () => {
+  try { localStorage.setItem(DAY_DONE_KEY, utcToday()); } catch { /* storage unavailable */ }
+};
+export const aiDayDone = (): boolean => {
+  try { return localStorage.getItem(DAY_DONE_KEY) === utcToday(); } catch { return false; }
+};
 
 const b64 = (buf: ArrayBuffer): string => {
   const bytes = new Uint8Array(buf);
@@ -210,6 +227,11 @@ export interface ConvertArgs {
   answers?: { ask: string; answer: string }[];
   signal?: AbortSignal;
   onRow?: (row: AiRow) => void;
+  /** Two true moments, for the waiting screen's narration: 'sent' the
+   *  instant the request leaves (the upload is in flight), 'reading' when
+   *  the response headers arrive (the server has the file and the model is
+   *  working). Everything else the screen says hangs off rows arriving. */
+  onPhase?: (phase: 'sent' | 'reading') => void;
 }
 
 /**
@@ -275,6 +297,7 @@ export async function convertWithAi(args: ConvertArgs): Promise<AiDone> {
     throw new AiImportError('offline', 'no network');
   }
 
+  args.onPhase?.('sent');
   let res: Response;
   try {
     res = await fetch(`${SUPABASE_FUNCTIONS_URL}/convert-import`, {
@@ -302,17 +325,22 @@ export async function convertWithAi(args: ConvertArgs): Promise<AiDone> {
     bail(new AiImportError('offline', e instanceof Error ? e.message : 'network'));
   }
   arm(FIRST_MS); // headers arrived; the body now owes its first event
+  args.onPhase?.('reading');
 
   // A refusal (cap reached, file too big, key unset) is a plain JSON answer.
   if (!res.ok || !(res.headers.get('content-type') ?? '').includes('text/event-stream')) {
     let code = `http_${res.status}`;
     let msg = res.statusText;
+    let limit: number | undefined;
     try {
       const body = await res.json();
       code = String(body.code ?? code);
       msg = String(body.error ?? msg);
+      if (typeof body.limit === 'number') limit = body.limit;
     } catch { /* not JSON - keep the status */ }
-    throw new AiImportError(code, msg);
+    disarm();
+    if (code === 'daily_limit') markAiDayDone();
+    throw new AiImportError(code, msg, limit);
   }
 
   // The SSE stream: `event: <name>\ndata: <json>\n\n`, cut on the blank line.
@@ -354,8 +382,12 @@ export async function convertWithAi(args: ConvertArgs): Promise<AiDone> {
             ? (data.payload as ImportPayload)
             : undefined,
       };
+      // Only when the server actually SAID zero - a frame with no remaining
+      // field parses as 0 above, and that default must not paint the door.
+      if (typeof data.remaining === 'number' && data.remaining === 0) markAiDayDone();
     } else if (event === 'failed') {
       failed = new AiImportError(String(data.code ?? 'failed'), String(data.error ?? ''));
+      if (failed.code === 'daily_limit') markAiDayDone();
     }
   };
 

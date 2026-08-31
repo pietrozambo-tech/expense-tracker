@@ -89,6 +89,14 @@ export function AiImport({
   // True once the opening has visibly overstayed its welcome: the line under
   // the pulse changes, so a slow function never reads as a frozen screen.
   const [openingSlow, setOpeningSlow] = useState(false);
+  // Which TRUE moment the request is in, for the pre-first-row narration:
+  // 'sent' while the upload is in flight, 'reading' once the headers arrive
+  // and the model is at work. Never theatre - each line maps to an event.
+  const [phase, setPhase] = useState<'sent' | 'reading' | null>(null);
+  // Ten seconds into 'reading' with no row yet, the model is demonstrably
+  // deep in the matching the prompt sets it (its instructions carry the
+  // user's own categories) - say that instead of repeating "reading".
+  const [matching, setMatching] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   const startedRef = useRef(false);
 
@@ -100,15 +108,23 @@ export function AiImport({
     setRunningTotal(0);
     setError(null);
     setOpeningSlow(false);
+    setPhase(null);
+    setMatching(false);
     const slow = window.setTimeout(() => setOpeningSlow(true), 25_000);
+    const matchAt = window.setTimeout(() => setMatching(true), 10_000);
+    const clearTimers = () => {
+      window.clearTimeout(slow);
+      window.clearTimeout(matchAt);
+    };
     const ctrl = new AbortController();
     abortRef.current = ctrl;
     convertWithAi({
       files, trip, lang,
       answers: priorAnswers,
       signal: ctrl.signal,
+      onPhase: setPhase,
       onRow: (r) => {
-        window.clearTimeout(slow);
+        clearTimers();
         const row = r.row as { description?: unknown; category?: unknown; subcategory?: unknown; amount?: unknown; currency?: unknown };
         const amount = typeof row.amount === 'number' ? row.amount : 0;
         setRows((prev) => [...prev.slice(-2), {
@@ -123,7 +139,7 @@ export function AiImport({
       },
     })
       .then((d) => {
-        window.clearTimeout(slow);
+        clearTimers();
         setDone(d);
         if (d.status === 'need_input') {
           setQuestions(d.questions ?? []);
@@ -140,7 +156,7 @@ export function AiImport({
         setStep('ready');
       })
       .catch((e) => {
-        window.clearTimeout(slow);
+        clearTimers();
         if (ctrl.signal.aborted) return; // the user left; nothing to draw
         setError(e instanceof AiImportError ? e : new AiImportError('failed', String(e)));
         setStep('error');
@@ -277,9 +293,15 @@ export function AiImport({
             <div className="rounded-2xl px-4 py-4" style={{ background: 'linear-gradient(152deg, #22222B, #121217)' }}>
               {rows.length === 0 ? (
                 // Before the first row there is nothing to count, and a card
-                // reading "0 / 0€" looks broken rather than busy.
+                // reading "0 / 0€" looks broken rather than busy. The line
+                // walks through the request's real stages instead - upload in
+                // flight, headers arrived, then (after a while) the matching
+                // the model is demonstrably in the middle of.
                 <div className="animate-pulse py-2" data-ai-opening style={{ color: 'rgba(255,255,255,0.75)', fontSize: 14, fontWeight: 500 }}>
-                  {openingSlow ? t('ai.openingLong') : t('ai.opening')}
+                  {openingSlow ? t('ai.openingLong')
+                    : phase === 'sent' ? t('ai.phaseSend')
+                    : phase === 'reading' ? (matching ? t('ai.phaseMatch') : t('ai.phaseRead'))
+                    : t('ai.opening')}
                 </div>
               ) : (
                 <>
@@ -293,6 +315,27 @@ export function AiImport({
                   </div>
                 </>
               )}
+              {(() => {
+                // The bar: a real percent when the file's own date-scan gave
+                // a row count, a soft sweep when it could not (PDFs, photos)
+                // - never an invented number. Held short of 100 until the
+                // authoritative answer actually lands.
+                const pct = evidence && evidence.count > 0 && rows.length > 0
+                  ? Math.min(95, Math.round((rows[rows.length - 1].n / evidence.count) * 100))
+                  : null;
+                return (
+                  <div className="mt-3 flex items-center gap-2" data-ai-bar={pct === null ? 'indeterminate' : String(pct)}>
+                    <div className="flex-1 relative overflow-hidden" style={{ height: 4, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.14)' }}>
+                      {pct === null
+                        ? <span className="ai-bar-sweep" />
+                        : <span style={{ display: 'block', height: '100%', width: `${pct}%`, borderRadius: 999, backgroundColor: '#FFFFFF', transition: 'width 400ms ease' }} />}
+                    </div>
+                    {pct !== null && (
+                      <span style={{ color: 'rgba(255,255,255,0.55)', fontSize: 11, fontVariantNumeric: 'tabular-nums' }}>{pct}%</span>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
             <div className="mt-4 flex flex-col gap-2">
               {ticks.map((tick) => (
@@ -417,7 +460,15 @@ export function AiImport({
         const fam =
           error.code === 'offline' ? { icon: WifiOff, title: t('ai.errOfflineTitle'), sub: t('ai.errOfflineSub'), retry: true }
           : error.code === 'stalled' ? { icon: Hourglass, title: t('ai.errStallTitle'), sub: t('ai.errStallSub'), retry: true }
-          : error.code === 'daily_limit' ? { icon: Hourglass, title: t('ai.errLimitTitle'), sub: t('ai.errLimitSub'), retry: false }
+          : error.code === 'daily_limit' ? {
+              icon: Hourglass,
+              title: t('ai.errLimitTitle'),
+              // With the server's own number when the refusal named one:
+              // "all 3 of today's reads" reads as a rule doing its job,
+              // where an unexplained wall reads as the app breaking.
+              sub: error.limit ? t('ai.errLimitSubN', { n: String(error.limit) }) : t('ai.errLimitSub'),
+              retry: false,
+            }
           : error.code === 'too_big' ? { icon: AlertCircle, title: t('ai.errTitle'), sub: t('ai.errBig'), retry: false }
           : error.code === 'not_configured' ? { icon: AlertCircle, title: t('ai.errTitle'), sub: t('ai.errOff'), retry: false }
           : { icon: AlertCircle, title: t('ai.errTitle'), sub: t('ai.errSub'), retry: true };

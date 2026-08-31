@@ -150,8 +150,16 @@ const pickCsv = (p) => p.locator('[data-ai-door] input[type="file"]').setInputFi
     'though one quiet line unfolds them for whoever wants that road');
   ok(!/Bring in your existing data/.test(unfolded) && !/Banks & spreadsheets/.test(unfolded),
     'unfolded under the door, the fold starts at the steps - no second copy of the pitch just read');
+  // One button per screen: with the fold open, the fold's own chooser is the
+  // only dark CTA, and the quiet line becomes the road back.
+  ok(await p.locator('[data-ai-browse]').count() === 0,
+    'the door button steps aside while the fold is open');
+  ok(/Back to the automatic import/.test(unfolded), 'and the quiet line becomes the road back');
+  ok(!/a spreadsheet, a bank\/card statement/.test(unfolded),
+    'step 1 is cut to one sentence - the file litany already lives on the door card');
   await p.locator('[data-ai-manual-line]').click();
   await p.waitForTimeout(200);
+  ok(await p.locator('[data-ai-browse]').count() === 1, 'folding back brings the door button home');
 
   await pickCsv(p);
   await p.waitForTimeout(600);
@@ -169,6 +177,13 @@ const pickCsv = (p) => p.locator('[data-ai-door] input[type="file"]').setInputFi
   ok(await p.locator('[data-ai-flow][data-ai-step="reading"]').count() === 1, 'Go starts the reading screen');
   ok(/No expense has been added yet/.test(await p.locator('[data-ai-flow]').innerText()),
     'which says out loud that nothing has been committed');
+  // The route is still sitting on its 900ms delay: headers have not arrived,
+  // so the narration must say the TRUE thing - the upload is in flight - over
+  // a sweeping bar, since no percent is known before the first row.
+  const opening = await p.locator('[data-ai-opening]').innerText();
+  ok(/Uploading the file/.test(opening), `while the upload is in flight, the line says so (${opening})`);
+  ok(await p.locator('[data-ai-bar="indeterminate"]').count() === 1,
+    'above a live bar - sweeping, because no percent is known yet');
   await p.screenshot({ path: `${OUT}/aiimport-reading.png` });
 
   await p.waitForSelector('[data-ai-flow][data-ai-step="ready"]', { timeout: 10000 });
@@ -186,6 +201,27 @@ const pickCsv = (p) => p.locator('[data-ai-door] input[type="file"]').setInputFi
   ok(stored.some((t) => t.description === `Azores \u{1F1F5}\u{1F1F9} - Pranzo Pico`),
     'spelled with the flag the server re-applied');
   ok(await p.locator('[data-ai-flow]').count() === 0, 'and the flow is gone');
+
+  // The wrong door, caught: a CSV dropped on the manual path's .json button
+  // is someone who missed the automatic one - the error must say so, point
+  // upward, and fold the manual path away so that door is back on screen.
+  // (The commit just landed us on the Dashboard - that is deliberate, the
+  // result is the point - so walk back in first.)
+  await p.getByRole('button', { name: 'Settings' }).first().click();
+  await p.waitForTimeout(600);
+  await p.getByText('Import data', { exact: false }).first().click();
+  await p.waitForTimeout(700);
+  await p.locator('[data-ai-manual-line]').click();
+  await p.waitForTimeout(300);
+  await p.locator('input[accept=".json,application/json"]').setInputFiles({
+    name: 'estratto.csv', mimeType: 'text/csv', buffer: Buffer.from(CSV),
+  });
+  await p.waitForTimeout(500);
+  const nudge = await p.locator('body').innerText();
+  ok(/This button only reads the \.json/.test(nudge), 'a CSV on the .json button is caught and named');
+  ok(/use "Choose a file" above/.test(nudge), 'with the pointer at the door that reads everything');
+  ok(await p.locator('[data-ai-browse]').count() === 1,
+    'and the fold steps aside so that door is back on screen');
   await ctx.close();
 }
 
@@ -216,10 +252,15 @@ const pickCsv = (p) => p.locator('[data-ai-door] input[type="file"]').setInputFi
 }
 
 // ── the day's lot ─────────────────────────────────────────────────────────
+//
+// Reported from a device, verbatim: the wall said "Per oggi è tutto" and
+// nothing else, which read as the app breaking. The refusal must name the
+// rule (all N reads used), say nothing was touched - and be remembered, so
+// the DOOR warns before the next file picker and trip question, not after.
 {
   const { ctx, p } = await open({
     session: true,
-    convert: () => ({ res: { status: 429, contentType: 'application/json', body: JSON.stringify({ code: 'daily_limit', error: "That is today's lot." }) } }),
+    convert: () => ({ res: { status: 429, contentType: 'application/json', body: JSON.stringify({ code: 'daily_limit', error: "That is today's lot.", limit: 3, remaining: 0 }) } }),
   });
   await pickCsv(p);
   await p.waitForTimeout(400);
@@ -227,7 +268,13 @@ const pickCsv = (p) => p.locator('[data-ai-door] input[type="file"]').setInputFi
   await p.waitForSelector('[data-ai-flow][data-ai-step="error"]', { timeout: 8000 });
   const err = await p.locator('[data-ai-flow]').innerText();
   ok(/That's it for today/.test(err), `the cap is a calm sentence, not an error code (${err.split('\n')[1] ?? ''})`);
+  ok(/all 3 of today's reads/.test(err), 'naming the rule with the server\'s own number');
+  ok(/Nothing has been touched/.test(err), 'and saying out loud that nothing was touched');
   ok(await p.locator('[data-ai-cta="retry"]').count() === 0, 'with no retry button pointing at the same wall');
+  await p.locator('[data-ai-cta="close"]').click();
+  await p.waitForTimeout(400);
+  ok(await p.locator('[data-ai-day-done]').count() === 1,
+    'back at the door, the day-is-done note now stands before the button');
   await ctx.close();
 }
 

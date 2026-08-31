@@ -25,7 +25,7 @@ import { ScheduledManager, type ScheduleDraft } from './ScheduledManager';
 import { upcomingSchedules } from '../lib/recurrence';
 import { buildImportPrompt } from '../lib/importPrompt';
 import { AiImport } from './AiImport';
-import { AiImportError, readFiles, type AiFile } from '../lib/aiImport';
+import { AiImportError, aiDayDone, readFiles, type AiFile } from '../lib/aiImport';
 import type { Trip } from '../lib/trips';
 import type { RecurringRule } from '../types';
 import { SourcesManager } from './SourcesManager';
@@ -746,6 +746,19 @@ export function Settings({
         onImportData?.(payload as ImportPayload);
       }
     } catch {
+      // A CSV, PDF or spreadsheet dropped on the .json button is someone on
+      // the manual road by mistake - the automatic door above reads all of
+      // those. Fold the manual path away so that door's button is back on
+      // screen, and say where to go. Guests keep the plain bad-file toast:
+      // for them this button is the only one there is.
+      if (aiImportReady && !/\.json$/i.test(file.name)) {
+        setManualOpen(false);
+        toast.error(t('ai.wrongDoorTitle'), {
+          description: t('ai.wrongDoorDesc'),
+          duration: 4200,
+        });
+        return;
+      }
       toast.error(t('toast.badFile'), {
         description: t('toast.badFileDesc'),
         duration: 2400,
@@ -2808,6 +2821,11 @@ export function Settings({
                   onChange={handleAiFiles}
                   style={{ display: 'none' }}
                 />
+                {/* With the manual fold open, the fold's own chooser is the
+                    page's one button - two identical dark CTAs a screen apart
+                    read as a choice nobody asked to make. The line below
+                    turns into the road back. */}
+                {!manualOpen && (<>
                 <button
                   data-ai-browse
                   onClick={() => {
@@ -2829,6 +2847,13 @@ export function Settings({
                   {t('ai.browse')}
                 </button>
                 <p className="text-center" style={{ color: 'var(--ink-3)', fontSize: 12, marginTop: 8 }}>{t('ai.pickHint')}</p>
+                {/* The cap, said at the door on the day it was hit - not
+                    after the picker and the trip question. A note, not a
+                    lock: the server stays the authority on the next call. */}
+                {aiDayDone() && (
+                  <p data-ai-day-done className="text-center" style={{ color: 'var(--ink-3)', fontSize: 12, marginTop: 4 }}>{t('ai.doorDone')}</p>
+                )}
+                </>)}
               </div>
               <button
                 data-ai-manual-line
@@ -2836,7 +2861,7 @@ export function Settings({
                 className="w-full py-3 mt-2 text-center"
                 style={{ color: 'var(--ink-3)', fontSize: 13, fontWeight: 500 }}
               >
-                {t('ai.manualLine')}
+                {manualOpen ? t('ai.manualBack') : t('ai.manualLine')}
               </button>
             </>
           )}
@@ -2885,13 +2910,21 @@ export function Settings({
           {/* Steps */}
           <div className={`bg-white rounded-2xl shadow-sm p-5 flex flex-col gap-4${aiImportReady ? ' mt-1' : ''}`}>
             <Step n={1}>
-              {/* The app's first external link. Tricount has no export button
-                  of its own, so the name links to the tool that makes one
-                  from a share link (client-side - the trip stays in the
+              {/* Two lengths on purpose. Under the AI door the person has
+                  just read the file-type litany on the card one centimetre
+                  up (Tricount link included) - repeating it here is the
+                  clutter the owner asked cut. For the GUEST this step is the
+                  only place any of it is said, so the full version stays,
+                  with the app's first external link: Tricount has no export
+                  button of its own, so the name links to the tool that makes
+                  one from a share link (client-side - the trip stays in the
                   user's browser). target=_blank because from the installed
-                  PWA this must open the system browser, which is where that
-                  tool has to run anyway. */}
-              {getLanguage() === 'it'
+                  PWA this must open the system browser anyway. */}
+              {aiImportReady
+                ? (getLanguage() === 'it'
+                  ? <>Apri un assistente AI qualsiasi (ChatGPT, Claude, Gemini…). Incolla il prompt qui sotto e allega il tuo file.</>
+                  : <>Open any AI assistant (ChatGPT, Claude, Gemini…). Paste the prompt below and attach your file.</>)
+                : getLanguage() === 'it'
                 ? <>Apri un assistente AI qualsiasi (ChatGPT, Claude, Gemini…). Incolla il prompt qui sotto e allega il tuo file - un foglio di calcolo, un estratto conto (PDF o CSV), un export di viaggio Splitwise o{' '}
               <a href="https://tricount-exporter.pages.dev" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent-ink)', fontWeight: 600, textDecoration: 'underline' }}>Tricount</a>,
               screenshot o una tabella incollata. Le spese condivise arrivano come sola tua quota - i pareggi tra persone vengono saltati.</>

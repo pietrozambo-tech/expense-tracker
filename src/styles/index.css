@@ -431,3 +431,27 @@ html[data-theme="dark"] {
 @media (min-width: 768px) {
   .max-w-\[430px\] { max-width: 560px; }
 }
+
+/* ── the AI reading bar with no denominator ───────────────────────────────
+   A soft light sweep across the dark card's track - motion that says "in
+   progress" without inventing a percent the app does not know (PDFs and
+   photos give the date-scan nothing to count). With a denominator the bar
+   is a plain width-% fill drawn inline; this class only exists for the
+   indeterminate case. */
+.ai-bar-sweep {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 40%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.55), transparent);
+  animation: ai-sweep 1.6s ease-in-out infinite;
+}
+@keyframes ai-sweep {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(350%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ai-bar-sweep { animation: none; width: 100%; background: rgba(255, 255, 255, 0.35); }
+}
