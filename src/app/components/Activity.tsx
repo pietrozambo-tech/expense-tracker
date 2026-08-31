@@ -172,7 +172,14 @@ export function Activity({
   // every return to this tab) a 1.5-2.5s stall on desktop, worse on a phone.
   // 250 covers weeks of scrolling; the tail loads on request.
   const RENDER_CAP = 250;
-  const [renderLimit, setRenderLimit] = useState(RENDER_CAP);
+  // What the FIRST frame after an interaction paints. Mounting 250 row
+  // components in the same frame as the tap is what made entering this tab
+  // and switching to "All years" a measured 150-260ms single task - a visible
+  // hitch on a phone. 60 rows is four-plus screens, so everything above the
+  // fold is identical; the rest of the resting cap arrives a beat later, off
+  // the interaction frame, from the effect below.
+  const FIRST_PAINT_CAP = 60;
+  const [renderLimit, setRenderLimit] = useState(FIRST_PAINT_CAP);
   const [selectedMonth, setSelectedMonth] = useState(preset ? 'year' : saved?.selectedMonth ?? currentMonth);
   const [categoryFilter, setCategoryFilter] = useState(preset?.categoryFilter ?? saved?.categoryFilter ?? 'All');
   const [subcategoryFilter, setSubcategoryFilter] = useState(saved?.subcategoryFilter ?? 'All');
@@ -257,11 +264,24 @@ export function Activity({
   }, [selectedYear]);
 
   // A new filter is a new list: the cap starts over rather than carrying a
-  // deep "Show more" from a different view.
+  // deep "Show more" from a different view - and it starts at the first-paint
+  // cap, so the frame that answers the tap stays cheap.
   useEffect(() => {
-    setRenderLimit(RENDER_CAP);
+    setRenderLimit(FIRST_PAINT_CAP);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedYear, selectedMonth, categoryFilter, subcategoryFilter, sourceFilter, typeFilter, tripFilter, searchQuery, activityType, sortBy]);
+
+  // The rest of the resting cap, a beat later. 350ms clears the tap's own
+  // frame and the sheet-close animation, and the growth happens four screens
+  // below the fold, so nothing on screen moves. A timeout rather than
+  // requestIdleCallback because the checks that drive this screen need a
+  // bound they can wait out, not "whenever the browser feels idle".
+  useEffect(() => {
+    if (renderLimit !== FIRST_PAINT_CAP) return;
+    const id = window.setTimeout(() => setRenderLimit(RENDER_CAP), 350);
+    return () => window.clearTimeout(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [renderLimit]);
 
   // Auto-adjust selected month if it doesn't exist in the selected year
   useEffect(() => {

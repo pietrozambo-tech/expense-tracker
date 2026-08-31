@@ -1,5 +1,5 @@
 import { CURRENCIES, abbreviateNumber } from '../utils/currency';
-import { numberLocale, decimalSeparator, groupSeparator, GROUPED } from '../i18n/store';
+import { cachedNumberFormat, numberLocale, decimalSeparator, groupSeparator, GROUPED } from '../i18n/store';
 
 // An amount typeset the way money is worn, not printed: the units carry the
 // line, the currency symbol and the cents step back. "1,039€" with every glyph
@@ -43,7 +43,8 @@ export function AmountText({
   const rounded = Math.round((amount ?? 0) * factor) / factor;
   const abs = Math.abs(rounded);
   const showFrac = decimals > 0 && !Number.isInteger(rounded);
-  let intText = Math.trunc(abs).toLocaleString(numberLocale(), GROUPED);
+  // Through the kept formatter: this line runs once per visible row.
+  let intText = cachedNumberFormat(numberLocale(), GROUPED).format(Math.trunc(abs));
   let fracText = showFrac ? abs.toFixed(decimals).split('.')[1] : null;
 
   // Above each mode's threshold the number collapses to a single

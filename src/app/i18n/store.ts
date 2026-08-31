@@ -99,6 +99,42 @@ export function decimalSeparator(): string {
   return current === 'it' ? ',' : '.';
 }
 
+// Intl formatters, built once per (locale, options) pair and kept.
+//
+// toLocaleString and toLocaleDateString construct a fresh Intl formatter on
+// every call, and construction is the expensive half - a good fraction of a
+// millisecond each. Nobody notices on a heading; the Activity list calls
+// these once or twice PER ROW. Profiling a 3000-row ledger put the amount
+// text at 43ms and the day-group dates at 27ms of formatter construction per
+// repaint - together the largest app-owned slice of the tab-switch and
+// filter-change stalls. Formatting through a kept instance is the same
+// output at a small multiple of the cost of the format call alone.
+//
+// The cache cannot grow past a handful of entries: locales come from the two
+// the app speaks, and options objects from the few literal shapes in the
+// formatting helpers.
+const NUMBER_FORMATS = new Map<string, Intl.NumberFormat>();
+export function cachedNumberFormat(locale: string, options?: Intl.NumberFormatOptions): Intl.NumberFormat {
+  const key = `${locale}|${JSON.stringify(options ?? 0)}`;
+  let f = NUMBER_FORMATS.get(key);
+  if (!f) {
+    f = new Intl.NumberFormat(locale, options);
+    NUMBER_FORMATS.set(key, f);
+  }
+  return f;
+}
+
+const DATE_FORMATS = new Map<string, Intl.DateTimeFormat>();
+export function cachedDateFormat(locale: string, options?: Intl.DateTimeFormatOptions): Intl.DateTimeFormat {
+  const key = `${locale}|${JSON.stringify(options ?? 0)}`;
+  let f = DATE_FORMATS.get(key);
+  if (!f) {
+    f = new Intl.DateTimeFormat(locale, options);
+    DATE_FORMATS.set(key, f);
+  }
+  return f;
+}
+
 /** ',' in English, '.' in Italian. */
 export function groupSeparator(): string {
   return current === 'it' ? '.' : ',';

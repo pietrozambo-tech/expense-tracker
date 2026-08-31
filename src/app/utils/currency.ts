@@ -1,7 +1,7 @@
 // Currency configuration and conversion utilities
 import { convert as fxConvert } from '../lib/fx';
 import { CURRENCY_DEFS } from '../lib/currencyData';
-import { numberLocale, GROUPED } from '../i18n/store';
+import { cachedNumberFormat, numberLocale, GROUPED } from '../i18n/store';
 
 export interface Currency {
   code: string;
@@ -108,18 +108,18 @@ export function abbreviateNumber(abs: number, mode: 'fit' | 'summary'): string {
   const digits = mode === 'summary'
     ? { minimumFractionDigits: 1, maximumFractionDigits: 1, useGrouping: false }
     : { maximumFractionDigits: 1, useGrouping: false };
-  const unit = (div: number, suffix: string) => `${(abs / div).toLocaleString(loc, digits)}${suffix}`;
+  const unit = (div: number, suffix: string) => `${cachedNumberFormat(loc, digits).format(abs / div)}${suffix}`;
 
   // B and T continue the Trend tab's "MM" notation upward.
   if (abs >= 1e12) return unit(1e12, 'T');
   if (abs >= 1e9) return unit(1e9, 'B');
   if (abs >= 1e6) return unit(1e6, 'MM');
   if (mode === 'summary') {
-    if (abs >= 100000) return `${Math.round(abs / 1000).toLocaleString(loc)}K`;
-    return Math.round(abs).toLocaleString(loc, GROUPED);
+    if (abs >= 100000) return `${cachedNumberFormat(loc).format(Math.round(abs / 1000))}K`;
+    return cachedNumberFormat(loc, GROUPED).format(Math.round(abs));
   }
   if (abs >= 10000) return unit(1000, 'K');
-  return Math.round(abs).toLocaleString(loc, GROUPED);
+  return cachedNumberFormat(loc, GROUPED).format(Math.round(abs));
 }
 
 // A percentage as text, with a ceiling.
@@ -199,11 +199,12 @@ export const formatAmountListView = (amount: number, currencyCode: string, decim
   const factor = 10 ** decimals;
   const rounded = Math.round(amount * factor) / factor;
 
-  const formattedNumber = rounded.toLocaleString(numberLocale(), {
+  // Through the kept formatter - this is the list view's per-row string path.
+  const formattedNumber = cachedNumberFormat(numberLocale(), {
     ...GROUPED,
     minimumFractionDigits: Number.isInteger(rounded) ? 0 : decimals,
     maximumFractionDigits: decimals
-  });
+  }).format(rounded);
 
   // Always position symbol after the number for list views
   const sep = currency.symbol.length > 1 ? ' ' : '';

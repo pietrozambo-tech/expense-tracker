@@ -3,7 +3,10 @@ import { IncomeItem } from './IncomeItem';
 import { mineAmount } from '../utils/currency';
 import { AmountText } from './AmountText';
 import { t } from '../i18n';
-import { dateLocale } from '../i18n/store';
+import { cachedDateFormat, dateLocale } from '../i18n/store';
+
+// One literal object, so the formatter cache sees one shape.
+const DAY_HEADER: Intl.DateTimeFormatOptions = { weekday: 'long', month: 'long', day: 'numeric' };
 import type { Transaction } from '../types';
 import { parseLocalDate } from '../lib/dates';
 
@@ -57,11 +60,9 @@ export function ActivityDayGroup({
     yesterday.setDate(yesterday.getDate() - 1);
     if (selectedDate.getTime() === yesterday.getTime()) return t('date.yesterday');
 
-    return parsed.toLocaleDateString(dateLocale(), {
-      weekday: 'long',
-      month: 'long',
-      day: 'numeric'
-    });
+    // The kept formatter: this header renders once per day group, and a
+    // month of groups was 27ms of formatter construction on every repaint.
+    return cachedDateFormat(dateLocale(), DAY_HEADER).format(parsed);
   };
 
   // Net daily total in the user's currency: income adds, expenses subtract.
