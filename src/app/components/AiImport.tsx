@@ -183,6 +183,15 @@ export function AiImport({
           return;
         }
         const payload = d.payload ?? { version: 1, currency: userCurrency, transactions: [] };
+        // Read, and there was nothing in it. Its own screen: "nothing new"
+        // on the result screen means "you already had these", and saying
+        // that about a CV or a shopping list sends the user looking for a
+        // duplicate that was never there.
+        if ((payload.transactions ?? []).length === 0) {
+          setError(new AiImportError('no_rows', 'the file held no transactions'));
+          setStep('error');
+          return;
+        }
         const res = buildImport(
           payload,
           categories as never, incomeCategories as never, userCurrency, transactions as never,
@@ -595,6 +604,9 @@ export function AiImport({
           : error.code === 'too_big' ? { icon: AlertCircle, title: t('ai.errTitle'), sub: t('ai.errBig'), retry: false }
           : error.code === 'not_configured' ? { icon: AlertCircle, title: t('ai.errTitle'), sub: t('ai.errOff'), retry: false }
           : error.code === 'busy' ? { icon: Hourglass, title: t('ai.errBusyTitle'), sub: t('ai.errBusySub'), retry: true }
+          // Read fine, held nothing. Not a failure of the app and not a
+          // duplicate - the file simply was not a list of expenses.
+          : error.code === 'no_rows' ? { icon: AlertCircle, title: t('ai.errNoData'), sub: t('ai.errNoRowsSub'), retry: false }
           : {
               icon: AlertCircle, title: t('ai.errTitle'), sub: t('ai.errSub'), retry: true,
               // The server's own words, small and grey: "non sono riuscito a

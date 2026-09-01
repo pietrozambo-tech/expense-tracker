@@ -580,6 +580,84 @@ const pickCsv = (p) => p.locator('[data-ai-door] input[type="file"]').setInputFi
   await ctx.close();
 }
 
+// ── the files that must never reach the model ────────────────────────────
+//
+// The day's read is claimed by the server BEFORE the model is called, so
+// anything the phone can rule out for free has to be ruled out here. Three
+// kinds, and the route asserts it: not one of these may cause a request.
+{
+  let calls = 0;
+  const { ctx, p } = await open({
+    session: true,
+    convert: () => { calls += 1; return { res: { status: 500, body: '{}' } }; },
+  });
+  const pick = (name, mimeType, body) => p.locator('[data-ai-door] input[type="file"]')
+    .setInputFiles({ name, mimeType, buffer: Buffer.from(body) });
+
+  // 1. Something that is not a ledger at all. No dates, barely a number.
+  await pick('curriculum.txt', 'text/plain',
+    'Curriculum vitae\n\nPietro Rossi\nProduct designer, Milan.\nSkills: Figma, prototyping, research.\nSpeaks Italian and English.\n');
+  await p.waitForTimeout(700);
+  const body1 = await p.locator('body').innerText();
+  ok(/don't see any expenses/.test(body1), `a file with no dates and no money is refused on the phone (${body1.split('\n').find((l) => /expenses/.test(l)) ?? ''})`);
+  ok(await p.locator('[data-ai-flow]').count() === 0, 'without opening the flow');
+
+  // 2. The app's own .json, dropped on the AI door. It is already in the
+  //    importer's format: no read, no wait, it just imports.
+  const payload = JSON.stringify({
+    version: 1, currency: 'EUR',
+    transactions: [
+      { date: '2026-08-22', amount: 12.5, type: 'expense', category: 'Travel', description: 'Ferry JSON' },
+      { date: '2026-08-23', amount: 8, type: 'expense', category: 'Travel', description: 'Caffe JSON' },
+    ],
+  });
+  await pick('tracklylab-import.json', 'application/json', payload);
+  await p.waitForTimeout(1200);
+  ok(await p.locator('[data-ai-flow]').count() === 0, 'a ready-made .json does not open the AI flow at all');
+  const stored = await p.evaluate(() => JSON.parse(localStorage.getItem('expense-tracker.v1.transactions') ?? '[]'));
+  ok(stored.some((t) => t.description === 'Ferry JSON'),
+    `it is imported directly, free and instant (${stored.length} rows now)`);
+
+  // 3. A text file past what one read can hold. Refused here rather than by
+  //    the API, which would have cost the read to say no.
+  await p.getByRole('button', { name: 'Settings' }).first().click();
+  await p.waitForTimeout(500);
+  await p.getByText('Import data', { exact: false }).first().click();
+  await p.waitForTimeout(600);
+  const huge = ['date,description,amount']
+    .concat(Array.from({ length: 12000 }, (_, i) => `2026-08-22,Row number ${i} with a long enough description to bulk this out,${i}.50`))
+    .join('\n');
+  await pick('enorme.csv', 'text/csv', huge);
+  await p.waitForTimeout(700);
+  ok(/Too long to read in one go/.test(await p.locator('body').innerText()),
+    'a file past one read\'s worth of text is refused with what to do about it');
+
+  ok(calls === 0, `and not one of the three spent a read (${calls} calls)`);
+  await ctx.close();
+}
+
+// ── read, and there was nothing in it ────────────────────────────────────
+//
+// The other half of the same question: the model DID read the file and found
+// no transactions. That used to land on the result screen saying "nothing
+// new - close", which means "you already had these" and sends the user
+// hunting for a duplicate that never existed.
+{
+  const EMPTY = { ...OK_DONE, payload: { version: 1, currency: 'EUR', transactions: [] } };
+  const { ctx, p } = await open({
+    session: true,
+    convert: () => ({ res: { status: 200, contentType: 'text/event-stream', body: sse([['done', EMPTY]]) } }),
+  });
+  await pickCsv(p);
+  await p.waitForTimeout(500);
+  await p.locator('[data-ai-cta="go"]').click();
+  await p.waitForSelector('[data-ai-flow][data-ai-step="error"]', { timeout: 8000 });
+  const err = await p.locator('[data-ai-flow]').innerText();
+  ok(/don't see any expenses/.test(err), 'a file read to the end with nothing in it says exactly that');
+  ok(!/Nothing new/.test(err), 'and never calls it a duplicate');
+  await ctx.close();
+}
+
 // ── the Italian twin, in the dark ─────────────────────────────────────────
 {
   const ctx = await b.newContext({ viewport: { width: 390, height: 900 }, locale: 'it-IT', colorScheme: 'dark' });

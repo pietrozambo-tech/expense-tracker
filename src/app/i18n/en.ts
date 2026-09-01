@@ -675,6 +675,10 @@ export const en = {
   'ai.errStallSub': 'I stopped rather than keep you waiting on nothing. Nothing has been added - try again.',
   'ai.errOfflineTitle': "You're offline",
   'ai.errOfflineSub': 'Nothing has been added. Try again when you have a connection.',
+  // Caught on the phone, before a read is spent: no dates, barely a number.
+  'ai.errNoData': "I don't see any expenses in there",
+  'ai.errNoDataSub': 'No dates, no amounts - is that the right file?',
+  'ai.errNoRowsSub': "I read it through and found nothing to import. Try the file your bank or your split app exports.",
   'ai.errFileType': "That file type isn't one I can read.",
   'ai.errTooMany': 'Four files at a time is the most I can take.',
   'ai.errTooBig': 'Those files add up to more than 12MB.',

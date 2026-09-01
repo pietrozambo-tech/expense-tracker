@@ -756,9 +756,13 @@ function streamed(
         send('done', finish(textOf(msg), usageOf(msg)));
       } catch (e) {
         const failure = apiFailure(e);
-        // Only an API failure gives the day's credit back; a file this could
-        // not make sense of was still read, and paid for.
-        if (failure.code === 'busy' || failure.code === 'not_configured') {
+        // The day's read pays for the model's WORK. If the request never got
+        // that far - the API refused it outright, the key is wrong, the
+        // reader is busy - nothing was read and the credit goes back. Only a
+        // finished answer consumes it, however disappointing: 'too_big' is
+        // thrown by shapeAnswer on a reply that ran past max_tokens, and that
+        // one was generated and paid for.
+        if (failure.code !== 'too_big') {
           await admin.rpc('ai_import_release', { p_user: userId });
         }
         send('failed', { code: failure.code, error: failure.message });

@@ -25,7 +25,7 @@ import { ScheduledManager, type ScheduleDraft } from './ScheduledManager';
 import { upcomingSchedules } from '../lib/recurrence';
 import { buildImportPrompt } from '../lib/importPrompt';
 import { AiImport } from './AiImport';
-import { AiImportError, aiDayDone, readFiles, type AiFile } from '../lib/aiImport';
+import { AiImportError, aiDayDone, readFiles, readyMadePayload, type AiFile } from '../lib/aiImport';
 import type { Trip } from '../lib/trips';
 import type { RecurringRule } from '../types';
 import { SourcesManager } from './SourcesManager';
@@ -399,7 +399,25 @@ export function Settings({
     e.target.value = '';
     if (!list.length) return;
     try {
-      setAiFiles(await readFiles(list));
+      const read = await readFiles(list);
+      // The app's own .json, dropped on the AI door: it is already in the
+      // format the importer eats, so it goes straight there - no read spent,
+      // no minute waited, no model asked to retype what the app wrote. The
+      // two buttons are one screen apart and this is the likelier mistake of
+      // the two, so it is answered by simply doing the right thing.
+      const ready = readyMadePayload(read);
+      if (ready) {
+        if (isBackupFile(ready)) {
+          setShowImport(false);
+          setPendingBackup(ready);
+          setConfirmAction('restore');
+          onModalOpenChange(true);
+        } else {
+          onImportData?.(ready);
+        }
+        return;
+      }
+      setAiFiles(read);
     } catch (err) {
       const code = err instanceof AiImportError ? err.code : 'failed';
       const key =
@@ -407,8 +425,13 @@ export function Settings({
         : code === 'file_type' ? 'ai.errFileType'
         : code === 'too_many' ? 'ai.errTooMany'
         : code === 'too_big' ? 'ai.errTooBig'
+        : code === 'too_long' ? 'ai.errBig'
+        : code === 'no_data' ? 'ai.errNoData'
         : 'ai.errSub';
-      toast.error(t(key as Parameters<typeof t>[0]));
+      toast.error(t(key as Parameters<typeof t>[0]), {
+        description: code === 'no_data' ? t('ai.errNoDataSub') : undefined,
+        duration: code === 'no_data' ? 4000 : 2600,
+      });
     }
   };
   const [categoryType, setCategoryType] = useState<'expense' | 'income'>('expense');

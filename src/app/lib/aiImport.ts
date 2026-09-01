@@ -19,6 +19,18 @@ import type { ImportPayload } from './importData';
  *  function cannot export them across the trust boundary. */
 export const AI_MAX_FILES = 4;
 export const AI_MAX_BYTES = 12 * 1024 * 1024;
+/**
+ * How much TEXT one read can actually take, in characters.
+ *
+ * The byte ceiling above is about the request; this is about the model's
+ * context, and it is the tighter of the two by a mile - 12MB of CSV is some
+ * three million tokens against a 200k window. Without it a big export was
+ * refused by the API itself, which is the worst place to find out: the day's
+ * read is claimed before the call, so the user paid one to be told no.
+ * ~350k characters is roughly 90k tokens, which leaves the instructions and
+ * the answer their room.
+ */
+export const AI_MAX_TEXT = 350_000;
 
 /** The types that travel as they are. Everything else gets a second look:
  *  an .xlsx is unpacked to CSV on the phone (see lib/xlsx.ts - as zip bytes
@@ -44,6 +56,48 @@ const looksLikeText = (bytes: Uint8Array): boolean => {
   }
   return control / n < 0.02;
 };
+
+/** Numbers written the way money is - "12", "12.50", "1.234,56", "-8,00". */
+const AMOUNT_RE = /(?:^|[\s,;|"'([])[-+]?\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{1,2})?(?=$|[\s,;|"')\]€$£%])/g;
+
+/**
+ * Could this text be a list of transactions at all?
+ *
+ * The cheapest gate there is, and the only one that costs nothing: a text
+ * file with no date anywhere in it and barely a number is a CV, a recipe, a
+ * chat log - not a ledger. Sending it spends one of the day's reads to be
+ * told what the phone could see for free.
+ *
+ * Deliberately generous in the file's favour: ANY date, or a handful of
+ * numbers, is enough to pass. A real export always clears this by a mile,
+ * and the cost of a wrong refusal (a file the app won't even try) is much
+ * higher than the cost of a wasted read.
+ */
+export function looksLikeLedger(text: string): boolean {
+  const head = text.slice(0, 200_000);
+  if (/\d{4}-\d{2}-\d{2}|\d{1,2}\/\d{1,2}\/\d{2,4}|\d{1,2}[-. ](?:gen|feb|mar|apr|mag|giu|lug|ago|set|ott|nov|dic|jan|may|jun|jul|aug|sep|oct|dec)/i.test(head)) return true;
+  return (head.match(AMOUNT_RE) ?? []).length >= 3;
+}
+
+/**
+ * A file the app can import itself, for free: the .json the manual path
+ * produces. Dropped on the AI door - which happens, the two buttons are one
+ * screen apart - it used to be sent off to be read by a model, spending a
+ * read and a minute on a file that is already in the app's own format.
+ * Returns the payload to import directly, or null.
+ */
+export function readyMadePayload(files: AiFile[]): ImportPayload | null {
+  if (files.length !== 1) return null;
+  const text = files[0].text;
+  if (!text || !/^\s*[[{]/.test(text)) return null;
+  try {
+    const parsed = JSON.parse(text) as Record<string, unknown>;
+    // The app's own two shapes: an import file, or a full backup (which the
+    // caller turns into a restore, exactly as the .json button does).
+    if (Array.isArray(parsed?.transactions)) return parsed as unknown as ImportPayload;
+  } catch { /* not JSON, or not ours - the model can have it */ }
+  return null;
+}
 
 export interface AiFile {
   media_type: string;
@@ -139,6 +193,19 @@ export async function readFiles(files: File[]): Promise<AiFile[]> {
       bytes: f.size,
       text: isText ? new TextDecoder().decode(buf) : null,
     });
+  }
+  // The two free refusals, made AFTER the files are read and only on the text
+  // ones - a PDF or a photo cannot be sniffed and gets the benefit of the
+  // doubt. Both exist for the same reason: the day's read is claimed by the
+  // server before the model is called, so a file that cannot possibly work
+  // must be stopped on this side of the line, where it costs nothing.
+  const texts = out.filter((f) => f.text);
+  const chars = texts.reduce((sum, f) => sum + (f.text?.length ?? 0), 0);
+  if (chars > AI_MAX_TEXT) throw new AiImportError('too_long', String(chars));
+  // Only when EVERY text file looks like something else: one unreadable file
+  // beside a real export is the model's problem, not a reason to refuse.
+  if (texts.length > 0 && texts.length === out.length && !texts.some((f) => looksLikeLedger(f.text!))) {
+    throw new AiImportError('no_data', texts[0].name);
   }
   return out;
 }
