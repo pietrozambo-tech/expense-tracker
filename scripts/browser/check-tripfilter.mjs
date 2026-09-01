@@ -29,6 +29,18 @@ const CATS = [
 const open = async (withTrips = true) => {
   const ctx = await b.newContext({ viewport: { width: 390, height: 900 }, locale: 'en-GB' });
   await ctx.route(/supabase\.co/, (r) => r.abort());
+  // The clock, pinned inside the month the rows are seeded in. "The list
+  // opens on this month" was written in August and was true until midnight
+  // turned this month into September and the assertion into a calendar.
+  await ctx.addInitScript(() => {
+    const Real = Date;
+    const OFFSET = new Real(2026, 7, 28, 10, 0, 0).getTime() - Real.now();
+    class FakeDate extends Real {
+      constructor(...args) { if (args.length) super(...args); else super(Real.now() + OFFSET); }
+      static now() { return Real.now() + OFFSET; }
+    }
+    window.Date = FakeDate;
+  });
   await ctx.addInitScript(([cats, trip, seedTrips]) => {
     const put = (k, v) => localStorage.setItem(`expense-tracker.v1.${k}`, typeof v === 'string' ? v : JSON.stringify(v));
     if (localStorage.getItem('seeded')) return;

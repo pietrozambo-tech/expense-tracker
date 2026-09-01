@@ -34,6 +34,12 @@ export interface NudgePrefs {
   customizeDismissed?: boolean;
   /** The month ('YYYY-MM') whose recap was already shown and dismissed. */
   recapSeen?: string;
+  /** The month ('YYYY-MM') whose review pointer - the "August summary" line
+   *  on the new month's Dashboard - was already tapped. It only navigates,
+   *  so one tap has said everything it has to say; kept in component state
+   *  it resurrected on every tab switch, which read as a card that would
+   *  not take no for an answer. */
+  reviewSeen?: string;
   /** Backup-nudge clocks. A dismissal snoozes for thirty days rather than
    *  forever - new data keeps accruing, so the risk the card describes only
    *  grows - and any backup export (from the card OR Settings) resets the

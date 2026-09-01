@@ -170,6 +170,11 @@ interface DashboardProps {
   /** False once the user has turned the month-review card off in Settings. */
   insightsEnabled?: boolean;
   onDisableInsights?: () => void;
+  /** True when this month's review pointer was already tapped - persisted by
+   *  App, because component state died on every tab switch and the pointer
+   *  greeted the user afresh each time. One tap a month is the contract. */
+  reviewPointerSeen?: boolean;
+  onReviewPointerSeen?: () => void;
   // First-run: with an empty ledger the Overview shows one clear next action
   // instead of a page of zeros. Both open flows that already exist elsewhere.
   onAddFirstExpense?: () => void;
@@ -449,7 +454,7 @@ let lastChartWidth = 0;
 // Same idea for the Trend tab's monthly line chart, which has its own box.
 let lastTrendWidth = 0;
 
-export function Dashboard({ expenses, categories, incomeCategories, sources = [], userName, currency, onEditExpense, onDeleteExpense, view = 'overview', onShowOverview, initialPeriod, viewStateRef, trendStateRef, monthlyBudget, nudge, insightsEnabled = true, onDisableInsights, onModalOpenChange, onAddFirstExpense, onLoadDemoData, weekStartsOn = 1, recurringRules = [], onManageRecurring, household = null, partner = null, settlements = [], onSettle, sharedNewsCount = 0, sharedNews = null, onSharedModeChange, onOpenBalanceHistory }: DashboardProps) {
+export function Dashboard({ expenses, categories, incomeCategories, sources = [], userName, currency, onEditExpense, onDeleteExpense, view = 'overview', onShowOverview, initialPeriod, viewStateRef, trendStateRef, monthlyBudget, nudge, insightsEnabled = true, onDisableInsights, reviewPointerSeen = false, onReviewPointerSeen, onModalOpenChange, onAddFirstExpense, onLoadDemoData, weekStartsOn = 1, recurringRules = [], onManageRecurring, household = null, partner = null, settlements = [], onSettle, sharedNewsCount = 0, sharedNews = null, onSharedModeChange, onOpenBalanceHistory }: DashboardProps) {
   // Restore the previous view (period + drilldown) unless a Trend->Overview
   // link supplied an explicit period - that must win and start clean.
   // Subscribing here does two jobs: it re-renders the Dashboard the instant the
@@ -2100,7 +2105,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
     return `${monthsFull()[d.getMonth()]}`;
   })();
   const showReviewPointer = (() => {
-    if (reviewPointerGone || timePeriodType !== 'month' || !isAtCurrentPeriod()) return false;
+    if (reviewPointerSeen || reviewPointerGone || timePeriodType !== 'month' || !isAtCurrentPeriod()) return false;
     if (new Date().getDate() > 5) return false;
     const prev = inRange(periodRange(1)).filter((e) => e.type !== 'income');
     return prev.length >= 5;
@@ -2853,9 +2858,14 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
           {insightsEnabled && showReviewPointer && (
             <div className="px-6 mb-4">
               <button
+                data-review-pointer
                 onClick={() => {
                   navigatePrevious();
                   setReviewPointerGone(true);
+                  // Written down, not just remembered: the local flag dies
+                  // with this mount (every tab switch), which is exactly how
+                  // "one time per month" became "every time I come back".
+                  onReviewPointerSeen?.();
                 }}
                 className="w-full flex items-center gap-2.5 rounded-2xl px-4 py-3 transition-all active:scale-[0.99]"
                 style={{ backgroundColor: 'var(--wash-accent)', boxShadow: '0 1px 4px rgba(79,116,243,0.10)' }}

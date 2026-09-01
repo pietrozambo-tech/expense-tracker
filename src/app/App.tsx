@@ -3727,6 +3727,10 @@ export default function App() {
                 }
                 insightsEnabled={insightsEnabled}
                 onDisableInsights={() => setInsightsEnabled(false)}
+                // One tap a month: the pointer's "seen" must outlive this
+                // mount (which dies on every tab switch) and this launch.
+                reviewPointerSeen={nudgePrefs.reviewSeen === monthKey(new Date())}
+                onReviewPointerSeen={() => setNudgePrefs((p) => ({ ...p, reviewSeen: monthKey(new Date()) }))}
                 onModalOpenChange={setIsModalOpen}
                 onAddFirstExpense={() => setCurrentTab('add')}
                 onLoadDemoData={handleLoadDemoData}
@@ -3760,6 +3764,8 @@ export default function App() {
                 view="trend"
                 weekStartsOn={weekStartsOn}
                 trendStateRef={trendViewRef}
+                reviewPointerSeen={nudgePrefs.reviewSeen === monthKey(new Date())}
+                onReviewPointerSeen={() => setNudgePrefs((p) => ({ ...p, reviewSeen: monthKey(new Date()) }))}
                 onShowOverview={(period) => {
                   setDashboardInitialPeriod(period);
                   setCurrentTab('dashboard');

@@ -37,7 +37,7 @@ const seed = ([ref, session]) => {
   put('categories', [cat]);
   put('income-categories', []);
   put('sources', [{ id: 'cash', kind: 'cash', mark: 'banknote', name: 'Cash', brand: '#2FA84F' }]);
-  put('transactions', ['2026-08-05', '2026-08-12', '2026-08-20'].map((date, i) => ({
+  put('transactions', ['2026-08-05', '2026-08-08', '2026-08-12', '2026-08-15', '2026-08-20', '2026-08-22'].map((date, i) => ({
     id: 't' + i, date, type: 'expense', amount: 20, baseAmount: 20, currency: 'EUR', sourceId: 'cash',
     category: cat, createdAt: `${date}T10:00:00.000Z`, updatedAt: `${date}T10:00:00.000Z`,
     recurrence: 'Never repeat', description: 'Row ' + i,
@@ -93,6 +93,29 @@ ok(await b2.locator('[data-nudge="recap"]').count() === 0,
 await a.reload({ waitUntil: 'networkidle' });
 await a.waitForTimeout(1500);
 ok(await a.locator('[data-nudge="recap"]').count() === 0, 'closing and reopening the app does not resurrect it');
+
+// ── the review pointer - the OTHER August line, reported on a screenshot ──
+//
+// "August summary >" under the segment toggle. Its "seen" lived in component
+// state, which dies on every tab switch and every relaunch - so tapping it
+// hid it for seconds and it greeted the user again all morning. One tap a
+// month is the contract, and the tap is now written down.
+ok(await a.locator('[data-review-pointer]').count() === 1
+  && (await a.locator('[data-review-pointer]').innerText()).includes('August'),
+  'Sep 1: the "August summary" pointer is on the new month');
+await a.locator('[data-review-pointer]').click();
+await a.waitForTimeout(600);
+const heroText = await a.locator('body').innerText();
+ok(heroText.includes('August 2026'), 'tapping it walks back to August');
+ok(await a.locator('[data-review-pointer]').count() === 0, 'and the pointer considers itself heard');
+const stored2 = await a.evaluate(() => JSON.parse(localStorage.getItem('expense-tracker.v1.nudges') ?? '{}'));
+ok(stored2.reviewSeen === '2026-09', `written down for the month (${stored2.reviewSeen})`);
+// The reported bug, pinned: a remount (tab switch, app relaunch) must not
+// resurrect it.
+await a.reload({ waitUntil: 'networkidle' });
+await a.waitForTimeout(1500);
+ok(await a.locator('[data-review-pointer]').count() === 0,
+  'changing tab or reopening the app does not bring it back');
 
 await ctx.close();
 console.log(fail.length ? `\n${fail.length} FAILED` : '\nonce per month means once');
