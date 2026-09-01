@@ -5,7 +5,7 @@ import { getCategoryIcon } from './categoryIcons';
 import { composeSupportMessage, sendSupportMessage, supportLimitReached, type SupportTopic } from '../lib/support';
 import { fetchAdminStats, type AdminStats } from '../lib/adminStats';
 import { lastPing, pingCurrentUser, type PingInfo } from '../lib/activityPing';
-import { UserStats } from './UserStats';
+import { AiSpendCard, UserStats } from './UserStats';
 import { switchGlow } from './categoryColors';
 
 // Where messages from Settings > Contacts go. Easy to swap when the domain changes.
@@ -456,6 +456,23 @@ export function Settings({
   // that would make the chart a mirror rather than a measurement.
   const [countSelf, setCountSelf] = useState(false);
   const [ping, setPing] = useState<PingInfo | null>(null);
+  const loadAdmin = useCallback(async (self: boolean) => {
+    setLoadingAdmin(true);
+    setAdminError(null);
+    const { stats, error } = await fetchAdminStats(self);
+    setAdminStats(stats);
+    setAdminError(error);
+    setLoadingAdmin(false);
+  }, []);
+  // The spend is the one figure on the Developer screen worth having WITHOUT
+  // asking for it: a number you check to catch a surprise is no use two taps
+  // and a "load" button away. One call when the screen opens, then held -
+  // the Users dashboard reuses the same answer, and its Refresh still
+  // refetches for both.
+  useEffect(() => {
+    if (showDev && !adminStats && !loadingAdmin) void loadAdmin(countSelf);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showDev]);
   const [showBalance, setShowBalance] = useState(false);
   /** The country this device is in, named and flagged, or null if unplaceable. */
   const here = (() => {
@@ -961,14 +978,7 @@ export function Settings({
       : shown.ok
         ? { text: `Recorded at ${new Date(shown.at).toLocaleTimeString()}${shown.skipped ? ' (already counted today)' : ''}.`, tone: 'var(--ink-2)' }
         : { text: `Last attempt failed: ${shown.error}`, tone: '#E5484D' };
-    const load = async (self: boolean) => {
-      setLoadingAdmin(true);
-      setAdminError(null);
-      const { stats, error } = await fetchAdminStats(self);
-      setAdminStats(stats);
-      setAdminError(error);
-      setLoadingAdmin(false);
-    };
+    const load = loadAdmin;
     return (
       <div className="flex flex-col" style={SUBPAGE_STYLE}>
         <div style={{ backgroundColor: 'var(--bg-page)' }}>
@@ -1165,6 +1175,27 @@ export function Settings({
               Force update &amp; reload
             </button>
           </div>
+
+          {/* What the AI import is costing, in the place it is actually
+              looked at. It used to sit inside the Users dashboard, behind a
+              Load button and a screen of addresses it has nothing to do
+              with - two taps away from a number whose whole job is to be
+              glanced at. Absent until the feature has spent its first
+              token: a permanent zero would be furniture. */}
+          {adminStats && adminStats.aiSpend.length > 0 && (
+            <div className="rounded-2xl px-5 py-4 mb-4" style={CARD}>
+              <div className="mb-2" style={EYEBROW}>AI SPEND</div>
+              <AiSpendCard spend={adminStats.aiSpend} model={adminStats.aiModel} />
+              <p className="mt-2" style={NOTE}>
+                Tokens times list price, so an estimate rather than an
+                invoice - the real figure is on the Anthropic console. Every
+                account, this one included.
+              </p>
+            </div>
+          )}
+          {loadingAdmin && !adminStats && (
+            <p data-dev-spend-loading className="mb-4" style={NOTE}>Loading the AI spend…</p>
+          )}
 
           {/* The user dashboard is a screen of its own: thirty days of
               addresses would otherwise bury everything below it. */}

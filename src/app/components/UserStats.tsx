@@ -156,11 +156,6 @@ export function UserStats({ stats, dark }: { stats: AdminStats; dark: boolean })
         </div>
       )}
 
-      {/* What the AI import is costing. Absent entirely until the feature has
-          spent its first token - a permanent zero would just be furniture.
-          English like the rest of this screen: it is the owner's console. */}
-      {stats.aiSpend.length > 0 && <AiSpendCard spend={stats.aiSpend} model={stats.aiModel} />}
-
       {/* The table view: every chart here has one, and on a phone it is often
           the part actually read. */}
       <div className="mt-3 pt-3" style={{ borderTop: '1px solid var(--line-2)' }}>
@@ -192,8 +187,13 @@ export function UserStats({ stats, dark }: { stats: AdminStats; dark: boolean })
  * figure because tokens-times-list-price is an estimate, not an invoice: the
  * real number is on the Anthropic console, and this exists so a surprise
  * there could never have been a surprise.
+ *
+ * It lives on the Developer screen itself rather than inside the Users
+ * dashboard, where it started: this is a number to GLANCE at, and it was
+ * two taps and a "load user stats" away, behind thirty days of addresses it
+ * has nothing to do with.
  */
-function AiSpendCard({ spend, model }: { spend: AiSpendDay[]; model: string }) {
+export function AiSpendCard({ spend, model }: { spend: AiSpendDay[]; model: string }) {
   const todayKey = new Date().toISOString().slice(0, 10);
   const today = spend.find((d) => d.day === todayKey) ?? null;
   const total = spend.reduce(
