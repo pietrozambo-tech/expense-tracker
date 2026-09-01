@@ -135,6 +135,20 @@ ok(!/2\. Is this a trip\? 3\./.test(en) && !/2\. È un viaggio\? 3\./.test(it),
 ok(/I'd call it "Formentera" - right\?/.test(en) && /lo chiamerei "Formentera" - confermi\?/.test(it),
   'it proposes an answer for me to confirm instead');
 
+// ── a zero is not the same zero in the two kinds of split file ────────────
+//
+// From a real Splitwise export: "Voli Pietro", 195.00, every column 0.00 -
+// the owner's own flights, paid by him, his share in full. The rule used to
+// say a zero for me means I was not in that expense, full stop, and it ate
+// 245 EUR of his biggest rows in silence. In a BALANCES file a zero means
+// "I paid exactly what I owed", which is spending.
+ok(/Every value on the row is zero/.test(en) && /Tutti i valori della riga sono a zero/.test(it),
+  'an all-zero row on a balances file is somebody\'s spending in full, not an absence');
+ok(/"Voli Pietro", 195, all zeros/.test(en) && /"Voli Pietro", 195, tutti zeri/.test(it),
+  'and the worked example is the row that was actually lost');
+ok(/ASK me whose it was/.test(en) && /CHIEDIMI di chi era/.test(it),
+  'an all-zero row naming nobody is asked about, never silently dropped');
+
 // ── descriptions belong to whoever typed them ─────────────────────────────
 ok(/"toy grabber" stays "toy grabber"/.test(en) && /"azzardo peluche" resta "azzardo peluche"/.test(it),
   'a hand-typed description survives the import verbatim, example and all');

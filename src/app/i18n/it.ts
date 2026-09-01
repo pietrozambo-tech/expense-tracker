@@ -642,6 +642,8 @@ export const it: Record<keyof typeof en, string> = {
   'ai.errSpreadsheet': 'Questo formato è quello vecchio: salvalo come .xlsx o CSV e riprova.',
   'ai.opening': 'Sto aprendo il file…',
   'ai.openingLong': 'Il file è corposo - qualche secondo ancora…',
+  'ai.checkOk': 'Nel file la tua quota è {amount} - torna.',
+  'ai.checkOff': 'Attenzione: dal file la tua quota è {file}, ma io ne ho letti {read}. Controlla prima di aggiungere.',
   'ai.phaseSend': 'Carico il file…',
   'ai.phaseRead': 'Leggo le righe…',
   'ai.phaseMatch': 'Confronto con le tue categorie…',

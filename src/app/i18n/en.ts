@@ -657,6 +657,9 @@ export const en = {
   'ai.errSpreadsheet': 'That format is the old one - save it as .xlsx or CSV and try again.',
   'ai.opening': 'Opening the file…',
   'ai.openingLong': 'A big file - a few more seconds…',
+  // The phone's own reading of a split file, against the model's.
+  'ai.checkOk': 'Your share in the file is {amount} - that matches.',
+  'ai.checkOff': 'Careful: the file makes your share {file}, but I read {read}. Check before adding.',
   'ai.phaseSend': 'Uploading the file…',
   'ai.phaseRead': 'Reading the rows…',
   'ai.phaseMatch': 'Matching against your categories…',

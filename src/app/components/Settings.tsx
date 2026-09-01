@@ -3023,6 +3023,7 @@ export function Settings({
             incomeCategories={incomeCategories}
             userCurrency={userCurrency}
             transactions={transactions}
+            userName={userName}
             onCommit={(payload) => onImportData?.(payload)}
             onClose={() => setAiFiles(null)}
           />

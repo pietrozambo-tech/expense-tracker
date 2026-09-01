@@ -7,6 +7,7 @@ import {
   type AiDone, type AiFile, type AiQuestion,
 } from '../lib/aiImport';
 import { buildImport, type ImportPayload, type ImportResult } from '../lib/importData';
+import { splitShareTotal } from '../lib/splitFile';
 import type { Trip } from '../lib/trips';
 import { CURRENCIES } from '../utils/currency';
 
@@ -36,6 +37,8 @@ interface AiImportProps {
   incomeCategories: unknown[];
   userCurrency: string;
   transactions: unknown[];
+  /** For finding my own column in a split export - see lib/splitFile. */
+  userName?: string;
   /** The same commit the JSON import path uses. */
   onCommit: (payload: ImportPayload) => void;
   onClose: () => void;
@@ -62,8 +65,21 @@ function windowLabel(from: string, to: string): string {
 }
 
 export function AiImport({
-  files, trips, categories, incomeCategories, userCurrency, transactions, onCommit, onClose,
+  files, trips, categories, incomeCategories, userCurrency, transactions, userName, onCommit, onClose,
 }: AiImportProps) {
+  // The file's own arithmetic, done here: on a split export the phone can
+  // work out my share exactly, and then the model's reading has something to
+  // be checked against instead of being taken on trust. Null for every file
+  // that is not one of these, or whose columns do not name me.
+  const fileShare = useMemo(() => {
+    if (!userName?.trim()) return null;
+    for (const f of files) {
+      if (!f.text) continue;
+      const found = splitShareTotal(f.text, userName);
+      if (found) return found;
+    }
+    return null;
+  }, [files, userName]);
   // The local evidence, gathered once: dates out of whatever text arrived.
   // askTrip: the file is trip-shaped (a tight run of dates) but no known trip
   // fits - so the question is asked HERE, once, instead of costing one of the
@@ -129,9 +145,17 @@ export function AiImport({
     };
     const ctrl = new AbortController();
     abortRef.current = ctrl;
+    // My column, when the phone could work it out, travels as an answer on
+    // the FIRST call: it is the question these files always trigger, the one
+    // whose wrong answer is wrong on every row, and a round spent asking it
+    // costs one of the day's reads.
+    const priors = [...(priorAnswers ?? [])];
+    if (fileShare && !priors.some((a) => /column/i.test(a.ask))) {
+      priors.push({ ask: 'Which column is me?', answer: fileShare.column });
+    }
     convertWithAi({
       files, trip, lang,
-      answers: priorAnswers,
+      answers: priors.length ? priors : undefined,
       signal: ctrl.signal,
       onPhase: setPhase,
       onRow: (r) => {
@@ -487,6 +511,51 @@ export function AiImport({
                 </p>
               )}
             </div>
+            {/* Two readings of the same file, side by side. The phone's own
+                arithmetic on a split export is exact - it reproduces
+                Splitwise's "Your share" to the cent - so when the model's
+                reading disagrees, the screen says so BEFORE anything is
+                added. This is the check the instructions have always
+                promised the user and the app used to leave to them. */}
+            {fileShare && (() => {
+              const read = (done?.payload?.transactions ?? [])
+                .filter((tx) => (tx.type ?? 'expense') !== 'income')
+                .reduce((s, tx) => s + (Number(tx.amount) || 0), 0);
+              // The rows the export cannot attribute (all-zero rows naming
+              // nobody) are legitimately either side of the line, so they
+              // widen the tolerance rather than raising a false alarm.
+              const slack = Math.max(fileShare.unclearTotal, fileShare.total * 0.02, 1);
+              const agrees = Math.abs(read - fileShare.total) <= slack;
+              const amount = (n: number) => fmtAmount(n, done?.payload?.currency ?? userCurrency);
+              return (
+                <p
+                  data-ai-crosscheck={agrees ? 'ok' : 'off'}
+                  className="mt-3 px-3 py-2 rounded-xl"
+                  style={{
+                    color: agrees ? 'var(--ink-3)' : 'var(--ink)',
+                    backgroundColor: agrees ? 'transparent' : 'var(--wash-accent2)',
+                    fontSize: 12, lineHeight: 1.5,
+                  }}
+                >
+                  {agrees
+                    ? t('ai.checkOk', { amount: amount(fileShare.total) })
+                    : t('ai.checkOff', { file: amount(fileShare.total), read: amount(read) })}
+                </p>
+              );
+            })()}
+            {/* What it worked out on its own - which column it took as mine,
+                shares vs balances, the total of my share. The instructions
+                promise me these as the five-second check against what
+                Splitwise shows; the app used to parse them and throw them
+                away, so a reading that had silently dropped my biggest rows
+                looked exactly like a correct one. */}
+            {done?.notes && done.notes.length > 0 && (
+              <div data-ai-notes className="mt-3 px-1">
+                {done.notes.slice(0, 4).map((n, i) => (
+                  <p key={i} style={{ color: 'var(--ink-2)', fontSize: 12, lineHeight: 1.5 }}>{n}</p>
+                ))}
+              </div>
+            )}
             {(preview.alreadyImported > 0 || preview.skipped.length > 0) && (
               <p data-ai-bookkeeping className="mt-3 px-1" style={{ color: 'var(--ink-3)', fontSize: 12 }}>
                 {[

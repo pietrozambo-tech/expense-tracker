@@ -477,7 +477,12 @@ function apiAddendum(language: 'en' | 'it'): string {
     '   question, with the likeliest name as the first option.',
     '2. When you do have enough, set "status": "ok" and return EVERY transaction. What you worked',
     `   out on your own - a share column, a balance, a date format - goes in "notes", one short`,
-    `   line each, in ${lang}. Never fold an inference into a question.`,
+    `   line each, in ${lang}. Never fold an inference into a question. On a SPLIT file the notes`,
+    '   are not optional: say which column you took as mine, whether the columns were shares or',
+    '   balances, and THE TOTAL OF MY SHARE across the rows you converted. Those lines are shown',
+    '   to me before I commit, and that total is the one number I can check in five seconds',
+    '   against what Splitwise or Tricount shows me - without it a reading that quietly dropped',
+    '   my biggest rows looks exactly like a correct one.',
     '3. If WHAT I HAVE ALREADY TOLD YOU names the trip, do NOT write the trip prefix into any',
     '   description - the app prefixes every expense row itself afterwards, character for',
     '   character, from what I typed. Write only what the row itself says; repeating the name',
@@ -1020,7 +1025,10 @@ Prima del JSON, dimmi in tre righe brevi: quale tipo hai trovato e con che prova
 
 Se righe diverse si contraddicono, o i valori di una riga n\xE9 sommano al totale n\xE9 si annullano a zero, FERMATI e chiedimi - le due regole danno risposte plausibili sui file l'una dell'altra, quindi una scelta sbagliata qui \xE8 invisibile dopo. Sbagliare sulle righe divise in parti uguali d\xE0 per caso il numero giusto e su quelle diseguali no: esattamente l'errore che nessuno coglie a occhio.
 
-- Un valore vuoto o a zero per me significa che non facevo parte di quella spesa: salta la riga. Salta anche ogni riga dove il mio costo risulta 0 (mi hanno rimborsato del tutto): una transazione a zero \xE8 rumore, non spesa.
+- Uno zero per me significa cose diverse nei due tipi, e leggerlo come nelle QUOTE su un file di SALDI cancella proprio le mie righe pi\xF9 grosse. In un file di QUOTE, un valore vuoto o a zero per me significa che non facevo parte di quella spesa: salta la riga. In un file di SALDI significa che ho pagato esattamente quanto dovevo - che \xE8 spesa, non assenza:
+  - Tutti i valori della riga sono a zero \u2192 UNA persona ha pagato e ha consumato tutto, e il costo della riga \xE8 interamente suo. Se la descrizione nomina ME, quel costo \xE8 tutto mio ("Voli Pietro", 195, tutti zeri - i miei voli, pagati da me, 195 miei). Se nomina qualcun altro, \xE8 suo: salta. Se non nomina nessuno, CHIEDIMI di chi era, nello stesso unico giro delle altre domande - non farla sparire in silenzio.
+  - Il mio valore \xE8 zero ma gli altri no \u2192 non facevo parte di quella spesa: salta la riga.
+- Salta ogni riga dove il mio costo risulta 0 (mi hanno rimborsato del tutto): una transazione a zero \xE8 rumore, non spesa.
 - Salta del tutto le righe di pareggio: categoria "Payment", "Reimbursement" o "Rimborso", descrizioni tipo "X paid Y" / "Rimborso", e ogni riga di riepilogo "Total balance". Sono soldi che girano tra persone, non spese.
 - Ma una riga dove UNA SOLA persona ha una quota NON \xE8 automaticamente un pareggio - di solito significa che qualcuno ha pagato solo per quella persona ("Escursione Balene", 66.78, tutta mia, pagata da un amico). Quella \xE8 mia spesa per intero. Decidi da DESCRIZIONE e categoria, mai dal fatto che la riga porti un solo nome: trattarle da pareggi cancella spese vere in silenzio, spesso le pi\xF9 grandi.
 - La colonna "paid by" dice chi ha anticipato i soldi. Non \xE8 mai il mio costo, nemmeno sulle righe che ho pagato io: usa la mia colonna di quota, e nient'altro.
@@ -1114,7 +1122,10 @@ Confirm it with arithmetic either way, because the file can come from anywhere. 
 Before the JSON, tell me in three short lines: which kind you found and on what evidence, which column you took as mine, and THE TOTAL OF MY SHARE across every row you converted. That last number is the one thing I can check in five seconds against what Tricount or Splitwise shows for me - if it does not match, something is wrong and I should not import the file.
 
 If different rows disagree, or a row's values neither sum to its total nor cancel to zero, STOP and ask me - the two rules give plausible-looking answers on each other's files, so a wrong choice here is invisible afterwards. Getting it wrong on evenly-split rows happens to give the right number and on unevenly-split ones does not, which is exactly the kind of error nobody catches by eye.
-- An empty, blank or zero value for me means I was not part of that expense: skip the row. Also skip any row where my cost works out to 0 (I was fully paid back): a zero-amount transaction is clutter, not spending.
+- A zero for me means different things in the two kinds, and reading it the SHARES way on a BALANCES file deletes my own biggest rows. In a SHARES file, an empty, blank or zero value for me means I was not part of that expense: skip the row. In a BALANCES file it means I paid exactly what I owed - which is spending, not absence:
+  - Every value on the row is zero \u2192 ONE person paid it and consumed all of it, and the row's cost is entirely theirs. If the description names ME, that whole cost is mine ("Voli Pietro", 195, all zeros - my flights, paid by me, 195 mine). If it names somebody else, it is theirs: skip it. If it names nobody, ASK me whose it was, in the same one round as your other questions - never silently drop it.
+  - My value is zero but others are not \u2192 I was not in that expense: skip the row.
+- Skip any row where my cost works out to 0 (I was fully paid back): a zero-amount transaction is clutter, not spending.
 - Skip settlement rows entirely: Category "Payment" or "Reimbursement", descriptions like "X paid Y" / "Rimborso", and any "Total balance" summary line. That is money moving between people, not spending.
 - But a row where only ONE person has a share is NOT automatically a settlement - it usually means somebody paid for that person alone ("Escursione Balene", 66.78, all mine, paid by a friend). That is my spending in full. Decide by the DESCRIPTION and category, never by the row having one name on it: treating those as settlements silently deletes real expenses, often the big ones.
 - The "paid by" column says who fronted the money. It is never my cost, not even on rows I paid: use my own share column, and nothing else.

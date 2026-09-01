@@ -32,6 +32,7 @@
     "test:periods": "node scripts/test-periods.mjs",
     "test:catorder": "node scripts/test-catorder.mjs",
     "test:prompt": "node scripts/test-prompt.mjs",
+    "test:split": "node scripts/test-split.mjs",
     "build:edge-prompt": "node scripts/build-edge-prompt.mjs",
     "test:edge": "node scripts/test-edge.mjs",
     "test:xlsx": "node scripts/test-xlsx.mjs"

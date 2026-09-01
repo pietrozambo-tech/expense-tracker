@@ -78,7 +78,11 @@ const OK_DONE = {
       { date: '2026-08-23', amount: 9, type: 'expense', category: 'Travel', subcategory: 'Food', description: `Azores \u{1F1F5}\u{1F1F9} - Burger` },
     ],
   },
-  notes: [], remaining: 2, model: 'claude-sonnet-5', usage: { input: 5000, output: 900 },
+  // What the model worked out on its own. On a split file these lines are
+  // the owner's only check that the reading is right - see the notes
+  // assertion on the ready screen.
+  notes: ['Your column: Pit', 'Columns were balances', 'Your share: 906€'],
+  remaining: 2, model: 'claude-sonnet-5', usage: { input: 5000, output: 900 },
 };
 const ROWS = OK_DONE.payload.transactions.map((r, i) => ['row', { n: i + 1, row: r }]);
 
@@ -192,6 +196,13 @@ const pickCsv = (p) => p.locator('[data-ai-door] input[type="file"]').setInputFi
   ok(/Add the 3 expenses/.test(ready), `the CTA counts only what is NEW (${ready.match(/Add the \d+/)?.[0]})`);
   ok(/1 was already here/.test(ready), 'and the dedupe is one grey line, not a report');
   ok(ready.includes(TRIP), 'the trip badge rides on the dark card');
+  // The five-second check the instructions promise: which column it took as
+  // mine, shares or balances, and the total. Parsed but never shown, a
+  // reading that had quietly dropped the biggest rows looked exactly like a
+  // correct one - reported from a device on a real Splitwise export.
+  ok(await p.locator('[data-ai-notes]').count() === 1
+    && /Your share: 906/.test(await p.locator('[data-ai-notes]').innerText()),
+    'and what it worked out - my column, shares vs balances, my total - is on screen before I commit');
   await p.screenshot({ path: `${OUT}/aiimport-ready.png` });
 
   await p.locator('[data-ai-cta="commit"]').click();
@@ -484,6 +495,88 @@ const pickCsv = (p) => p.locator('[data-ai-door] input[type="file"]').setInputFi
   ok(/I couldn't read it/.test(err), 'anything unnamed still lands on the generic screen');
   ok(/Could not read the file: boom/.test(err),
     'which now carries the server\'s own words - "non sono riuscito a leggerlo" with no reason was the reported wall');
+  await ctx.close();
+}
+
+// ── the file's own arithmetic, against the model's ────────────────────────
+//
+// Reported from a device: a real Splitwise trip whose own screen reads "Your
+// share 955,77 €" came back as an offer to add 200 EUR, and nothing on the
+// screen said otherwise - a wrong reading looked exactly like a right one.
+// The phone can do that arithmetic itself (lib/splitFile, tested to the cent
+// against Splitwise's own figure), so now it does, and says so out loud when
+// the two readings disagree.
+{
+  // Balances, the Splitwise shape: -12 each for four people, +36 for the
+  // payer. My share is 12 a row, 48 across four rows.
+  const SPLIT = ['Date,Description,Category,Cost,Currency,P Rossi,Franco B,Andrea G,Vera',
+    '2026-08-22,Cena,Dining out,48.00,EUR,-12.00,36.00,-12.00,-12.00',
+    '2026-08-22,Taxi,Taxi,48.00,EUR,36.00,-12.00,-12.00,-12.00',
+    '2026-08-23,Spesa,Groceries,48.00,EUR,-12.00,-12.00,36.00,-12.00',
+    '2026-08-23,Barca,General,48.00,EUR,-12.00,-12.00,-12.00,36.00',
+    '',
+    '2026-09-01,Total balance, , ,EUR,0.00,0.00,0.00,0.00',
+  ].join('\n');
+  // What a WRONG reading looks like: one row instead of four.
+  const THIN = {
+    ...OK_DONE,
+    payload: { version: 1, currency: 'EUR', transactions: [OK_DONE.payload.transactions[0]] },
+  };
+  let sawAnswers = null;
+  const { ctx, p } = await open({
+    session: true,
+    convert: (n, body) => {
+      sawAnswers = body.answers;
+      return { res: { status: 200, contentType: 'text/event-stream', body: sse([['done', THIN]]) } };
+    },
+  });
+  await p.locator('[data-ai-door] input[type="file"]').setInputFiles({
+    name: 'formentera.csv', mimeType: 'text/csv', buffer: Buffer.from(SPLIT),
+  });
+  await p.waitForTimeout(600);
+  if (await p.locator('[data-ai-cta="go"]').count()) await p.locator('[data-ai-cta="go"]').click();
+  await p.waitForSelector('[data-ai-flow][data-ai-step="ready"]', { timeout: 10000 });
+  // The seeded user is "P" and the column "P Rossi" - the first name finds it,
+  // and it rides on the first request so the model never spends a round asking.
+  ok(sawAnswers?.some((a) => a.answer === 'P Rossi'),
+    `my column travels on the FIRST call, not as a question (${JSON.stringify(sawAnswers)})`);
+  ok(await p.locator('[data-ai-crosscheck="off"]').count() === 1,
+    'a reading that lost most of the rows is caught by the phone\'s own arithmetic');
+  const warn = await p.locator('[data-ai-crosscheck]').innerText();
+  ok(/48/.test(warn) && /30/.test(warn),
+    `and the two numbers are put side by side (${warn})`);
+  await ctx.close();
+}
+{
+  // The same file, read correctly: four rows of 12. The line confirms rather
+  // than warns - and a false alarm here would be worse than no line at all.
+  const SPLIT = ['Date,Description,Category,Cost,Currency,P Rossi,Franco B,Andrea G,Vera',
+    '2026-08-22,Cena,Dining out,48.00,EUR,-12.00,36.00,-12.00,-12.00',
+    '2026-08-22,Taxi,Taxi,48.00,EUR,36.00,-12.00,-12.00,-12.00',
+    '2026-08-23,Spesa,Groceries,48.00,EUR,-12.00,-12.00,36.00,-12.00',
+    '2026-08-23,Barca,General,48.00,EUR,-12.00,-12.00,-12.00,36.00',
+  ].join('\n');
+  const RIGHT = {
+    ...OK_DONE,
+    payload: {
+      version: 1, currency: 'EUR',
+      transactions: ['Cena', 'Taxi', 'Spesa', 'Barca'].map((d, i) => ({
+        date: `2026-08-2${i < 2 ? 2 : 3}`, amount: 12, type: 'expense', category: 'Travel', description: d,
+      })),
+    },
+  };
+  const { ctx, p } = await open({
+    session: true,
+    convert: () => ({ res: { status: 200, contentType: 'text/event-stream', body: sse([['done', RIGHT]]) } }),
+  });
+  await p.locator('[data-ai-door] input[type="file"]').setInputFiles({
+    name: 'formentera.csv', mimeType: 'text/csv', buffer: Buffer.from(SPLIT),
+  });
+  await p.waitForTimeout(600);
+  if (await p.locator('[data-ai-cta="go"]').count()) await p.locator('[data-ai-cta="go"]').click();
+  await p.waitForSelector('[data-ai-flow][data-ai-step="ready"]', { timeout: 10000 });
+  ok(await p.locator('[data-ai-crosscheck="ok"]').count() === 1,
+    'and a reading that agrees with the file is confirmed, not second-guessed');
   await ctx.close();
 }
 
