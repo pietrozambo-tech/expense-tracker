@@ -637,9 +637,11 @@ export const it: Record<keyof typeof en, string> = {
   'ai.retry': 'Riprova',
   'ai.errTitle': 'Non sono riuscito a leggerlo',
   'ai.errSub': 'Non è stato toccato niente. Riprovo?',
-  'ai.errLimitTitle': 'Per oggi è tutto',
-  'ai.errLimitSub': 'Le letture di oggi sono finite. Nessuna spesa è stata toccata - ci risentiamo domani.',
-  'ai.errLimitSubN': 'Hai usato tutte le {n} letture di oggi. Nessuna spesa è stata toccata - ci risentiamo domani.',
+  // Detto con le parole che l'utente ha in mano: "import", non "letture", e
+  // quanti ne ha al giorno - un muro senza la sua regola sembra un guasto.
+  'ai.errLimitTitle': 'Hai finito gli import di oggi',
+  'ai.errLimitSub': 'Nessuna spesa è stata toccata. Riprova domani.',
+  'ai.errLimitSubN': 'Ne puoi fare {n} al giorno. Nessuna spesa è stata toccata: riprova domani.',
   'ai.errBig': 'Troppo lungo per leggerlo in una volta - prova a dividerlo.',
   'ai.errOff': 'Al momento è spento.',
   'ai.errSpreadsheet': 'Questo formato è quello vecchio: salvalo come .xlsx o CSV e riprova.',
@@ -650,7 +652,7 @@ export const it: Record<keyof typeof en, string> = {
   'ai.phaseSend': 'Carico il file…',
   'ai.phaseRead': 'Leggo le righe…',
   'ai.phaseMatch': 'Confronto con le tue categorie…',
-  'ai.doorDone': 'Per oggi hai usato tutte le letture - si riparte domani.',
+  'ai.doorDone': 'Gli import di oggi sono finiti - si riparte domani.',
   'ai.manualBack': "Torna all'import automatico",
   'ai.wrongDoorTitle': 'Questo pulsante legge solo il .json',
   'ai.wrongDoorDesc': 'Per CSV, PDF, Excel o foto usa "Scegli un file" qui sopra: fa tutto da solo.',

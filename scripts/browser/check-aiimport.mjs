@@ -278,8 +278,8 @@ const pickCsv = (p) => p.locator('[data-ai-door] input[type="file"]').setInputFi
   await p.locator('[data-ai-cta="go"]').click();
   await p.waitForSelector('[data-ai-flow][data-ai-step="error"]', { timeout: 8000 });
   const err = await p.locator('[data-ai-flow]').innerText();
-  ok(/That's it for today/.test(err), `the cap is a calm sentence, not an error code (${err.split('\n')[1] ?? ''})`);
-  ok(/all 3 of today's reads/.test(err), 'naming the rule with the server\'s own number');
+  ok(/You've used today's imports/.test(err), `the cap is a calm sentence, not an error code (${err.split('\n')[1] ?? ''})`);
+  ok(/It's 3 a day/.test(err), 'naming the rule in the words the user has, with the server\'s number');
   ok(/Nothing has been touched/.test(err), 'and saying out loud that nothing was touched');
   ok(await p.locator('[data-ai-cta="retry"]').count() === 0, 'with no retry button pointing at the same wall');
   await p.locator('[data-ai-cta="close"]').click();
@@ -587,6 +587,12 @@ const pickCsv = (p) => p.locator('[data-ai-door] input[type="file"]').setInputFi
   await p.waitForSelector('[data-ai-flow][data-ai-step="ready"]', { timeout: 10000 });
   ok(await p.locator('[data-ai-crosscheck="ok"]').count() === 1,
     'and a reading that agrees with the file is confirmed, not second-guessed');
+  // The model's own total is dropped once the phone has done the sums. On a
+  // real 50-row trip it reported "€1.087,02" under a card correctly reading
+  // 1375,49 - fifty numbers added in prose, printed beside the right answer.
+  const notes = await p.locator('[data-ai-notes]').innerText();
+  ok(!/906|€\s?\d/.test(notes) && /balances/.test(notes),
+    `its arithmetic claim is gone, its reading kept (${notes.replace(/\n/g, ' | ')})`);
   await ctx.close();
 }
 

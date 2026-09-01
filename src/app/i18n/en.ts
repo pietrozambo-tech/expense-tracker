@@ -654,9 +654,11 @@ export const en = {
   'ai.retry': 'Try again',
   'ai.errTitle': "I couldn't read it",
   'ai.errSub': 'Nothing has been touched. Try again?',
-  "ai.errLimitTitle": "That's it for today",
-  'ai.errLimitSub': "Today's reads are used up. Nothing has been touched - we can pick this up again tomorrow.",
-  'ai.errLimitSubN': "You've used all {n} of today's reads. Nothing has been touched - we can pick this up again tomorrow.",
+  // In the words the user has: "imports", not "reads", and how many a day -
+  // a wall without its rule on it reads as a fault.
+  "ai.errLimitTitle": "You've used today's imports",
+  'ai.errLimitSub': 'Nothing has been touched. Try again tomorrow.',
+  'ai.errLimitSubN': "It's {n} a day. Nothing has been touched - try again tomorrow.",
   'ai.errBig': 'Too long to read in one go - try splitting it.',
   'ai.errOff': 'This is switched off right now.',
   'ai.errSpreadsheet': 'That format is the old one - save it as .xlsx or CSV and try again.',
@@ -668,7 +670,7 @@ export const en = {
   'ai.phaseSend': 'Uploading the file…',
   'ai.phaseRead': 'Reading the rows…',
   'ai.phaseMatch': 'Matching against your categories…',
-  'ai.doorDone': "Today's reads are used up - more tomorrow.",
+  'ai.doorDone': "Today's imports are used up - more tomorrow.",
   'ai.manualBack': 'Back to the automatic import',
   'ai.wrongDoorTitle': 'This button only reads the .json',
   'ai.wrongDoorDesc': 'For CSV, PDF, Excel or photos, use "Choose a file" above - it does the whole job itself.',

@@ -644,13 +644,26 @@ export function AiImport({
                 Splitwise shows; the app used to parse them and throw them
                 away, so a reading that had silently dropped my biggest rows
                 looked exactly like a correct one. */}
-            {done?.notes && done.notes.length > 0 && (
-              <div data-ai-notes className="mt-3 px-1">
-                {done.notes.slice(0, 4).map((n, i) => (
-                  <p key={i} style={{ color: 'var(--ink-2)', fontSize: 12, lineHeight: 1.5 }}>{n}</p>
-                ))}
-              </div>
-            )}
+            {(() => {
+              // When the PHONE did the arithmetic, the model's own totals are
+              // no longer worth printing - and worse than useless when they
+              // disagree. A real reading of a 50-row trip came back with
+              // "Totale mia quota: €1.087,02" under a card correctly saying
+              // 1375,49: the app's figure is the summed column, the note was
+              // the model adding fifty numbers in prose. So on a derived
+              // file, any note carrying a money figure is dropped and the
+              // rest - which column, shares or balances - stands.
+              const MONEY = /[€$£]\s?[\d.,]+|[\d.,]+\s?[€$£]|\d+[.,]\d{2}\b/;
+              const notes = (done?.notes ?? []).filter((n) => !(fileShare && MONEY.test(n)));
+              if (notes.length === 0) return null;
+              return (
+                <div data-ai-notes className="mt-3 px-1">
+                  {notes.slice(0, 4).map((n, i) => (
+                    <p key={i} style={{ color: 'var(--ink-2)', fontSize: 12, lineHeight: 1.5 }}>{n}</p>
+                  ))}
+                </div>
+              );
+            })()}
             {(preview.alreadyImported > 0 || preview.skipped.length > 0) && (
               <p data-ai-bookkeeping className="mt-3 px-1" style={{ color: 'var(--ink-3)', fontSize: 12 }}>
                 {[
