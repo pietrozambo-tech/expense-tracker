@@ -523,10 +523,12 @@ const pickCsv = (p) => p.locator('[data-ai-door] input[type="file"]').setInputFi
     payload: { version: 1, currency: 'EUR', transactions: [OK_DONE.payload.transactions[0]] },
   };
   let sawAnswers = null;
+  let sawFile = null;
   const { ctx, p } = await open({
     session: true,
     convert: (n, body) => {
       sawAnswers = body.answers;
+      sawFile = Buffer.from(body.files?.[0]?.data ?? '', 'base64').toString('utf8');
       return { res: { status: 200, contentType: 'text/event-stream', body: sse([['done', THIN]]) } };
     },
   });
@@ -538,8 +540,16 @@ const pickCsv = (p) => p.locator('[data-ai-door] input[type="file"]').setInputFi
   await p.waitForSelector('[data-ai-flow][data-ai-step="ready"]', { timeout: 10000 });
   // The seeded user is "P" and the column "P Rossi" - the first name finds it,
   // and it rides on the first request so the model never spends a round asking.
-  ok(sawAnswers?.some((a) => a.answer === 'P Rossi'),
+  ok(sawAnswers?.some((a) => /P Rossi/.test(a.answer)),
     `my column travels on the FIRST call, not as a question (${JSON.stringify(sawAnswers)})`);
+  // What actually left the phone: not the per-person columns, but my own
+  // rows with my share already worked out. The model got the balance
+  // arithmetic wrong on a real export - twice on one screen - so it is no
+  // longer asked to do it.
+  ok(sawFile?.startsWith('date,description,category,amount'),
+    `the file sent is the phone's own reading, not the raw columns (${sawFile?.split('\n')[0]})`);
+  ok(!/-12\.00/.test(sawFile ?? '') && /,12\.00/.test(sawFile ?? ''),
+    'every amount in it is my share, and none of them is negative');
   ok(await p.locator('[data-ai-crosscheck="off"]').count() === 1,
     'a reading that lost most of the rows is caught by the phone\'s own arithmetic');
   const warn = await p.locator('[data-ai-crosscheck]').innerText();

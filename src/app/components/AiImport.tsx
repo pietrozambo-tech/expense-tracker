@@ -7,7 +7,7 @@ import {
   type AiDone, type AiFile, type AiQuestion,
 } from '../lib/aiImport';
 import { buildImport, type ImportPayload, type ImportResult } from '../lib/importData';
-import { splitShareTotal } from '../lib/splitFile';
+import { myShareCsv, splitShareTotal } from '../lib/splitFile';
 import type { Trip } from '../lib/trips';
 import { CURRENCIES } from '../utils/currency';
 
@@ -73,13 +73,35 @@ export function AiImport({
   // that is not one of these, or whose columns do not name me.
   const fileShare = useMemo(() => {
     if (!userName?.trim()) return null;
-    for (const f of files) {
-      if (!f.text) continue;
-      const found = splitShareTotal(f.text, userName);
-      if (found) return found;
+    for (let i = 0; i < files.length; i += 1) {
+      const text = files[i].text;
+      if (!text) continue;
+      const found = splitShareTotal(text, userName);
+      if (found) return { ...found, at: i };
     }
     return null;
   }, [files, userName]);
+
+  // What actually travels. On a split export the phone rewrites the file as
+  // MY OWN rows - my share already worked out - and sends that instead of
+  // the per-person columns.
+  //
+  // Because the model got this wrong on a real file, twice on one screen: a
+  // +144.82 balance became a 144.82 expense (the share was 36.21), and
+  // another leftover came back as INCOME under Salary. None of that is a
+  // reading failure - it is arithmetic, the app can do it exactly, and a
+  // model asked to do sums thirty times will eventually not. So it is no
+  // longer asked: it gets a plain list and does the reading.
+  const sent = useMemo(() => {
+    if (!fileShare) return files;
+    const csv = myShareCsv(fileShare);
+    const bytes = new TextEncoder().encode(csv);
+    let binary = '';
+    for (const b of bytes) binary += String.fromCharCode(b);
+    return files.map((f, i) => (i === fileShare.at
+      ? { ...f, media_type: 'text/csv', data: btoa(binary), bytes: bytes.length, text: csv }
+      : f));
+  }, [files, fileShare]);
   // The local evidence, gathered once: dates out of whatever text arrived.
   // askTrip: the file is trip-shaped (a tight run of dates) but no known trip
   // fits - so the question is asked HERE, once, instead of costing one of the
@@ -151,10 +173,16 @@ export function AiImport({
     // costs one of the day's reads.
     const priors = [...(priorAnswers ?? [])];
     if (fileShare && !priors.some((a) => /column/i.test(a.ask))) {
-      priors.push({ ask: 'Which column is me?', answer: fileShare.column });
+      // Not "which column is me" any more - the file it is about to read has
+      // one amount column and it is already mine. Said anyway, because it
+      // tells the model the split question is ANSWERED and stops it asking.
+      priors.push({
+        ask: 'Whose spending is this file?',
+        answer: `Mine (column "${fileShare.column}"). The amounts are already my own share - do not divide or adjust them, and they are all expenses.`,
+      });
     }
     convertWithAi({
-      files, trip, lang,
+      files: sent, trip, lang,
       answers: priors.length ? priors : undefined,
       signal: ctrl.signal,
       onPhase: setPhase,
@@ -530,11 +558,13 @@ export function AiImport({
               const read = (done?.payload?.transactions ?? [])
                 .filter((tx) => (tx.type ?? 'expense') !== 'income')
                 .reduce((s, tx) => s + (Number(tx.amount) || 0), 0);
-              // The rows the export cannot attribute (all-zero rows naming
-              // nobody) are legitimately either side of the line, so they
-              // widen the tolerance rather than raising a false alarm.
-              const slack = Math.max(fileShare.unclearTotal, fileShare.total * 0.02, 1);
-              const agrees = Math.abs(read - fileShare.total) <= slack;
+              // What was SENT: my share on every row, the unattributed ones
+              // included at their full cost. The model is only reading now,
+              // so the two should agree closely; the slack is for a rounded
+              // cent, not for a different reading.
+              const expected = fileShare.total + fileShare.unclearTotal;
+              const slack = Math.max(expected * 0.02, 1);
+              const agrees = Math.abs(read - expected) <= slack;
               const amount = (n: number) => fmtAmount(n, done?.payload?.currency ?? userCurrency);
               return (
                 <p
@@ -547,8 +577,8 @@ export function AiImport({
                   }}
                 >
                   {agrees
-                    ? t('ai.checkOk', { amount: amount(fileShare.total) })
-                    : t('ai.checkOff', { file: amount(fileShare.total), read: amount(read) })}
+                    ? t('ai.checkOk', { amount: amount(expected) })
+                    : t('ai.checkOff', { file: amount(expected), read: amount(read) })}
                 </p>
               );
             })()}

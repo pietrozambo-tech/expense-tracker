@@ -11,7 +11,7 @@
 // reader that only knows one of them is a reader that guesses on the other
 // two. Nothing here matches on a header's promise; the shape is worked out
 // from what the columns hold.
-import { splitShareTotal } from '../../src/app/lib/splitFile';
+import { myShareCsv, splitShareTotal } from '../../src/app/lib/splitFile';
 
 let failed = 0;
 const ok = (cond: boolean, msg: string) => {
@@ -89,6 +89,39 @@ const SPLITWISE = `Date,Description,Category,Cost,Currency,Pietro Zamboni,Franco
     `another column reads as that person's own share (${franco?.total})`);
   ok(splitShareTotal(SPLITWISE, 'Giacomo') === null,
     'a name that is in no column returns nothing rather than a guess');
+}
+
+// ── the file the model actually gets ─────────────────────────────────────
+//
+// The reason this module exists at all. Given the raw export, the model got
+// the arithmetic wrong twice on one screen: a +144.82 balance came back as a
+// 144.82 EXPENSE (the share is 36.21), and a +11.25 one came back as INCOME
+// under Salary (the share is 3.75). Neither is a reading mistake - they are
+// sums, the app can do them exactly, so the model is handed the answer and
+// asked only to read.
+{
+  const found = splitShareTotal(SPLITWISE, 'Pietro')!;
+  const csv = myShareCsv(found);
+  const lines = csv.split('\n');
+  ok(lines[0] === 'date,description,category,amount', `it is a plain four-column list (${lines[0]})`);
+  const row = (name: string) => lines.find((l) => l.includes(name));
+  ok(row('Motorini')?.endsWith(',36.21'),
+    `the row the model read as 144.82 leaves as my share (${row('Motorini')})`);
+  ok(row('Les Illetes')?.endsWith(',3.75'),
+    `and the one it called income leaves as 3.75 of spending (${row('Les Illetes')})`);
+  ok(row('Voli Pietro')?.endsWith(',195.00'), `my own all-zero row keeps its full cost (${row('Voli Pietro')})`);
+  ok(row('Casa Solea')?.includes('2026-05-21,'), 'the booking date is carried across as it stands');
+  ok(!csv.includes('paid Vera') && !csv.includes('Total balance'),
+    'settlements and the summary line never make it into the file');
+  ok(!/,-\d/.test(csv), 'nothing leaves as a negative number, so nothing can read as money coming back');
+  // Telo mare (11.00, share 0) and Multa (45.00, share 0) are fully paid back.
+  ok(!csv.includes('Telo mare') && !csv.includes('Multa,'),
+    'rows that work out to nothing of mine are not sent at all');
+  // What the model is being asked to total, and what the screen checks it
+  // against: the provable share plus the one unattributed row.
+  const sum = lines.slice(1).reduce((s, l) => s + Number(l.split(',').pop()), 0);
+  ok(Math.round(sum * 100) / 100 === 955.77,
+    `and the list adds up to Splitwise's own figure: 955.77 (got ${Math.round(sum * 100) / 100})`);
 }
 
 // ── Tricount: SHARES, a different header, no currency column ─────────────

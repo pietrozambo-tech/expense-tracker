@@ -23,6 +23,17 @@
 // Reading one as the other gives right answers on evenly-split rows and wrong
 // ones everywhere else, which is exactly the error nobody catches by eye.
 
+/** One row of the file, as MY spending: the share already worked out. */
+export interface MyRow {
+  date: string;
+  description: string;
+  /** The source's own category word, for the model to map onto mine. */
+  category: string;
+  amount: number;
+  /** True when the export does not record whose row this was - see below. */
+  unclear: boolean;
+}
+
 /** One person's column, as the file spells it. */
 export interface SplitTotal {
   /** The column taken as mine, verbatim from the header. */
@@ -42,6 +53,9 @@ export interface SplitTotal {
    *  the source app shows when all of them turn out to be mine - which is how
    *  the real Formentera export reconciles to its own 955.77 to the cent. */
   unclearTotal: number;
+  /** Every row that is mine, with my share as the amount - what myShareCsv
+   *  turns into the file the model actually reads. */
+  myRows: MyRow[];
 }
 
 /** A CSV line split on commas, honouring "quoted, fields". */
@@ -185,8 +199,11 @@ export function splitShareTotal(text: string, me: string): SplitTotal | null {
   const labelled = (re: RegExp) => header.findIndex((h) => re.test(h.trim()));
   const descCol = labelled(/^(description|descrizione|title|titolo|what|cosa)$/i);
   const catCol = labelled(/^(category|categoria|type|tipo)$/i);
+  // The date column, kept verbatim: a booking dated in March belongs in
+  // March, and re-formatting it here would be one more thing to get wrong.
+  const dateCol = labelled(/^(date|data|when|quando)$/i);
 
-  interface Row { cost: number; mine: number; all: number[]; description: string; category: string }
+  interface Row { cost: number; mine: number; all: number[]; description: string; category: string; date: string }
   const rows: Row[] = [];
   for (const cells of body) {
     const cost = num(cells[costCol] ?? '');
@@ -199,6 +216,7 @@ export function splitShareTotal(text: string, me: string): SplitTotal | null {
       all,
       description: descCol === -1 ? '' : (cells[descCol] ?? ''),
       category: catCol === -1 ? '' : (cells[catCol] ?? ''),
+      date: dateCol === -1 ? (cells[0] ?? '') : (cells[dateCol] ?? ''),
     });
   }
   if (rows.length < 3) return null;
@@ -218,10 +236,11 @@ export function splitShareTotal(text: string, me: string): SplitTotal | null {
   const kind: 'shares' | 'balances' = balancesEvidence > sharesEvidence ? 'balances' : 'shares';
 
   let total = 0;
-  let counted = 0;
   let unclear = 0;
   let unclearTotal = 0;
   let groupTotal = 0;
+  const mineRows: MyRow[] = [];
+  const first = me.trim().split(/\s+/)[0].toLowerCase();
   for (const r of rows) {
     if (isSettlement(r.description, r.category)) continue;
     groupTotal += r.cost;
@@ -229,29 +248,56 @@ export function splitShareTotal(text: string, me: string): SplitTotal | null {
       ? (r.mine > 0 ? r.mine : 0)
       : shareOf(r.cost, r.mine, r.all);
     if (share === null) {
-      // An all-zero row: one person paid and consumed all of it. Mine only if
-      // the words say so ("Voli Pietro" - my flights); otherwise unknown, and
-      // counted as unknown rather than dropped into either total.
-      const first = me.trim().split(/\s+/)[0].toLowerCase();
-      if (first && r.description.toLowerCase().includes(first)) {
-        total += r.cost;
-        counted += 1;
-      } else {
-        unclear += 1;
-        unclearTotal += r.cost;
-      }
+      // An all-zero row: one person paid and consumed all of it. Mine when
+      // the words say so ("Voli Pietro" - my flights). Otherwise the export
+      // does not record whose it was, and it is carried as UNCLEAR: still
+      // handed on at its full cost, because a row the owner can see and
+      // delete on the review screen beats one that vanishes silently, and
+      // this is how the source app's own "your share" figure counts it.
+      const isMine = !!first && r.description.toLowerCase().includes(first);
+      if (isMine) total += r.cost;
+      else { unclear += 1; unclearTotal += r.cost; }
+      mineRows.push({ date: r.date, description: r.description, category: r.category, amount: r.cost, unclear: !isMine });
       continue;
     }
-    if (share > 0) { total += share; counted += 1; }
+    if (share > 0) {
+      total += share;
+      mineRows.push({ date: r.date, description: r.description, category: r.category, amount: Math.round(share * 100) / 100, unclear: false });
+    }
   }
-  if (counted === 0) return null;
+  if (mineRows.length === 0) return null;
   return {
     column: people[mineAt],
     kind,
     total: Math.round(total * 100) / 100,
     groupTotal: Math.round(groupTotal * 100) / 100,
-    rows: counted,
+    rows: mineRows.length,
     unclear,
     unclearTotal: Math.round(unclearTotal * 100) / 100,
+    myRows: mineRows,
   };
+}
+
+const csvField = (v: string) => (/[",\n\r]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v);
+
+/**
+ * The same file, rewritten as MY OWN rows: date, description, category,
+ * amount - and the amount is my share, already worked out.
+ *
+ * This is what actually gets sent. The model was asked to do the balance
+ * arithmetic and, on a real export, did it wrong in two different ways on
+ * one screen: it took a +144.82 balance as a 144.82 expense (the share was
+ * 36.21), and turned another leftover into an INCOME row under Salary. The
+ * arithmetic is exact, deterministic and already tested to the cent here, so
+ * the model should never see it: it gets a plain list and does what it is
+ * genuinely good at - the categories, the words, the dates, the trip.
+ *
+ * Fewer columns also means fewer tokens: five people become one amount.
+ */
+export function myShareCsv(found: SplitTotal): string {
+  const lines = ['date,description,category,amount'];
+  for (const r of found.myRows) {
+    lines.push([r.date, csvField(r.description), csvField(r.category), r.amount.toFixed(2)].join(','));
+  }
+  return lines.join('\n');
 }
