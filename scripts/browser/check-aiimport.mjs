@@ -590,6 +590,52 @@ const pickCsv = (p) => p.locator('[data-ai-door] input[type="file"]').setInputFi
   await ctx.close();
 }
 
+// ── the nickname: asked here, once, instead of costing a round ───────────
+//
+// A Tricount trip files its people as "Pit", "Merlo", "Max". No name
+// matching turns "P" into "Pit", so the phone cannot do the arithmetic and
+// the model would spend a whole read asking which column is me. The app asks
+// instead - one tap, before anything is sent - and then owns the sums.
+{
+  const TRI = ['date,description,category,paid_by,total,Pit,Merlo,Max',
+    '2026-08-22,Ferry,Transport,Merlo,90.00,30.00,30.00,30.00',
+    '2026-08-22,Hotel,Stay,Pit,300.00,100.00,100.00,100.00',
+    '2026-08-23,Cena,Food,Max,60.00,20.00,20.00,20.00',
+    '2026-08-23,Museo solo Pit,Culture,Pit,12.00,12.00,0.00,0.00',
+  ].join('\n');
+  let sawFile = null;
+  let calls = 0;
+  const { ctx, p } = await open({
+    session: true,
+    convert: (n, body) => {
+      calls += 1;
+      sawFile = Buffer.from(body.files?.[0]?.data ?? '', 'base64').toString('utf8');
+      return { res: { status: 200, contentType: 'text/event-stream', body: sse([...ROWS, ['done', OK_DONE]]) } };
+    },
+  });
+  await p.locator('[data-ai-door] input[type="file"]').setInputFiles({
+    name: 'azores.csv', mimeType: 'text/csv', buffer: Buffer.from(TRI),
+  });
+  await p.waitForTimeout(700);
+  ok(await p.locator('[data-ai-flow][data-ai-step="who"]').count() === 1,
+    'a file whose columns are nicknames asks which one is me, on the phone');
+  const chips = (await p.locator('[data-ai-chip^="who-"]').allInnerTexts()).join('|');
+  ok(/Pit/.test(chips) && /Merlo/.test(chips) && /not in here/.test(chips),
+    `offering the file's own names and a way out (${chips})`);
+  ok(calls === 0, 'and it has not called anything yet');
+  await p.locator('[data-ai-chip="who-Pit"]').click();
+  await p.locator('[data-ai-cta="who-go"]').click();
+  await p.waitForTimeout(500);
+  // The trip screen still comes after, then the reading - one call in total.
+  if (await p.locator('[data-ai-cta="go"]').count()) await p.locator('[data-ai-cta="go"]').click();
+  await p.waitForSelector('[data-ai-flow][data-ai-step="ready"]', { timeout: 10000 });
+  ok(calls === 1, `one call for the whole file, questions included (${calls})`);
+  const sum = (sawFile ?? '').split('\n').slice(1).filter(Boolean)
+    .reduce((s, l) => s + Number(l.split(',').pop()), 0);
+  ok(Math.abs(sum - 162) < 0.01, `and Pit's own share is what leaves (${sum})`);
+  await ctx.close();
+}
+
 // ── the files that must never reach the model ────────────────────────────
 //
 // The day's read is claimed by the server BEFORE the model is called, so

@@ -7,7 +7,7 @@ import {
   type AiDone, type AiFile, type AiQuestion,
 } from '../lib/aiImport';
 import { buildImport, type ImportPayload, type ImportResult } from '../lib/importData';
-import { myShareCsv, splitShareTotal } from '../lib/splitFile';
+import { myShareCsv, splitPeople, splitShareTotal } from '../lib/splitFile';
 import type { Trip } from '../lib/trips';
 import { CURRENCIES } from '../utils/currency';
 
@@ -28,7 +28,7 @@ import { CURRENCIES } from '../utils/currency';
 //   - the end is a result, not a report: what is about to be added and what
 //     it costs, with the bookkeeping demoted to one grey line.
 
-type Step = 'trip' | 'reading' | 'questions' | 'ready' | 'error';
+type Step = 'who' | 'trip' | 'reading' | 'questions' | 'ready' | 'error';
 
 interface AiImportProps {
   files: AiFile[];
@@ -71,16 +71,43 @@ export function AiImport({
   // work out my share exactly, and then the model's reading has something to
   // be checked against instead of being taken on trust. Null for every file
   // that is not one of these, or whose columns do not name me.
+  // Which column the user says is theirs, when the file uses a nickname the
+  // app cannot match ("Pit" for Pietro). Asked here, once, for free.
+  const [whoName, setWhoName] = useState<string | null>(null);
+  const me = whoName ?? userName ?? '';
+
   const fileShare = useMemo(() => {
-    if (!userName?.trim()) return null;
+    if (!me.trim()) return null;
     for (let i = 0; i < files.length; i += 1) {
       const text = files[i].text;
       if (!text) continue;
-      const found = splitShareTotal(text, userName);
+      const found = splitShareTotal(text, me);
       if (found) return { ...found, at: i };
     }
     return null;
-  }, [files, userName]);
+  }, [files, me]);
+
+  // Who the file splits between - read once from the file itself, and NOT
+  // conditional on having found my column, or the screen offering the names
+  // would vanish the moment one of them was tapped.
+  const people = useMemo(() => {
+    for (const f of files) {
+      if (!f.text) continue;
+      const found = splitPeople(f.text);
+      if (found) return found;
+    }
+    return null;
+  }, [files]);
+
+  // A split file whose columns name nobody I know ("Pit" for Pietro). Rather
+  // than send it off and let the model spend a round asking - it is the
+  // question these files always trigger - the phone asks, and then owns the
+  // arithmetic for the answer. A column it recognised never asks.
+  const needsWho = useMemo(() => {
+    if (!people) return false;
+    if (!userName?.trim()) return true;
+    return !files.some((f) => f.text && splitShareTotal(f.text, userName));
+  }, [files, people, userName]);
 
   // What actually travels. On a split export the phone rewrites the file as
   // MY OWN rows - my share already worked out - and sends that instead of
@@ -120,6 +147,12 @@ export function AiImport({
   }, [files, trips]);
 
   const [step, setStep] = useState<Step>(evidence?.trip || evidence?.askTrip ? 'trip' : 'reading');
+  // The column question comes FIRST when it applies: everything downstream -
+  // the arithmetic, the cross-check, what gets sent - hangs off the answer.
+  useEffect(() => {
+    if (needsWho && whoName === null && !startedRef.current) setStep('who');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [needsWho]);
   const [tripAnswer, setTripAnswer] = useState<{ is_trip: boolean; name?: string } | null>(null);
   // 'trip' pre-answer state: which chip is lit.
   const [chip, setChip] = useState<'yes' | 'other' | 'no'>(evidence?.trip ? 'yes' : 'no');
@@ -238,10 +271,14 @@ export function AiImport({
   // No trip screen to show: the reading starts the moment the flow mounts.
   useEffect(() => {
     if (startedRef.current) return;
+    // A column to settle first, or a trip to assert: both are screens, and
+    // neither may be skipped by the reading starting underneath them.
+    if (needsWho && whoName === null) return;
+    if (evidence?.trip || evidence?.askTrip) return;
     startedRef.current = true;
-    if (!evidence?.trip && !evidence?.askTrip) start(null);
+    start(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [needsWho]);
 
   useEffect(() => () => abortRef.current?.abort(), []);
 
@@ -331,6 +368,25 @@ export function AiImport({
 
   return (
     <div data-ai-flow data-ai-step={step} className="fixed inset-0 z-[70] flex flex-col max-w-[430px] mx-auto" style={{ backgroundColor: 'var(--bg-page)' }}>
+      {step === 'who' && people && (
+        <>
+          {header(t('ai.whoTitle'), t('ai.whoSub', { n: String(people.length) }))}
+          <div className="flex-1 px-6 pt-2">
+            <div className="flex flex-wrap gap-2">
+              {people.map((name) => chipBtn(whoName === name, name, () => setWhoName(name), `who-${name}`))}
+              {/* Somebody else's export, or a group I am not a column in:
+                  the file still goes through, just without the shortcut. */}
+              {chipBtn(whoName === '', t('ai.whoNone'), () => setWhoName(''), 'who-none')}
+            </div>
+          </div>
+          {cta(t('ai.go'), () => {
+            startedRef.current = true;
+            if (evidence?.trip || evidence?.askTrip) setStep('trip');
+            else start(null);
+          }, whoName === null, 'who-go')}
+        </>
+      )}
+
       {step === 'trip' && evidence && (() => {
         // One screen, two postures. With a known trip in the window the app
         // ASSERTS and lets you correct; without one - but with a file whose

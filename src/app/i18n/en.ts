@@ -601,6 +601,11 @@ export const en = {
   'ai.smartBody': 'Already matched to your categories and accounts.',
   'ai.browse': 'Choose a file',
   'ai.manualLine': 'Prefer using your own assistant?',
+  // Asked on the phone when a split file's columns are nicknames: one tap
+  // here saves a whole round of the model asking the same thing.
+  'ai.whoTitle': 'Which one is you?',
+  'ai.whoSub': 'This file splits between {n} people.',
+  'ai.whoNone': "I'm not in here",
   'ai.tripTitle': '{n} expenses',
   'ai.tripSub': 'All between {window}. You have {name} in those days.',
   // The same assertion when the file also carries a few earlier rows - the

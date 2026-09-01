@@ -11,12 +11,16 @@
 // reader that only knows one of them is a reader that guesses on the other
 // two. Nothing here matches on a header's promise; the shape is worked out
 // from what the columns hold.
-import { myShareCsv, splitShareTotal } from '../../src/app/lib/splitFile';
+import { myShareCsv, splitPeople, splitShareTotal } from '../../src/app/lib/splitFile';
 
 let failed = 0;
 const ok = (cond: boolean, msg: string) => {
   console.log(`${cond ? 'PASS' : 'FAIL'}  ${msg}`);
   if (!cond) failed += 1;
+};
+const eq = (msg: string, got: unknown, want: unknown) => {
+  const same = JSON.stringify(got) === JSON.stringify(want);
+  ok(same, same ? msg : `${msg} (got ${JSON.stringify(got)}, want ${JSON.stringify(want)})`);
 };
 
 // ── Splitwise: BALANCES, and the one that was wrong on a real phone ───────
@@ -136,6 +140,17 @@ const TRICOUNT = `date,description,category,paid_by,total,Pit,Merlo,Max
 2026-08-23,Museo solo Pit,Culture,Pit,12.00,12.00,0.00,0.00
 `;
 {
+  // THE nickname case, from a real trip: the columns are Pit, Merlo, Max and
+  // the owner is "Pietro". No name matching turns one into the other, so the
+  // file used to go to the model whole and the arithmetic with it. Now the
+  // app offers the three names and does the sums for whichever is tapped.
+  ok(splitShareTotal(TRICOUNT, 'Pietro') === null,
+    'a nickname column is not matched to my name - guessing here is wrong on every row');
+  eq('but the file is still recognised, and its people offered',
+    splitPeople(TRICOUNT), ['Pit', 'Merlo', 'Max']);
+  ok(splitPeople('date,description,amount\n2026-08-01,A,10\n2026-08-02,B,20\n2026-08-03,C,30\n') === null,
+    'while a file that splits between nobody offers nothing');
+
   const got = splitShareTotal(TRICOUNT, 'Pit');
   ok(got?.kind === 'shares', `a Tricount export is recognised as shares (${got?.kind})`);
   ok(got?.total === 162, `and my share is my own column, added up: 162 (got ${got?.total})`);
@@ -167,6 +182,32 @@ const HOMEMADE = `Data,Cosa,Importo,Anna,Bea,Carlo,Note
 
 // ── and the files this must stay away from ───────────────────────────────
 {
+  // A real consolidated statement's shape, cut down: sections and summaries
+  // before any transaction, the header buried a hundred lines in, dates
+  // written as words, and - the trap - four numeric columns after the
+  // amount. Balance, Tax withheld, Other taxes and Fees are numbers on every
+  // row, so a reader that took "numeric columns after the money" as people
+  // would find four participants here and invent shares for them.
+  const statement = `"Current Accounts Summaries",,,,,
+,,,,,
+"Personal Account (EUR)",,,,,
+"Account Number (IBAN)",ES6815830001199010360232,"Opening date","Jun 10, 2025",,
+"Average balance Q1 2026","€1,422.95","Opening balance","€2,014.08",,
+,,,,,
+"Current Accounts Transaction Statements",,,,,
+"Transaction statement",,,,,
+Date,Description,Category,"Money in/out",Balance,Fees
+"Jan 1, 2026","Transfer to N. B.",Others,-€32.50,"€1,981.58",€0.00
+"Jan 4, 2026","Premium plan fee",Merchant,-€8.99,"€1,972.59",€8.99
+"Jan 5, 2026","Bizum payment to: A.B",Others,-€30.00,"€1,942.59",€0.00
+"Jan 6, 2026","Transfer to L. C.",Others,-€21.00,"€1,921.59",€0.00
+"Jan 13, 2026","Cash withdrawal at 100817112",ATM,-€100.00,"€1,809.10",€0.00
+Total,,,"-€30,236.85",,€67.58
+`;
+  ok(splitShareTotal(statement, 'Pietro') === null,
+    'a consolidated bank statement is not a split file - its Balance and Fees columns are not people');
+  ok(splitPeople(statement) === null, 'and it is not offered as one to choose a column from');
+
   const bank = `Date,Description,Amount,Balance
 2026-08-01,Coffee,-3.50,1200.00
 2026-08-02,Salary,2000.00,3200.00

@@ -135,12 +135,34 @@ function myColumn(headers: string[], me: string): number {
 }
 
 /**
- * The file's own answer to "what did this trip cost ME".
+ * Who this file splits between, or null when it is not a split file at all.
  *
- * Returns null - silently, no guess - whenever the file is not this shape or
- * my column cannot be told: a wrong second opinion is worse than none.
+ * Exists because of the nickname: a Tricount trip is filed under "Pit",
+ * "Merlo", "Max", and no amount of name matching turns "Pietro" into "Pit".
+ * Rather than hand the file to the model and hope, the app asks - one tap,
+ * on the phone, before anything is sent - and then does the arithmetic
+ * itself like it does for a column it recognised.
  */
-export function splitShareTotal(text: string, me: string): SplitTotal | null {
+export function splitPeople(text: string): string[] | null {
+  const found = analyse(text);
+  return found ? found.people : null;
+}
+
+interface ParsedRow {
+  cost: number;
+  all: number[];
+  description: string;
+  category: string;
+  date: string;
+}
+interface Parsed {
+  people: string[];
+  rows: ParsedRow[];
+  kind: 'shares' | 'balances';
+}
+
+/** Everything about the file that does not depend on which column is mine. */
+function analyse(text: string): Parsed | null {
   const lines = text.split(/\r?\n/).filter((l) => l.trim());
   if (lines.length < 4) return null;
 
@@ -193,8 +215,6 @@ export function splitShareTotal(text: string, me: string): SplitTotal | null {
   if (cols.length < 2) return null;
 
   const people = cols.map((c) => header[c]);
-  const mineAt = myColumn(people, me);
-  if (mineAt === -1) return null;
 
   const labelled = (re: RegExp) => header.findIndex((h) => re.test(h.trim()));
   const descCol = labelled(/^(description|descrizione|title|titolo|what|cosa)$/i);
@@ -203,8 +223,7 @@ export function splitShareTotal(text: string, me: string): SplitTotal | null {
   // March, and re-formatting it here would be one more thing to get wrong.
   const dateCol = labelled(/^(date|data|when|quando)$/i);
 
-  interface Row { cost: number; mine: number; all: number[]; description: string; category: string; date: string }
-  const rows: Row[] = [];
+  const rows: ParsedRow[] = [];
   for (const cells of body) {
     const cost = num(cells[costCol] ?? '');
     if (cost === null || cost === 0) continue;
@@ -212,7 +231,6 @@ export function splitShareTotal(text: string, me: string): SplitTotal | null {
     const all = cols.map((c) => num(cells[c] ?? '') ?? 0);
     rows.push({
       cost,
-      mine: all[mineAt],
       all,
       description: descCol === -1 ? '' : (cells[descCol] ?? ''),
       category: catCol === -1 ? '' : (cells[catCol] ?? ''),
@@ -234,6 +252,23 @@ export function splitShareTotal(text: string, me: string): SplitTotal | null {
   }
   if (sharesEvidence === 0 && balancesEvidence === 0) return null;
   const kind: 'shares' | 'balances' = balancesEvidence > sharesEvidence ? 'balances' : 'shares';
+  return { people, rows, kind };
+}
+
+/**
+ * The file's own answer to "what did this trip cost ME".
+ *
+ * Returns null - silently, no guess - whenever the file is not this shape or
+ * my column cannot be told: a wrong second opinion is worse than none. When
+ * the shape is right but the name is not (nicknames), splitPeople above lets
+ * the caller ask instead of giving up.
+ */
+export function splitShareTotal(text: string, me: string): SplitTotal | null {
+  const parsed = analyse(text);
+  if (!parsed) return null;
+  const { people, rows, kind } = parsed;
+  const mineAt = myColumn(people, me);
+  if (mineAt === -1) return null;
 
   let total = 0;
   let unclear = 0;
@@ -244,9 +279,10 @@ export function splitShareTotal(text: string, me: string): SplitTotal | null {
   for (const r of rows) {
     if (isSettlement(r.description, r.category)) continue;
     groupTotal += r.cost;
+    const mine = r.all[mineAt];
     const share = kind === 'shares'
-      ? (r.mine > 0 ? r.mine : 0)
-      : shareOf(r.cost, r.mine, r.all);
+      ? (mine > 0 ? mine : 0)
+      : shareOf(r.cost, mine, r.all);
     if (share === null) {
       // An all-zero row: one person paid and consumed all of it. Mine when
       // the words say so ("Voli Pietro" - my flights). Otherwise the export
