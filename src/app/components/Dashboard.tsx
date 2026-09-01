@@ -3843,8 +3843,102 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
             // names are.
             const currentData = recurrenceData.overview;
             const totalValue = currentData.reduce((sum, item) => sum + item.value, 0);
-            
-            if (totalValue === 0) return null;
+
+            // Coming up: the forward half of the story, shared by EVERY shape
+            // of this card. What recurring spending does NEXT needs no
+            // spending to have happened yet - reported from a device on the
+            // 1st of the month, when one recurring row had landed, the split
+            // collapsed to its one-line form, and the upcoming list (which
+            // only existed in the two-slice layout) silently went with it.
+            // Only on the current period - browsing last March must not show
+            // next week. At most three rows inside seven days; a quiet week
+            // collapses to one "next up" line; no schedules renders nothing.
+            const comingUp = (divided: boolean) => {
+              if (!isAtCurrentPeriod()) return null;
+              const ups = upcomingSchedules(recurringRules, new Date())
+                .filter((u) => u.rule.template.type !== 'income');
+              if (ups.length === 0) return null;
+              const horizon = new Date();
+              horizon.setDate(horizon.getDate() + 7);
+              const limit = toDateStr(horizon);
+              const week = ups.filter((u) => u.next <= limit);
+              const shown = week.slice(0, 3);
+              const extra = week.length - shown.length;
+              const dayLabel = (d: string) =>
+                parseLocalDate(d).toLocaleDateString(dateLocale(), { weekday: 'short', day: 'numeric' });
+              const farLabel = (d: string) =>
+                parseLocalDate(d).toLocaleDateString(dateLocale(), { day: 'numeric', month: 'short' });
+              return (
+                <div
+                  data-rec-upcoming
+                  className={divided ? 'mt-3 pt-3' : 'mt-2'}
+                  style={divided ? { borderTop: '1px solid var(--bg-inset)' } : undefined}
+                >
+                  <div className="flex items-baseline justify-between mb-1">
+                    <span style={{ color: 'var(--ink-2)', fontSize: 11.5, fontWeight: 600, letterSpacing: 0.2 }}>
+                      {t('rec.comingUp')}
+                    </span>
+                    <button
+                      onClick={onManageRecurring}
+                      style={{ color: 'var(--accent-ink)', fontSize: 12, fontWeight: 600 }}
+                    >
+                      {t('rec.manage')}
+                    </button>
+                  </div>
+                  {week.length === 0 ? (
+                    // Nothing inside the week: one line keeps the card honest
+                    // about what exists without listing it all.
+                    <div className="flex items-baseline justify-between py-0.5">
+                      <span style={{ color: 'var(--ink-2)', fontSize: 12.5 }}>
+                        {t('rec.nextUp')} {ups[0].rule.template.description} · {farLabel(ups[0].next)}
+                      </span>
+                      <span style={{ color: 'var(--ink)', fontSize: 12.5, fontWeight: 600 }} className="tabular-nums">
+                        -<AmountText amount={ups[0].rule.template.amount} currency={currency} decimals={ups[0].rule.template.amount % 1 ? 2 : 0} />
+                      </span>
+                    </div>
+                  ) : (
+                    <>
+                      {shown.map((u) => (
+                        <div key={u.rule.id} className="flex items-baseline gap-2 py-1">
+                          <span className="flex-shrink-0" style={{ color: 'var(--ink-2)', fontSize: 12.5, minWidth: 52 }}>
+                            {dayLabel(u.next)}
+                          </span>
+                          <span className="flex-1 truncate" style={{ color: 'var(--ink)', fontSize: 13, fontWeight: 500 }}>
+                            {u.rule.template.description}
+                          </span>
+                          <span style={{ color: 'var(--ink)', fontSize: 13, fontWeight: 600 }} className="tabular-nums">
+                            -<AmountText amount={u.rule.template.amount} currency={currency} decimals={u.rule.template.amount % 1 ? 2 : 0} />
+                          </span>
+                        </div>
+                      ))}
+                      {extra > 0 && (
+                        <div style={{ color: 'var(--ink-2)', fontSize: 11.5, paddingTop: 2 }}>
+                          {t('rec.moreThisWeek', { n: extra })}
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              );
+            };
+
+            // A month with no expenses yet still owes the forward half: on
+            // the 1st, "what's about to go out" is the only thing this card
+            // can usefully say - hiding it with the split was the bug.
+            if (totalValue === 0) {
+              const upcoming = comingUp(false);
+              if (!upcoming) return null;
+              return (
+                <div className="px-6 mb-4">
+                  <div className="rounded-2xl px-6 py-4 bg-white" style={{ boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)' }}>
+                    <h3 className="text-sm" style={{ color: 'var(--ink)', fontWeight: '600' }}>
+                      {t('rec.title')}
+                    </h3>
+                    {upcoming}
+                  </div>
+                </div>
+              );
+            }
             
             // One indigo family, whatever the transaction type.
             //
@@ -3910,6 +4004,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                         {recurrenceSliceLabel(only.name).toLowerCase()}.
                       </span>
                     </div>
+                    {comingUp(true)}
                   </div>
                 </div>
               );
@@ -4032,79 +4127,9 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                       ))}
                     </div>
 
-                    {/* Coming up: the forward half of the same story. The
-                        split above says what recurring spending DID this
-                        month; this says what it does next, so commitments
-                        live where the user looks daily instead of only in
-                        Settings. Only on the current period - browsing last
-                        March must not show next week - and only in the
-                        overview layer. Sized to stay small: at most three
-                        rows inside seven days; a quiet week collapses to one
-                        "next up" line; no schedules at all renders nothing,
-                        because an empty promise-box is worse than none. */}
-                    {isAtCurrentPeriod() && (() => {
-                      const ups = upcomingSchedules(recurringRules, new Date())
-                        .filter((u) => u.rule.template.type !== 'income');
-                      if (ups.length === 0) return null;
-                      const horizon = new Date();
-                      horizon.setDate(horizon.getDate() + 7);
-                      const limit = toDateStr(horizon);
-                      const week = ups.filter((u) => u.next <= limit);
-                      const shown = week.slice(0, 3);
-                      const extra = week.length - shown.length;
-                      const dayLabel = (d: string) =>
-                        parseLocalDate(d).toLocaleDateString(dateLocale(), { weekday: 'short', day: 'numeric' });
-                      const farLabel = (d: string) =>
-                        parseLocalDate(d).toLocaleDateString(dateLocale(), { day: 'numeric', month: 'short' });
-                      return (
-                        <div className="mt-3 pt-3" style={{ borderTop: '1px solid var(--bg-inset)' }}>
-                          <div className="flex items-baseline justify-between mb-1">
-                            <span style={{ color: 'var(--ink-2)', fontSize: 11.5, fontWeight: 600, letterSpacing: 0.2 }}>
-                              {t('rec.comingUp')}
-                            </span>
-                            <button
-                              onClick={onManageRecurring}
-                              style={{ color: 'var(--accent-ink)', fontSize: 12, fontWeight: 600 }}
-                            >
-                              {t('rec.manage')}
-                            </button>
-                          </div>
-                          {week.length === 0 ? (
-                            // Nothing inside the week: one line keeps the card
-                            // honest about what exists without listing it all.
-                            <div className="flex items-baseline justify-between py-0.5">
-                              <span style={{ color: 'var(--ink-2)', fontSize: 12.5 }}>
-                                {t('rec.nextUp')} {ups[0].rule.template.description} · {farLabel(ups[0].next)}
-                              </span>
-                              <span style={{ color: 'var(--ink)', fontSize: 12.5, fontWeight: 600 }} className="tabular-nums">
-                                -<AmountText amount={ups[0].rule.template.amount} currency={currency} decimals={ups[0].rule.template.amount % 1 ? 2 : 0} />
-                              </span>
-                            </div>
-                          ) : (
-                            <>
-                              {shown.map((u) => (
-                                <div key={u.rule.id} className="flex items-baseline gap-2 py-1">
-                                  <span className="flex-shrink-0" style={{ color: 'var(--ink-2)', fontSize: 12.5, minWidth: 52 }}>
-                                    {dayLabel(u.next)}
-                                  </span>
-                                  <span className="flex-1 truncate" style={{ color: 'var(--ink)', fontSize: 13, fontWeight: 500 }}>
-                                    {u.rule.template.description}
-                                  </span>
-                                  <span style={{ color: 'var(--ink)', fontSize: 13, fontWeight: 600 }} className="tabular-nums">
-                                    -<AmountText amount={u.rule.template.amount} currency={currency} decimals={u.rule.template.amount % 1 ? 2 : 0} />
-                                  </span>
-                                </div>
-                              ))}
-                              {extra > 0 && (
-                                <div style={{ color: 'var(--ink-2)', fontSize: 11.5, paddingTop: 2 }}>
-                                  {t('rec.moreThisWeek', { n: extra })}
-                                </div>
-                              )}
-                            </>
-                          )}
-                        </div>
-                      );
-                    })()}
+                    {/* The forward half of the same story - see comingUp()
+                        above, which every shape of this card now shares. */}
+                    {comingUp(true)}
                   </div>
                 </div>
               </div>

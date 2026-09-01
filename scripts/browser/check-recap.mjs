@@ -37,6 +37,13 @@ const seed = ([ref, session]) => {
   put('categories', [cat]);
   put('income-categories', []);
   put('sources', [{ id: 'cash', kind: 'cash', mark: 'banknote', name: 'Cash', brand: '#2FA84F' }]);
+  // A schedule whose next occurrence is Sep 3 - nothing due yet on the 1st,
+  // so September holds NO transactions and the recurring card has only its
+  // forward half to offer.
+  put('recurring-rules', [{
+    id: 'r1', rule: 'Every month', anchorDate: '2026-08-03',
+    template: { description: 'Affitto', amount: 800, currency: 'EUR', category: cat, type: 'expense' },
+  }]);
   put('transactions', ['2026-08-05', '2026-08-08', '2026-08-12', '2026-08-15', '2026-08-20', '2026-08-22'].map((date, i) => ({
     id: 't' + i, date, type: 'expense', amount: 20, baseAmount: 20, currency: 'EUR', sourceId: 'cash',
     category: cat, createdAt: `${date}T10:00:00.000Z`, updatedAt: `${date}T10:00:00.000Z`,
@@ -116,6 +123,18 @@ await a.reload({ waitUntil: 'networkidle' });
 await a.waitForTimeout(1500);
 ok(await a.locator('[data-review-pointer]').count() === 0,
   'changing tab or reopening the app does not bring it back');
+
+// ── the empty month still tells the forward half ──────────────────────────
+//
+// Sep 1, not a euro spent yet: the One-off vs Recurring card used to vanish
+// with the month's total (and its one-slice form dropped the list too), so
+// the upcoming commitments - the only thing worth saying on the 1st - were
+// locked behind having already spent something. Reported from a device.
+ok((await a.locator('body').innerText()).includes('One-off vs Recurring'),
+  'Sep 1, nothing spent: the recurring card is still on the page');
+ok(await a.locator('[data-rec-upcoming]').count() === 1
+  && (await a.locator('[data-rec-upcoming]').innerText()).includes('Affitto'),
+  'because what is ABOUT to go out needs no spending to have happened yet');
 
 await ctx.close();
 console.log(fail.length ? `\n${fail.length} FAILED` : '\nonce per month means once');
