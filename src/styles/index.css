@@ -13,6 +13,22 @@
 }
 
 /*
+ * Stop the browser's own pull-to-refresh.
+ *
+ * At the top of any list, a downward swipe - the same gesture as scrolling
+ * back up - was reloading the whole app: a white flash, the shell rebuilt,
+ * the tab and scroll position gone, in answer to a scroll. Nothing in the app
+ * asked for it and nothing on screen said it would happen.
+ *
+ * `contain` keeps scrolling inside the app exactly as it was, and also stops
+ * a sheet's list from scrolling the page behind it once it hits its end.
+ */
+html,
+body {
+  overscroll-behavior-y: contain;
+}
+
+/*
  * Placeholder shown while a tab's code chunk is still downloading.
  *
  * Held invisible for 250ms first: most switches resolve faster than that, and

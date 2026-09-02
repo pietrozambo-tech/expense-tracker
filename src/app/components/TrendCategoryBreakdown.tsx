@@ -226,10 +226,20 @@ export function TrendCategoryBreakdown({
           
           return (
             <div key={item.name}>
-              {/* Main Category Row */}
-              <button
-                onClick={subcategories.length > 0 ? () => setTrendExpandedCategory(isExpanded ? null : item.name) : undefined}
-                className={`w-full flex items-center justify-between gap-3 py-1.5 rounded-lg transition-colors ${subcategories.length > 0 ? 'active:bg-neutral-50' : ''}`}
+              {/* Main Category Row. A <button> only when there is something
+                  under it to open: a category with no subcategories has
+                  nothing to expand, and rendering it as a button anyway gave
+                  a full-width control that took the tap, moved nothing and
+                  did not even light up under the finger - the row beside it,
+                  identical but for a chevron, opens. Same layout either way;
+                  what changes is whether it claims to be pressable. */}
+              {(() => {
+                const opens = subcategories.length > 0;
+                const Row = opens ? 'button' : 'div';
+                return (
+              <Row
+                {...(opens ? { onClick: () => setTrendExpandedCategory(isExpanded ? null : item.name) } : {})}
+                className={`w-full flex items-center justify-between gap-3 py-1.5 rounded-lg transition-colors ${opens ? 'active:bg-neutral-50' : ''}`}
               >
                 <div className="flex items-center gap-2.5 flex-1 min-w-0">
                   {subcategories.length > 0 ? (
@@ -269,7 +279,9 @@ export function TrendCategoryBreakdown({
                     <AmountText amount={item.monthlyAvg} currency={currency} abbreviate="summary" />
                   </div>
                 </div>
-              </button>
+              </Row>
+                );
+              })()}
 
 
               {/* Subcategories. These percentages are shares of THIS category,
