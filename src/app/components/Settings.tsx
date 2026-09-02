@@ -43,6 +43,7 @@ import type { Source } from '../types';
 import type { ImportPayload } from '../lib/importData';
 import { t, type Language as AppLanguage } from '../i18n';
 import { useBackClose } from '../lib/useBackClose';
+import { TricountLink } from './TricountLink';
 import { CATCHALL_RE } from '../lib/categoryOps';
 import { dateLocale, daysShort, getLanguage, monthsShort } from '../i18n/store';
 import { isBackupFile } from '../lib/backup';
@@ -2867,9 +2868,10 @@ export function Settings({
                     [Palmtree, 'var(--wash-accent3)', '#0A84FF', t('ai.card2Title'), <>
                       {t('ai.card2a')}{' '}
                       {/* Tricount has no export button of its own, so its
-                          name links to the tool that makes one. Splitwise
-                          exports natively and needs no link. */}
-                      <a href="https://tricount-exporter.pages.dev" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent-ink)', fontWeight: 600, textDecoration: 'underline' }}>Tricount</a>{t('ai.card2b')}
+                          name opens a note explaining that, and the tool that
+                          makes the CSV. Splitwise exports natively and needs
+                          neither. */}
+                      <TricountLink />{t('ai.card2b')}
                     </>],
                     [Sparkles, 'var(--wash-accent2)', 'var(--accent-ink)', t('ai.smartTitle'), <>{t('ai.smartBody')}</>],
                   ] as const).map(([Icon, wash, tint, title, body], i) => (
@@ -2987,21 +2989,21 @@ export function Settings({
                   clutter the owner asked cut. For the GUEST this step is the
                   only place any of it is said, so the full version stays,
                   with the app's first external link: Tricount has no export
-                  button of its own, so the name links to the tool that makes
-                  one from a share link (client-side - the trip stays in the
-                  user's browser). target=_blank because from the installed
-                  PWA this must open the system browser anyway. */}
+                  button of its own, so the name opens a note saying so and
+                  offering the tool that makes the CSV from a share link. See
+                  TricountLink - the hop is a real <a target=_blank> because
+                  from the installed PWA it must reach the system browser. */}
               {aiImportReady
                 ? (getLanguage() === 'it'
                   ? <>Apri un assistente AI qualsiasi (ChatGPT, Claude, Gemini…). Incolla il prompt qui sotto e allega il tuo file.</>
                   : <>Open any AI assistant (ChatGPT, Claude, Gemini…). Paste the prompt below and attach your file.</>)
                 : getLanguage() === 'it'
                 ? <>Apri un assistente AI qualsiasi (ChatGPT, Claude, Gemini…). Incolla il prompt qui sotto e allega il tuo file - un foglio di calcolo, un estratto conto (PDF o CSV), un export di viaggio Splitwise o{' '}
-              <a href="https://tricount-exporter.pages.dev" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent-ink)', fontWeight: 600, textDecoration: 'underline' }}>Tricount</a>,
+              <TricountLink />,
               screenshot o una tabella incollata. Le spese condivise arrivano come sola tua quota - i pareggi tra persone vengono saltati.</>
                 : <>Open any AI assistant (ChatGPT, Claude, Gemini…). Paste the prompt below and attach your file -
               a spreadsheet, a bank/card statement (PDF or CSV), a Splitwise or{' '}
-              <a href="https://tricount-exporter.pages.dev" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent-ink)', fontWeight: 600, textDecoration: 'underline' }}>Tricount</a>{' '}
+              <TricountLink />{' '}
               trip export, screenshots, or a pasted table. Split expenses come in as your share only - settlements between people are skipped.</>}
             </Step>
             <Step n={2}>

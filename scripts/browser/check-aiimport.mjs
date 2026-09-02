@@ -367,8 +367,29 @@ const pickCsv = (p) => p.locator('[data-ai-door] input[type="file"]').setInputFi
     'the WHY is on the door - banks, trips, Splitwise - before any button asks');
   ok(/matched to your categories/.test(door),
     'and it says the matching is fitted to YOUR setup');
-  ok(await p.locator('a[href*="tricount-exporter"]').count() === 1,
-    'Tricount - which has no export of its own - links to the tool that makes one');
+  // The name no longer hops straight out to an unfamiliar site with a box on
+  // it. Nobody knows this tool exists, and a bare link cannot tell them - so
+  // the missing step gets one short screen of its own first.
+  ok(await p.locator('a[href*="tricount-exporter"]').count() === 0
+    && await p.locator('[data-tricount-link]').count() === 1,
+    'Tricount is not a bare link out - tapping it has something to say first');
+  await p.locator('[data-tricount-link]').click();
+  await p.waitForTimeout(500);
+  const note = await p.locator('[data-tricount-note]').innerText();
+  ok(/no export button/i.test(note) && /Splitwise/.test(note),
+    'it says what Tricount lacks that Splitwise has');
+  ok(/share link/i.test(note) && /CSV/.test(note),
+    'and what to do about it: paste the share link, get a CSV back');
+  ok(/not part of TracklyLab/i.test(note),
+    'owning that the tool is not ours, since the next screen asks for their trip');
+  const go = p.locator('[data-tricount-go]');
+  ok(await go.getAttribute('href') === 'https://tricount-exporter.pages.dev'
+    && await go.getAttribute('target') === '_blank',
+    'and the way on is a real link, not a scripted hop a PWA could swallow');
+  await p.locator('[data-tricount-cancel]').click();
+  await p.waitForTimeout(400);
+  ok(await p.locator('[data-tricount-note]').count() === 0,
+    'backing out of it leaves you where you were, on the door');
   // The user's own complaint, pinned: on a real phone height the whole door
   // - reasons, button, hint, manual line - fits with NOTHING under the fold.
   await p.setViewportSize({ width: 390, height: 844 });

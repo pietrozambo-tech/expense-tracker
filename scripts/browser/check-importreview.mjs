@@ -59,16 +59,28 @@ const boot = async () => {
   await p.waitForTimeout(700);
   await p.getByText('Import data', { exact: true }).first().click();
   await p.waitForTimeout(700);
-  // The screen's one external link: "Tricount" pointing at the exporter that
-  // stands in for the export button Tricount does not have. _blank, because
-  // from the installed PWA it must open the system browser.
-  // Exactly once, in step 1 - the card above names Tricount in plain text
-  // (it is a summary; the step is where the action and its link live).
-  const links = p.locator('a[href="https://tricount-exporter.pages.dev"]');
-  ok(await links.count() === 1 && (await links.first().textContent()).trim() === 'Tricount',
-    'step 1 links Tricount to the exporter, and only step 1');
-  ok(await links.first().getAttribute('target') === '_blank' && /noopener/.test(await links.first().getAttribute('rel') ?? ''),
-    'in a new tab, with the opener cut');
+  // "Tricount" stands in for the export button Tricount does not have. It no
+  // longer hops straight out: nobody knows that tool exists, so the name now
+  // opens one short screen explaining the missing step, and THAT carries the
+  // link. Exactly one such name here, in step 1 - the card above names
+  // Tricount in plain text (it is a summary; the step is where the action
+  // lives).
+  const names = p.locator('[data-tricount-link]');
+  ok(await names.count() === 1 && (await names.first().textContent()).trim() === 'Tricount',
+    'step 1 offers Tricount, and only step 1');
+  ok(await p.locator('a[href*="tricount-exporter"]').count() === 0,
+    'and it is not a bare hop to a site with no explanation on it');
+  await names.first().click();
+  await p.waitForTimeout(500);
+  const go = p.locator('[data-tricount-go]');
+  ok(/no export button|pulsante di export/i.test(await p.locator('[data-tricount-note]').innerText()),
+    'tapping it says what Tricount lacks first');
+  ok(await go.getAttribute('href') === 'https://tricount-exporter.pages.dev'
+    && await go.getAttribute('target') === '_blank'
+    && /noopener/.test(await go.getAttribute('rel') ?? ''),
+    'and the way on is a real link, new tab, opener cut');
+  await p.locator('[data-tricount-cancel]').click();
+  await p.waitForTimeout(400);
   await p.locator('input[type="file"]').setInputFiles(tripFile);
   await p.waitForTimeout(900);
   return { ctx, p };
