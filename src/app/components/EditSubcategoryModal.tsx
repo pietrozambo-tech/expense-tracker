@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { t } from '../i18n';
 import { X } from 'lucide-react';
 import { getCategoryIcon } from './categoryIcons';
@@ -24,6 +24,18 @@ export function EditSubcategoryModal({ category, subcategoryName, onSave, onClos
   const [name, setName] = useState(subcategoryName);
 
   const hasChanges = name.trim() !== subcategoryName;
+  const nameRef = useRef<HTMLInputElement>(null);
+
+  // Two reasons the Save greys out, two honest answers. An empty name is
+  // something to fix, so the tap goes to the field. Nothing changed is not an
+  // error at all - there is simply nothing to save - so the tap just closes,
+  // the way Cancel would, leaving exactly the screen already on show.
+  const blocked = !name.trim() || !hasChanges;
+  const answerBlocked = () => {
+    if (name.trim()) { onClose(); return; }
+    nameRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    nameRef.current?.focus();
+  };
 
   const handleSave = () => {
     if (!name.trim() || !hasChanges) return;
@@ -34,7 +46,16 @@ export function EditSubcategoryModal({ category, subcategoryName, onSave, onClos
   const Icon = getCategoryIcon(category.icon);
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-end justify-center max-w-[430px] mx-auto">
+    <div
+      // The tap outside closes it, the way every picker and filter sheet in
+      // the app already does - and the way the X does, discarding whatever
+      // was typed. It was the only sheet family that answered an outside tap
+      // with nothing at all, which reads as a stuck screen rather than a
+      // protected one. The target check keeps taps INSIDE the card from
+      // bubbling out and closing it.
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      className="fixed inset-0 bg-black/50 z-50 flex items-end justify-center max-w-[430px] mx-auto"
+    >
       <div className="bg-white rounded-t-3xl w-full">
         {/* Header */}
         <div className="px-6 py-4 border-b border-neutral-100 flex items-center justify-between">
@@ -66,6 +87,7 @@ export function EditSubcategoryModal({ category, subcategoryName, onSave, onClos
               {t('mgmt.subName')} <span className="text-red-500">*</span>
             </label>
             <input
+              ref={nameRef}
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -85,8 +107,8 @@ export function EditSubcategoryModal({ category, subcategoryName, onSave, onClos
             {t('common.cancel')}
           </button>
           <button
-            onClick={handleSave}
-            disabled={!name.trim() || !hasChanges}
+            onClick={blocked ? answerBlocked : handleSave}
+            aria-disabled={blocked}
             className={`flex-1 py-3 rounded-xl font-medium transition-colors ${
               name.trim() && hasChanges
                 ? 'bg-blue-500 text-white active:bg-blue-600'

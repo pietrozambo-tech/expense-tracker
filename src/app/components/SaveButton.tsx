@@ -5,9 +5,11 @@ interface SaveButtonProps {
   disabled: boolean;
   isEditing?: boolean;
   transactionType: 'expense' | 'income';
+  /** What a tap on the GREYED button should answer - see below. */
+  onBlocked?: () => void;
 }
 
-export function SaveButton({ onClick, disabled, isEditing = false, transactionType }: SaveButtonProps) {
+export function SaveButton({ onClick, disabled, isEditing = false, transactionType, onBlocked }: SaveButtonProps) {
   const transactionLabel = transactionType === 'expense' ? t('add.expense') : t('add.income');
   const buttonText = isEditing
     ? t('save.update', { type: transactionLabel })
@@ -19,9 +21,15 @@ export function SaveButton({ onClick, disabled, isEditing = false, transactionTy
       // the bottom of the sheet. It fades from whatever the sheet actually is.
       style={{ background: 'linear-gradient(to top, var(--bg-card) 60%, color-mix(in srgb, var(--bg-card) 80%, transparent) 80%, transparent)' }}>
       <div className="px-6 pointer-events-auto">
+        {/* aria-disabled, not disabled: a truly disabled button swallows the
+            tap and answers nothing, which is the "I pressed Save and the app
+            ignored me" moment. It still LOOKS unavailable - same grey, no
+            shadow - but a tap now takes the finger to whatever is missing
+            (the empty amount, the unchosen category) instead of nowhere. No
+            new copy, no dialog: the answer is the field itself. */}
         <button
-          onClick={onClick}
-          disabled={disabled}
+          onClick={disabled ? onBlocked : onClick}
+          aria-disabled={disabled}
           className="w-full py-4 rounded-2xl font-medium text-center transition-all active:scale-[0.98]"
           style={{
             backgroundColor: disabled ? 'var(--line)' : '#4F74F3',

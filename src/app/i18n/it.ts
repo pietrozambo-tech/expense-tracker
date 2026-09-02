@@ -791,7 +791,7 @@ export const it: Record<keyof typeof en, string> = {
   // Row delete sheets + misc
   'del.txExpenseTitle': 'Eliminare la spesa?',
   'del.txIncomeTitle': 'Eliminare l’entrata?',
-  'del.txBody': 'Vuoi davvero eliminare "{name}"? Questa azione non si può annullare.',
+  'del.txBody': 'Vuoi davvero eliminare "{name}"?',
   'set.version': 'Versione {v}',
   'set.signature': 'Realizzato da Zambop',
 

@@ -138,6 +138,9 @@ export function AmountInput({ value, onChange, currency, onCurrencyChange, right
           
           <input
             ref={inputRef}
+            // Named so the Save button can put the cursor here when it is
+            // the empty amount holding a save back.
+            data-amount-input
             type="text"
             inputMode="decimal"
             pattern="[0-9]*\.?[0-9]*"

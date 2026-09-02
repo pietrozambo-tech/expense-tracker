@@ -142,7 +142,12 @@ const pickCsv = (p) => p.locator('[data-ai-door] input[type="file"]').setInputFi
 {
   const { ctx, p } = await open({
     session: true,
-    convert: () => ({ delay: 900, res: { status: 200, contentType: 'text/event-stream', body: sse([...ROWS, ['done', OK_DONE]]) } }),
+    // 3s, not 900ms: the leave-confirm assertions below happen mid-read, and
+    // the walk down to them (two screenshots, a dozen round trips) took longer
+    // than the old delay - the reply had already landed, the screen had
+    // honestly moved to "ready", and "staying keeps the reading where it was"
+    // failed on a race of its own making.
+    convert: () => ({ delay: 3000, res: { status: 200, contentType: 'text/event-stream', body: sse([...ROWS, ['done', OK_DONE]]) } }),
   });
   ok(await p.locator('[data-ai-door]').count() === 1, 'signed in, the door is there');
   const before = await p.locator('body').innerText();

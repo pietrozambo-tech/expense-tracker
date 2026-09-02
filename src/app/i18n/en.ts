@@ -819,7 +819,9 @@ export const en = {
   // Row delete sheets + misc
   'del.txExpenseTitle': 'Delete Expense?',
   'del.txIncomeTitle': 'Delete Income?',
-  'del.txBody': 'Are you sure you want to delete "{name}"? This action cannot be undone.',
+  // No "cannot be undone" any more - a deleted row now comes back from the
+  // toast for a few seconds, so the old sentence was simply false.
+  'del.txBody': 'Are you sure you want to delete "{name}"?',
   'set.version': 'Version {v}',
   'set.signature': 'Brought to you by Zambop',
 

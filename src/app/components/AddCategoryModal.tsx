@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { t } from '../i18n';
 import { X } from 'lucide-react';
 import { getCategoryIcon, iconsList, IconName } from './categoryIcons';
@@ -20,6 +20,18 @@ export function AddCategoryModal({ onSave, onClose }: AddCategoryModalProps) {
   const [name, setName] = useState('');
   const [selectedIcon, setSelectedIcon] = useState<IconName>('ShoppingBag');
   const [selectedColor, setSelectedColor] = useState(colorOptions[0]);
+  const nameRef = useRef<HTMLInputElement>(null);
+
+  // What the GREY Save answers. The sheet is 1036px tall in a 614px window:
+  // by the time someone has scrolled down to the icons and the colours, the
+  // name field - the one thing holding the save back - is off screen and the
+  // keyboard is gone. A tap that does nothing reads as a broken button, so it
+  // takes the finger back to the field instead. No new copy, no dialog.
+  const blocked = !name.trim();
+  const answerBlocked = () => {
+    nameRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    nameRef.current?.focus();
+  };
 
   const handleSave = () => {
     if (!name.trim()) return;
@@ -39,7 +51,16 @@ export function AddCategoryModal({ onSave, onClose }: AddCategoryModalProps) {
   const Icon = getCategoryIcon(selectedIcon);
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-end justify-center max-w-[430px] mx-auto">
+    <div
+      // The tap outside closes it, the way every picker and filter sheet in
+      // the app already does - and the way the X does, discarding whatever
+      // was typed. It was the only sheet family that answered an outside tap
+      // with nothing at all, which reads as a stuck screen rather than a
+      // protected one. The target check keeps taps INSIDE the card from
+      // bubbling out and closing it.
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      className="fixed inset-0 bg-black/50 z-50 flex items-end justify-center max-w-[430px] mx-auto"
+    >
       <div className="bg-white rounded-t-3xl w-full max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}
         <div className="px-6 py-4 border-b border-neutral-100 flex items-center justify-between flex-shrink-0">
@@ -73,6 +94,7 @@ export function AddCategoryModal({ onSave, onClose }: AddCategoryModalProps) {
               {t('mgmt.categoryName')} <span className="text-red-500">*</span>
             </label>
             <input
+              ref={nameRef}
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -147,8 +169,8 @@ export function AddCategoryModal({ onSave, onClose }: AddCategoryModalProps) {
             {t('common.cancel')}
           </button>
           <button
-            onClick={handleSave}
-            disabled={!name.trim()}
+            onClick={blocked ? answerBlocked : handleSave}
+            aria-disabled={blocked}
             className={`flex-1 py-3 rounded-xl font-medium transition-colors ${
               name.trim()
                 ? 'bg-blue-500 text-white active:bg-blue-600'

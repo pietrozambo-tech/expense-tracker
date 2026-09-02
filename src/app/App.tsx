@@ -706,6 +706,49 @@ export default function App() {
     if (currentTab !== 'dashboard') setShowBalanceHistory(false);
   }, [currentTab]);
 
+  // Where each tab was left, so coming back does not mean starting again at
+  // the top. Activity already kept its own place (its list is an inner
+  // scroller and restores itself); Dashboard and Trend scroll the PAGE, and
+  // scrolled the reader back to the greeting every time they glanced at
+  // another tab. Same tab, same position, whichever tab it is.
+  //
+  // Written on the way OUT and applied after the new tab has painted:
+  // restoring before its rows exist scrolls a short page to 0 and looks like
+  // the bug it is trying to fix.
+  const tabScroll = useRef<Record<string, number>>({});
+  const tabRef = useRef(currentTab);
+  const restoring = useRef(false);
+  // Captured AS IT HAPPENS, not when the tab changes: by then the outgoing
+  // tab has unmounted, the page is a fraction of its height and the browser
+  // has already clamped scrollY to 0 - which is the value that would be
+  // saved, and the reason the first attempt at this restored nothing.
+  useEffect(() => {
+    const onScroll = () => {
+      if (!restoring.current) tabScroll.current[tabRef.current] = window.scrollY;
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+  useEffect(() => {
+    if (tabRef.current === currentTab) return;
+    tabRef.current = currentTab;
+    // 'add' is a form: it opens at the top, always.
+    const want = currentTab === 'add' ? 0 : tabScroll.current[currentTab] ?? 0;
+    if (!want) { restoring.current = false; return; }
+    restoring.current = true;
+    // The page grows over a few frames (charts measure themselves, the
+    // Activity list stages its rows), so this asks again until the position
+    // is actually reachable rather than once into a page that is still short.
+    let tries = 0;
+    const go = () => {
+      window.scrollTo(0, want);
+      tries += 1;
+      if (Math.abs(window.scrollY - want) > 2 && tries < 8) requestAnimationFrame(go);
+      else restoring.current = false;
+    };
+    requestAnimationFrame(go);
+  }, [currentTab]);
+
   useEffect(() => {
     if (currentTab !== 'activity' && currentTab !== 'add') activityViewRef.current = null;
     // Same rule for Trend: a deliberate tab change resets it to Expense, an
@@ -2506,8 +2549,25 @@ export default function App() {
     }
     setExpenses(expenses.filter(expense => expense.id !== id));
     setRefreshKey(prev => prev + 1);
+    // Undo, on the same terms the SELECTION delete has always offered - one
+    // row deleted by a swipe is the same act as fifty deleted by a tick, and
+    // it is the one people do by accident. A shared row is the one exception
+    // and for the same reason: its tombstone is already on its way to the
+    // other phone, and putting the row back here would only have it vanish
+    // again on the next sync.
+    const undoable = !(txn?.split && household?.remoteId);
     toast.success(t('toast.txDeleted'), {
-      duration: 1400,
+      duration: undoable ? 5000 : 1400,
+      action: undoable && txn
+        ? {
+            label: t('sel.undo'),
+            onClick: () => {
+              setExpenses((cur) => (cur.some((e) => e.id === txn.id) ? cur : [...cur, txn]));
+              setRefreshKey((k) => k + 1);
+              toast.success(t('sel.restored.one', { n: 1 }), { duration: 1600 });
+            },
+          }
+        : undefined,
     });
   };
 
@@ -4413,6 +4473,7 @@ export default function App() {
                 </div>
               )}
               
+              <div data-category-picker>
               <CategorySelector
                 selectedCategory={selectedCategory}
                 onSelectCategory={handleCategorySelect}
@@ -4425,6 +4486,7 @@ export default function App() {
                 transactions={expenses}
                 trip={categoryTrip}
               />
+              </div>
             </div>
 
             {/* Fixed Save Button at Bottom */}
@@ -4433,6 +4495,24 @@ export default function App() {
               disabled={!canSave}
               isEditing={!!editingExpenseId}
               transactionType={transactionType}
+              // Why the button is grey, answered by going to the answer: the
+              // amount first (it is above the fold and empty), the categories
+              // second. When the only thing missing is a CHANGE, there is
+              // nothing to point at and nothing to say - the form already
+              // holds what it would save.
+              onBlocked={() => {
+                const amountEmpty = !amount || parseFloat(amount) <= 0;
+                if (amountEmpty) {
+                  const el = document.querySelector<HTMLInputElement>('[data-amount-input]');
+                  el?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+                  el?.focus();
+                  return;
+                }
+                if (!selectedCategory) {
+                  document.querySelector('[data-category-picker]')
+                    ?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+                }
+              }}
             />
 
             {/* Source picker opened from the pill on the amount line */}
