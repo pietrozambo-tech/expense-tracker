@@ -190,6 +190,10 @@ export interface DevDiag {
 }
 
 interface SettingsProps {
+  /** A screen to open on arrival, set by whoever sent the user here. Cleared
+   *  through onJumpDone the moment it is honoured, so it fires once. */
+  jumpTo?: 'import' | null;
+  onJumpDone?: () => void;
   /** Signed in with a cloud to call: the AI import's door only exists then.
    *  Guests keep the manual path whole - no account, no row for the function
    *  to read categories from, no way to know who is spending. */
@@ -377,7 +381,9 @@ export function Settings({
   onDeleteAccount,
   nudgePrefs = { tips: true, recap: true },
   onSetNudgePref,
-  onSignInToSync
+  onSignInToSync,
+  jumpTo = null,
+  onJumpDone,
 }: SettingsProps) {
   // Falls back to the name initial if the avatar image can't be loaded.
   const [avatarBroken, setAvatarBroken] = useState(false);
@@ -388,6 +394,12 @@ export function Settings({
   const [showAbout, setShowAbout] = useState(false);
   const [legalDoc, setLegalDoc] = useState<LegalDoc | null>(null);
   const [showImport, setShowImport] = useState(false);
+  // Opened from somewhere else in the app - today the Dashboard's empty
+  // screen. A one-shot: App clears the flag once it has been honoured, so
+  // coming back to Settings later lands on Settings, not on Import.
+  useEffect(() => {
+    if (jumpTo === 'import') { setShowImport(true); onJumpDone?.(); }
+  }, [jumpTo, onJumpDone]);
   // The manual path, folded behind one quiet line once the AI door exists.
   const [manualOpen, setManualOpen] = useState(false);
   // Files picked for the AI import; set = the flow overlay is up.

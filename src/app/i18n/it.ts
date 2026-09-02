@@ -54,6 +54,11 @@ export const it: Record<keyof typeof en, string> = {
   'dash.empty.body': 'Registra una spesa appena la fai: questa pagina si riempie da sola.',
   'dash.empty.cta': 'Aggiungi la tua prima spesa',
   'dash.empty.demo': 'Oppure esplora con dati di esempio',
+  'toast.firstEver': 'La prima. Da qui in poi il conto lo tengo io.',
+  'toast.repeat': '{times}× “{label}” questo mese — {total} in tutto.',
+  'dash.empty.importTitle': 'Oppure porta quello che hai già',
+  'dash.empty.importBody': 'Un estratto conto, un foglio Excel, un viaggio su Splitwise.',
+  'dash.empty.importGuest': 'Per farlo in automatico serve un account.',
 
   // Budget bar + nudge
   'review.eyebrow': 'RIEPILOGO',

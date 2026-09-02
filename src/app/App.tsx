@@ -194,6 +194,7 @@ import { track } from './lib/analytics';
 import { useOnline } from './lib/useOnline';
 import { categories as initialCategories, incomeCategories as initialIncomeCategories, defaultCategoriesFor, defaultIncomeCategoriesFor } from './components/categories';
 import { reassignToOthers, CATCHALL_RE } from './lib/categoryOps';
+import { saveInsight } from './lib/saveInsight';
 import { useBackClose } from './lib/useBackClose';
 import { switchGlow } from './components/categoryColors';
 import { t, getLanguage, setLanguage, type Language } from './i18n';
@@ -394,6 +395,8 @@ export default function App() {
   const [sharedCatMap, setSharedCatMap] = useState<Record<string, string>>(() => loadSharedCatMap());
   // Nudge preferences and dismissals - device-local, see lib/nudges.ts.
   const [nudgePrefs, setNudgePrefs] = useState<NudgePrefs>(() => loadNudges());
+  // Set when something outside Settings sends the user to one of its screens.
+  const [settingsJump, setSettingsJump] = useState<'import' | null>(null);
   // "I have read last month's summary" travels with the account now, not with
   // the device - see UserSettings.recapSeen. Seeded from settings, falling
   // back to whatever this device already had in its nudge prefs, so nobody
@@ -2342,8 +2345,25 @@ export default function App() {
         // is deliberately untouched until then.
         toast.success(t('toast.scheduledFrom', { date: formatFullDate(date) }), { duration: 2600 });
       } else {
+        // A second line, but only for the two things worth one: the very
+        // first expense this person writes, and a description they have now
+        // typed four times in a month - which the app adds up nowhere else,
+        // because nothing groups by description. Everything else stays the
+        // one-line confirmation it has always been. See lib/saveInsight.ts.
+        const own = [newExpense, ...expenses].filter((e) => !isDemoRow(e));
+        const found = saveInsight({ rows: own, saved: newExpense, now: new Date() });
+        const line =
+          found?.kind === 'first' ? t('toast.firstEver')
+          : found?.kind === 'repeat' ? t('toast.repeat', {
+              times: String(found.times),
+              label: found.label,
+              total: `${found.total.toFixed(2).replace(/\.00$/, '')}${sep}${currencyData.symbol}`,
+            })
+          : undefined;
         toast.success(t('toast.saved', { amt: formattedToastAmount, cat: categoryName ?? '' }), {
-          duration: 1400,
+          // Long enough to read a second line, unchanged when there is none.
+          duration: line ? 3200 : 1400,
+          description: line,
         });
       }
     }
@@ -3808,6 +3828,10 @@ export default function App() {
                 onModalOpenChange={setIsModalOpen}
                 onAddFirstExpense={() => setCurrentTab('add')}
                 onLoadDemoData={handleLoadDemoData}
+                // The same screen the Settings entry opens - one import, one
+                // place it lives, two doors into it.
+                onImportData={() => { setSettingsJump('import'); setCurrentTab('settings'); }}
+                importNeedsAccount={guest}
                 recurringRules={recurringRules}
                 onManageRecurring={() => {
                   setCurrentTab('settings');
@@ -3848,6 +3872,8 @@ export default function App() {
             )}
             {currentTab === 'settings' && (
               <Settings
+                jumpTo={settingsJump}
+                onJumpDone={() => setSettingsJump(null)}
                 categoryOrder={categoryOrder}
                 devDiag={{
                   zone: typeof Intl !== 'undefined' ? Intl.DateTimeFormat().resolvedOptions().timeZone : '',

@@ -35,7 +35,8 @@
     "test:split": "node scripts/test-split.mjs",
     "build:edge-prompt": "node scripts/build-edge-prompt.mjs",
     "test:edge": "node scripts/test-edge.mjs",
-    "test:xlsx": "node scripts/test-xlsx.mjs"
+    "test:xlsx": "node scripts/test-xlsx.mjs",
+    "test:insight": "node scripts/test-insight.mjs"
   },
   "dependencies": {
     "@capacitor/app": "^8.1.1",

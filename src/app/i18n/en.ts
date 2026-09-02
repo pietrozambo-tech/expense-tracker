@@ -53,6 +53,13 @@ export const en = {
   'dash.empty.body': 'Add an expense as it happens - this page fills in by itself.',
   'dash.empty.cta': 'Add your first expense',
   'dash.empty.demo': 'Or look around with sample data',
+  // The two things the save toast may add a line for. See lib/saveInsight.ts
+  // for why the list is this short.
+  'toast.firstEver': "The first one. From here on I'll keep count.",
+  'toast.repeat': '{times}× “{label}” this month — {total} in all.',
+  'dash.empty.importTitle': 'Or bring in what you already have',
+  'dash.empty.importBody': 'A statement, a spreadsheet, a Splitwise trip.',
+  'dash.empty.importGuest': 'Doing it automatically needs an account.',
 
   // Budget bar + nudge
   'review.eyebrow': 'SUMMARY',

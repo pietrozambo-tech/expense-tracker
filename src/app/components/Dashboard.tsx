@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { ChevronRight, ArrowUpDown, TrendingUp, TrendingDown, Minus, Plus, Receipt, ChevronLeft, ChevronDown, X, Wallet, Gauge, Sparkles, Split } from 'lucide-react';
+import { ChevronRight, ArrowUpDown, TrendingUp, TrendingDown, Minus, Plus, Receipt, ChevronLeft, ChevronDown, X, Wallet, Gauge, Sparkles, Split, FileUp } from 'lucide-react';
 import { TrendCategoryBreakdown } from './TrendCategoryBreakdown';
 // Aliased: this file already has a `selectableYears` memo of its own, for
 // the Dashboard's period picker.
@@ -180,6 +180,14 @@ interface DashboardProps {
   // instead of a page of zeros. Both open flows that already exist elsewhere.
   onAddFirstExpense?: () => void;
   onLoadDemoData?: () => void;
+  /** The empty screen is where the cold start is FELT, which is the moment
+   *  the import is worth offering - not after ten hand-typed rows, when the
+   *  habit already exists and the offer reads as "you needn't have bothered". */
+  onImportData?: () => void;
+  /** No account: the automatic road (attach a file, done) needs somebody to
+   *  bill, so the row says so. The manual road still works, which is why the
+   *  row is offered rather than hidden. */
+  importNeedsAccount?: boolean;
   /** First day of the week for the day-of-week breakdown (Settings > Profile). */
   weekStartsOn?: number;
   /** Live schedules, for the "coming up" strip on the One-off vs Recurring card. */
@@ -455,7 +463,7 @@ let lastChartWidth = 0;
 // Same idea for the Trend tab's monthly line chart, which has its own box.
 let lastTrendWidth = 0;
 
-export function Dashboard({ expenses, categories, incomeCategories, sources = [], userName, currency, onEditExpense, onDeleteExpense, view = 'overview', onShowOverview, initialPeriod, viewStateRef, trendStateRef, monthlyBudget, nudge, insightsEnabled = true, onDisableInsights, reviewPointerSeen = false, onReviewPointerSeen, onModalOpenChange, onAddFirstExpense, onLoadDemoData, weekStartsOn = 1, recurringRules = [], onManageRecurring, household = null, partner = null, settlements = [], onSettle, sharedNewsCount = 0, sharedNews = null, onSharedModeChange, onOpenBalanceHistory }: DashboardProps) {
+export function Dashboard({ expenses, categories, incomeCategories, sources = [], userName, currency, onEditExpense, onDeleteExpense, view = 'overview', onShowOverview, initialPeriod, viewStateRef, trendStateRef, monthlyBudget, nudge, insightsEnabled = true, onDisableInsights, reviewPointerSeen = false, onReviewPointerSeen, onModalOpenChange, onAddFirstExpense, onLoadDemoData, onImportData, importNeedsAccount = false, weekStartsOn = 1, recurringRules = [], onManageRecurring, household = null, partner = null, settlements = [], onSettle, sharedNewsCount = 0, sharedNews = null, onSharedModeChange, onOpenBalanceHistory }: DashboardProps) {
   // Restore the previous view (period + drilldown) unless a Trend->Overview
   // link supplied an explicit period - that must win and start clean.
   // Subscribing here does two jobs: it re-renders the Dashboard the instant the
@@ -2424,8 +2432,34 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                 {t('dash.empty.cta')}
               </button>
             )}
+            {onImportData && (
+              <>
+                <div style={{ borderTop: '1px solid var(--line-2)', margin: '18px -24px 0' }} />
+                <button
+                  data-empty-import
+                  onClick={onImportData}
+                  className="w-full flex items-center gap-3 text-left pt-4 active:opacity-70 transition-opacity"
+                >
+                  <span
+                    className="flex-shrink-0 grid place-items-center"
+                    style={{ width: 34, height: 34, borderRadius: 10, background: 'var(--wash-accent2)' }}
+                  >
+                    <FileUp className="w-4 h-4" style={{ color: 'var(--accent-ink)' }} strokeWidth={2} />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span style={{ color: 'var(--ink)', fontSize: 14, fontWeight: 600, display: 'block' }}>
+                      {t('dash.empty.importTitle')}
+                    </span>
+                    <span style={{ color: 'var(--ink-3)', fontSize: 12, lineHeight: 1.35, display: 'block' }}>
+                      {importNeedsAccount ? t('dash.empty.importGuest') : t('dash.empty.importBody')}
+                    </span>
+                  </span>
+                  <ChevronRight className="w-4 h-4 flex-shrink-0" style={{ color: 'var(--ghost)' }} />
+                </button>
+              </>
+            )}
             {onLoadDemoData && (
-              <button onClick={onLoadDemoData} className="w-full py-3 mt-1 text-[14px] font-medium" style={{ color: 'var(--ink-2)' }}>
+              <button onClick={onLoadDemoData} className="w-full py-3 mt-2 text-[14px] font-medium" style={{ color: 'var(--ink-2)' }}>
                 {t('dash.empty.demo')}
               </button>
             )}
