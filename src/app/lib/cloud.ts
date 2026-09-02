@@ -32,6 +32,9 @@ export interface SyncPayload {
     weekStartsOn?: number;
     language?: 'en' | 'it';
     categoryOrder?: 'alpha' | 'used';
+    /** See UserSettings: read last month's summary once, on any device. */
+    recapSeen?: string;
+    reviewSeen?: string;
   };
 }
 
@@ -452,6 +455,13 @@ export function mergePayloads(
       weekStartsOn: pick('weekStartsOn'),
       language: pick('language'),
       categoryOrder: pick('categoryOrder'),
+      // pick() is already the right rule for a month marker: a device that
+      // dismissed it differs from its base and wins; one that never saw the
+      // card has no opinion and takes the server's. Two devices marking two
+      // different months settle on whichever wrote last, and both months are
+      // past by then.
+      recapSeen: pick('recapSeen'),
+      reviewSeen: pick('reviewSeen'),
     };
   };
 

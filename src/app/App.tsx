@@ -394,6 +394,16 @@ export default function App() {
   const [sharedCatMap, setSharedCatMap] = useState<Record<string, string>>(() => loadSharedCatMap());
   // Nudge preferences and dismissals - device-local, see lib/nudges.ts.
   const [nudgePrefs, setNudgePrefs] = useState<NudgePrefs>(() => loadNudges());
+  // "I have read last month's summary" travels with the account now, not with
+  // the device - see UserSettings.recapSeen. Seeded from settings, falling
+  // back to whatever this device already had in its nudge prefs, so nobody
+  // who dismissed the card before this change is asked again once.
+  const [recapSeen, setRecapSeen] = useState<string | undefined>(
+    () => loadSettings().recapSeen ?? loadNudges().recapSeen,
+  );
+  const [reviewSeen, setReviewSeen] = useState<string | undefined>(
+    () => loadSettings().reviewSeen ?? loadNudges().reviewSeen,
+  );
   // A country forced from the hidden developer panel. Empty for everyone who
   // has not gone looking for it, and it feeds the SAME path as real detection
   // rather than a parallel one - a test rig that bypasses the code under test
@@ -612,12 +622,22 @@ export default function App() {
   // two live tabs; visibilitychange covers a resumed page, where storage
   // events fired while it slept were never delivered.
   useEffect(() => {
-    const refresh = () => setNudgePrefs((p) => {
-      const stored = loadNudges();
-      return JSON.stringify(stored) === JSON.stringify(p) ? p : stored;
-    });
+    const refresh = () => {
+      setNudgePrefs((p) => {
+        const stored = loadNudges();
+        return JSON.stringify(stored) === JSON.stringify(p) ? p : stored;
+      });
+      // The two "seen" markers moved to the settings key when they started
+      // syncing, so this has to watch both files or the convergence above
+      // silently stopped covering the very card it was written for. Forward
+      // only, for the same reason as the pull: waking can learn a dismissal,
+      // never undo one.
+      const st = loadSettings();
+      setRecapSeen((cur) => (!cur || (st.recapSeen && st.recapSeen > cur) ? st.recapSeen ?? cur : cur));
+      setReviewSeen((cur) => (!cur || (st.reviewSeen && st.reviewSeen > cur) ? st.reviewSeen ?? cur : cur));
+    };
     const onStorage = (e: StorageEvent) => {
-      if (!e.key || e.key.endsWith('.nudges')) refresh();
+      if (!e.key || e.key.endsWith('.nudges') || e.key.endsWith('.settings')) refresh();
     };
     const onVisible = () => {
       if (document.visibilityState === 'visible') refresh();
@@ -675,8 +695,10 @@ export default function App() {
       weekStartsOn,
       language,
       categoryOrder,
+      recapSeen,
+      reviewSeen,
     });
-  }, [hasCompletedOnboarding, userName, userCurrency, monthlyBudget, budgetNudgeDismissed, insightsEnabled, hasSeenIntro, defaultSourceExpense, defaultSourceIncome, weekStartsOn, language, categoryOrder]);
+  }, [hasCompletedOnboarding, userName, userCurrency, monthlyBudget, budgetNudgeDismissed, insightsEnabled, hasSeenIntro, defaultSourceExpense, defaultSourceIncome, weekStartsOn, language, categoryOrder, recapSeen, reviewSeen]);
 
   // Warm the tab chunks once the first screen has settled. Deliberately on an
   // idle callback with a timeout rather than straight after mount: the point
@@ -789,6 +811,8 @@ export default function App() {
       weekStartsOn,
       language,
       categoryOrder,
+      recapSeen,
+      reviewSeen,
     },
   });
 
@@ -816,6 +840,14 @@ export default function App() {
     setDefaultSourceIncome(s.defaultSourceIncome ?? DEFAULT_SOURCE_INCOME);
     setWeekStartsOn(s.weekStartsOn ?? 1);
     setCategoryOrder(s.categoryOrder ?? DEFAULT_CATEGORY_ORDER);
+    // Only ever forward. A pull can teach this device that the summary was
+    // read elsewhere; it must never un-read one - which a plain assignment
+    // would do the moment a payload written before this field existed, or one
+    // from a device that has not pushed yet, arrived carrying undefined. The
+    // keys are 'YYYY-MM', so the later string is the later month.
+    const later = (a?: string, b?: string) => (!a ? b : !b ? a : a > b ? a : b);
+    setRecapSeen((cur) => later(cur, s.recapSeen));
+    setReviewSeen((cur) => later(cur, s.reviewSeen));
     // Absent means English, deliberately - never the device guess: an account
     // that predates the language choice must not flip because the phone is
     // Italian.
@@ -845,7 +877,7 @@ export default function App() {
     const prev = prevMonthKey(now);
     const own = expenses.filter((e) => !isDemoRow(e));
     return dueNudge({
-      prefs: nudgePrefs,
+      prefs: { ...nudgePrefs, recapSeen },
       now,
       standalone: env.standalone,
       mobile: env.mobile,
@@ -862,7 +894,7 @@ export default function App() {
       budgetSet: !!monthlyBudget && monthlyBudget > 0,
       budgetDeclined: budgetNudgeDismissed,
     });
-  }, [hasCompletedOnboarding, nudgePrefs, setupProgress, expenses, guest, monthlyBudget, budgetNudgeDismissed]);
+  }, [hasCompletedOnboarding, nudgePrefs, recapSeen, setupProgress, expenses, guest, monthlyBudget, budgetNudgeDismissed]);
 
   // Last month, told as one line. Amounts pre-formatted here so the card
   // stays free of money arithmetic; negative savings are simply not claimed
@@ -891,9 +923,9 @@ export default function App() {
 
   const dismissNudge = () => {
     if (!activeNudge) return;
+    if (activeNudge === 'recap') { setRecapSeen(monthKey(new Date())); return; }
     setNudgePrefs((p) =>
       activeNudge === 'backup' ? { ...p, backupSnoozedAt: new Date().toISOString() }
-      : activeNudge === 'recap' ? { ...p, recapSeen: monthKey(new Date()) }
       : activeNudge === 'install' ? { ...p, installDismissed: true }
       : { ...p, customizeDismissed: true }
     );
@@ -3771,8 +3803,8 @@ export default function App() {
                 onDisableInsights={() => setInsightsEnabled(false)}
                 // One tap a month: the pointer's "seen" must outlive this
                 // mount (which dies on every tab switch) and this launch.
-                reviewPointerSeen={nudgePrefs.reviewSeen === monthKey(new Date())}
-                onReviewPointerSeen={() => setNudgePrefs((p) => ({ ...p, reviewSeen: monthKey(new Date()) }))}
+                reviewPointerSeen={reviewSeen === monthKey(new Date())}
+                onReviewPointerSeen={() => setReviewSeen(monthKey(new Date()))}
                 onModalOpenChange={setIsModalOpen}
                 onAddFirstExpense={() => setCurrentTab('add')}
                 onLoadDemoData={handleLoadDemoData}
@@ -3806,8 +3838,8 @@ export default function App() {
                 view="trend"
                 weekStartsOn={weekStartsOn}
                 trendStateRef={trendViewRef}
-                reviewPointerSeen={nudgePrefs.reviewSeen === monthKey(new Date())}
-                onReviewPointerSeen={() => setNudgePrefs((p) => ({ ...p, reviewSeen: monthKey(new Date()) }))}
+                reviewPointerSeen={reviewSeen === monthKey(new Date())}
+                onReviewPointerSeen={() => setReviewSeen(monthKey(new Date()))}
                 onShowOverview={(period) => {
                   setDashboardInitialPeriod(period);
                   setCurrentTab('dashboard');

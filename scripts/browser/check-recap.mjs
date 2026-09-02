@@ -87,7 +87,10 @@ ok(await b2.locator('[data-nudge="recap"]').count() === 1, 'a second live tab sh
 await a.locator('[data-nudge-dismiss]').click();
 await a.waitForTimeout(400);
 ok(await a.locator('[data-nudge="recap"]').count() === 0, 'the X answers it where it was tapped');
-const stored = await a.evaluate(() => JSON.parse(localStorage.getItem('expense-tracker.v1.nudges') ?? '{}'));
+// In the SETTINGS key, not the nudge prefs: having read last month's summary
+// is a fact about the reader, so it travels with the account to their next
+// device rather than staying on this one.
+const stored = await a.evaluate(() => JSON.parse(localStorage.getItem('expense-tracker.v1.settings') ?? '{}'));
 ok(stored.recapSeen === '2026-09', `and the answer is written down for the month (${stored.recapSeen})`);
 
 // The other tab learns of the dismissal through the storage event - no
@@ -115,7 +118,7 @@ await a.waitForTimeout(600);
 const heroText = await a.locator('body').innerText();
 ok(heroText.includes('August 2026'), 'tapping it walks back to August');
 ok(await a.locator('[data-review-pointer]').count() === 0, 'and the pointer considers itself heard');
-const stored2 = await a.evaluate(() => JSON.parse(localStorage.getItem('expense-tracker.v1.nudges') ?? '{}'));
+const stored2 = await a.evaluate(() => JSON.parse(localStorage.getItem('expense-tracker.v1.settings') ?? '{}'));
 ok(stored2.reviewSeen === '2026-09', `written down for the month (${stored2.reviewSeen})`);
 // The reported bug, pinned: a remount (tab switch, app relaunch) must not
 // resurrect it.

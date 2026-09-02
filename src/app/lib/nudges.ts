@@ -16,10 +16,17 @@
 //              data safety: an installed app is exempt from Safari's 7-day
 //              storage eviction, a plain tab is not.
 //
-// Everything here is deliberately DEVICE-LOCAL (like the travel dismissals):
-// the install banner is about this device, the recap is "did this screen show
-// it", and the toggles mirror how real notification permissions work - per
-// device. At worst a second device shows a card once more.
+// What is left here is deliberately DEVICE-LOCAL (like the travel
+// dismissals): the install banner is about this device, the backup clock is
+// about this device's storage, and the toggles mirror how real notification
+// permissions work - per device.
+//
+// The two "already seen" markers used to live here too, on the reasoning that
+// at worst a second device would show a card once more. That was wrong, and
+// an iPad said so: having read last month's summary is a fact about the
+// READER, not about the phone it was read on, and a card that comes back on
+// every new sign-in is an app that will not take yes for an answer. They now
+// live in UserSettings, which syncs - see recapSeen there.
 //
 // This module is pure: the component hands in the facts, tests hand in
 // fabricated ones.
@@ -32,13 +39,20 @@ export interface NudgePrefs {
   recap: boolean;
   installDismissed?: boolean;
   customizeDismissed?: boolean;
-  /** The month ('YYYY-MM') whose recap was already shown and dismissed. */
+  /** The month ('YYYY-MM') whose recap was already shown and dismissed.
+   *
+   *  MOVED to UserSettings, which syncs. Kept here only so a device that
+   *  dismissed the card before that change is not asked again - App seeds the
+   *  synced value from this one on first load. Nothing writes it any more. */
   recapSeen?: string;
   /** The month ('YYYY-MM') whose review pointer - the "August summary" line
    *  on the new month's Dashboard - was already tapped. It only navigates,
    *  so one tap has said everything it has to say; kept in component state
    *  it resurrected on every tab switch, which read as a card that would
-   *  not take no for an answer. */
+   *  not take no for an answer.
+   *
+   *  MOVED to UserSettings alongside recapSeen, and read here once for the
+   *  same carry-over reason. Nothing writes it any more. */
   reviewSeen?: string;
   /** Backup-nudge clocks. A dismissal snoozes for thirty days rather than
    *  forever - new data keeps accruing, so the risk the card describes only

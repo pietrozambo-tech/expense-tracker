@@ -303,4 +303,15 @@ export interface UserSettings {
   /** How the category grid is ordered when adding. Absent means alphabetical.
    *  Synced rather than device-local: it is a habit, not an appearance. */
   categoryOrder?: 'alpha' | 'used';
+  /** The month ('YYYY-MM') whose review card was dismissed, and the month
+   *  whose "August summary" pointer was tapped.
+   *
+   *  Synced, unlike the rest of the nudge state. The install banner and the
+   *  backup clock are facts about a DEVICE - this browser, this storage - so
+   *  they stay local. These two are facts about the READER: having read last
+   *  month's summary is true of the person, not of the phone it was read on.
+   *  Kept device-local they came back on every new sign-in, which is an app
+   *  that will not take yes for an answer. */
+  recapSeen?: string;
+  reviewSeen?: string;
 }
