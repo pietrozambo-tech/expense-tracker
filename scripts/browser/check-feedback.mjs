@@ -4,7 +4,7 @@
 // something and the app said nothing, or said something different from what
 // it says everywhere else:
 //
-//   the tab you return to      starts at the top instead of where you left it
+//   the tab you return to      opens where you left it instead of at its top
 //   a row you swiped away      goes without an undo, while fifty ticked rows get one
 //   the greyed Save            swallows the tap and never says what is missing
 //   the tap outside a sheet    closes the filter sheets, ignores the category ones
@@ -26,8 +26,8 @@ const freshSession = () => {
     user: { id: 'u1', aud: 'authenticated', role: 'authenticated', email: 'p@example.com', app_metadata: { provider: 'google' }, created_at: '2026-01-01T00:00:00Z' },
   };
 };
-// Enough rows that every tab is taller than the screen - the whole point of
-// remembering where you were.
+// Enough rows that every tab is taller than the screen: a tab that cannot
+// scroll proves nothing about where it opens.
 const seed = ([ref, session]) => {
   const put = (k, v) => localStorage.setItem(`expense-tracker.v1.${k}`, typeof v === 'string' ? v : JSON.stringify(v));
   if (localStorage.getItem('seeded')) return;
@@ -74,25 +74,26 @@ const body = () => p.locator('body').innerText();
 const rowCount = () => p.evaluate(() => JSON.parse(localStorage.getItem('expense-tracker.v1.transactions') ?? '[]').length);
 const scrollY = () => p.evaluate(() => Math.round(window.scrollY));
 
-// ── where you left off ───────────────────────────────────────────────────
+// ── a tab opens at its top ───────────────────────────────────────────────
+// Tapping "Trend" asks to see Trend, and the answer starts at the title.
+// Coming back two screens down - with the heading scrolled away and nothing
+// saying where you are - is the app answering a different question.
 await p.evaluate(() => window.scrollTo(0, 700));
 await p.waitForTimeout(400);
 const left = await scrollY();
 ok(left > 300, `the Dashboard is long enough to scroll (${left}px)`);
 await p.getByRole('button', { name: 'Trend' }).first().click();
 await p.waitForTimeout(800);
-ok(await scrollY() < 50, 'a tab you have not visited opens at the top');
+ok(await scrollY() < 50, 'switching to another tab opens it at the top');
 await p.evaluate(() => window.scrollTo(0, 400));
 await p.waitForTimeout(400);
-const trendLeft = await scrollY();
 await p.getByRole('button', { name: 'Dashboard' }).first().click();
 await p.waitForTimeout(1000);
-const back = await scrollY();
-ok(Math.abs(back - left) < 60, `and coming back puts you where you were (${left}px -> ${back}px)`);
+ok(await scrollY() < 50, `and coming back to the one you left deep starts at its top too (${await scrollY()}px)`);
 await p.getByRole('button', { name: 'Trend' }).first().click();
 await p.waitForTimeout(1000);
-ok(Math.abs(await scrollY() - trendLeft) < 60,
-  `each tab remembers its OWN place, not the last one scrolled (Trend left at ${trendLeft}px, back at ${await scrollY()}px)`);
+ok(await scrollY() < 50,
+  `one rule for every tab, however far down you were (Trend was left at 400px, opens at ${await scrollY()}px)`);
 
 // ── the row you swiped away ──────────────────────────────────────────────
 await p.getByRole('button', { name: 'Activity' }).first().click();

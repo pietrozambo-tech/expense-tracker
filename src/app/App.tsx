@@ -707,47 +707,22 @@ export default function App() {
     if (currentTab !== 'dashboard') setShowBalanceHistory(false);
   }, [currentTab]);
 
-  // Where each tab was left, so coming back does not mean starting again at
-  // the top. Activity already kept its own place (its list is an inner
-  // scroller and restores itself); Dashboard and Trend scroll the PAGE, and
-  // scrolled the reader back to the greeting every time they glanced at
-  // another tab. Same tab, same position, whichever tab it is.
+  // A tab opens at its top. Tapping "Trend" is a request to see Trend, and
+  // the answer to it starts at the title - not two screens down where you
+  // happened to stop reading last time, with nothing on screen to say where
+  // you are.
   //
-  // Written on the way OUT and applied after the new tab has painted:
-  // restoring before its rows exist scrolls a short page to 0 and looks like
-  // the bug it is trying to fix.
-  const tabScroll = useRef<Record<string, number>>({});
+  // This is the rule the app already had, kept in one place. Leaving a tab
+  // for another discards that tab's saved view state (see the effect below:
+  // activityViewRef and trendViewRef are cleared), so Activity has never held
+  // its scroll across a tab change either - it holds it only for the trip
+  // that matters, out to a transaction and back, where losing the place would
+  // cost you the row you were working on.
   const tabRef = useRef(currentTab);
-  const restoring = useRef(false);
-  // Captured AS IT HAPPENS, not when the tab changes: by then the outgoing
-  // tab has unmounted, the page is a fraction of its height and the browser
-  // has already clamped scrollY to 0 - which is the value that would be
-  // saved, and the reason the first attempt at this restored nothing.
-  useEffect(() => {
-    const onScroll = () => {
-      if (!restoring.current) tabScroll.current[tabRef.current] = window.scrollY;
-    };
-    window.addEventListener('scroll', onScroll, { passive: true });
-    return () => window.removeEventListener('scroll', onScroll);
-  }, []);
   useEffect(() => {
     if (tabRef.current === currentTab) return;
     tabRef.current = currentTab;
-    // 'add' is a form: it opens at the top, always.
-    const want = currentTab === 'add' ? 0 : tabScroll.current[currentTab] ?? 0;
-    if (!want) { restoring.current = false; return; }
-    restoring.current = true;
-    // The page grows over a few frames (charts measure themselves, the
-    // Activity list stages its rows), so this asks again until the position
-    // is actually reachable rather than once into a page that is still short.
-    let tries = 0;
-    const go = () => {
-      window.scrollTo(0, want);
-      tries += 1;
-      if (Math.abs(window.scrollY - want) > 2 && tries < 8) requestAnimationFrame(go);
-      else restoring.current = false;
-    };
-    requestAnimationFrame(go);
+    window.scrollTo(0, 0);
   }, [currentTab]);
 
   useEffect(() => {
