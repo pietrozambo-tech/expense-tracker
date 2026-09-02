@@ -52,12 +52,16 @@ export const en = {
   'dash.empty.title': 'Your first month starts here',
   'dash.empty.body': 'Add an expense as it happens - this page fills in by itself.',
   'dash.empty.cta': 'Add your first expense',
-  'dash.empty.demo': 'Or look around with sample data',
+  // Below the card and deliberately quiet: it is not a third choice
+  // competing with the two above, it is an answer to "what does this
+  // become once it has data in it" - which is the one thing an empty
+  // screen cannot show.
+  'dash.empty.demo': 'Charts, comparisons, trends — see how it looks with sample data.',
   // The two things the save toast may add a line for. See lib/saveInsight.ts
   // for why the list is this short.
   'toast.firstEver': "The first one. From here on I'll keep count.",
   'toast.repeat': '{times}× “{label}” this month — {total} in all.',
-  'dash.empty.importTitle': 'Or bring in what you already have',
+  'dash.empty.importTitle': 'Bring in what you already have',
   'dash.empty.importBody': 'A statement, a spreadsheet, a Splitwise trip.',
   'dash.empty.importGuest': 'Doing it automatically needs an account.',
 

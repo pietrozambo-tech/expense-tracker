@@ -13,7 +13,7 @@ cd "$(dirname "$0")" || exit 1
 if ! curl -s -o /dev/null --noproxy 127.0.0.1 http://127.0.0.1:5199/; then
   echo "no dev server on 127.0.0.1:5199 - start it first"; exit 1
 fi
-declare -A EXP=( [authboot]=14 [offline]=9 [offlineui]=12 [smoke]=8 [importreview]=16 [allyears]=13 [toast]=4 [catorder]=11 [subsort]=6 [drilldim]=5 [bulkselect]=26 [trips]=106 [edit]=31 [setuptip]=33 [prompt]=5 [backdate]=13 [triprow]=46 [tripfilter]=18 [demotrip]=13 [touchhover]=7 [aiimport]=90 [recap]=14 [devspend]=9 [feedback]=17 [back]=14 [affordance]=6 [filterorder]=11 [recapseen]=7 [retention]=13 )
+declare -A EXP=( [authboot]=14 [offline]=9 [offlineui]=12 [smoke]=8 [importreview]=16 [allyears]=13 [toast]=4 [catorder]=11 [subsort]=6 [drilldim]=5 [bulkselect]=26 [trips]=106 [edit]=31 [setuptip]=33 [prompt]=5 [backdate]=13 [triprow]=46 [tripfilter]=18 [demotrip]=13 [touchhover]=7 [aiimport]=90 [recap]=14 [devspend]=9 [feedback]=17 [back]=14 [affordance]=6 [filterorder]=11 [recapseen]=7 [retention]=16 )
 total=0; bad=0
 for name in "${!EXP[@]}"; do
   out=$(timeout 300 node "check-$name.mjs" 2>&1)

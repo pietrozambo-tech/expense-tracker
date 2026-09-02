@@ -2458,12 +2458,23 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                 </button>
               </>
             )}
-            {onLoadDemoData && (
-              <button onClick={onLoadDemoData} className="w-full py-3 mt-2 text-[14px] font-medium" style={{ color: 'var(--ink-2)' }}>
-                {t('dash.empty.demo')}
-              </button>
-            )}
           </div>
+          {/* Outside the card, and quieter than everything in it. The two
+              roads above are what to do with YOUR money; this is the answer
+              to a different question - what does this screen become once it
+              has months in it - and the one thing an empty screen cannot
+              show. Stacked as a third button inside the card it read as a
+              third equal choice, and put two "Or" openings in a row. */}
+          {onLoadDemoData && (
+            <button
+              data-empty-demo
+              onClick={onLoadDemoData}
+              className="w-full px-4 pt-5 text-[12.5px] leading-snug active:opacity-60 transition-opacity"
+              style={{ color: 'var(--ink-3)' }}
+            >
+              {t('dash.empty.demo')}
+            </button>
+          )}
         </div>
       </div>
     );

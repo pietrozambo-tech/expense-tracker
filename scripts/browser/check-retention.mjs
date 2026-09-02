@@ -87,6 +87,21 @@ const month = () => {
   const row = await p.locator('[data-empty-import]').innerText();
   ok(/statement|spreadsheet|Splitwise/i.test(row),
     `naming what counts as data, so it is not a riddle (${row.replace(/\n/g, ' | ')})`);
+  // Three tiers, not three equal choices: write one row, bring your history,
+  // or - quieter and outside the card - see what the screen becomes with
+  // months in it. Two of them opened with "Or" when the demo line sat inside
+  // the card as a third button.
+  const demo = await p.locator('[data-empty-demo]').innerText();
+  ok(/charts|comparisons|trends/i.test(demo),
+    `and the sample-data line says what it is FOR, not just that it exists (${demo})`);
+  ok(!/^\s*Or\b/i.test(row) && !/^\s*Or\b/i.test(demo),
+    'with no two "Or" openings stacked on each other');
+  ok(await p.evaluate(() => {
+    const card = document.querySelector('[data-empty-import]')?.closest('.rounded-2xl');
+    const line = document.querySelector('[data-empty-demo]');
+    return !!card && !!line && !card.contains(line)
+      && line.getBoundingClientRect().top >= card.getBoundingClientRect().bottom;
+  }), 'and it sits BELOW the card, not as a third button inside it');
   await p.locator('[data-empty-import]').click();
   await p.waitForTimeout(1300);
   const landed = await p.locator('body').innerText();
