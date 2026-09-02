@@ -625,6 +625,10 @@ export const en = {
   'ai.tripNo': 'No',
   'ai.tripNew': 'New name…',
   'ai.go': 'Go',
+  'ai.leaveTitle': 'Stop reading the file?',
+  'ai.leaveBody': "Today's import is spent either way, and no expenses will be added.",
+  'ai.leaveStay': 'Keep reading',
+  'ai.leaveGo': 'Stop',
   'ai.readingTitle': 'Reading it',
   // No duration promised: a short CSV takes seconds, a long statement can
   // take a couple of minutes, and a number the app cannot keep reads as a

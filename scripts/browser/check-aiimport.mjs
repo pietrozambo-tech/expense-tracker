@@ -190,6 +190,23 @@ const pickCsv = (p) => p.locator('[data-ai-door] input[type="file"]').setInputFi
     'above a live bar - sweeping, because no percent is known yet');
   await p.screenshot({ path: `${OUT}/aiimport-reading.png` });
 
+  // Mid-read, the back arrow is the one tap that cannot be undone: the
+  // request dies with the screen, the server keeps generating, and the day's
+  // import is gone. It asks first now - and the dock, which sits in a portal
+  // ABOVE this flow, is not there to be tapped by accident either.
+  ok(await p.getByRole('button', { name: 'Dashboard' }).count() === 0,
+    'while the flow is up, the tab dock is not there to be hit by mistake');
+  await p.locator('[data-ai-flow] button[aria-label]').first().click();
+  await p.waitForTimeout(300);
+  ok(await p.locator('[data-ai-leave]').count() === 1,
+    'and going back mid-read asks before throwing the import away');
+  ok(/spent either way/.test(await p.locator('[data-ai-leave]').innerText()),
+    'saying plainly what leaving costs');
+  await p.locator('[data-ai-leave-stay]').click();
+  await p.waitForTimeout(200);
+  ok(await p.locator('[data-ai-flow][data-ai-step="reading"]').count() === 1,
+    'staying keeps the reading exactly where it was');
+
   await p.waitForSelector('[data-ai-flow][data-ai-step="ready"]', { timeout: 10000 });
   const ready = await p.locator('[data-ai-flow]').innerText();
   // Four rows arrived; one is the ferry the ledger already holds.

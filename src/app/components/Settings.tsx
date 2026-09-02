@@ -456,6 +456,15 @@ export function Settings({
   // that would make the chart a mirror rather than a measurement.
   const [countSelf, setCountSelf] = useState(false);
   const [ping, setPing] = useState<PingInfo | null>(null);
+  // The AI flow covers the screen, but the floating dock is drawn in a portal
+  // ABOVE it - so a tab sat one tap from a reading in progress, and taking it
+  // unmounts Settings, aborts the request and spends the day's import in
+  // silence. Same treatment as every other full-screen sheet: while the flow
+  // is up, the dock is not.
+  useEffect(() => {
+    onModalOpenChange(!!aiFiles);
+    return () => onModalOpenChange(false);
+  }, [aiFiles, onModalOpenChange]);
   const loadAdmin = useCallback(async (self: boolean) => {
     setLoadingAdmin(true);
     setAdminError(null);

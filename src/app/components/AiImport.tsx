@@ -171,6 +171,11 @@ export function AiImport({
   // True once the opening has visibly overstayed its welcome: the line under
   // the pulse changes, so a slow function never reads as a frozen screen.
   const [openingSlow, setOpeningSlow] = useState(false);
+  // Asked before the one action on this screen that cannot be undone: leaving
+  // while the model is mid-answer. The request is aborted on unmount, the
+  // server keeps generating, and the day's import is spent for nothing - all
+  // of it silent, for the price of one tap on a back arrow.
+  const [leaving, setLeaving] = useState(false);
   // Which TRUE moment the request is in, for the pre-first-row narration:
   // 'sent' while the upload is in flight, 'reading' once the headers arrive
   // and the model is at work. Never theatre - each line maps to an event.
@@ -318,10 +323,13 @@ export function AiImport({
     { label: t('ai.tick3'), on: step === 'ready' },
   ];
 
+  /** Leaving mid-read costs the day's import; every other screen is free. */
+  const tryClose = () => (step === 'reading' ? setLeaving(true) : onClose());
+
   const header = (title: string, sub?: string) => (
     <div className="px-6 pt-4 pb-2">
       <div className="flex items-center justify-between">
-        <button onClick={onClose} className="p-2 -ml-2 rounded-lg" aria-label={t('ai.close')}>
+        <button onClick={tryClose} className="p-2 -ml-2 rounded-lg" aria-label={t('ai.close')}>
           {step === 'ready' || step === 'error'
             ? <X className="w-5 h-5" style={{ color: 'var(--ink-2)' }} />
             : <ChevronLeft className="w-6 h-6" style={{ color: 'var(--accent-ink)' }} />}
@@ -745,6 +753,33 @@ export function AiImport({
           </>
         );
       })()}
+
+      {/* Its own markup rather than ConfirmDialog, which sits at z-50 and
+          would render UNDER this flow's z-70. */}
+      {leaving && (
+        <div data-overlay data-ai-leave className="fixed inset-0 z-[80] bg-black/50 flex items-center justify-center p-6 max-w-[430px] mx-auto">
+          <div className="w-full max-w-sm rounded-2xl px-6 py-5" style={{ backgroundColor: 'var(--bg-card)' }}>
+            <h3 style={{ color: 'var(--ink)', fontSize: 17, fontWeight: 700, letterSpacing: '-0.01em' }}>{t('ai.leaveTitle')}</h3>
+            <p className="mt-1.5" style={{ color: 'var(--ink-2)', fontSize: 13.5, lineHeight: 1.5 }}>{t('ai.leaveBody')}</p>
+            <button
+              data-ai-leave-stay
+              onClick={() => setLeaving(false)}
+              className="w-full mt-4 py-3 rounded-xl font-semibold text-[15px]"
+              style={{ backgroundColor: '#4F74F3', color: '#FFFFFF' }}
+            >
+              {t('ai.leaveStay')}
+            </button>
+            <button
+              data-ai-leave-go
+              onClick={onClose}
+              className="w-full mt-2 py-2.5 rounded-xl font-medium text-[14px]"
+              style={{ color: 'var(--ink-2)' }}
+            >
+              {t('ai.leaveGo')}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
