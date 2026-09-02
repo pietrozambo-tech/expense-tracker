@@ -286,6 +286,9 @@ export const it: Record<keyof typeof en, string> = {
   // Viaggi
   'act.menu.trips': 'Viaggi',
   'trips.title': 'Viaggi',
+  'trips.year': 'Anno',
+  'trips.yearAria': 'Filtra i viaggi per anno',
+  'trips.yearAll': 'Tutti',
   'trips.meta.one': '1 viaggio',
   'trips.meta.other': '{n} viaggi',
   'trips.meta.none': 'Ancora nessuno',

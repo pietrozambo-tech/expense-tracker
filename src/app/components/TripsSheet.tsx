@@ -195,9 +195,29 @@ function TripCard({
  */
 export function TripsSheet({ trips, travel, currency, transactions, amountOf, onOpen, onApply, onClose }: TripsSheetProps) {
   useBackClose(true, onClose);
-  const total = trips.reduce((sum, tr) => sum + tr.total, 0);
   const [editing, setEditing] = useState<Trip | null>(null);
   const [building, setBuilding] = useState(false);
+  const [year, setYear] = useState('all');
+
+  // The years the trips actually fall in, newest first. A trip is filed under
+  // the year of its peak month - the one it is CALLED after - so an Azores
+  // holiday whose flights were booked in March stays under the summer it was.
+  const years = useMemo(
+    () => [...new Set(trips.map((tr) => tr.month.slice(0, 4)))].sort().reverse(),
+    [trips],
+  );
+  // Only when there is more than one. A year picker over a single year is the
+  // same thing as the Trip row Activity hides from people with no trips: a
+  // control that can only ever say what the screen already says.
+  const filtering = years.length > 1;
+  const shown = useMemo(
+    () => (filtering && year !== 'all' ? trips.filter((tr) => tr.month.startsWith(year)) : trips),
+    [trips, year, filtering],
+  );
+  // The line under the title counts what is ON SCREEN. Leaving it on the full
+  // set would have the header say twelve trips over three shown, which reads
+  // as the filter having failed rather than worked.
+  const total = shown.reduce((sum, tr) => sum + tr.total, 0);
 
   return (
     <div data-overlay className="fixed inset-0 z-[70] flex items-end" onClick={onClose}>
@@ -225,9 +245,9 @@ export function TripsSheet({ trips, travel, currency, transactions, amountOf, on
               {t('trips.title')}
             </h2>
             <p style={{ color: 'var(--ink-2)', fontSize: 13.5, marginTop: 1 }}>
-              {trips.length === 0 ? t('trips.meta.none') : (
+              {shown.length === 0 ? t('trips.meta.none') : (
                 <>
-                  {t(trips.length === 1 ? 'trips.meta.one' : 'trips.meta.other', { n: trips.length })}
+                  {t(shown.length === 1 ? 'trips.meta.one' : 'trips.meta.other', { n: shown.length })}
                   {' · '}
                   <AmountText amount={total} currency={currency} decimals={2} />
                   {' '}
@@ -237,6 +257,34 @@ export function TripsSheet({ trips, travel, currency, transactions, amountOf, on
             </p>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
+            {/* The same pill Trend uses for its years - a native select, so the
+                picker is the platform's own and costs no sheet of its own. */}
+            {filtering && (
+              <select
+                data-trips-year
+                aria-label={t('trips.yearAria')}
+                value={year}
+                onChange={(e) => setYear(e.target.value)}
+                className="pl-3 pr-7 py-1.5 rounded-full text-[13px] border"
+                style={{
+                  color: 'var(--ink-2)', borderColor: 'var(--line)',
+                  WebkitTapHighlightColor: 'rgba(255, 255, 255, 0)',
+                  WebkitAppearance: 'none', appearance: 'none',
+                  userSelect: 'none', WebkitUserSelect: 'none',
+                  touchAction: 'manipulation', backgroundColor: 'var(--bg-card)',
+                  backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%238E8E93' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E\")",
+                  backgroundRepeat: 'no-repeat', backgroundPosition: 'right 8px center',
+                }}
+              >
+                {/* "All", not "All years": the pill sits beside the + in a
+                    header that also carries the title and the running total,
+                    and the long form pushed that line into a second one. The
+                    two options under it are years - nothing else it could
+                    mean. */}
+                <option value="all">{t('trips.yearAll')}</option>
+                {years.map((y) => <option key={y} value={y}>{y}</option>)}
+              </select>
+            )}
             {/* Building a trip out of expenses you already have was only ever
                 reachable by holding a row down in Activity and finding an
                 aeroplane. Here is where somebody looking at their trips and
@@ -281,7 +329,7 @@ export function TripsSheet({ trips, travel, currency, transactions, amountOf, on
               </button>
             </div>
           )}
-          {trips.map((trip) => (
+          {shown.map((trip) => (
             <TripCard
               key={trip.key}
               trip={trip}

@@ -288,6 +288,9 @@ export const en = {
   // Trips
   'act.menu.trips': 'Trips',
   'trips.title': 'Trips',
+  'trips.year': 'Year',
+  'trips.yearAria': 'Filter trips by year',
+  'trips.yearAll': 'All',
   'trips.meta.one': '1 trip',
   'trips.meta.other': '{n} trips',
   'trips.meta.none': 'None yet',

@@ -110,6 +110,31 @@ const enterSelect = async (p) => {
   ok(formentera === 2, `the same name in two summers is two cards (${formentera})`);
   ok(/Aug 2025/.test(sheet) && /Jul 2026/.test(sheet), 'and the month tells them apart');
 
+  // ── the year picker ─────────────────────────────────────────────────────
+  // Only worth its space once the trips actually span years - a picker over a
+  // single year is the Trip filter row Activity hides from people with no
+  // trips: a control that can only say what the screen already says. These
+  // three cover 2025 and 2026, so it is here.
+  const picker = p.locator('[data-trips-year]');
+  ok(await picker.count() === 1, 'trips across two years bring out a year picker');
+  ok(JSON.stringify(await picker.locator('option').allInnerTexts()) === JSON.stringify(['All', '2026', '2025']),
+    `offering every year they fall in, newest first (${JSON.stringify(await picker.locator('option').allInnerTexts())})`);
+  ok(await picker.inputValue() === 'all', 'and starting on all of them, so nothing is hidden unasked');
+
+  await picker.selectOption('2025');
+  await p.waitForTimeout(500);
+  const only2025 = await p.locator('[data-trip-card]').count();
+  const head2025 = await p.locator('[data-trips-sheet]').innerText();
+  ok(only2025 === 1, `picking one leaves that year's trips (${only2025})`);
+  ok(/Aug 2025/.test(head2025) && !/Jul 2026/.test(head2025), 'and it is the right one');
+  // The line under the title counts what is ON SCREEN: left on the full set it
+  // would say three trips over one card, which reads as the filter failing.
+  ok(/1 trip\b/.test(head2025), `the count follows the list (${head2025.split('\n').filter(Boolean).slice(0, 2).join(' | ')})`);
+
+  await picker.selectOption('all');
+  await p.waitForTimeout(500);
+  ok(await p.locator('[data-trip-card]').count() === 3, 'and going back to all years brings them all back');
+
   // The sheet is a place you went, not a strip that grew to fit. Sized by its
   // content it sat in the bottom third of the screen and left the transaction
   // list you were leaving with two thirds of it - a trip summary competing for
