@@ -151,6 +151,54 @@ export function PeriodSheet({
   );
 }
 
+/**
+ * The Type filter, in a sheet of its own.
+ *
+ * Four options and a check on the one in force - the same shape the Source
+ * and Category pickers use, so the row that opens it behaves like the rows
+ * around it. Picking closes the sheet: the answer is the list underneath.
+ */
+export function TypeSheet({
+  typeFilter,
+  typeDisplay,
+  onSelect,
+  onClose,
+}: {
+  typeFilter: string;
+  typeDisplay: (v: string) => string;
+  onSelect: (v: string) => void;
+  onClose: () => void;
+}) {
+  return (
+    <Sheet title={t('act.type')} onClose={onClose}>
+      <div data-type-sheet>
+        {['All', 'One-off', 'Recurring', 'Imported'].map((v) => {
+          const on = (typeFilter || 'All') === v;
+          return (
+            <button
+              key={v}
+              data-type-option={v}
+              onClick={() => { onSelect(v); onClose(); }}
+              className="w-full flex items-center justify-between px-6 py-3.5 active:bg-neutral-50 transition-colors border-b border-neutral-100 last:border-b-0"
+            >
+              <span style={{ color: on ? '#4F74F3' : 'var(--ink)', fontSize: 15, fontWeight: on ? 600 : 400 }}>
+                {typeDisplay(v)}
+              </span>
+              {on && (
+                <span className="w-5 h-5 rounded-full flex items-center justify-center" style={{ backgroundColor: '#4F74F3' }}>
+                  <svg width="11" height="9" viewBox="0 0 12 10" fill="none" aria-hidden="true">
+                    <path d="M1 5L4.5 8.5L11 1.5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+    </Sheet>
+  );
+}
+
 export function FiltersSheet({
   typeFilter,
   typeDisplay,
@@ -159,7 +207,7 @@ export function FiltersSheet({
   subcategoryLabel,
   tripLabel,
   canPickSubcategory,
-  onTypeChange,
+  onOpenType,
   onOpenSource,
   onOpenCategory,
   onOpenSubcategory,
@@ -175,7 +223,7 @@ export function FiltersSheet({
   subcategoryLabel: string;
   tripLabel: string;
   canPickSubcategory: boolean;
-  onTypeChange?: (v: string) => void;
+  onOpenType?: () => void;
   onOpenSource?: () => void;
   onOpenCategory: () => void;
   onOpenSubcategory?: () => void;
@@ -203,35 +251,24 @@ export function FiltersSheet({
 
   return (
     <Sheet title={t('act.filters')} onClose={onClose}>
+      {/* Five rows, all shut, in the order people reach for them: what it was
+          spent on first, then the narrower cut of that, then how it recurs,
+          then what paid, then where.
+
+          Type used to sit at the top as a row of chips, open before anyone
+          asked - the one filter already expanded, above the two most people
+          actually want, pushing them down and making the sheet look like it
+          was mid-answer. It is a row like the rest now, and it says its own
+          value at rest the way the others do. */}
       <div>
-        {onTypeChange && (
-          <div className="px-6 py-3.5 border-b border-neutral-100">
-            <div style={{ color: 'var(--ink)', fontSize: 15, marginBottom: 10 }}>{t('act.type')}</div>
-            <div className="flex gap-2 flex-wrap">
-              {['All', 'One-off', 'Recurring', 'Imported'].map((v) => {
-                const on = (typeFilter || 'All') === v;
-                return (
-                  <button
-                    key={v}
-                    onClick={() => onTypeChange(v)}
-                    className="px-3.5 py-1.5 rounded-full text-[13px] font-semibold transition-colors"
-                    style={{
-                      backgroundColor: on ? '#4F74F3' : 'var(--bg-field)',
-                      color: on ? '#FFFFFF' : '#5c5c60',
-                    }}
-                  >
-                    {typeDisplay(v)}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        )}
-        {onOpenSource && <Row label={t('act.source')} value={sourceLabel} onClick={onOpenSource} />}
-        <Row label={t('act.category')} value={categoryLabel} onClick={onOpenCategory} />
+        <Row label={t('act.category')} value={categoryLabel} onClick={onOpenCategory} data-filter-category />
+        {/* Only once a category is chosen: the subcategories on offer are that
+            category's, so with none picked the row could only ever say All. */}
         {canPickSubcategory && onOpenSubcategory && (
-          <Row label={t('act.subcategory')} value={subcategoryLabel} onClick={onOpenSubcategory} />
+          <Row label={t('act.subcategory')} value={subcategoryLabel} onClick={onOpenSubcategory} data-filter-subcategory />
         )}
+        {onOpenType && <Row label={t('act.type')} value={typeDisplay(typeFilter || 'All')} onClick={onOpenType} data-filter-type />}
+        {onOpenSource && <Row label={t('act.source')} value={sourceLabel} onClick={onOpenSource} data-filter-source />}
         {/* Last, and only when there is one: a trip is a narrower thing than
             a category, and it is the row most people will never see. */}
         {onOpenTrip && <Row label={t('act.trip')} value={tripLabel} onClick={onOpenTrip} data-filter-trip />}

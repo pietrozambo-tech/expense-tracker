@@ -3,7 +3,7 @@ import { ChevronDown, Search, X, SlidersHorizontal, ArrowDownWideNarrow } from '
 import { t } from '../i18n';
 import { monthsShort } from '../i18n/store';
 import type { Source } from '../types';
-import { PeriodSheet, FiltersSheet, ALL_YEARS } from './ActivityFilterSheets';
+import { PeriodSheet, TypeSheet, FiltersSheet, ALL_YEARS } from './ActivityFilterSheets';
 import { FILTER_ACTIVE } from './filterChip';
 
 interface FilterBarProps {
@@ -94,26 +94,29 @@ export function FilterBar({
   onSheetOpenChange
 }: FilterBarProps) {
   const selectedSource = sources?.find((s) => s.id === sourceFilter);
-  const [sheet, setSheet] = useState<'period' | 'filters' | null>(null);
-  const openSheet = (which: 'period' | 'filters' | null) => {
+  const [sheet, setSheet] = useState<'period' | 'filters' | 'type' | null>(null);
+  const openSheet = (which: 'period' | 'filters' | 'type' | null) => {
     setSheet(which);
     onSheetOpenChange?.(which !== null);
   };
 
   // What is actually narrowing the list right now. Search is deliberately not
   // counted: it already shows as its own chip and has its own affordance.
+  // Same order as the rows in the sheet - the chips are what those rows chose,
+  // and reading them in a different sequence than they were picked in makes
+  // the bar look unrelated to the sheet it came from.
   const activeChips: { key: string; label: string; clear: () => void }[] = [];
-  if (typeFilter && typeFilter !== 'All' && onTypeFilterChange) {
-    activeChips.push({ key: 'type', label: typeFilterDisplay(typeFilter), clear: () => onTypeFilterChange('All') });
-  }
-  if (selectedSource && onOpenSourceSelector) {
-    activeChips.push({ key: 'source', label: selectedSource.name, clear: () => onSourceClear?.() });
-  }
   if (category !== 'All') {
     activeChips.push({ key: 'category', label: category, clear: () => onCategoryClear?.() });
   }
   if (subcategory && subcategory !== 'All') {
     activeChips.push({ key: 'subcategory', label: subcategory, clear: () => onSubcategoryClear?.() });
+  }
+  if (typeFilter && typeFilter !== 'All' && onTypeFilterChange) {
+    activeChips.push({ key: 'type', label: typeFilterDisplay(typeFilter), clear: () => onTypeFilterChange('All') });
+  }
+  if (selectedSource && onOpenSourceSelector) {
+    activeChips.push({ key: 'source', label: selectedSource.name, clear: () => onSourceClear?.() });
   }
   if (tripLabel) {
     activeChips.push({ key: 'trip', label: tripLabel, clear: () => onTripClear?.() });
@@ -264,6 +267,14 @@ export function FilterBar({
           onClose={() => openSheet(null)}
         />
       )}
+      {sheet === 'type' && (
+        <TypeSheet
+          typeFilter={typeFilter ?? 'All'}
+          typeDisplay={typeFilterDisplay}
+          onSelect={(v) => onTypeFilterChange?.(v)}
+          onClose={() => openSheet(null)}
+        />
+      )}
       {sheet === 'filters' && (
         <FiltersSheet
           typeFilter={typeFilter ?? 'All'}
@@ -274,7 +285,9 @@ export function FilterBar({
           tripLabel={tripLabel || t('act.type.all')}
           onOpenTrip={onOpenTripSelector && (() => { openSheet(null); onOpenTripSelector(); })}
           canPickSubcategory={category !== 'All'}
-          onTypeChange={onTypeFilterChange}
+          // Its own sheet now, reached like every other row - not four chips
+          // sitting open at the top of this one.
+          onOpenType={onTypeFilterChange ? () => setSheet('type') : undefined}
           onOpenSource={onOpenSourceSelector ? () => { setSheet(null); onOpenSourceSelector(); } : undefined}
           onOpenCategory={() => { setSheet(null); onOpenCategorySelector(); }}
           onOpenSubcategory={onOpenSubcategorySelector ? () => { setSheet(null); onOpenSubcategorySelector(); } : undefined}
