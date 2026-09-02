@@ -63,6 +63,13 @@ const openWithDemo = async (lang) => {
   ok(/6 expenses/.test(sheet), 'with its six rows');
   // Foreign currency: the GBP amounts arrive converted into the card total.
   ok(!/NaN/.test(sheet), 'and a real converted total, not NaN');
+  // One trip, so one year, so no year picker: a control whose only option is
+  // the year already on the card would take room in a header that carries the
+  // title, the count and the running total. This is the case a real tester
+  // hits first - two trips, both this year - and it needs guarding as much as
+  // the case where the picker DOES appear.
+  ok(await p.locator('[data-trips-year]').count() === 0,
+    'and no year picker, because there is only one year to pick');
   await p.screenshot({ path: `${OUT}/demotrip-en.png` });
 
   // Tapping the card drills in: the trip filter takes over and the period
