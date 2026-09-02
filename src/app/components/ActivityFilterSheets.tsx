@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { X, ChevronRight } from 'lucide-react';
 import { t } from '../i18n';
 import { monthsShort } from '../i18n/store';
+import { useBackClose } from '../lib/useBackClose';
 
 // Two small bottom sheets behind the Activity filter row.
 //
@@ -16,6 +17,9 @@ import { monthsShort } from '../i18n/store';
 // bottom, capped at the phone column width.
 
 function Sheet({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
+  // Every sheet in this file goes through here, so the back gesture is wired
+  // once for the period picker and the filter panel both.
+  useBackClose(true, onClose);
   // Portalled to <body> on purpose. The filter bar it is rendered from is
   // `sticky z-10`, which opens a stacking context - so a z-50 overlay nested
   // inside it is still only "z-50 within z-10", and the z-40 nav dock painted

@@ -3,6 +3,7 @@ import { t } from '../i18n';
 import { Check, Layers } from 'lucide-react';
 import type { ImportResult, ProposedSubcategory } from '../lib/importData';
 import { proposalKey } from '../lib/importData';
+import { useBackClose } from '../lib/useBackClose';
 
 // Shown BEFORE an import commits, when the file references subcategories the
 // user doesn't have. The import may propose taxonomy, never commit it: every
@@ -17,6 +18,7 @@ export function ImportReviewDialog({
   onConfirm: (approvedKeys: Set<string>) => void;
   onCancel: () => void;
 }) {
+  useBackClose(true, onCancel);
   const proposals = result.proposedSubcategories;
   // Nothing starts checked. It used to be the reverse ("approving the lot
   // stays one tap"), and that default is how a deleted subcategory kept

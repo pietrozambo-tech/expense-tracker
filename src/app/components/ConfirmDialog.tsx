@@ -1,5 +1,6 @@
 import { AlertTriangle, FlaskConical, type LucideIcon } from 'lucide-react';
 import { t } from '../i18n';
+import { useBackClose } from '../lib/useBackClose';
 
 interface ConfirmDialogProps {
   title: string;
@@ -22,6 +23,7 @@ export function ConfirmDialog({
   onConfirm,
   onCancel
 }: ConfirmDialogProps) {
+  useBackClose(true, onCancel);
   const isDanger = variant === 'danger';
   const NeutralIcon = icon ?? FlaskConical;
 

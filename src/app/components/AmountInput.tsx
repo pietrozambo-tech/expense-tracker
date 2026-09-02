@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { t } from '../i18n';
 import { CURRENCIES, MAIN_CURRENCY_CODES } from '../utils/currency';
 import { ChevronDown, ChevronRight, ChevronLeft, Search } from 'lucide-react';
+import { useBackClose } from '../lib/useBackClose';
 
 interface AmountInputProps {
   value: string;
@@ -22,6 +23,9 @@ export function AmountInput({ value, onChange, currency, onCurrencyChange, right
   const [showAllCurrencies, setShowAllCurrencies] = useState(false);
   const [currencySearch, setCurrencySearch] = useState('');
   const currencySymbol = CURRENCIES[currency]?.symbol || '€';
+
+  // Open state, not mount state: the field itself stays on screen.
+  useBackClose(showCurrencySelector, () => closeCurrency());
 
   const closeCurrency = () => {
     setShowCurrencySelector(false);

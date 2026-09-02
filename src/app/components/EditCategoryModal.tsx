@@ -3,6 +3,7 @@ import { t } from '../i18n';
 import { X } from 'lucide-react';
 import { getCategoryIcon, iconsList, IconName } from './categoryIcons';
 import { colorOptions } from './categoryColors';
+import { useBackClose } from '../lib/useBackClose';
 
 interface Category {
   id: string;
@@ -28,6 +29,7 @@ interface EditCategoryModalProps {
 }
 
 export function EditCategoryModal({ category, onSave, onClose }: EditCategoryModalProps) {
+  useBackClose(true, onClose);
   const [name, setName] = useState(category.name);
   const [selectedIcon, setSelectedIcon] = useState<IconName>(category.icon as IconName);
   

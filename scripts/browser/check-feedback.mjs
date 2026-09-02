@@ -119,15 +119,12 @@ const moved = await p.evaluate(async () => {
 });
 ok(/matrix\(1, 0, 0, 1, -\d/.test(moved ?? ''), `a sideways swipe opens the row (${moved})`);
 await p.locator('[aria-label="Delete expense"]').first().click();
-await p.waitForTimeout(700);
-// The swipe's delete asks first - and its sentence has to be true about
-// what follows, which is why the undo below changed the words with it.
-const dialog = await body();
-ok(/Delete Expense\?/i.test(dialog), 'the swipe asks before removing anything');
-ok(!/cannot be undone/i.test(dialog),
-  'and no longer claims the delete is final - it is undoable for a few seconds');
-await p.locator('button').filter({ hasText: /^Delete$/ }).last().click();
 await p.waitForTimeout(900);
+// No question in between any more. The confirmation was a tap charged for a
+// safety net the toast below already provides - and its sentence ("cannot be
+// undone") had gone false the moment the undo arrived.
+ok(!/Delete Expense\?/i.test(await body()),
+  'the swipe deletes straight away, without charging a tap to confirm');
 const n1 = await rowCount();
 ok(n1 === n0 - 1, `the row goes (${n0} -> ${n1})`);
 // "Undo", the word - not "undone" inside a sentence, which is what the

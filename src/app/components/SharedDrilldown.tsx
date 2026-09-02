@@ -9,6 +9,7 @@ import { byRecency } from '../lib/shared';
 import { useState } from 'react';
 import { ArrowUpDown } from 'lucide-react';
 import type { Person, Settlement, Transaction } from '../types';
+import { useBackClose } from '../lib/useBackClose';
 
 // The transactions behind a bar in the shared view.
 //
@@ -47,6 +48,7 @@ export function SharedDrilldown({
   userName,
   onClose,
 }: SharedDrilldownProps) {
+  useBackClose(true, onClose);
   // Date first, because a list of transactions is a diary before it is a
   // ranking - "what did we spend on last week" is the question you arrive
   // with. Amount is the other one worth asking, so it is one tap away.

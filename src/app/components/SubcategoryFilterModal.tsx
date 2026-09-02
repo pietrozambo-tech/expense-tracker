@@ -1,5 +1,6 @@
 import { X } from 'lucide-react';
 import { t } from '../i18n';
+import { useBackClose } from '../lib/useBackClose';
 
 interface SubcategoryFilterModalProps {
   isOpen: boolean;
@@ -16,6 +17,7 @@ export function SubcategoryFilterModal({
   onSelectSubcategory,
   availableSubcategories
 }: SubcategoryFilterModalProps) {
+  useBackClose(isOpen, onClose);
   if (!isOpen) return null;
 
   const allSubcategories = ['All', ...availableSubcategories];

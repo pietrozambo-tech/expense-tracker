@@ -3,6 +3,7 @@ import { t } from '../i18n';
 import { Check, Repeat } from 'lucide-react';
 import type { SeriesClaim } from '../lib/recurrence';
 import { AmountText } from './AmountText';
+import { useBackClose } from '../lib/useBackClose';
 
 // Older transactions that look like the history of series the user already
 // has. A checklist rather than a single yes/no, because the match is no longer
@@ -23,6 +24,7 @@ export function SeriesClaimDialog({
   onConfirm: (approved: SeriesClaim[]) => void;
   onCancel: () => void;
 }) {
+  useBackClose(true, onCancel);
   const [approved, setApproved] = useState<Set<number>>(() => new Set(claims.map((_, i) => i)));
 
   const toggle = (i: number) =>

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { SUBPAGE_STYLE, DOCK_CLEARANCE } from './subpageLayout';
 import { t } from '../i18n';
+import { useBackClose } from '../lib/useBackClose';
 import { getLanguage } from '../i18n/store';
 import { ChevronLeft, Plus, Pencil, Trash2, ChevronRight } from 'lucide-react';
 import type { Source } from '../types';
@@ -193,6 +194,7 @@ function SourceFormModal({
   onSave: (data: Omit<Source, 'id'>) => void;
   onClose: () => void;
 }) {
+  useBackClose(true, onClose);
   const [name, setName] = useState(initial?.name || '');
   const [brand, setBrand] = useState(initial?.brand || SOURCE_COLORS[0]);
   // Monogram tracks the name, but a library pick can set an exact one (e.g. "R").

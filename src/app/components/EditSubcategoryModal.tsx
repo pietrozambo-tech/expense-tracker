@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { t } from '../i18n';
 import { X } from 'lucide-react';
 import { getCategoryIcon } from './categoryIcons';
+import { useBackClose } from '../lib/useBackClose';
 
 interface Category {
   id: string;
@@ -21,6 +22,7 @@ interface EditSubcategoryModalProps {
 }
 
 export function EditSubcategoryModal({ category, subcategoryName, onSave, onClose }: EditSubcategoryModalProps) {
+  useBackClose(true, onClose);
   const [name, setName] = useState(subcategoryName);
 
   const hasChanges = name.trim() !== subcategoryName;

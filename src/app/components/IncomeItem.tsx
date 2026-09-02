@@ -50,7 +50,6 @@ export function IncomeItem({
   income, onTap, onDelete, currency, showDate = false,
   selectable = false, selected = false, onToggleSelect,
 }: IncomeItemProps) {
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const { ref, translateX, dragging, isOpen, close, handleTap, rowStyle } = useSwipeToDelete(!selectable);
 
   const Icon = getCategoryIcon(income.category.icon);
@@ -66,9 +65,13 @@ export function IncomeItem({
             see ExpenseItem. */}
         {!selectable && (
           <button
+            // Straight to the delete, no question in between. The toast that
+            // follows carries Undo for five seconds - the same answer fifty
+            // ticked rows get - so asking first was the app charging a tap for
+            // a safety net it already had.
             onClick={() => {
               close();
-              setShowDeleteConfirm(true);
+              onDelete(income.id);
             }}
             aria-label="Delete income"
             tabIndex={isOpen ? 0 : -1}
@@ -139,42 +142,6 @@ export function IncomeItem({
         </button>
       </div>
 
-      {/* Delete Confirmation Modal */}
-      {showDeleteConfirm && (
-        <div
-          className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-6"
-          onClick={() => setShowDeleteConfirm(false)}
-          style={{ transform: 'translateZ(0)' }}
-        >
-          <div
-            className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-xl"
-            onClick={(e) => e.stopPropagation()}
-            style={{ transform: 'translateZ(0)' }}
-          >
-            <h3 className="text-lg font-semibold text-neutral-900 mb-2">{t('del.txIncomeTitle')}</h3>
-            <p className="text-neutral-600 text-sm mb-6">
-              {t('del.txBody', { name: income.description })}
-            </p>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowDeleteConfirm(false)}
-                className="flex-1 px-4 py-3 rounded-xl font-medium bg-neutral-100 text-neutral-900 active:bg-neutral-200"
-              >
-                {t('common.cancel')}
-              </button>
-              <button
-                onClick={() => {
-                  onDelete(income.id);
-                  setShowDeleteConfirm(false);
-                }}
-                className="flex-1 px-4 py-3 rounded-xl font-medium bg-red-500 text-white active:bg-red-600"
-              >
-                {t('common.delete')}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </>
   );
 }

@@ -42,6 +42,7 @@ import { PRIVACY_POLICY, TERMS_OF_SERVICE, type LegalDoc } from '../lib/legalCon
 import type { Source } from '../types';
 import type { ImportPayload } from '../lib/importData';
 import { t, type Language as AppLanguage } from '../i18n';
+import { useBackClose } from '../lib/useBackClose';
 import { CATCHALL_RE } from '../lib/categoryOps';
 import { dateLocale, daysShort, getLanguage, monthsShort } from '../i18n/store';
 import { isBackupFile } from '../lib/backup';
@@ -515,6 +516,13 @@ export function Settings({
   const [showCatPicker, setShowCatPicker] = useState(false);
   const [pickerExpanded, setPickerExpanded] = useState<string | null>(null);
   const [showConnect, setShowConnect] = useState(false);
+
+  // The back gesture closes whatever is on top, one sheet per press.
+  useBackClose(renameDraft !== null, () => setRenameDraft(null));
+  useBackClose(showSplitEditor, () => setShowSplitEditor(false));
+  useBackClose(showCatPicker, () => { setShowCatPicker(false); setPickerExpanded(null); });
+  useBackClose(showConnect, () => setShowConnect(false));
+  useBackClose(devAsking && !devUnlocked, () => { setDevAsking(false); setDevCode(''); });
   const [connectCode, setConnectCode] = useState<string | null>(null);
   const [joinCode, setJoinCode] = useState('');
   const [connectBusy, setConnectBusy] = useState(false);

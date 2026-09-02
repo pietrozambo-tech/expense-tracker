@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AlertCircle, Check, ChevronLeft, Hourglass, WifiOff, X } from 'lucide-react';
 import { t } from '../i18n';
+import { useBackClose } from '../lib/useBackClose';
 import { getLanguage, monthsShort } from '../i18n/store';
 import {
   AiImportError, convertWithAi, scanFileDates, tripForWindow,
@@ -325,6 +326,10 @@ export function AiImport({
 
   /** Leaving mid-read costs the day's import; every other screen is free. */
   const tryClose = () => (step === 'reading' ? setLeaving(true) : onClose());
+  // Back does exactly what the chevron does: mid-read it asks, otherwise it
+  // leaves. The confirm itself takes the next press, which means "stay".
+  useBackClose(true, tryClose);
+  useBackClose(leaving, () => setLeaving(false));
 
   const header = (title: string, sub?: string) => (
     <div className="px-6 pt-4 pb-2">

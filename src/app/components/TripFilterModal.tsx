@@ -2,6 +2,7 @@ import { Plane, X } from 'lucide-react';
 import { t } from '../i18n';
 import { tripDatesLabel, type Trip } from '../lib/trips';
 import { monthsShort } from '../i18n/store';
+import { useBackClose } from '../lib/useBackClose';
 
 interface TripFilterModalProps {
   isOpen: boolean;
@@ -26,6 +27,7 @@ interface TripFilterModalProps {
  * by their dates, and picking one of them means exactly its own rows.
  */
 export function TripFilterModal({ isOpen, selected, trips, onSelect, onClose }: TripFilterModalProps) {
+  useBackClose(isOpen, onClose);
   if (!isOpen) return null;
 
   const months = monthsShort();

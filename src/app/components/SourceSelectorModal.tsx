@@ -1,6 +1,7 @@
 import { Settings2 } from 'lucide-react';
 import type { Source } from '../types';
 import { SourceLogo } from './SourceLogo';
+import { useBackClose } from '../lib/useBackClose';
 
 interface SourceSelectorModalProps {
   isOpen: boolean;
@@ -23,6 +24,7 @@ export function SourceSelectorModal({
   onClose,
   onManage,
 }: SourceSelectorModalProps) {
+  useBackClose(isOpen, onClose);
   if (!isOpen) return null;
 
   return (

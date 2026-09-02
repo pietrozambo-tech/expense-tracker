@@ -194,6 +194,7 @@ import { track } from './lib/analytics';
 import { useOnline } from './lib/useOnline';
 import { categories as initialCategories, incomeCategories as initialIncomeCategories, defaultCategoriesFor, defaultIncomeCategoriesFor } from './components/categories';
 import { reassignToOthers, CATCHALL_RE } from './lib/categoryOps';
+import { useBackClose } from './lib/useBackClose';
 import { switchGlow } from './components/categoryColors';
 import { t, getLanguage, setLanguage, type Language } from './i18n';
 import { monthsShort } from './i18n/store';
@@ -1451,6 +1452,12 @@ export default function App() {
     setCurrentTab(returnToTab); // Return to the tab that was active before editing
     setIsModalOpen(false);
   };
+
+  // The system back gesture, answered by the two full-screen sheets App owns.
+  // Everything else wires it where the sheet itself lives; these two are
+  // rendered straight from here, off a tab and a boolean.
+  useBackClose(currentTab === 'add', handleCloseModal);
+  useBackClose(showBalanceHistory, () => setShowBalanceHistory(false));
 
   // ---- Shared expenses ----
 

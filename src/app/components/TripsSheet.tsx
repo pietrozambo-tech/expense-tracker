@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { X, Pencil, Plus, AlertTriangle } from 'lucide-react';
 import { AmountText } from './AmountText';
 import { t } from '../i18n';
+import { useBackClose } from '../lib/useBackClose';
 import { monthsShort } from '../i18n/store';
 import {
   addDays, freeExpenses, isTripName, tripBodyOf, tripCandidates, tripCandidateWindow,
@@ -193,6 +194,7 @@ function TripCard({
  * measuring different spans read as a bug, whichever one is right.
  */
 export function TripsSheet({ trips, travel, currency, transactions, amountOf, onOpen, onApply, onClose }: TripsSheetProps) {
+  useBackClose(true, onClose);
   const total = trips.reduce((sum, tr) => sum + tr.total, 0);
   const [editing, setEditing] = useState<Trip | null>(null);
   const [building, setBuilding] = useState(false);
@@ -451,6 +453,7 @@ function EditTrip({
   onCancel: () => void;
   onApply: (change: { assign: string[]; name: string; drop: string[] }) => void;
 }) {
+  useBackClose(true, onCancel);
   const [name, setName] = useState(trip.name);
   const [dropped, setDropped] = useState<Set<string>>(() => new Set());
   const [added, setAdded] = useState<Set<string>>(() => new Set());
@@ -726,6 +729,7 @@ function NewTrip({
   onCancel: () => void;
   onApply: (change: { assign: string[]; name: string; drop: string[] }) => void;
 }) {
+  useBackClose(true, onCancel);
   const [name, setName] = useState('');
   const [added, setAdded] = useState<Set<string>>(() => new Set());
   const [wide, setWide] = useState(false);

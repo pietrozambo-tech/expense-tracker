@@ -1,4 +1,5 @@
 import { X } from 'lucide-react';
+import { useBackClose } from '../lib/useBackClose';
 
 interface PeriodValueModalProps {
   isOpen: boolean;
@@ -15,6 +16,7 @@ export function PeriodValueModal({
   onClose, 
   onSelectPeriodValue 
 }: PeriodValueModalProps) {
+  useBackClose(isOpen, onClose);
   if (!isOpen) return null;
 
   // Get available options based on period type

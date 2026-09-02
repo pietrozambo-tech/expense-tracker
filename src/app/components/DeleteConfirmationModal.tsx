@@ -1,5 +1,6 @@
 import { AlertTriangle } from 'lucide-react';
 import { t } from '../i18n';
+import { useBackClose } from '../lib/useBackClose';
 
 interface DeleteConfirmationModalProps {
   type: 'category' | 'subcategory';
@@ -16,6 +17,7 @@ export function DeleteConfirmationModal({
   onConfirm,
   onCancel
 }: DeleteConfirmationModalProps) {
+  useBackClose(true, onCancel);
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-6 max-w-[430px] mx-auto">
       <div className="bg-white rounded-2xl w-full max-w-sm">

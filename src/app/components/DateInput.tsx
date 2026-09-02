@@ -1,5 +1,6 @@
 import { Calendar, ChevronLeft, ChevronRight, Repeat } from 'lucide-react';
 import { t } from '../i18n';
+import { useBackClose } from '../lib/useBackClose';
 import { dateLocale, translateRecurrence } from '../i18n/store';
 import { useRef, useEffect, useState } from 'react';
 
@@ -15,6 +16,7 @@ interface DateInputProps {
 export function DateInput({ value, onChange, showDatePicker, setShowDatePicker, recurrence, onRecurrenceChange }: DateInputProps) {
   const dateInputRef = useRef<HTMLInputElement>(null);
   const [showRecurrenceSelector, setShowRecurrenceSelector] = useState(false);
+  useBackClose(showRecurrenceSelector, () => setShowRecurrenceSelector(false));
   const [recurrenceState, setRecurrenceState] = useState(recurrence || 'Never repeat');
 
   const recurrenceOptions = [

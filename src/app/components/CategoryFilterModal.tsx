@@ -1,6 +1,7 @@
 import { X } from 'lucide-react';
 import { t, getLanguage } from '../i18n';
 import { getCategoryIcon } from './categoryIcons';
+import { useBackClose } from '../lib/useBackClose';
 
 interface CategoryFilterModalProps {
   isOpen: boolean;
@@ -21,6 +22,7 @@ export function CategoryFilterModal({
   categories,
   incomeCategories
 }: CategoryFilterModalProps) {
+  useBackClose(isOpen, onClose);
   if (!isOpen) return null;
 
   const categoryList = transactionType === 'income' ? incomeCategories : categories;

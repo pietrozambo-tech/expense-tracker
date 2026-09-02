@@ -1,5 +1,6 @@
 import { Fragment, useState } from 'react';
 import { t } from '../i18n';
+import { useBackClose } from '../lib/useBackClose';
 import { ArrowDownAZ, Check, Flame, X } from 'lucide-react';
 import { getCategoryIcon } from './categoryIcons';
 import { orderCategories, type CategoryOrder } from '../lib/categoryOrder';
@@ -82,6 +83,7 @@ export function CategorySelector({
   trip
 }: CategorySelectorProps) {
   const [orderOpen, setOrderOpen] = useState(false);
+  useBackClose(orderOpen, () => setOrderOpen(false));
   // Alphabetical, or by how often each one is actually used - see
   // lib/categoryOrder. Re-sorts live as categories are added or removed.
   const sortedCategories = orderCategories(categories, transactions, order);

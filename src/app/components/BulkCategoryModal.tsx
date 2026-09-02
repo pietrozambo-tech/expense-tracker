@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { CategorySelector } from './CategorySelector';
 import { t } from '../i18n';
 import type { Category } from '../types';
+import { useBackClose } from '../lib/useBackClose';
 
 interface BulkCategoryModalProps {
   /** How many rows this will move - the only thing that makes the sheet feel
@@ -26,6 +27,7 @@ interface BulkCategoryModalProps {
  * the list it applies to has scrolled out of sight.
  */
 export function BulkCategoryModal({ count, categories, onApply, onClose }: BulkCategoryModalProps) {
+  useBackClose(true, onClose);
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [subcategory, setSubcategory] = useState<string | null>(null);
   const chosen = categories.find((c) => c.id === categoryId) ?? null;

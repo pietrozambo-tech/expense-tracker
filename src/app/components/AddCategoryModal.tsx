@@ -3,6 +3,7 @@ import { t } from '../i18n';
 import { X } from 'lucide-react';
 import { getCategoryIcon, iconsList, IconName } from './categoryIcons';
 import { colorOptions } from './categoryColors';
+import { useBackClose } from '../lib/useBackClose';
 
 interface AddCategoryModalProps {
   onSave: (category: {
@@ -17,6 +18,7 @@ interface AddCategoryModalProps {
 }
 
 export function AddCategoryModal({ onSave, onClose }: AddCategoryModalProps) {
+  useBackClose(true, onClose);
   const [name, setName] = useState('');
   const [selectedIcon, setSelectedIcon] = useState<IconName>('ShoppingBag');
   const [selectedColor, setSelectedColor] = useState(colorOptions[0]);

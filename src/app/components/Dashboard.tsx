@@ -9,6 +9,7 @@ import { formatAmountListView, formatAbbreviatedAmount, abbreviateNumber, needsA
 import { byRecency, partnerSourceId } from '../lib/shared';
 import { monthsShort, monthsFull, daysFull, daysShort, numberLocale, getLanguage, dateLocale, GROUPED } from '../i18n/store';
 import { t, useLanguage } from '../i18n';
+import { useBackClose } from '../lib/useBackClose';
 import { translateRecurrence } from '../i18n/store';
 import { getCategoryIcon } from './categoryIcons';
 import { FILTER_ACTIVE, FILTER_IDLE } from './filterChip';
@@ -587,6 +588,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
     usual: number | null;
     usualY: number | null;
   } | null>(null);
+  useBackClose(drilldownContext !== null, () => setDrilldownContext(null));
   
   // Track the specific period (month, quarter, or year)
   const now = new Date();

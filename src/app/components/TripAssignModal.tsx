@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Check, Plane, Plus, Slash } from 'lucide-react';
 import { t } from '../i18n';
 import type { Category } from '../types';
+import { useBackClose } from '../lib/useBackClose';
 
 interface TripAssignModalProps {
   count: number;
@@ -27,6 +28,7 @@ interface TripAssignModalProps {
  * "Azzorre", pick "Azores", done.
  */
 export function TripAssignModal({ count, options, travel, onApply, onClose }: TripAssignModalProps) {
+  useBackClose(true, onClose);
   const [creating, setCreating] = useState(options.length === 0);
   const [draft, setDraft] = useState('');
   const clean = draft.trim();

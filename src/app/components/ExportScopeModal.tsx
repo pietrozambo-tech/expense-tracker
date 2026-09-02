@@ -1,6 +1,7 @@
 import { X, ListFilter, Database } from 'lucide-react';
 import { numberLocale, GROUPED } from '../i18n/store';
 import { t } from '../i18n';
+import { useBackClose } from '../lib/useBackClose';
 
 // "Download" on the Activity tab is ambiguous, and silently guessing is the
 // one thing it must not do: the tab opens filtered to the current month, so
@@ -26,6 +27,7 @@ interface ExportScopeModalProps {
 const count = (n: number) => t(n === 1 ? 'act.header.one' : 'act.header.other', { n: n.toLocaleString(numberLocale(), GROUPED) });
 
 export function ExportScopeModal({ filteredCount, totalCount, filters, onSelect, onClose }: ExportScopeModalProps) {
+  useBackClose(true, onClose);
   const Option = ({ Icon, title, subtitle, rows, onClick }: {
     Icon: typeof ListFilter; title: string; subtitle: string; rows: number; onClick: () => void;
   }) => (

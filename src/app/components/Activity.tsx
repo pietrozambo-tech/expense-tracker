@@ -22,6 +22,7 @@ import { byRecency } from '../lib/shared';
 import { AmountText } from './AmountText';
 import { switchGlow } from './categoryColors';
 import { t } from '../i18n';
+import { useBackClose } from '../lib/useBackClose';
 import { monthsShort, daysShort } from '../i18n/store';
 import { toDateStr } from '../lib/recurrence';
 import { CheckSquare, Download, MoreVertical, Plane, X } from 'lucide-react';
@@ -535,6 +536,7 @@ export function Activity({
   // leave rows ticked that are no longer on screen, and a selection you cannot
   // see is how people delete things they never looked at.
   const [menuOpen, setMenuOpen] = useState(false);
+  useBackClose(menuOpen, () => setMenuOpen(false));
   const [selectMode, setSelectMode] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
   const [bulkCategoryOpen, setBulkCategoryOpen] = useState(false);

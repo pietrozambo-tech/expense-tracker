@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { monthsShort } from '../i18n/store';
 import { t } from '../i18n';
 import { X } from 'lucide-react';
+import { useBackClose } from '../lib/useBackClose';
 
 // Jump straight to any period instead of stepping the arrows there. Reaching
 // October 2025 from August 2026 was eleven taps, which is not a way to look at
@@ -88,6 +89,7 @@ function Cell({ label, sub, selected, disabled, hasData, onClick }: {
 export function PeriodPickerModal({
   type, year, month, quarter, years, activeMonths, onSelect, onClose,
 }: PeriodPickerModalProps) {
+  useBackClose(true, onClose);
   // A draft, committed only when a period is tapped: browsing 2025's quarters
   // must not move the dashboard until you have chosen one.
   const [draftType, setDraftType] = useState<PeriodType>(type);

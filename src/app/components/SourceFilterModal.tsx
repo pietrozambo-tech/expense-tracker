@@ -2,6 +2,7 @@ import { X, Wallet } from 'lucide-react';
 import { t } from '../i18n';
 import type { Source } from '../types';
 import { SourceLogo } from './SourceLogo';
+import { useBackClose } from '../lib/useBackClose';
 
 interface SourceFilterModalProps {
   isOpen: boolean;
@@ -14,6 +15,7 @@ interface SourceFilterModalProps {
 // Bottom-sheet source filter for the Activity tab: "All sources" plus each
 // source, with the brand logo and full name.
 export function SourceFilterModal({ isOpen, sources, selected, onClose, onSelect }: SourceFilterModalProps) {
+  useBackClose(isOpen, onClose);
   if (!isOpen) return null;
 
   const rows: Array<{ id: string; label: string; source?: Source }> = [

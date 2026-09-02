@@ -1,6 +1,7 @@
 import { CheckCircle2, AlertTriangle } from 'lucide-react';
 import { t } from '../i18n';
 import type { ImportResult } from '../lib/importData';
+import { useBackClose } from '../lib/useBackClose';
 
 // Shown after an import when something needs the user: transactions that
 // landed without a real category, or rows that couldn't be read at all. The
@@ -18,6 +19,7 @@ export function ImportSummaryDialog({
   onClose: () => void;
   onReview?: () => void;
 }) {
+  useBackClose(true, onClose);
   const { added, uncategorized, skipped } = result;
   const realSkips = skipped.filter((s) => s.reason !== 'zero amount');
   const failed = added === 0;

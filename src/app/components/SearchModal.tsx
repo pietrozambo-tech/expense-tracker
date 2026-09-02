@@ -1,6 +1,7 @@
 import { X, Search } from 'lucide-react';
 import { t } from '../i18n';
 import { useState } from 'react';
+import { useBackClose } from '../lib/useBackClose';
 
 interface SearchModalProps {
   isOpen: boolean;
@@ -9,6 +10,7 @@ interface SearchModalProps {
 }
 
 export function SearchModal({ isOpen, onClose, onSearch }: SearchModalProps) {
+  useBackClose(isOpen, onClose);
   const [query, setQuery] = useState('');
 
   if (!isOpen) return null;
