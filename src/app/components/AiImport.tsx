@@ -8,6 +8,8 @@ import {
   type AiDone, type AiFile, type AiQuestion,
 } from '../lib/aiImport';
 import { buildImport, type ImportPayload, type ImportResult } from '../lib/importData';
+import { categoryHex } from './categoryColors';
+import { CATCHALL_RE } from '../lib/categoryOps';
 import { myShareCsv, splitPeople, splitShareTotal } from '../lib/splitFile';
 import type { Trip } from '../lib/trips';
 import { CURRENCIES } from '../utils/currency';
@@ -169,6 +171,17 @@ export function AiImport({
   const [context, setContext] = useState('');
   const [rows, setRows] = useState<{ n: number; description: string; category: string; sub?: string; amount: number; currency: string }[]>([]);
   const [runningTotal, setRunningTotal] = useState(0);
+  // What the file is turning into, category by category, while it arrives.
+  //
+  // The wait is ninety seconds on a big export and the person cannot leave
+  // it - so the screen owes them more than a bar. This is not decoration: it
+  // is the shape of their own year assembling itself, in the colours their
+  // Dashboard will use for it, and it answers the question they actually
+  // have while they wait, which is not "how far along" but "what is in
+  // there". It also surfaces a bad mapping while there is still a Back
+  // button: Housing filling up on a file with no rent in it is visible here
+  // long before the review screen.
+  const [tally, setTally] = useState<Record<string, number>>({});
   const [questions, setQuestions] = useState<AiQuestion[]>([]);
   const [answers, setAnswers] = useState<Record<number, string>>({});
   const [done, setDone] = useState<AiDone | null>(null);
@@ -203,6 +216,7 @@ export function AiImport({
     setStep('reading');
     setRows([]);
     setRunningTotal(0);
+    setTally({});
     setError(null);
     setOpeningSlow(false);
     setPhase(null);
@@ -262,6 +276,8 @@ export function AiImport({
           currency: typeof row.currency === 'string' ? row.currency : userCurrency,
         }]);
         setRunningTotal((prevT) => prevT + amount);
+        const cat = String(row.category ?? '').trim();
+        if (cat) setTally((prev) => ({ ...prev, [cat]: (prev[cat] ?? 0) + Math.abs(amount) }));
       },
     })
       .then((d) => {
@@ -344,6 +360,17 @@ export function AiImport({
   };
 
   // The reading screen's three ticks, driven by progress rather than theatre:
+  // The colour each category wears everywhere else in the app, by name -
+  // what arrives on the wire is the name, and the tally has to look like the
+  // Dashboard the person is about to land on, not like a new palette.
+  const hexOf = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const c of [...categories, ...incomeCategories] as { name?: string; color?: string }[]) {
+      if (c?.name) map.set(c.name, categoryHex(c.color));
+    }
+    return map;
+  }, [categories, incomeCategories]);
+
   // the first lights with the first row, the second once categories have
   // demonstrably arrived (every row carries one), the third at the end.
   const ticks: { label: string; on: boolean }[] = [
@@ -563,6 +590,41 @@ export function AiImport({
                 </div>
               ))}
             </div>
+            {/* The shape of it, filling in. Top five by size, in their own
+                colours, each bar measured against the biggest so the tallest
+                is always full width and the rest are read against it. The
+                widths transition, which is the only movement on this screen:
+                the bars grow because the numbers grew, not to entertain. */}
+            {(() => {
+              const top = Object.entries(tally).sort((a, b) => b[1] - a[1]).slice(0, 5);
+              if (top.length < 2) return null;
+              const most = top[0][1] || 1;
+              const cur = done?.payload?.currency ?? rows[rows.length - 1]?.currency ?? userCurrency;
+              return (
+                <div className="mt-4 flex flex-col gap-2" data-ai-tally={top.length}>
+                  {top.map(([name, amount]) => (
+                    <div key={name} data-ai-tally-row={name}>
+                      <div className="flex items-baseline justify-between gap-3" style={{ fontSize: 11.5 }}>
+                        <span className="truncate" style={{ color: 'var(--ink-2)' }}>{name}</span>
+                        <span style={{ color: 'var(--ink-3)', fontVariantNumeric: 'tabular-nums' }}>
+                          {fmtAmount(amount, cur)}
+                        </span>
+                      </div>
+                      <div className="mt-1 overflow-hidden" style={{ height: 5, borderRadius: 999, backgroundColor: 'var(--bg-inset)' }}>
+                        <span
+                          style={{
+                            display: 'block', height: '100%', borderRadius: 999,
+                            width: `${Math.max(3, Math.round((amount / most) * 100))}%`,
+                            backgroundColor: hexOf.get(name) ?? 'var(--ghost)',
+                            transition: 'width 500ms cubic-bezier(0.22, 1, 0.36, 1)',
+                          }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
             <div className="mt-4 flex flex-col gap-2">
               {rows.map((r) => (
                 <div key={r.n} data-ai-row={r.n} className="bg-white rounded-xl px-3.5 py-2.5 flex items-baseline gap-3">
@@ -716,6 +778,44 @@ export function AiImport({
                 ].filter(Boolean).join(' · ')}
               </p>
             )}
+            {/* Rows whose category is none of mine, and what became of them.
+                This is the last screen where it is still undoable, and until
+                now it said nothing at all.
+                It matters most after a mapping question. The model asks
+                "Barbiere: Health or Other?", the answer typed into the box
+                is a category that does not exist, and one of two things
+                happens depending on a detail nobody knows about their own
+                account: WITH a catch-all ("Others") the rows land there and
+                the typed name is kept as a subcategory; WITHOUT one they are
+                dropped, counted among "skipped" and never explained. Either
+                way the person asked for Sport and did not get it. Both are
+                named here, with the categories that had no home - the one
+                word that says what to fix. */}
+            {(() => {
+              const homeless = new Set<string>();
+              // Dropped outright, for want of a catch-all to land in:
+              // buildImport puts the name in the skip reason, and this is the
+              // only place it is ever readable.
+              let dropped = 0;
+              for (const s of preview.skipped) {
+                const m = /category "(.*)"$/.exec(s.reason);
+                if (m && m[1]) { homeless.add(m[1]); dropped += 1; }
+              }
+              // Filed under the catch-all instead, with the original name
+              // kept as the subcategory - which is where it reads back.
+              for (const tx of preview.transactions) {
+                if (CATCHALL_RE.test(tx.category.name.trim()) && tx.subcategory) homeless.add(tx.subcategory);
+              }
+              if (homeless.size === 0) return null;
+              const names = [...homeless].slice(0, 4).join(', ');
+              return (
+                <p data-ai-homeless={dropped + preview.defaulted} className="mt-2 px-1" style={{ color: 'var(--tone-warn)', fontSize: 12 }}>
+                  {dropped > 0
+                    ? t(dropped === 1 ? 'ai.homelessDropped1' : 'ai.homelessDroppedN', { n: String(dropped), names })
+                    : t(preview.defaulted === 1 ? 'ai.homelessOther1' : 'ai.homelessOtherN', { n: String(preview.defaulted), names })}
+                </p>
+              );
+            })()}
             {done && done.remaining === 0 && (
               <p className="mt-2 px-1" style={{ color: 'var(--ink-3)', fontSize: 12 }}>{t('ai.lastToday')}</p>
             )}

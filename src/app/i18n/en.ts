@@ -708,6 +708,15 @@ export const en = {
   // The triage read: a sample goes first so the questions come back in
   // seconds instead of after minutes of reading. See AI_TRIAGE_ROWS.
   'ai.phaseTriage': 'Checking what it needs to know…',
+  // Rows whose category is none of yours. They are not lost - they land in
+  // the catch-all with their original name kept as a subcategory - but this
+  // is the last screen where that is still undoable, so it is said out loud.
+  'ai.homelessOther1': '1 row had no category of yours and went to Others ({names})',
+  'ai.homelessOtherN': '{n} rows had no category of yours and went to Others ({names})',
+  // The worse half: no catch-all category to land in, so they were left
+  // out altogether. Same cause, and the one the count alone never explained.
+  'ai.homelessDropped1': '1 row was left out: {names} is not one of your categories',
+  'ai.homelessDroppedN': '{n} rows were left out: {names} is not among your categories',
   // A read that was told not to ask, asking anyway. Shown with the question
   // underneath, and a retry - answering it would re-run the whole thing.
   'ai.errAskedLateTitle': 'It stopped to ask',

@@ -226,6 +226,14 @@ const pickCsv = (p) => p.locator('[data-ai-door] input[type="file"]').setInputFi
   await p.waitForTimeout(200);
   ok(await p.locator('[data-ai-flow][data-ai-step="reading"]').count() === 1,
     'staying keeps the reading exactly where it was');
+  // The wait is ninety seconds on a real export and cannot be left, so the
+  // screen shows what the file is turning into rather than only how far it
+  // has got: the categories filling up, in the colours the Dashboard uses
+  // for them. It also catches a bad mapping while Back still works.
+  // This file is four rows of one category, and a single bar at 100% says
+  // nothing anybody needed a bar for. The tally waits for a second category.
+  ok(await p.locator('[data-ai-tally-row]').count() === 0,
+    'a file of one category draws no breakdown - one bar at full width is not information');
 
   await p.waitForSelector('[data-ai-flow][data-ai-step="ready"]', { timeout: 10000 });
   const ready = await p.locator('[data-ai-flow]').innerText();
@@ -561,6 +569,99 @@ const pickCsv = (p) => p.locator('[data-ai-door] input[type="file"]').setInputFi
   await ctx.close();
 }
 
+// ── a category none of mine, and the tally that shows the shape ─────────
+//
+// The trap: the model asks "Barbiere - Health or Other?", the answer typed
+// into the box is a category that does not exist, and buildImport quietly
+// files every one of those rows under the catch-all with the typed name kept
+// as a subcategory. Nothing was lost and nothing said so - a hundred rows in
+// the wrong place, found next month. This screen is the last place that is
+// still undoable, so it says it, with the names.
+{
+  const ODD = {
+    ...OK_DONE,
+    payload: {
+      version: 1, currency: 'EUR',
+      transactions: [
+        { date: '2026-08-22', amount: 30, type: 'expense', category: 'Sport', description: 'Palestra' },
+        { date: '2026-08-23', amount: 12, type: 'expense', category: 'Sport', description: 'Piscina' },
+        { date: '2026-08-24', amount: 40, type: 'expense', category: 'Food & Drinks', description: 'Cena' },
+        { date: '2026-08-25', amount: 90, type: 'expense', category: 'Travel', description: 'Treno' },
+      ],
+    },
+  };
+  const oddRows = ODD.payload.transactions.map((r, i) => ['row', { n: i + 1, row: r }]);
+  const { ctx, p } = await open({
+    session: true,
+    convert: () => ({ delay: 900, res: { status: 200, contentType: 'text/event-stream', body: sse([...oddRows, ['done', ODD]]) } }),
+  });
+  await pickCsv(p);
+  await p.waitForTimeout(400);
+  await p.locator('[data-ai-cta="go"]').click();
+  await p.waitForSelector('[data-ai-flow][data-ai-step="ready"]', { timeout: 10000 });
+  // "Sport" is not one of this account's categories. Two rows went to the
+  // catch-all, and the screen says so before the commit button.
+  // This account has no catch-all category, so the two Sport rows were not
+  // filed under Others - they were DROPPED, and until now the screen said
+  // only "2 were skipped" with no reason at all.
+  const warned = p.locator('[data-ai-homeless]');
+  ok(await warned.count() === 1, 'rows with a category none of mine are explained, not silently lost');
+  const said = await warned.innerText();
+  ok(/2 rows were left out/.test(said), `counted, and said to be left out rather than filed (${said})`);
+  ok(/Sport/.test(said), 'naming the category that had no home - the one word that says what to fix');
+  await ctx.close();
+}
+{
+  // The tally, on a screen that stays up long enough to be read. The parts
+  // run at the same time, so holding two of them back leaves the reading
+  // screen live with the first part's rows already counted - which is
+  // exactly the state a person spends ninety seconds looking at.
+  const cats = [['Viaggi', 90], ['Cibo & Bevande', 40], ['Trasporti', 10]];
+  const mixed = {
+    ...OK_DONE,
+    payload: {
+      version: 1, currency: 'EUR',
+      transactions: cats.map(([c, a], i) => ({ date: `2026-08-0${i + 1}`, amount: a, type: 'expense', category: c, description: String(c) })),
+    },
+  };
+  const mixedRows = mixed.payload.transactions.map((r, i) => ['row', { n: i + 1, row: r }]);
+  const { ctx, p } = await open({
+    session: true,
+    convert: (n) => ({
+      // 1 is the triage (needs nothing); 2 lands at once; 3 and 4 hang back.
+      delay: n <= 2 ? 0 : 6000,
+      res: {
+        status: 200, contentType: 'text/event-stream',
+        body: n === 1
+          ? sse([['done', { ...OK_DONE, payload: { version: 1, currency: 'EUR', transactions: [] } }]])
+          : sse([...mixedRows, ['done', mixed]]),
+      },
+    }),
+  });
+  // Spread over two years on purpose: a file whose dates sit inside 45 days
+  // is trip-shaped and stops on the trip screen instead of reading.
+  const many = ['date,description,amount'];
+  for (let i = 0; i < 700; i += 1) {
+    const d = new Date(2024, 8 + Math.floor((i / 700) * 24), 1 + (i % 27));
+    many.push(`${d.toISOString().slice(0, 10)},Riga ${i},10`);
+  }
+  await p.locator('[data-ai-door] input[type="file"]').setInputFiles({
+    name: 'anno.csv', mimeType: 'text/csv', buffer: Buffer.from(many.join('\n')),
+  });
+  await p.waitForSelector('[data-ai-tally-row]', { timeout: 12000 });
+  const bars = await p.locator('[data-ai-tally-row] span[style*="width"]').evaluateAll(
+    (els) => els.map((e) => ({ w: parseFloat(e.style.width), bg: e.style.backgroundColor })),
+  );
+  ok(bars.length === 3, `the categories draw a breakdown while the file is still arriving (${bars.length} bars)`);
+  ok(bars[0]?.w === 100 && bars.every((b, i) => i === 0 || b.w <= bars[i - 1].w),
+    `the biggest fills its row and the rest are read against it (${bars.map((b) => `${b.w}%`).join(' ')})`);
+  ok(bars.every((b) => b.bg && b.bg !== 'rgba(0, 0, 0, 0)'),
+    'each in its own category colour, not one house grey');
+  const names = await p.locator('[data-ai-tally-row]').evaluateAll((els) => els.map((e) => e.getAttribute('data-ai-tally-row')));
+  ok(names[0] === 'Viaggi', `biggest first, by money rather than by arrival (${names.join(' > ')})`);
+  await ctx.close();
+}
+
 // ── the questions come first, once, and the reading may not ask ──────────
 //
 // A real 1,206-row bank export went four rounds: fifty seconds of reading,
@@ -604,8 +705,10 @@ const decodeFile = (c) => Buffer.from(c.files?.[0]?.data ?? '', 'base64').toStri
   ok(sent.length === 1 && sent[0].mode === 'triage', `the first request is a triage read (mode=${sent[0]?.mode})`);
   ok(sent[0].sample_of >= 700 && sent[0].sample_of < 720, `that says how big the file really is (sample_of=${sent[0].sample_of})`);
   const sample = decodeFile(sent[0]);
-  ok(/rows left out of this sample/.test(sample) && sample.split('\n').filter((l) => /^20\d\d-/.test(l)).length === 80,
+  ok(/rows left out here/.test(sample) && sample.split('\n').filter((l) => /^20\d\d-/.test(l)).length === 80,
     'and carries eighty rows, not seven hundred - the question costs seconds, not minutes');
+  ok(/this sheet has 700 rows/.test(sample),
+    'while saying how many it really holds, so the model cannot mistake the sample for the file');
   // The phone's own facts, negatives included, ride on that first request.
   ok(sent[0].trip && sent[0].trip.is_trip === false,
     'two years of dates is asserted as NOT a trip, instead of "I have not said"');

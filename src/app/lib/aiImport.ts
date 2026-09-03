@@ -204,14 +204,28 @@ export function sampleLedgerText(text: string, each = SAMPLE_ROWS): string | nul
   for (const block of blocks) {
     const lines = block.split('\n');
     const first = lines.findIndex(hasDate);
-    if (first < 0) { pieces.push(block); continue; }
+    // EVERY section says how many rows it really has, whether or not any were
+    // left out. Without that the model cannot tell an empty sheet from one
+    // the sample happened to skip - and on a real workbook it spent a
+    // question asking whether the empty "Bonifici" sheet had data in the full
+    // file. A sample that does not say what it left out invites exactly the
+    // doubt it was built to remove.
+    if (first < 0) {
+      pieces.push([`(this sheet has no dated rows at all - it is empty)`, block].join('\n'));
+      continue;
+    }
     any = true;
+    const head = lines.slice(0, first);
     const rows = lines.slice(first);
-    if (rows.length <= each * 2) { pieces.push(block); continue; }
+    if (rows.length <= each * 2) {
+      pieces.push([`(this sheet has ${rows.length} rows, all of them shown here)`, ...head, ...rows].join('\n'));
+      continue;
+    }
     pieces.push([
-      ...lines.slice(0, first),
+      `(this sheet has ${rows.length} rows; the ${rows.length - each * 2} in the middle are left out of this sample)`,
+      ...head,
       ...rows.slice(0, each),
-      `… ${rows.length - each * 2} rows left out of this sample …`,
+      `… ${rows.length - each * 2} rows left out here …`,
       ...rows.slice(-each),
     ].join('\n'));
   }

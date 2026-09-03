@@ -112,9 +112,17 @@ const file = (text: string): AiFile => ({
   const dated = s.split('\n').filter((l) => /^20\d\d-/.test(l));
   ok(dated.length === 80, `a 3,000-row file samples to 80 rows (${dated.length})`);
   ok(dated[0] === row(0) && dated[79] === row(2999), 'the first forty and the last forty, in order');
-  ok(s.includes(HEAD) && s.startsWith('elenco spese'), 'under the same title and column header as the file');
+  ok(s.includes(HEAD) && s.includes('elenco spese'), 'under the same title and column header as the file');
   ok(/2920 rows left out/.test(s), 'and says how many rows are missing, so it cannot be mistaken for the file');
-  ok(sampleLedgerText(sheet('t', 50)) === sheet('t', 50), 'a file already small is sent whole - nothing to leave out');
+  ok(/this sheet has 3000 rows/.test(s), 'and how many it really holds, so the count is never in doubt');
+  // A sheet the sample shows whole still SAYS it is whole. Without that line
+  // the model cannot tell "small" from "sampled", and on a real workbook it
+  // spent a question asking whether the empty sheet had data in the full file.
+  const small = sampleLedgerText(sheet('t', 50))!;
+  ok(small.includes(sheet('t', 50)) && /this sheet has 50 rows, all of them shown/.test(small),
+    'a small sheet is sent whole, and says so');
+  ok(/no dated rows at all - it is empty/.test(sampleLedgerText('### Sheet: Bonifici\nelenco\nData,In uscita') ?? 'x') === false,
+    'a workbook of nothing but empty sheets has no sample at all');
   ok(sampleLedgerText('no dates\nnothing to sample') === null, 'text with no dated rows has no sample');
 }
 {
@@ -127,6 +135,8 @@ const file = (text: string): AiFile => ({
   ].join('\n');
   const s = sampleLedgerText(text)!;
   ok(/### Sheet: Spese[\s\S]*### Sheet: Entrate[\s\S]*### Sheet: Bonifici/.test(s), 'every sheet is named, in order');
+  ok(/no dated rows at all - it is empty/.test(s),
+    'and the empty sheet is declared empty - the one question a real import wasted on the sample');
   ok(s.split('\n').filter((l) => /^20\d\d-/.test(l)).length === 80 + 30, 'the long sheet is sampled, the short one sent whole');
   const files = [file(text)];
   const t = sampleForTriage(files)!;
