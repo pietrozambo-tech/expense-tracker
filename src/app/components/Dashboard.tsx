@@ -2479,10 +2479,20 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
             <button
               data-empty-demo
               onClick={onLoadDemoData}
-              className="w-full px-4 pt-5 text-[12.5px] leading-snug active:opacity-60 transition-opacity"
+              className="w-full px-4 pt-5 flex items-center justify-center gap-2 text-[12.5px] leading-snug active:opacity-60 transition-opacity"
               style={{ color: 'var(--ink-3)' }}
             >
-              {t('dash.empty.demo')}
+              {/* A chart, drawn rather than described: two bars and a line
+                  going up. The line asks a question about what the screens
+                  look like with data in them, and the fastest way to answer
+                  half of it is to show one. */}
+              <svg width="15" height="13" viewBox="0 0 15 13" fill="none" aria-hidden="true" className="flex-shrink-0">
+                <rect x="0.5" y="7" width="3" height="5.5" rx="1" fill="currentColor" opacity="0.55" />
+                <rect x="5.5" y="4.5" width="3" height="8" rx="1" fill="currentColor" opacity="0.55" />
+                <rect x="10.5" y="8.5" width="3" height="4" rx="1" fill="currentColor" opacity="0.55" />
+                <path d="M1 4.5 L6 1.5 L10 3.5 L14 0.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              <span>{t('dash.empty.demo')}</span>
             </button>
           )}
         </div>

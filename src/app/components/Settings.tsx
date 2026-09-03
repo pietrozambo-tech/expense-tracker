@@ -262,6 +262,10 @@ interface SettingsProps {
   userName: string;
   onUserNameChange: (name: string) => void;
   onLoadDemoData: () => void;
+  /** Create these categories and resolve once the CLOUD has them - the
+   *  convert function reads the catalogue from there, so an import that
+   *  started before the push landed would ignore them. */
+  onCreateCategories?: (names: string[]) => Promise<boolean>;
   onEraseAllData: () => void;
   /** `stay` keeps the current screen - see the handler in App. */
   onEraseDemoData?: (opts?: { stay?: boolean }) => void;
@@ -348,6 +352,7 @@ export function Settings({
   userName,
   onUserNameChange,
   onLoadDemoData,
+  onCreateCategories,
   onEraseAllData,
   onEraseDemoData,
   onClearTransactions,
@@ -3122,6 +3127,7 @@ export function Settings({
             userCurrency={userCurrency}
             transactions={transactions}
             userName={userName}
+            onCreateCategories={onCreateCategories}
             onCommit={(payload) => onImportData?.(payload)}
             onClose={() => setAiFiles(null)}
           />

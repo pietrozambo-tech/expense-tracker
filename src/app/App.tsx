@@ -196,7 +196,7 @@ import { categories as initialCategories, incomeCategories as initialIncomeCateg
 import { reassignToOthers, CATCHALL_RE } from './lib/categoryOps';
 import { saveInsight } from './lib/saveInsight';
 import { useBackClose } from './lib/useBackClose';
-import { switchGlow } from './components/categoryColors';
+import { switchGlow, colorOptions } from './components/categoryColors';
 import { t, getLanguage, setLanguage, type Language } from './i18n';
 import { monthsShort } from './i18n/store';
 import { defaultSourcesFor } from './components/sources';
@@ -787,11 +787,61 @@ export default function App() {
   const pullingRef = useRef(false);
   // Fires the pending cloud write immediately, set by the save effect below.
   const flushSaveRef = useRef<(() => void) | null>(null);
+
+  /**
+   * Write one payload to the cloud, version-checked, merging on conflict.
+   *
+   * Lives in a ref rather than inline in the debounced effect because there
+   * are now two doors into it: that effect, and the AI import, which has to
+   * create categories and then KNOW they are up there before it asks the
+   * server to read a file against them (the function reads the catalogue
+   * from the cloud row, not from the request). One copy of the version
+   * dance, two callers.
+   */
+  const pushPayloadRef = useRef<(payload: SyncPayload, cancelled?: () => boolean) => Promise<boolean>>(
+    async () => false,
+  );
+  pushPayloadRef.current = async (payload, isCancelled = () => false) => {
+    const uid = userIdRef.current;
+    if (!uid) return false;
+    // Up to three passes: a busy second device can win the race more than
+    // once, but each pass starts from its newer data, so this converges.
+    for (let attempt = 0; attempt < 3 && !isCancelled(); attempt++) {
+      const res = await saveCloudChecked(uid, payload, cloudVersionRef.current);
+      if (res.ok) {
+        rememberSyncBase(payload, res.version);
+        // Re-stamp: "erase all data" clears the owner mark along with the
+        // data, but the same signed-in account writing again owns what it
+        // writes. A no-op when the stamp is already right.
+        saveOwner({ id: uid, email: userEmail });
+        return true;
+      }
+      const remote = await loadCloud(uid);
+      if (isCancelled()) return false;
+      if (!remote) {
+        cloudVersionRef.current = null; // row vanished (erased elsewhere)
+        continue;
+      }
+      const merged = mergePayloads(cloudBaseRef.current, payload, remote.payload);
+      rememberSyncBase(remote.payload, remote.version);
+      // Applying the merge re-runs the debounced effect, which writes it back.
+      applyPayload(merged);
+      setRefreshKey((prev) => prev + 1);
+      return true;
+    }
+    return false;
+  };
   const userIdRef = useRef<string | null>(null);
   userIdRef.current = userId;
 
   // Snapshot the whole app state into the cloud payload shape
-  const buildPayload = (): SyncPayload => ({
+  // `over` lets a caller push state it has just set without waiting for the
+  // debounced effect to notice it. React state is not readable until the
+  // next render, so "create these categories, then sync" would otherwise
+  // push the payload from BEFORE the creation - and the whole point of
+  // creating them (the server reads categories from the cloud, not from the
+  // request) would be silently lost.
+  const buildPayload = (over?: Partial<SyncPayload>): SyncPayload => ({
     transactions: expenses,
     recurringRules,
     categories,
@@ -817,6 +867,30 @@ export default function App() {
       recapSeen,
       reviewSeen,
     },
+    // Last, so a caller's override wins over the state read above - and its
+    // settings merge into the block rather than replacing it wholesale.
+    ...over,
+    ...(over?.settings
+      ? {
+          settings: {
+            onboarded: hasCompletedOnboarding,
+            userName,
+            currency: userCurrency,
+            monthlyBudget,
+            budgetNudgeDismissed,
+            insightsEnabled,
+            hasSeenIntro,
+            defaultSourceExpense,
+            defaultSourceIncome,
+            weekStartsOn,
+            language,
+            categoryOrder,
+            recapSeen,
+            reviewSeen,
+            ...over.settings,
+          },
+        }
+      : {}),
   });
 
   // Push a payload into React state. Used both by the initial hydrate and by
@@ -1115,35 +1189,7 @@ export default function App() {
     setSyncStatus('pending');
     let cancelled = false;
 
-    const push = async () => {
-      // Up to three passes: a busy second device can win the race more than
-      // once, but each pass starts from its newer data, so this converges.
-      for (let attempt = 0; attempt < 3 && !cancelled; attempt++) {
-        const payload = buildPayload();
-        const res = await saveCloudChecked(userId, payload, cloudVersionRef.current);
-        if (res.ok) {
-          rememberSyncBase(payload, res.version);
-          // Re-stamp: "erase all data" clears the owner mark along with the
-          // data, but the same signed-in account writing again owns what it
-          // writes. A no-op when the stamp is already right.
-          saveOwner({ id: userId, email: userEmail });
-          return true;
-        }
-        const remote = await loadCloud(userId);
-        if (cancelled) return false;
-        if (!remote) {
-          cloudVersionRef.current = null; // row vanished (erased elsewhere)
-          continue;
-        }
-        const merged = mergePayloads(cloudBaseRef.current, payload, remote.payload);
-        rememberSyncBase(remote.payload, remote.version);
-        // Applying the merge re-runs this effect, which writes it back.
-        applyPayload(merged);
-        setRefreshKey((prev) => prev + 1);
-        return true;
-      }
-      return false;
-    };
+    const push = () => pushPayloadRef.current(buildPayload(), () => cancelled);
 
     let fired = false;
     const run = () => {
@@ -2428,6 +2474,56 @@ export default function App() {
     setPaidByPartnerChoice(false);
       setIsSaving(false); // Reset saving state
     }, 500);
+  };
+
+  /**
+   * Create the categories an import is about to need, and do not come back
+   * until the cloud has them.
+   *
+   * The waiting is the whole point, and it is not obvious. The convert
+   * function reads the user's catalogue from their SYNCED row, not from the
+   * request - so a category created here and merely queued for the debounced
+   * push would not exist as far as the model is concerned, every row meant
+   * for it would land somewhere else, and the screen that offered to create
+   * it would have been theatre. So the payload is built with the new list
+   * explicitly (React state is not readable until the next render) and
+   * pushed on the spot.
+   *
+   * false means the cloud does not have them: the caller must not start a
+   * reading that would silently ignore them.
+   */
+  const handleCreateCategoriesForImport = async (names: string[]): Promise<boolean> => {
+    const clean = names.map((n) => n.trim()).filter(Boolean);
+    if (clean.length === 0) return true;
+    const stamp = new Date().toISOString();
+    // A colour picked from the name, so the same category is the same colour
+    // on every device and after every reinstall - and two people importing
+    // "Sport" get the same one. The icon is the neutral default; naming it is
+    // the useful half, and Settings can change both afterwards.
+    const made = clean.map((name, i) => {
+      const hash = [...name.toLowerCase()].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7);
+      const swatch = colorOptions[(hash + i) % colorOptions.length];
+      return {
+        id: `category-${Date.now()}-${i}`,
+        name,
+        type: 'expense' as const,
+        icon: 'MoreHorizontal',
+        color: swatch.color,
+        bgColor: swatch.bgColor,
+        selectedBg: swatch.selectedBg,
+        subcategories: [] as string[],
+        updatedAt: stamp,
+      };
+    });
+    const next = [...categories, ...made];
+    setCategories(next);
+    setRefreshKey((prev) => prev + 1);
+    if (!userId) return false; // no cloud to put them in; the door is not open to guests anyway
+    try {
+      return await pushPayloadRef.current(buildPayload({ categories: next }));
+    } catch {
+      return false;
+    }
   };
 
   // Category CRUD handlers
@@ -3899,6 +3995,7 @@ export default function App() {
             )}
             {currentTab === 'settings' && (
               <Settings
+                onCreateCategories={handleCreateCategoriesForImport}
                 jumpTo={settingsJump}
                 onJumpDone={() => setSettingsJump(null)}
                 categoryOrder={categoryOrder}

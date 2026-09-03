@@ -5,7 +5,7 @@
 // model's confident reading of it is wrong on every row - after the day's
 // read has been spent on it.
 import {
-  splitLedgerText, splitForReads, sampleLedgerText, sampleForTriage, countRows,
+  splitLedgerText, splitForReads, sampleLedgerText, sampleForTriage, categoryGaps, countRows,
   AI_ROWS_PER_READ, AI_MAX_READS, AI_MAX_ROWS, type AiFile,
 } from '../../src/app/lib/aiImport';
 
@@ -144,6 +144,36 @@ const file = (text: string): AiFile => ({
     'the triage file carries the sample in both its text and its bytes, and is far smaller than the file');
   const photo: AiFile = { media_type: 'image/png', data: 'x', name: 'p.png', bytes: 10, text: null };
   ok(sampleForTriage([file(text), photo]) === null, 'a photo in the set means no triage: nothing to sample it by');
+}
+
+// ── the categories the file needs and I have not got ─────────────────────
+// Worked out on the phone from the triage's answer, before a row is read -
+// the last moment a new category still changes where those rows land.
+{
+  const mine = ['Cibo & Bevande', 'Casa', 'Trasporti', 'Altro'];
+  const got = categoryGaps(['Alimentari', 'Casa', 'Scommesse', 'Trasporti'], mine);
+  ok(JSON.stringify(got) === JSON.stringify(['Alimentari', 'Scommesse']),
+    `only what has no home comes back, in the file's own spelling (${JSON.stringify(got)})`);
+
+  ok(categoryGaps(['casa', '  CASA  '], mine).length === 0,
+    'case and stray spaces are not a different category');
+  // A near-miss IS asked about, on purpose. Folding plurals wants a stemmer,
+  // a stemmer wants two languages, and every rule loose enough to catch
+  // "Trasporto" for "Trasporti" also swallows a real gap. Offering one tap
+  // too many is the cheap error; missing a gap costs every row that needed it.
+  ok(categoryGaps(['Trasporto'], mine).length === 1,
+    'a near-miss is asked about rather than assumed - the cheap error, not the expensive one');
+  ok(categoryGaps(['Sport', 'sport', 'SPORT '], mine).length === 1,
+    'the same gap named three ways is asked about once');
+
+  // A word meaning "none of the above" is not a gap: those rows belong in
+  // the catch-all, which is what it is for.
+  ok(categoryGaps(['Other', 'Altro', 'Uncategorized', 'varie', 'N/A'], mine).length === 0,
+    'and "no category" words are never offered as categories to create');
+
+  ok(categoryGaps([], mine).length === 0, 'a file that names no categories asks nothing');
+  ok(categoryGaps(['Sport'], []).length === 1, 'an account with no categories at all is all gap');
+  ok(categoryGaps(['  ', ''], mine).length === 0, 'blanks are not categories');
 }
 
 console.log(fail.length ? `\n${fail.length} FAILED` : '\ntwo halves, every row once, both with their headers');

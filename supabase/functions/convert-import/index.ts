@@ -200,6 +200,13 @@ function factsBlock(args: {
       'date format, the currency, whose file it is) in "notes". Do not ask about anything the',
       'facts above already settle.',
       '',
+      'FILL "file_categories" EITHER WAY. Every distinct category word the file itself uses, spelled',
+      'as the file spells it - the column of its own categories, or what you would read off the',
+      'descriptions if it has no such column. Not my categories, and not your mapping of them: the',
+      'file\'s own words. The app compares them against my catalogue and offers to create the ones',
+      'I am missing before the reading starts, which is the only moment that is still free. Leaving',
+      'this empty means every one of my gaps is found too late to fix.',
+      '',
       'Each section of the sample says how many rows it really holds. Trust that line: a sheet it',
       'calls empty IS empty, and there is nothing to ask about it.',
       '',
@@ -323,7 +330,23 @@ function shapeAnswer(
   const notes = Array.isArray(parsed.notes)
     ? (parsed.notes as unknown[]).filter((n): n is string => typeof n === 'string')
     : [];
-  const rest = { notes, remaining: ctx.remaining, model: ctx.model, usage: ctx.usage };
+  // The file's own category words, kept on BOTH shapes: the sample read that
+  // finds them may answer either way, and the phone needs them whichever it
+  // was. Trimmed, deduped case-insensitively, and capped - this is a list to
+  // show somebody, not a corpus.
+  const fileCategories = [
+    ...new Map(
+      (Array.isArray(parsed.file_categories) ? (parsed.file_categories as unknown[]) : [])
+        .filter((c): c is string => typeof c === 'string')
+        .map((c) => c.trim())
+        .filter((c) => c.length > 0 && c.length <= 40)
+        .map((c) => [c.toLowerCase(), c] as const),
+    ).values(),
+  ].slice(0, 40);
+  const rest = {
+    notes, remaining: ctx.remaining, model: ctx.model, usage: ctx.usage,
+    file_categories: fileCategories,
+  };
 
   const questions = Array.isArray(parsed.questions) ? (parsed.questions as Record<string, unknown>[]) : [];
   if (parsed.status === 'need_input' && questions.length) {
@@ -545,6 +568,16 @@ const ANSWER_SCHEMA = {
           },
         },
       },
+    },
+    // Filled on a TRIAGE read only: the category words the FILE uses, as it
+    // spells them. The phone compares them against the user's own catalogue
+    // - which it has and this function's answer does not need to - and asks
+    // about the ones with no home before the reading starts, where creating
+    // one is still free. Left empty on a converting read.
+    file_categories: {
+      type: 'array',
+      description: "On a sample read: every distinct category word the file itself uses, verbatim. Empty otherwise.",
+      items: { type: 'string' },
     },
     transactions: { type: 'array', items: RECORD_SCHEMA },
   },

@@ -31,7 +31,7 @@ import { CURRENCIES } from '../utils/currency';
 //   - the end is a result, not a report: what is about to be added and what
 //     it costs, with the bookkeeping demoted to one grey line.
 
-type Step = 'who' | 'trip' | 'reading' | 'questions' | 'ready' | 'error';
+type Step = 'who' | 'trip' | 'gaps' | 'reading' | 'questions' | 'ready' | 'error';
 
 interface AiImportProps {
   files: AiFile[];
@@ -43,6 +43,9 @@ interface AiImportProps {
   /** For finding my own column in a split export - see lib/splitFile. */
   userName?: string;
   /** The same commit the JSON import path uses. */
+  /** Create these categories and resolve once the CLOUD has them. Absent
+   *  (or false) means the gap screen can only offer mapping. */
+  onCreateCategories?: (names: string[]) => Promise<boolean>;
   onCommit: (payload: ImportPayload) => void;
   onClose: () => void;
 }
@@ -68,7 +71,7 @@ function windowLabel(from: string, to: string): string {
 }
 
 export function AiImport({
-  files, trips, categories, incomeCategories, userCurrency, transactions, userName, onCommit, onClose,
+  files, trips, categories, incomeCategories, userCurrency, transactions, userName, onCreateCategories, onCommit, onClose,
 }: AiImportProps) {
   // The file's own arithmetic, done here: on a split export the phone can
   // work out my share exactly, and then the model's reading has something to
@@ -183,6 +186,14 @@ export function AiImport({
   // long before the review screen.
   const [tally, setTally] = useState<Record<string, number>>({});
   const [questions, setQuestions] = useState<AiQuestion[]>([]);
+  // The file's category words that match none of mine, and what I have said
+  // to do about each: create it, or file it under one of mine. Decided here,
+  // before a row is read, because that is the last moment a new category can
+  // still change where those rows land.
+  const [gaps, setGaps] = useState<string[]>([]);
+  const [gapPlan, setGapPlan] = useState<Record<string, string>>({}); // '' = create it
+  const [gapBusy, setGapBusy] = useState(false);
+  const [gapFailed, setGapFailed] = useState(false);
   const [answers, setAnswers] = useState<Record<number, string>>({});
   const [done, setDone] = useState<AiDone | null>(null);
   const [preview, setPreview] = useState<ImportResult | null>(null);
@@ -260,6 +271,9 @@ export function AiImport({
     const tripFact = trip ?? (evidence?.notTrip ? { is_trip: false } : null);
     convertWithAi({
       files: sent, trip: tripFact, lang, triaged: opts?.triaged, importId: opts?.importId,
+      // The catalogue the triage's answer is checked against. Names only -
+      // the comparison is a set membership, not a lookup.
+      myCategories: (categories as { name?: string }[]).map((c) => c?.name ?? '').filter(Boolean),
       answers: priors.length ? priors : undefined,
       signal: ctrl.signal,
       onPhase: setPhase,
@@ -283,6 +297,16 @@ export function AiImport({
       .then((d) => {
         clearTimers();
         setDone(d);
+        // Categories the file needs and this account has not got. Handled
+        // before the questions, and before any reading: creating one after
+        // the rows are filed does not move them.
+        if (d.categoryGaps?.length) {
+          setGaps(d.categoryGaps);
+          setGapPlan(Object.fromEntries(d.categoryGaps.map((g) => [g, ''])));
+          setGapFailed(false);
+          setStep('gaps');
+          return;
+        }
         if (d.status === 'need_input') {
           setQuestions(d.questions ?? []);
           setAnswers({});
@@ -341,6 +365,41 @@ export function AiImport({
       ? [{ ask: 'Anything worth knowing about this file?', answer: context.trim() }]
       : undefined;
     start(answer, volunteered);
+  };
+
+  /**
+   * Leave the gap screen: create what was marked "create", wait for the
+   * cloud to have it, then read.
+   *
+   * The waiting is not politeness. The convert function reads the catalogue
+   * from the synced row, so starting the reading before the push lands would
+   * hand the model the OLD list and file every row meant for the new
+   * category somewhere else - with this screen having promised otherwise. A
+   * push that does not land is therefore a stop, not a warning.
+   */
+  const goFromGaps = async () => {
+    const toCreate = gaps.filter((g) => (gapPlan[g] ?? '') === '');
+    setGapBusy(true);
+    setGapFailed(false);
+    if (toCreate.length > 0) {
+      const landed = await onCreateCategories?.(toCreate);
+      if (!landed) {
+        setGapBusy(false);
+        setGapFailed(true);
+        return;
+      }
+    }
+    // What was mapped rather than created travels as an answer, in the shape
+    // the model already reads answers in - so the reading never has to ask.
+    const mapped = gaps.filter((g) => (gapPlan[g] ?? '') !== '');
+    const priors = mapped.length
+      ? [{
+          ask: 'Where do these categories of the file go?',
+          answer: mapped.map((g) => `"${g}" -> ${gapPlan[g]}`).join('; '),
+        }]
+      : undefined;
+    setGapBusy(false);
+    start(tripAnswer, priors, { triaged: true, importId: done?.importId });
   };
 
   const goFromQuestions = () => {
@@ -640,6 +699,75 @@ export function AiImport({
             </div>
             <p className="mt-auto pb-5 text-center" style={{ color: 'var(--ink-3)', fontSize: 12 }}>{t('ai.nothingYet')}</p>
           </div>
+        </>
+      )}
+
+      {/* The categories the file needs and this account has not got.
+          BEFORE the reading, which is the only moment a new one still
+          changes where the rows land - and the reason there is no free-text
+          box here: typing a category that does not exist is exactly the
+          trap this screen closes. Create it, or pick one that does. */}
+      {step === 'gaps' && (
+        <>
+          {header(t('ai.gapsTitle', { n: String(gaps.length) }), t('ai.gapsSub'))}
+          <div className="flex-1 px-6 pt-2 overflow-y-auto min-h-0">
+            {gaps.map((gap) => {
+              const choice = gapPlan[gap] ?? '';
+              return (
+                <div key={gap} data-ai-gap={gap} className="py-3" style={{ borderTop: '1px solid var(--line-2)' }}>
+                  <p style={{ color: 'var(--ink)', fontSize: 15, fontWeight: 600 }}>{gap}</p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    <button
+                      data-ai-gap-create={gap}
+                      onClick={() => setGapPlan((p) => ({ ...p, [gap]: '' }))}
+                      className="px-3.5 py-2 rounded-full transition-colors"
+                      style={{
+                        border: `1.5px solid ${choice === '' ? '#4F74F3' : 'var(--line)'}`,
+                        backgroundColor: choice === '' ? '#4F74F3' : 'var(--bg-card)',
+                        color: choice === '' ? '#FFFFFF' : 'var(--ink)',
+                        fontSize: 13.5, fontWeight: choice === '' ? 600 : 500,
+                      }}
+                      disabled={!onCreateCategories}
+                    >
+                      {t('ai.gapCreate')}
+                    </button>
+                    {/* Only categories that exist. A select rather than a
+                        field, so there is nothing to mistype. */}
+                    <div
+                      className="relative flex items-center px-3.5 rounded-full"
+                      style={{
+                        border: `1.5px solid ${choice !== '' ? '#4F74F3' : 'var(--line)'}`,
+                        backgroundColor: choice !== '' ? '#4F74F3' : 'var(--bg-card)',
+                      }}
+                    >
+                      <span style={{ color: choice !== '' ? '#FFFFFF' : 'var(--ink-2)', fontSize: 13.5, fontWeight: choice !== '' ? 600 : 500 }}>
+                        {choice !== '' ? choice : t('ai.gapMap')}
+                      </span>
+                      <select
+                        data-ai-gap-map={gap}
+                        aria-label={t('ai.gapMap')}
+                        value={choice}
+                        onChange={(e) => setGapPlan((p) => ({ ...p, [gap]: e.target.value }))}
+                        className="absolute inset-0 w-full h-full opacity-0"
+                        style={{ WebkitAppearance: 'none', appearance: 'none' }}
+                      >
+                        <option value="">{t('ai.gapMap')}</option>
+                        {(categories as { name?: string }[]).map((c) => c?.name).filter(Boolean).map((name) => (
+                          <option key={name} value={name}>{name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+            {gapFailed && (
+              <p data-ai-gap-failed className="mt-3" style={{ color: 'var(--tone-warn)', fontSize: 12.5, lineHeight: 1.45 }}>
+                {t('ai.gapSyncFailed')}
+              </p>
+            )}
+          </div>
+          {cta(gapBusy ? t('ai.gapSaving') : t('ai.go'), goFromGaps, gapBusy)}
         </>
       )}
 

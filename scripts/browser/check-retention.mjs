@@ -92,8 +92,12 @@ const month = () => {
   // months in it. Two of them opened with "Or" when the demo line sat inside
   // the card as a third button.
   const demo = await p.locator('[data-empty-demo]').innerText();
-  ok(/charts|comparisons|trends/i.test(demo),
-    `and the sample-data line says what it is FOR, not just that it exists (${demo})`);
+  // It asks the question the person is actually holding - what do these
+  // screens look like with something in them - rather than listing features.
+  ok(/charts/i.test(demo) && /\?/.test(demo),
+    `and the sample-data line says WHY you would tap it, not just what it is (${demo})`);
+  ok(await p.locator('[data-empty-demo] svg').count() === 1,
+    'with a chart drawn beside it, since showing one is half the answer');
   ok(!/^\s*Or\b/i.test(row) && !/^\s*Or\b/i.test(demo),
     'with no two "Or" openings stacked on each other');
   ok(await p.evaluate(() => {

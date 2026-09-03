@@ -94,7 +94,21 @@ const CSV = [
   '2026-08-23,Burger,9',
 ].join('\n');
 
-const open = async ({ session, convert }) => {
+// A file whose dates span two years: not trip-shaped, so it goes straight
+// to reading, and long enough to be triaged and cut into parts. The names
+// in the descriptions are company, not columns - which is the reading a
+// real statement got wrong.
+const twoYears = (n) => {
+  const lines = ['date,description,amount'];
+  for (let i = 0; i < n; i += 1) {
+    const d = new Date(2024, 8 + Math.floor((i / n) * 24), 1 + (i % 27));
+    lines.push(`${d.toISOString().slice(0, 10)},${i % 7 === 0 ? 'pranzo con Mirko' : `Riga ${i}`},10`);
+  }
+  return lines.join('\n');
+};
+const decodeFile = (c) => Buffer.from(c.files?.[0]?.data ?? '', 'base64').toString('utf8');
+
+const open = async ({ session, convert, breakCloudWrite }) => {
   const ctx = await b.newContext({ viewport: { width: 390, height: 900 }, locale: 'en-GB' });
   let calls = 0;
   // Every request body, kept: the split reads twice, and "were both halves
@@ -106,6 +120,16 @@ const open = async ({ session, convert }) => {
   // broad one answers "{}" to the conversion call and the whole flow reads
   // as an instant failure.
   await ctx.route(/supabase\.co/, (r) => r.fulfill({ status: 200, contentType: 'application/json', body: '{}' }));
+  // A cloud that will not take a write. The AI import creates categories and
+  // must not start reading until the SERVER can see them, so this is the
+  // failure that has to stop the flow rather than be shrugged off.
+  if (breakCloudWrite) {
+    await ctx.route(/\/rest\/v1\/user_data/, (r) => (
+      /GET/i.test(r.request().method())
+        ? r.fulfill({ status: 200, contentType: 'application/json', body: '[]' })
+        : r.fulfill({ status: 503, contentType: 'application/json', body: '{"message":"nope"}' })
+    ));
+  }
   await ctx.route('**/functions/v1/convert-import', async (route) => {
     calls += 1;
     const body = JSON.parse(route.request().postData() ?? '{}');
@@ -662,6 +686,104 @@ const pickCsv = (p) => p.locator('[data-ai-door] input[type="file"]').setInputFi
   await ctx.close();
 }
 
+// ── the categories the file needs, settled before the reading ────────────
+//
+// The trap this closes: the model asks "Barbiere - Health or Other?", the
+// box takes free text, somebody types a category they do not have, and the
+// rows land in the catch-all or vanish. So the file's own category words
+// come back from the TRIAGE, the phone works out which have no home, and the
+// choice is made here - where a new category still changes where the rows
+// go, and where the only alternative offered is a category that exists.
+{
+  const TRIAGE_CATS = {
+    status: 'ok', questions: [], notes: [], remaining: 9, model: 'm', usage: { input: 1, output: 1 },
+    payload: { version: 1, currency: 'EUR', transactions: [] },
+    // Travel and Food & Drinks are this account's; Sport and Scommesse are not.
+    file_categories: ['Travel', 'Sport', 'Food & Drinks', 'Scommesse', 'Other'],
+  };
+  const { ctx, p, sent } = await open({
+    session: true,
+    convert: (n) => ({
+      res: {
+        status: 200, contentType: 'text/event-stream',
+        body: n === 1 ? sse([['done', TRIAGE_CATS]]) : sse([...ROWS, ['done', OK_DONE]]),
+      },
+    }),
+  });
+  await p.locator('[data-ai-door] input[type="file"]').setInputFiles({
+    name: 'estratto.csv', mimeType: 'text/csv', buffer: Buffer.from(twoYears(700)),
+  });
+  await p.waitForSelector('[data-ai-flow][data-ai-step="gaps"]', { timeout: 12000 });
+  ok(sent.length === 1 && sent[0].mode === 'triage',
+    'the gaps come out of the triage - one short read, before any row is read');
+  const shown = await p.locator('[data-ai-gap]').evaluateAll((els) => els.map((e) => e.getAttribute('data-ai-gap')));
+  ok(JSON.stringify(shown) === JSON.stringify(['Sport', 'Scommesse']),
+    `only the ones with no home are asked about (${JSON.stringify(shown)})`);
+  ok(!shown.includes('Other'), 'and "Other" is not offered as a category to create - that is what the catch-all is');
+  // The alternative is a dropdown of categories that EXIST. No free text,
+  // which is the whole point: a typed category that does not exist is what
+  // put rows in the wrong place in the first place.
+  ok(await p.locator('[data-ai-flow] input[type="text"]').count() === 0,
+    'nothing here can be typed - every alternative offered is a category that exists');
+  const options = await p.locator('[data-ai-gap-map="Sport"] option').evaluateAll((els) => els.map((e) => e.value).filter(Boolean));
+  ok(options.includes('Travel') && options.includes('Food & Drinks') && !options.includes('Sport'),
+    `the dropdown offers my own categories and only those (${options.join(', ')})`);
+
+  // Create one, map the other, and go.
+  await p.locator('[data-ai-gap-map="Scommesse"]').selectOption('Travel');
+  await p.locator('[data-ai-cta="go"]').click();
+  await p.waitForSelector('[data-ai-flow][data-ai-step="ready"]', { timeout: 15000 });
+  const reads = sent.slice(1);
+  ok(reads.length > 0 && reads.every((c) => c.mode === 'convert'),
+    `the reading follows in the same import, once (${reads.length} parts)`);
+  ok(reads.every((c) => c.import_id === sent[0].import_id), 'still one import, still one credit');
+  ok(reads.every((c) => (c.answers ?? []).some((a) => /"Scommesse" -> Travel/.test(a.answer))),
+    'the mapped one travels as an answer, so the reading never has to ask about it');
+  // And the created one is really in the catalogue - not a label that lived
+  // only for the length of the import.
+  const cats = await p.evaluate(() => JSON.parse(localStorage.getItem('expense-tracker.v1.categories') || '[]').map((c) => c.name));
+  ok(cats.includes('Sport'), `"Create" really creates it, in the catalogue the app keeps (${cats.join(', ')})`);
+  ok(!cats.includes('Scommesse'), 'and the mapped one is not created - it was sent somewhere that exists');
+  await ctx.close();
+}
+{
+  // The push that does not land. The convert function reads the catalogue
+  // from the SYNCED row, so a reading started before the category is up
+  // there would ignore it and file those rows elsewhere - having promised
+  // otherwise on the screen before. So a failed push is a stop, not a
+  // warning, and no reading starts.
+  const TRIAGE_CATS = {
+    status: 'ok', questions: [], notes: [], remaining: 9, model: 'm', usage: { input: 1, output: 1 },
+    payload: { version: 1, currency: 'EUR', transactions: [] },
+    file_categories: ['Sport'],
+  };
+  const { ctx, p, sent } = await open({
+    session: true,
+    // Every write to the cloud row fails, which is what an offline phone or
+    // a wedged sync looks like from here.
+    breakCloudWrite: true,
+    convert: (n) => ({
+      res: {
+        status: 200, contentType: 'text/event-stream',
+        body: n === 1 ? sse([['done', TRIAGE_CATS]]) : sse([...ROWS, ['done', OK_DONE]]),
+      },
+    }),
+  });
+  await p.locator('[data-ai-door] input[type="file"]').setInputFiles({
+    name: 'estratto.csv', mimeType: 'text/csv', buffer: Buffer.from(twoYears(700)),
+  });
+  await p.waitForSelector('[data-ai-flow][data-ai-step="gaps"]', { timeout: 12000 });
+  await p.locator('[data-ai-cta="go"]').click();
+  await p.waitForSelector('[data-ai-gap-failed]', { timeout: 15000 });
+  const said = await p.locator('[data-ai-gap-failed]').innerText();
+  ok(/the reading would ignore them/.test(said),
+    `it says exactly what went wrong and why it matters (${said.slice(0, 60)}…)`);
+  ok(await p.locator('[data-ai-flow][data-ai-step="gaps"]').count() === 1,
+    'and stays on the screen rather than reading a file against categories the server cannot see');
+  ok(sent.length === 1, 'no reading was started - one triage, and nothing after it');
+  await ctx.close();
+}
+
 // ── the questions come first, once, and the reading may not ask ──────────
 //
 // A real 1,206-row bank export went four rounds: fifty seconds of reading,
@@ -676,15 +798,6 @@ const pickCsv = (p) => p.locator('[data-ai-door] input[type="file"]').setInputFi
 // Now: the phone asserts what it knows, negatives included; a big file gets
 // a triage read on a sample first, so the questions come back in seconds;
 // and the parts that read for real are told they may not ask.
-const twoYears = (n) => {
-  const lines = ['date,description,amount'];
-  for (let i = 0; i < n; i += 1) {
-    const d = new Date(2024, 8 + Math.floor((i / n) * 24), 1 + (i % 27));
-    lines.push(`${d.toISOString().slice(0, 10)},${i % 7 === 0 ? 'pranzo con Mirko' : `Riga ${i}`},10`);
-  }
-  return lines.join('\n');
-};
-const decodeFile = (c) => Buffer.from(c.files?.[0]?.data ?? '', 'base64').toString('utf8');
 {
   const NEED = {
     status: 'need_input',

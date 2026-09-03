@@ -166,8 +166,10 @@ eq('sample_of: garbage is zero', edge.readSampleOf({ sample_of: 'lots' }), 0);
   // This scenario text is a template literal: a bare \\s here would reach the
   // generated file as a plain "s" and the regex would quietly test nothing.
   ok(/ask\\s+everything in this one round/.test(triage), 'and asks for every question at once');
-  ok(/do not ask me to confirm a category mapping/.test(triage),
-    'and rules out the one question a real run wasted a round on');
+  ok(/WHAT IS WORTH A QUESTION/.test(triage) && /are already fairly sure of/.test(triage),
+    'and draws the line at the fork rather than at the subject - four of nine real questions were "right?"');
+  ok(/FILL "file_categories" EITHER WAY/.test(triage) && /file's own words/.test(triage),
+    "and asks for the file's own category words, which is what the gap screen is built from");
   const convert = edge.factsBlock({ ...base, mode: 'convert', sampleOf: 0 });
   ok(/THIS READING MAY NOT ASK/.test(convert) && /Do not set "status": "need_input"/.test(convert),
     'convert forbids need_input outright');

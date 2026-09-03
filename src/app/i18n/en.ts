@@ -56,7 +56,7 @@ export const en = {
   // competing with the two above, it is an answer to "what does this
   // become once it has data in it" - which is the one thing an empty
   // screen cannot show.
-  'dash.empty.demo': 'Charts, comparisons, trends — see how it looks with sample data.',
+  'dash.empty.demo': 'Curious what the charts look like? Try it with sample data.',
   // The two things the save toast may add a line for. See lib/saveInsight.ts
   // for why the list is this short.
   'toast.firstEver': "The first one. From here on I'll keep count.",
@@ -708,6 +708,15 @@ export const en = {
   // The triage read: a sample goes first so the questions come back in
   // seconds instead of after minutes of reading. See AI_TRIAGE_ROWS.
   'ai.phaseTriage': 'Checking what it needs to know…',
+  // The gap screen: the file's categories that match none of yours, asked
+  // BEFORE the reading, which is the last moment creating one still moves
+  // the rows. No free-text field on purpose - see lib/aiImport categoryGaps.
+  'ai.gapsTitle': '{n} categories are new',
+  'ai.gapsSub': 'The file files things under these, and you have nothing like them. Make them yours, or send them somewhere you already have.',
+  'ai.gapCreate': 'Create it',
+  'ai.gapMap': 'Use one of mine',
+  'ai.gapSaving': 'Adding them…',
+  'ai.gapSyncFailed': "Could not save them to your account, so the reading would ignore them. Check your connection and try again - or send them to a category you already have.",
   // Rows whose category is none of yours. They are not lost - they land in
   // the catch-all with their original name kept as a subcategory - but this
   // is the last screen where that is still undoable, so it is said out loud.

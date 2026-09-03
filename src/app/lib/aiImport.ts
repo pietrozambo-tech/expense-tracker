@@ -193,6 +193,46 @@ export function splitLedgerText(text: string, parts: number): string[] | null {
   return out;
 }
 
+/** Names that mean "none of the above" in either language. */
+const CATCHALL_WORDS = /^(other|others|altro|altri|varie|misc|uncategori[sz]ed|senza categoria|n\/a|none)$/;
+
+/**
+ * The file's category words that have no home among mine.
+ *
+ * Run on the phone, against the triage's answer, before a single row is
+ * read - the only moment when creating the missing one is still free. After
+ * the reading it is too late in the way that matters: the rows are filed,
+ * and a category invented afterwards leaves them where they landed.
+ *
+ * Matching is EXACT but for case and stray spaces, and deliberately goes no
+ * further. Plural-folding was tried and taken out: "Trasporti"/"Trasporto"
+ * wants a stemmer, a stemmer wants two languages, and every rule loose
+ * enough to catch that also quietly swallows a real gap - which is the one
+ * failure this exists to prevent. The two errors are not equal. Offering to
+ * create a category close to one I have costs a tap; missing one costs every
+ * row that needed it, filed somewhere else, found next month.
+ */
+const catKey = (s: string) => s.trim().toLowerCase().replace(/\s+/g, ' ');
+
+export function categoryGaps(fileCategories: string[], mine: string[]): string[] {
+  const have = new Set(mine.map(catKey));
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const raw of fileCategories) {
+    const name = raw.trim();
+    if (!name) continue;
+    const key = catKey(name);
+    // A word that means "no category" is not a gap. Rows like that belong in
+    // the catch-all, which is what it is for; offering to CREATE it would be
+    // the app asking for a category it already has.
+    if (!key || CATCHALL_WORDS.test(name.trim().toLowerCase())) continue;
+    if (have.has(key) || seen.has(key)) continue;
+    seen.add(key);
+    out.push(name);
+  }
+  return out;
+}
+
 /**
  * The first and last rows of a file, with every section's preamble - what
  * the triage read looks at. Null when there is nothing dated to sample.
@@ -559,6 +599,13 @@ export interface AiQuestion {
 
 export interface AiDone {
   status: 'ok' | 'need_input';
+  /** The file's own category words that match none of mine, worked out on
+   *  the phone from the triage's answer. Present only on the answer that
+   *  stops for the gap screen; empty everywhere else. */
+  categoryGaps?: string[];
+  /** The category words the FILE uses, as the sample read found them. Only
+   *  a triage answer carries any; the gaps above are worked out from it. */
+  fileCategories?: string[];
   /** The import this answer belongs to. Handed back so a question's re-run
    *  can carry the SAME id: the triage claimed the day's credit under it,
    *  and a re-run under a fresh id would claim a second one for one file. */
@@ -602,6 +649,9 @@ export interface ConvertArgs {
    *  re-run. Skip the triage and go straight to the reading. Set by the
    *  questions screen when it re-starts the import with the answers. */
   triaged?: boolean;
+  /** My own category names, so the triage's answer can be checked against
+   *  them here rather than shipped back out for the screen to check. */
+  myCategories?: string[];
 }
 
 /** An id for one import, unguessable enough that two people's cannot collide
@@ -748,6 +798,9 @@ async function oneRead(args: ConvertArgs): Promise<AiDone> {
       const status = data.status === 'need_input' ? 'need_input' : 'ok';
       done = {
         status,
+        fileCategories: Array.isArray(data.file_categories)
+          ? (data.file_categories as unknown[]).filter((c): c is string => typeof c === 'string')
+          : [],
         notes: Array.isArray(data.notes) ? (data.notes as unknown[]).filter((n): n is string => typeof n === 'string') : [],
         remaining: typeof data.remaining === 'number' ? data.remaining : 0,
         questions: Array.isArray(data.questions)
@@ -869,6 +922,14 @@ export async function convertWithAi(args: ConvertArgs): Promise<AiDone> {
         onPhase: undefined, onRow: undefined,
       });
       if (first.status === 'need_input' && first.questions?.length) return { ...first, importId };
+      // No questions, but the file may still name categories this account
+      // does not have. Stopping here costs nothing - not one row has been
+      // read - and it is the last moment when creating one still changes
+      // where those rows land.
+      const gaps = categoryGaps(first.fileCategories ?? [], args.myCategories ?? []);
+      if (gaps.length > 0) {
+        return { ...first, status: 'need_input', questions: [], categoryGaps: gaps, importId };
+      }
     }
   }
 
