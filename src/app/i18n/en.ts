@@ -123,6 +123,9 @@ export const en = {
   'chart.thisQuarter': 'This quarter',
   'chart.thisYear': 'This year',
   'chart.yourUsual': 'Your usual',
+  // Stands in the legend slot while the median has too little to stand on.
+  // See lib/usual.ts, usualArrives.
+  'chart.usualFrom': 'Your usual · from {when}',
 
   // One-off vs Recurring
   'rec.title': 'One-off vs Recurring',

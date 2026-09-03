@@ -118,6 +118,7 @@ export const it: Record<keyof typeof en, string> = {
   'chart.thisQuarter': 'Questo trimestre',
   'chart.thisYear': "Quest'anno",
   'chart.yourUsual': 'Il tuo solito',
+  'chart.usualFrom': 'Il tuo solito · da {when}',
 
   // One-off vs Recurring
   'rec.title': 'Una tantum vs Ricorrenti',

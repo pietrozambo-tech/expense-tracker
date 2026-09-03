@@ -14,7 +14,7 @@ import { translateRecurrence } from '../i18n/store';
 import { getCategoryIcon } from './categoryIcons';
 import { FILTER_ACTIVE, FILTER_IDLE } from './filterChip';
 import { categoryHex, categoryTint, switchGlow } from './categoryColors';
-import { usualCurve, periodCurve } from '../lib/usual';
+import { usualCurve, periodCurve, usualArrives } from '../lib/usual';
 import { upcomingSchedules, toDateStr } from '../lib/recurrence';
 import { dayOfWeekBreakdown, dowTakeaway } from '../lib/dayOfWeek';
 import { BudgetBar } from './BudgetBar';
@@ -3410,6 +3410,32 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
             const benchmarkLabel = benchmarkMode === 'lastYear' ? lastYearLabel : t('chart.yourUsual');
             const benchmarkChoices = !!usual && !!lastYear;
 
+            // With no benchmark there is no legend either, and the chart says
+            // nothing about why: the median needs two earlier months with
+            // spending (usualCurve, minPeriods = 2), so the comparison this
+            // app is built around is up to two months away and nobody is told
+            // so. The empty legend slot names the date instead - see
+            // usualArrives for how it is worked out, and for why importing
+            // some history silences it by making the answer today.
+            //
+            // Month view only, and only standing in the present. It is a
+            // promise about what comes next, and a promise dated November
+            // reads as nonsense off the chart of a month last spring.
+            const usualDue =
+              !benchCurve && timePeriodType === 'month' && isAtCurrentPeriod()
+                ? usualArrives(expenses, currency, {
+                    type: 'month', year: selectedYear, month: selectedMonth, quarter: selectedQuarter, now,
+                  })
+                : null;
+            const usualDueLabel = usualDue
+              ? t('chart.usualFrom', {
+                  when:
+                    usualDue.year === selectedYear
+                      ? monthsFull()[usualDue.month]
+                      : `${monthsFull()[usualDue.month]} ${usualDue.year}`,
+                })
+              : null;
+
             // ONE projection, shared by the SVG, the pointer handlers and the
             // tooltip. This used to be three copies of the same arithmetic and
             // they drifted apart: the handlers still assumed a 200px-tall chart
@@ -3870,6 +3896,21 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                               </select>
                             </>
                           )}
+                        </span>
+                      </div>
+                    )}
+
+                    {/* The line that is not there yet, in the place it will
+                        be. Dimmed and dotted-grey like the curve it stands
+                        for, so it reads as a slot waiting to be filled and
+                        not as a second line already drawn. It removes itself:
+                        the month it names is the month benchCurve starts
+                        coming back, and this branch stops running. */}
+                    {!benchCurve && usualDueLabel && (
+                      <div className="flex items-center justify-center mt-1.5" style={{ opacity: 0.62 }}>
+                        <span data-usual-due className="flex items-center gap-1.5">
+                          <span style={{ width: 7, height: 7, borderRadius: 999, backgroundColor: 'var(--ghost)' }} />
+                          <span style={{ color: 'var(--ink-2)', fontSize: 11 }}>{usualDueLabel}</span>
                         </span>
                       </div>
                     )}

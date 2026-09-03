@@ -152,6 +152,78 @@ export function usualCurve(
   return Array.from({ length: steps }, (_, i) => median(curves.map((c) => c[i])) ?? 0);
 }
 
+/** Which period a date falls in, as a comparable ordinal. Months count in
+ *  months, quarters in quarters, years in years, so "is this one later than
+ *  that one" is a single subtraction whatever the view. */
+function ordinalOf(type: PeriodType, year: number, month: number, quarter: number): number {
+  if (type === 'month') return year * 12 + month;
+  if (type === 'quarter') return year * 4 + quarter;
+  return year;
+}
+
+/**
+ * When the median benchmark will first exist, for somebody who does not have
+ * it yet.
+ *
+ * The rule above is honest and quiet about it: two earlier periods with
+ * spending, or no line. The cost is that a new user's cumulative chart has
+ * one line where it will later have two, the legend naming them is not drawn
+ * at all, and nothing anywhere says why or for how long - the app's signature
+ * comparison is two months away and the person is left to assume it does not
+ * exist. This turns that unexplained absence into a dated one.
+ *
+ * Returns the period the curve arrives in, or null when there is nothing to
+ * promise: no spending recorded at all, the benchmark already available, or
+ * an arrival further out than the lookback window, which is a forecast rather
+ * than a promise.
+ *
+ * Periods still in the future are counted as tracked, because that is the
+ * premise of the sentence: keep going and it appears then. Periods already
+ * behind are counted only if they actually hold spending - so someone who
+ * imports three months of history is told a date that has already arrived,
+ * which is to say told nothing, which is correct.
+ */
+export function usualArrives(
+  expenses: UsualRow[],
+  currency: string,
+  opts: { type: PeriodType; year: number; month: number; quarter: number; now: Date; lookback?: number; minPeriods?: number },
+): { year: number; month: number; quarter: number } | null {
+  const { type, year, month, quarter, now } = opts;
+  const lookback = opts.lookback ?? (type === 'year' ? 3 : 6);
+  const minPeriods = opts.minPeriods ?? (type === 'year' ? 1 : 2);
+
+  // Which periods this person has actually spent in. Same test usualCurve
+  // applies to a whole period curve, row by row: a period whose expenses sum
+  // to nothing does not vote, because it is a period before tracking started
+  // rather than a period where nothing was spent.
+  const spent = new Set<number>();
+  for (const e of expenses) {
+    if (e.type === 'income') continue;
+    if (mineAmount(e as never, currency) <= 0) continue;
+    const d = parseLocalDate(e.date);
+    spent.add(ordinalOf(type, d.getFullYear(), d.getMonth(), Math.floor(d.getMonth() / 3)));
+  }
+  if (spent.size === 0) return null;
+
+  const nowOrd = ordinalOf(type, now.getFullYear(), now.getMonth(), Math.floor(now.getMonth() / 3));
+  const selectedOrd = ordinalOf(type, year, month, quarter);
+
+  for (let ahead = 0; ahead <= lookback; ahead++) {
+    const c = periodStartBack(type, year, month, quarter, -ahead);
+    let votes = 0;
+    for (let back = 1; back <= lookback; back++) {
+      const p = periodStartBack(type, c.year, c.month, c.quarter, back);
+      const ord = ordinalOf(type, p.year, p.month, p.quarter);
+      if (ord > nowOrd || spent.has(ord)) votes++;
+    }
+    if (votes < minPeriods) continue;
+    // Available already (or in a period being looked back at): there is no
+    // date to give, and naming this one would read as "arriving now".
+    return ordinalOf(type, c.year, c.month, c.quarter) > selectedOrd ? c : null;
+  }
+  return null;
+}
+
 /**
  * The cumulative curve of ONE specific period - "this same month, last year"
  * as an alternative benchmark to the median. Null when that period holds no

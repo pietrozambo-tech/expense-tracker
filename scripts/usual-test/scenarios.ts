@@ -6,7 +6,7 @@
 //
 // Run with:  pnpm test:usual   (add --before for the mean it replaced)
 
-import { usualCurve, median } from './lib/usual';
+import { usualCurve, usualArrives, median } from './lib/usual';
 import { dailyAllowance } from './lib/budget';
 import { acceptCountry, currencyOfCountry, dismissCountry, homeCountry, observeCountry, travelSuggestion } from './lib/travel';
 import { countryOfZone } from './lib/zones';
@@ -142,6 +142,61 @@ heading("6. A single previous year counts; a single previous month doesn't");
   expect('and is that year, cumulatively', y ? `${Math.round(y[2])}/${Math.round(y[11])}` : 'null', '900/1200');
   expect('a single prior month still gives nothing',
     curveFor([tx('2026-07-01', 100), tx('2026-06-01', 100)].slice(0, 1), 31), null);
+}
+
+// 6b. The other side of rule 2: if the benchmark cannot exist yet, WHEN can
+// it. The chart's legend says so out loud, so the date has to be the real one
+// - the month usualCurve actually starts returning a curve - and not "two
+// months from now" hard-coded, which is wrong for everybody who arrives with
+// some history behind them.
+heading('6b. usualArrives() - the date the legend promises');
+const arrives = (rows: any[], year: number, month: number, now: Date, opts: any = {}) => {
+  const got = usualArrives(rows, 'EUR', { type: 'month', year, month, quarter: 0, now, ...opts });
+  return got ? `${got.year}-${String(got.month + 1).padStart(2, '0')}` : null;
+};
+{
+  const SEP = new Date(2026, 8, 15);
+  // One month in, which is everybody on their first afternoon. October has
+  // September behind it and nothing else - one month is not a median - so the
+  // curve first appears in November, with October and September voting.
+  expect('a first month promises November',
+    arrives([tx('2026-09-03', 40), tx('2026-09-11', 25)], 2026, 8, SEP), '2026-11');
+
+  // Arriving with history is the whole reason this is computed rather than
+  // assumed: import August too and the wait is a month, not two.
+  expect('one imported month brings it forward to October',
+    arrives([tx('2026-08-04', 60), tx('2026-09-03', 40)], 2026, 8, SEP), '2026-10');
+
+  // Two months behind it and the benchmark exists TODAY - there is no date to
+  // give, and the legend has two real lines to name instead.
+  expect('two months behind it, and there is nothing to promise',
+    arrives([tx('2026-07-04', 60), tx('2026-08-04', 60), tx('2026-09-03', 40)], 2026, 8, SEP), null);
+
+  // The months in between need not be consecutive - usualCurve looks back
+  // six and takes whichever of them carry spending - so a June and a
+  // September are two votes from October, empty July and August or not.
+  expect('a gap inside the window is still two months',
+    arrives([tx('2026-06-04', 60), tx('2026-09-03', 40)], 2026, 8, SEP), '2026-10');
+
+  // Outside that window it stops counting, and the second vote has to come
+  // from a month not yet lived.
+  expect('a month older than the lookback cannot vote',
+    arrives([tx('2026-01-04', 60), tx('2026-09-03', 40)], 2026, 8, SEP), '2026-11');
+
+  // It has to survive the turn of the year: December + the future gives
+  // February, named with its year because it is not this one.
+  expect('across new year',
+    arrives([tx('2026-12-03', 40)], 2026, 11, new Date(2026, 11, 10)), '2027-02');
+
+  // Nothing recorded at all: no chart, no promise, nothing to say.
+  expect('an empty ledger promises nothing', arrives([], 2026, 8, SEP), null);
+  expect('income alone is not spending',
+    arrives([{ date: '2026-09-03', amount: 2000, type: 'income' as const, currency: 'EUR' }], 2026, 8, SEP), null);
+
+  // A year benchmark needs only one prior year, so its answer is one period
+  // out rather than two - the same function, reading the same rule.
+  const y = usualArrives([tx('2026-09-03', 40)], 'EUR', { type: 'year', year: 2026, month: 0, quarter: 0, now: new Date(2026, 8, 15) });
+  expect('the year view needs only one prior year', y ? y.year : null, 2027);
 }
 
 // 7. The plain statistic, on its own.
