@@ -15,6 +15,7 @@ import { getCategoryIcon } from './categoryIcons';
 import { FILTER_ACTIVE, FILTER_IDLE } from './filterChip';
 import { categoryHex, categoryTint, switchGlow } from './categoryColors';
 import { usualCurve, periodCurve, usualArrives } from '../lib/usual';
+import { isDemoRow } from '../lib/demoData';
 import { upcomingSchedules, toDateStr } from '../lib/recurrence';
 import { dayOfWeekBreakdown, dowTakeaway } from '../lib/dayOfWeek';
 import { BudgetBar } from './BudgetBar';
@@ -2117,7 +2118,11 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
   const showReviewPointer = (() => {
     if (reviewPointerSeen || reviewPointerGone || timePeriodType !== 'month' || !isAtCurrentPeriod()) return false;
     if (new Date().getDate() > 5) return false;
-    const prev = inRange(periodRange(1)).filter((e) => e.type !== 'income');
+    // Their own rows, for the same reason the recap card counts only those:
+    // loading the sample data fills last month instantly, and tapping the
+    // pointer it summons writes reviewSeen - a synced one-shot spent on a
+    // month the person never tracked.
+    const prev = inRange(periodRange(1)).filter((e) => e.type !== 'income' && !isDemoRow(e));
     return prev.length >= 5;
   })();
 

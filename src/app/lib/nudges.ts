@@ -173,7 +173,15 @@ export function dueNudge(args: {
   /** Age in days of the oldest row they wrote themselves (see ledgerAgeDays);
    *  null when they have written none, which is as new as it gets. */
   ledgerAgeDays: number | null;
-  /** Any transaction dated in the previous calendar month. */
+  /** The user spent something in the previous calendar month, in rows they
+   *  wrote themselves.
+   *
+   *  Both halves are load-bearing, and both were learned the hard way. OWN,
+   *  because sample data lands a year of history in one tap and this card
+   *  would otherwise announce a summary of a month the person never lived -
+   *  then bank a synced "seen" flag when they waved it away. SPENT, because
+   *  the card's body is "you spent X, mostly on Y", and a month holding only
+   *  a salary made that "You spent 0EUR". */
   hasPrevMonthActivity: boolean;
   catsUntouched: boolean;
   sourcesUntouched: boolean;

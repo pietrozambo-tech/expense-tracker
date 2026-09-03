@@ -891,7 +891,25 @@ export default function App() {
       // from the backup count: they say nothing about how long this person has
       // been keeping a ledger.
       ledgerAgeDays: ledgerAgeDays(own, now),
-      hasPrevMonthActivity: expenses.some((e) => (e.date ?? '').startsWith(prev)),
+      // Own rows only, and for a sharper reason than the two above.
+      //
+      // The sample data lands a year of history in the ledger the instant it
+      // is loaded, previous month included. Counting it here meant somebody
+      // who had recorded nothing at all was met with "August in review - you
+      // spent 2,389EUR, top category Housing": a summary of a month they did
+      // not live, in the voice of a summary of theirs.
+      //
+      // Worse than the lie was what dismissing it cost. This card is a
+      // once-a-month one-shot and saying no to it writes recapSeen, which
+      // syncs; so a person with a REAL August behind them who played with the
+      // sample data on 3 September, waved away the fake summary and then
+      // erased the samples had spent their own August's card on it, on every
+      // device, for the rest of the month.
+      //
+      // Spending, specifically. The card's whole body is "you spent X, mostly
+      // on Y", so a month holding nothing but a salary produced "You spent
+      // 0EUR - saved 2,000EUR": a review of a month with nothing to review.
+      hasPrevMonthActivity: own.some((e) => e.type !== 'income' && (e.date ?? '').startsWith(prev)),
       catsUntouched: setupProgress.catsUntouched,
       sourcesUntouched: setupProgress.sourcesUntouched,
       budgetSet: !!monthlyBudget && monthlyBudget > 0,
@@ -906,7 +924,17 @@ export default function App() {
     if (activeNudge !== 'recap') return null;
     const now = new Date();
     const prev = prevMonthKey(now);
-    const rows = expenses.filter((e) => (e.date ?? '').startsWith(prev));
+    // Own rows only, to match what summoned the card: a summary triggered by
+    // this person's August has to be about this person's August. Reading the
+    // whole ledger meant a few real rows could bring the card up and the
+    // sample data then wrote its numbers into it.
+    //
+    // The finished-month views are deliberately NOT filtered this way (see
+    // periodReview in Dashboard): those describe the month the screen is
+    // showing, samples and all, and a card disagreeing with the total above
+    // it would be its own bug. The difference is that this one arrives
+    // uninvited and spends a one-shot.
+    const rows = expenses.filter((e) => !isDemoRow(e) && (e.date ?? '').startsWith(prev));
     const spentRows = rows.filter((r) => r.type !== 'income');
     const spent = spentRows.reduce((sum, r) => sum + mineAmount(r, userCurrency), 0);
     const income = rows.filter((r) => r.type === 'income').reduce((sum, r) => sum + mineAmount(r, userCurrency), 0);
