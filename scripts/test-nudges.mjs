@@ -18,7 +18,7 @@ if (!esbuild) {
 }
 
 const SCENARIOS = `
-import { DEFAULT_NUDGE_PREFS, dueNudge, ledgerAgeDays, monthKey, prevMonthKey, untouched } from './lib/nudges';
+import { DEFAULT_NUDGE_PREFS, dueNudge, ledgerAgeDays, monthKey, prevMonthKey, untouched, RECAP_NUDGE_MIN_TX } from './lib/nudges';
 
 let failed = 0;
 const eq = (name, got, want) => {
@@ -57,7 +57,7 @@ const base = {
   ownTxCount: 1,
   // Two days in - the setup checklist's own window.
   ledgerAgeDays: 2,
-  hasPrevMonthActivity: false,
+  prevMonthSpendCount: 0,
   catsUntouched: true,
   sourcesUntouched: true,
   // Set, so the scenarios below isolate the half they are about. The budget's
@@ -69,12 +69,19 @@ const due = (over) => dueNudge({ ...base, ...over, prefs: { ...base.prefs, ...(o
 /** Setup finished - all three lines. */
 const setUp = { catsUntouched: false, sourcesUntouched: false, budgetSet: true };
 
-eq('a fresh month with history leads with the recap', due({ hasPrevMonthActivity: true }), 'recap');
+eq('a fresh month with history leads with the recap', due({ prevMonthSpendCount: 8 }), 'recap');
 eq('the recap already seen this month stays quiet',
-  due({ hasPrevMonthActivity: true, prefs: { recapSeen: '2026-08' } }), 'customize');
+  due({ prevMonthSpendCount: 8, prefs: { recapSeen: '2026-08' } }), 'customize');
 eq('last month\\'s dismissal does not silence THIS month',
-  due({ hasPrevMonthActivity: true, prefs: { recapSeen: '2026-07' } }), 'recap');
-eq('recap needs something to recap', due({ hasPrevMonthActivity: false }), 'customize');
+  due({ prevMonthSpendCount: 8, prefs: { recapSeen: '2026-07' } }), 'recap');
+eq('recap needs something to recap', due({ prevMonthSpendCount: 0 }), 'customize');
+// The threshold, and the reason there is one. Signing up on the 30th and
+// logging two coffees used to open the new month with "August in review - you
+// spent 7EUR": true, and a poor showing from the one card meant to make the
+// app look worth keeping. Four is still an afternoon, not a month.
+eq('a couple of rows is not a month', due({ prevMonthSpendCount: 2 }), 'customize');
+eq('nor is four', due({ prevMonthSpendCount: RECAP_NUDGE_MIN_TX - 1 }), 'customize');
+eq('five is', due({ prevMonthSpendCount: RECAP_NUDGE_MIN_TX }), 'recap');
 
 // ── setup before install ───────────────────────────────────────────────────
 // The order that matters: a phone in a browser tab is EVERY new user at
@@ -140,7 +147,7 @@ eq('nobody has written a row yet: as new as it gets', due({ ledgerAgeDays: null 
 eq('an old ledger does not silence the backup card, which is about loss',
   due({ guest: true, txCount: 40, ownTxCount: 40, standalone: false, ledgerAgeDays: 400 }), 'backup');
 eq('nor the recap, which describes the month either way',
-  due({ ledgerAgeDays: 400, hasPrevMonthActivity: true }), 'recap');
+  due({ ledgerAgeDays: 400, prevMonthSpendCount: 8 }), 'recap');
 
 // ledgerAgeDays itself: written, not dated.
 const iso = (daysAgo) => new Date(NOW.getTime() - daysAgo * 864e5).toISOString();
@@ -163,9 +170,9 @@ eq('which is not the same as having written nothing', ledgerAgeDays([], NOW) ===
 // ── the backup card: a guest ledger with no recent copy ────────────────────
 const g = { guest: true, txCount: 40, ownTxCount: 40, standalone: false };
 eq('a guest with a real ledger is asked to back up before anything else',
-  due({ ...g, hasPrevMonthActivity: true }), 'backup');
+  due({ ...g, prevMonthSpendCount: 8 }), 'backup');
 eq('signed in, the ledger has a second home - no alarm',
-  due({ ...g, guest: false, hasPrevMonthActivity: true }), 'recap');
+  due({ ...g, guest: false, prevMonthSpendCount: 8 }), 'recap');
 eq('a small ledger is not worth the alarm', due({ ...g, txCount: 24, ownTxCount: 24 }), 'customize');
 eq('a fresh backup buys thirty days of quiet',
   due({ ...g, prefs: { lastBackupAt: new Date(NOW.getTime() - 10 * 864e5).toISOString() } }), 'customize');
@@ -190,7 +197,7 @@ eq('a guest with nothing but demo data is not told to back it up',
 // recap agree. The backup card is different in kind. It does not describe the
 // data, it hands the user a responsibility, and it did so on a false premise.
 eq('though the recap still speaks over demo data - it narrates the screen',
-  due({ guest: true, txCount: 400, ownTxCount: 0, standalone: false, hasPrevMonthActivity: true }),
+  due({ guest: true, txCount: 400, ownTxCount: 0, standalone: false, prevMonthSpendCount: 8 }),
   'recap');
 eq('nor when a couple of their own rows sit among it',
   due({ guest: true, txCount: 400, ownTxCount: 3, standalone: false }), 'customize');
@@ -207,7 +214,7 @@ eq('tips off silences the backup card too', due({ ...g, prefs: { tips: false } }
 eq('tips off silences install', due({ standalone: false, ...setUp, prefs: { tips: false } }), null);
 eq('tips off silences customize', due({ prefs: { tips: false } }), null);
 eq('recap off silences the recap but not the tips',
-  due({ hasPrevMonthActivity: true, prefs: { recap: false } }), 'customize');
+  due({ prevMonthSpendCount: 8, prefs: { recap: false } }), 'customize');
 
 console.log(failed ? \`\\n\${failed} FAILED\` : '\\nAll checks passed.');
 process.exit(failed ? 1 : 0);

@@ -199,7 +199,10 @@ const rowCount = (p) =>
   await ctx.close();
 }
 
-// ── 6. the pointer needs five of their own ───────────────────────────────
+// ── 6. five of their own, for the card and the pointer alike ─────────────
+// One threshold, one constant (RECAP_NUDGE_MIN_TX), because they answer one
+// question. Signing up on the 30th and logging two coffees used to open the
+// new month with "August in review - you spent 7EUR".
 {
   const fake = [4, 9, 14, 19, 24, 27].map((d, i) => demo(`h${i}`, prevDay(d), 400, HOUSE, 'Rent'));
   const four = [3, 7, 11, 15].map((d, i) => tx(`real${i}`, prevDay(d), 25, FOOD, 'Groceries'));
@@ -207,6 +210,8 @@ const rowCount = (p) =>
     const { ctx, p } = await open({ cats: [FOOD, HOUSE], tx: [...four, ...fake] });
     ok(await p.locator('[data-review-pointer]').count() === 0,
       'four of their own rows and six of ours is still four: no pointer');
+    ok(await nudgeOf(p) !== 'recap',
+      'and no summary card either - four rows is an afternoon, not a month to review');
     await ctx.close();
   }
   {
@@ -214,6 +219,8 @@ const rowCount = (p) =>
     const { ctx, p } = await open({ cats: [FOOD, HOUSE], tx: [...five, ...fake] });
     ok(await p.locator('[data-review-pointer]').count() === 1,
       'the fifth of their own brings it out, on the 3rd of the month');
+    ok(await nudgeOf(p) === 'recap',
+      'and brings the card with it: the two never disagree about whether the month is worth it');
     ok(/summary/i.test(await p.locator('[data-review-pointer]').innerText()),
       'naming the month it points at');
     await ctx.close();

@@ -906,10 +906,9 @@ export default function App() {
       // erased the samples had spent their own August's card on it, on every
       // device, for the rest of the month.
       //
-      // Spending, specifically. The card's whole body is "you spent X, mostly
-      // on Y", so a month holding nothing but a salary produced "You spent
-      // 0EUR - saved 2,000EUR": a review of a month with nothing to review.
-      hasPrevMonthActivity: own.some((e) => e.type !== 'income' && (e.date ?? '').startsWith(prev)),
+      // Spending, specifically, and counted rather than merely spotted: the
+      // threshold lives in nudges.ts with the rest of them.
+      prevMonthSpendCount: own.filter((e) => e.type !== 'income' && (e.date ?? '').startsWith(prev)).length,
       catsUntouched: setupProgress.catsUntouched,
       sourcesUntouched: setupProgress.sourcesUntouched,
       budgetSet: !!monthlyBudget && monthlyBudget > 0,

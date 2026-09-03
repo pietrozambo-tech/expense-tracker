@@ -16,6 +16,7 @@ import { FILTER_ACTIVE, FILTER_IDLE } from './filterChip';
 import { categoryHex, categoryTint, switchGlow } from './categoryColors';
 import { usualCurve, periodCurve, usualArrives } from '../lib/usual';
 import { isDemoRow } from '../lib/demoData';
+import { RECAP_NUDGE_MIN_TX } from '../lib/nudges';
 import { upcomingSchedules, toDateStr } from '../lib/recurrence';
 import { dayOfWeekBreakdown, dowTakeaway } from '../lib/dayOfWeek';
 import { BudgetBar } from './BudgetBar';
@@ -2123,7 +2124,11 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
     // pointer it summons writes reviewSeen - a synced one-shot spent on a
     // month the person never tracked.
     const prev = inRange(periodRange(1)).filter((e) => e.type !== 'income' && !isDemoRow(e));
-    return prev.length >= 5;
+    // The same threshold the recap card uses, from the same constant. This
+    // pointer and that card answer one question - is last month worth
+    // reviewing - and a screen that offers the pointer while the card has
+    // decided there is nothing to say is the app arguing with itself.
+    return prev.length >= RECAP_NUDGE_MIN_TX;
   })();
 
   // Anything that overlays this tab. The floating dock is drawn in a portal

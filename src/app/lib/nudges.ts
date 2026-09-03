@@ -92,6 +92,19 @@ const THIRTY_DAYS = 30 * 24 * 60 * 60 * 1000;
  *  real history sit one cleared cache from gone. */
 export const BACKUP_NUDGE_MIN_TX = 25;
 
+/** How many of the user's own expenses last month make it a month worth
+ *  summarising.
+ *
+ *  It used to be one. Somebody who signed up on the 30th and logged two
+ *  coffees opened the new month with "August in review - you spent 7EUR":
+ *  true, and a poor first impression of the one card that is supposed to
+ *  make the app look worth keeping. A summary needs a month to summarise.
+ *
+ *  The Dashboard's pointer to that same review reads this constant too - the
+ *  two are one judgement ("is last month worth pointing at"), and they have
+ *  no business disagreeing about the answer. */
+export const RECAP_NUDGE_MIN_TX = 5;
+
 /** How long the setup checklist's premise stays true.
  *
  *  The card says, in effect, "you have not found these screens yet". That is a
@@ -173,16 +186,16 @@ export function dueNudge(args: {
   /** Age in days of the oldest row they wrote themselves (see ledgerAgeDays);
    *  null when they have written none, which is as new as it gets. */
   ledgerAgeDays: number | null;
-  /** The user spent something in the previous calendar month, in rows they
-   *  wrote themselves.
+  /** How many expenses the user wrote THEMSELVES in the previous calendar
+   *  month. Weighed against RECAP_NUDGE_MIN_TX below.
    *
-   *  Both halves are load-bearing, and both were learned the hard way. OWN,
-   *  because sample data lands a year of history in one tap and this card
-   *  would otherwise announce a summary of a month the person never lived -
-   *  then bank a synced "seen" flag when they waved it away. SPENT, because
-   *  the card's body is "you spent X, mostly on Y", and a month holding only
-   *  a salary made that "You spent 0EUR". */
-  hasPrevMonthActivity: boolean;
+   *  Both qualifiers are load-bearing and both were learned the hard way.
+   *  OWN, because sample data lands a year of history in one tap and this
+   *  card would otherwise announce a summary of a month the person never
+   *  lived - then bank a synced "seen" flag when they waved it away.
+   *  EXPENSES, because the card's body is "you spent X, mostly on Y", and a
+   *  month holding only a salary made that "You spent 0EUR". */
+  prevMonthSpendCount: number;
   catsUntouched: boolean;
   sourcesUntouched: boolean;
   /** A monthly budget is set. Its own card used to ask for this separately. */
@@ -201,7 +214,7 @@ export function dueNudge(args: {
   ) {
     return 'backup';
   }
-  if (prefs.recap && args.hasPrevMonthActivity && prefs.recapSeen !== monthKey(now)) {
+  if (prefs.recap && args.prevMonthSpendCount >= RECAP_NUDGE_MIN_TX && prefs.recapSeen !== monthKey(now)) {
     return 'recap';
   }
   // Any ONE of the three being outstanding is enough. It used to need BOTH
