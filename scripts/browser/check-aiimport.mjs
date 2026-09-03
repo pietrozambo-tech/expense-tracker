@@ -462,6 +462,32 @@ const pickCsv = (p) => p.locator('[data-ai-door] input[type="file"]').setInputFi
   await ctx.close();
 }
 
+// ── a file longer than one answer can hold ───────────────────────────────
+//
+// The reply is ONE JSON document, so the real ceiling is not what the model
+// can read but what it can write - and a document cut off mid-row parses as
+// nothing at all. The server claims the day's read before the model is
+// called, so this has to be caught on the phone, where it costs nothing.
+//
+// The refusal has to carry the NUMBER. "Too long" leaves somebody staring at
+// a file with no idea whether it is twice over or a hundred times.
+{
+  const { ctx, p } = await open({ session: true });
+  const many = ['date,description,amount'];
+  for (let i = 0; i < 2400; i += 1) many.push(`2026-01-01,Row ${i},10`);
+  await p.locator('[data-ai-door] input[type="file"]').setInputFiles({
+    name: 'four-years.csv', mimeType: 'text/csv', buffer: Buffer.from(many.join('\n')),
+  });
+  await p.waitForTimeout(900);
+  const text = await p.locator('body').innerText();
+  ok(/2[.,]40\d/.test(text), `the refusal counts them out loud (${text.split('\n').find((l) => /transaction|transazioni/i.test(l)) ?? ''})`);
+  ok(/2[.,]000/.test(text), 'and says how many would fit, which is the only actionable half');
+  ok(/[Nn]othing has been used up/.test(text),
+    'and that it cost nothing - the whole point of refusing here rather than there');
+  ok(await p.locator('[data-ai-flow]').count() === 0, 'and no read was started');
+  await ctx.close();
+}
+
 // ── trip-shaped, but no known trip ────────────────────────────────────────
 //
 // A tight run of dates the ledger has no trip for: the yes/no is asked HERE,

@@ -68,9 +68,24 @@ function json(status: number, body: unknown): Response {
   });
 }
 
-const DEFAULT_LIMIT = 6;
+// Ten while the app is in testers' hands. Every refusal we have not thought
+// of yet costs somebody a try, and a tester who runs out at three stops
+// reporting bugs and starts waiting until tomorrow - which is the one thing
+// this phase cannot afford. Worth revisiting once the failures are rare.
+const DEFAULT_LIMIT = 10;
 const DEFAULT_MODEL = 'claude-haiku-4-5';
-const DEFAULT_MAX_TOKENS = 32000;
+// The model's ceiling for one answer, and therefore the real ceiling on how
+// many rows a file can hold: the reply is one JSON document and a document
+// cut off mid-row parses as nothing at all.
+//
+// It was 32,000, which is about 1,100 rows in the short-key shape the schema
+// asks for - and a two-year export of an ordinary current account is 1,200.
+// Somebody's first real file landed just past the edge, came back as "that
+// file is too long", and took a day's tries with it. Haiku 4.5 will write
+// 64,000, so that is what it is allowed to write. Output tokens are billed as
+// they are generated, so the higher number costs nothing on the imports that
+// never approach it.
+const DEFAULT_MAX_TOKENS = 64000;
 
 // Short month names, for the list of trips the ledger already holds. The app
 // takes these from its i18n catalogue; here they are the two fixed lists,
@@ -713,7 +728,15 @@ async function once(
     throw apiFailure(e);
   }
   await note(admin, userId, msg);
-  return json(200, finish(textOf(msg), usageOf(msg)));
+  // finish() is the other place a read can come to nothing: shapeAnswer
+  // throws 'too_big' on a document that ran past max_tokens. Same rule as the
+  // streaming path - the user is getting no rows, so the try goes back.
+  try {
+    return json(200, finish(textOf(msg), usageOf(msg)));
+  } catch (e) {
+    await admin.rpc('ai_import_release', { p_user: userId });
+    throw e;
+  }
 }
 
 /**
@@ -756,15 +779,16 @@ function streamed(
         send('done', finish(textOf(msg), usageOf(msg)));
       } catch (e) {
         const failure = apiFailure(e);
-        // The day's read pays for the model's WORK. If the request never got
-        // that far - the API refused it outright, the key is wrong, the
-        // reader is busy - nothing was read and the credit goes back. Only a
-        // finished answer consumes it, however disappointing: 'too_big' is
-        // thrown by shapeAnswer on a reply that ran past max_tokens, and that
-        // one was generated and paid for.
-        if (failure.code !== 'too_big') {
-          await admin.rpc('ai_import_release', { p_user: userId });
-        }
+        // The day's read is given back on EVERY failure, 'too_big' included.
+        //
+        // It used to be kept for that one, on the reasoning that the answer
+        // had been generated and paid for. True in tokens, and irrelevant
+        // from the other side of the screen: the user gets no rows, is told
+        // their file is too long, and is charged a try for our own ceiling
+        // being in the wrong place. The first person it happened to spent
+        // their whole day's allowance discovering it. The API cost is ours to
+        // carry; a read that returns nothing is not a read.
+        await admin.rpc('ai_import_release', { p_user: userId });
         send('failed', { code: failure.code, error: failure.message });
       } finally {
         controller.close();

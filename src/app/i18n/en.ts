@@ -685,6 +685,11 @@ export const en = {
   'ai.errLimitSub': 'Nothing has been touched. Try again tomorrow.',
   'ai.errLimitSubN': "It's {n} a day. Nothing has been touched - try again tomorrow.",
   'ai.errBig': 'Too long to read in one go - try splitting it.',
+  // Refused on the phone, before the day's read is claimed: the reply is one
+  // JSON document and a document cut off mid-row parses as nothing. See
+  // AI_MAX_ROWS in lib/aiImport.ts.
+  'ai.errRows': '{n} transactions is more than one read can carry',
+  'ai.errRowsSub': 'Nothing has been used up. Split the file - up to {max} rows at a time.',
   'ai.errOff': 'This is switched off right now.',
   'ai.errSpreadsheet': 'That format is the old one - save it as .xlsx or CSV and try again.',
   'ai.opening': 'Opening the file…',

@@ -25,7 +25,7 @@ import { ScheduledManager, type ScheduleDraft } from './ScheduledManager';
 import { upcomingSchedules } from '../lib/recurrence';
 import { buildImportPrompt } from '../lib/importPrompt';
 import { AiImport } from './AiImport';
-import { AiImportError, aiDayDone, readFiles, readyMadePayload, type AiFile } from '../lib/aiImport';
+import { AI_MAX_ROWS, AiImportError, aiDayDone, readFiles, readyMadePayload, type AiFile } from '../lib/aiImport';
 import type { Trip } from '../lib/trips';
 import type { RecurringRule } from '../types';
 import { SourcesManager } from './SourcesManager';
@@ -45,7 +45,7 @@ import { t, type Language as AppLanguage } from '../i18n';
 import { useBackClose } from '../lib/useBackClose';
 import { TricountLink } from './TricountLink';
 import { CATCHALL_RE } from '../lib/categoryOps';
-import { dateLocale, daysShort, getLanguage, monthsShort } from '../i18n/store';
+import { dateLocale, daysShort, getLanguage, monthsShort, numberLocale } from '../i18n/store';
 import { isBackupFile } from '../lib/backup';
 
 // One row of the Profile card with an iOS-style switch. Budget and insights
@@ -440,12 +440,25 @@ export function Settings({
         : code === 'too_many' ? 'ai.errTooMany'
         : code === 'too_big' ? 'ai.errTooBig'
         : code === 'too_long' ? 'ai.errBig'
+        : code === 'too_many_rows' ? 'ai.errRows'
         : code === 'no_data' ? 'ai.errNoData'
         : 'ai.errSub';
-      toast.error(t(key as Parameters<typeof t>[0]), {
-        description: code === 'no_data' ? t('ai.errNoDataSub') : undefined,
-        duration: code === 'no_data' ? 4000 : 2600,
-      });
+      // The row count carries the number the person needs to act on - "1,206
+      // transactions" tells them which file and roughly how far over, where
+      // "too long" leaves them guessing. err.message holds it.
+      const rows = code === 'too_many_rows' ? Number(err instanceof AiImportError ? err.message : 0) : 0;
+      toast.error(
+        code === 'too_many_rows'
+          ? t('ai.errRows', { n: rows.toLocaleString(numberLocale()) })
+          : t(key as Parameters<typeof t>[0]),
+        {
+          description:
+            code === 'no_data' ? t('ai.errNoDataSub')
+            : code === 'too_many_rows' ? t('ai.errRowsSub', { max: AI_MAX_ROWS.toLocaleString(numberLocale()) })
+            : undefined,
+          duration: code === 'no_data' || code === 'too_many_rows' ? 5000 : 2600,
+        },
+      );
     }
   };
   const [categoryType, setCategoryType] = useState<'expense' | 'income'>('expense');

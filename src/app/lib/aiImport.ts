@@ -32,6 +32,48 @@ export const AI_MAX_BYTES = 12 * 1024 * 1024;
  */
 export const AI_MAX_TEXT = 350_000;
 
+/**
+ * How many transactions one read can hand back.
+ *
+ * The tightest ceiling of the three, and the one nobody sees coming: the
+ * reply is a single JSON document, so the limit is not what the model can
+ * READ but what it can WRITE. A document cut off mid-row parses as nothing at
+ * all - not "most of your file", nothing.
+ *
+ * Where the number comes from, rather than a round figure that felt safe: a
+ * row in the short-key shape the function's schema asks for is about 22
+ * tokens, and 30 with a subcategory, a source and a long description. The
+ * server writes at most 64,000 (CONVERT_MAX_TOKENS), so the pessimistic
+ * capacity is ~2,100 rows and this sits just under it, leaving the notes and
+ * the wrapper their room. Raise the two together or neither.
+ *
+ * It is meant to be hard to hit. Two thousand transactions is three years of
+ * an active current account; the two-year export that started this was 1,206
+ * and is nowhere near. A refusal here is for a file that genuinely cannot be
+ * answered in one go - not a tidy round number that turns working imports
+ * away.
+ */
+export const AI_MAX_ROWS = 2_000;
+
+/**
+ * Roughly how many rows of data a text file holds.
+ *
+ * Lines, not parsed records: this runs on every import to decide whether to
+ * refuse, and it must not become a second CSV parser with its own opinions
+ * about quoting. Blank lines and a header or two are the only things taken
+ * off, so the count runs slightly high - which is the safe direction for a
+ * ceiling, and only ever matters to a file already near it.
+ */
+export const countRows = (text: string): number => {
+  let n = 0;
+  for (const line of text.split('\n')) {
+    // A row of data has a digit in it somewhere. Titles, sheet headings and
+    // the "### Sheet:" separators xlsxToText writes do not.
+    if (/\d/.test(line) && line.trim()) n += 1;
+  }
+  return n;
+};
+
 /** The types that travel as they are. Everything else gets a second look:
  *  an .xlsx is unpacked to CSV on the phone (see lib/xlsx.ts - as zip bytes
  *  it reads as nothing), and any unrecognised file whose bytes decode as
@@ -202,6 +244,11 @@ export async function readFiles(files: File[]): Promise<AiFile[]> {
   const texts = out.filter((f) => f.text);
   const chars = texts.reduce((sum, f) => sum + (f.text?.length ?? 0), 0);
   if (chars > AI_MAX_TEXT) throw new AiImportError('too_long', String(chars));
+  // And the tighter one: what has to come BACK. Counted across every text
+  // file together, because they are read as one request and answered as one
+  // document.
+  const rows = texts.reduce((sum, f) => sum + countRows(f.text ?? ''), 0);
+  if (rows > AI_MAX_ROWS) throw new AiImportError('too_many_rows', String(rows));
   // Only when EVERY text file looks like something else: one unreadable file
   // beside a real export is the model's problem, not a reason to refuse.
   if (texts.length > 0 && texts.length === out.length && !texts.some((f) => looksLikeLedger(f.text!))) {
