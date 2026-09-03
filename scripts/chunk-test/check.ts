@@ -5,7 +5,7 @@
 // model's confident reading of it is wrong on every row - after the day's
 // read has been spent on it.
 import {
-  splitLedgerText, splitForReads, sampleLedgerText, sampleForTriage, categoryGaps, countRows,
+  splitLedgerText, splitForReads, sampleLedgerText, sampleForTriage, resolveCategoryMap, mappingNeedsScreen, countRows,
   AI_ROWS_PER_READ, AI_MAX_READS, AI_MAX_ROWS, type AiFile,
 } from '../../src/app/lib/aiImport';
 
@@ -146,34 +146,60 @@ const file = (text: string): AiFile => ({
   ok(sampleForTriage([file(text), photo]) === null, 'a photo in the set means no triage: nothing to sample it by');
 }
 
-// ── the categories the file needs and I have not got ─────────────────────
-// Worked out on the phone from the triage's answer, before a row is read -
-// the last moment a new category still changes where those rows land.
+// ── the model's mapping, checked against what I actually have ────────────
+// The MODEL maps ("Attivita fisica" is Sport); the phone only checks that
+// each target exists, in the catalogue of the right type. An earlier version
+// had the phone map by string equality and turned fifteen readings into
+// fifteen questions on a real file.
 {
-  const mine = ['Cibo & Bevande', 'Casa', 'Trasporti', 'Altro'];
-  const got = categoryGaps(['Alimentari', 'Casa', 'Scommesse', 'Trasporti'], mine);
-  ok(JSON.stringify(got) === JSON.stringify(['Alimentari', 'Scommesse']),
-    `only what has no home comes back, in the file's own spelling (${JSON.stringify(got)})`);
+  const mine = { expense: ['Cibo & Bevande', 'Casa', 'Trasporti', 'Sport', 'Regali', 'Altro'], income: ['Stipendio', 'Altre entrate'] };
+  const m = (source: string, type: 'expense' | 'income', target: string | null) => ({ source, type, target });
 
-  ok(categoryGaps(['casa', '  CASA  '], mine).length === 0,
-    'case and stray spaces are not a different category');
-  // A near-miss IS asked about, on purpose. Folding plurals wants a stemmer,
-  // a stemmer wants two languages, and every rule loose enough to catch
-  // "Trasporto" for "Trasporti" also swallows a real gap. Offering one tap
-  // too many is the cheap error; missing a gap costs every row that needed it.
-  ok(categoryGaps(['Trasporto'], mine).length === 1,
-    'a near-miss is asked about rather than assumed - the cheap error, not the expensive one');
-  ok(categoryGaps(['Sport', 'sport', 'SPORT '], mine).length === 1,
-    'the same gap named three ways is asked about once');
+  const r = resolveCategoryMap([
+    m('Attività fisica', 'expense', 'Sport'),
+    m('Regalo', 'expense', 'Regali'),
+    m('Casa', 'expense', 'Casa'),
+    m('Scommesse', 'expense', null),
+    m('Bollette', 'expense', 'Utenze'),          // a target that does not exist
+    m('Stipendio', 'income', 'Stipendio'),
+    m('Welfare aziendale', 'income', null),
+  ], mine);
+  const line = (s: string) => r.find((x) => x.source === s)!;
+  ok(line('Attività fisica').settled && line('Attività fisica').target === 'Sport',
+    'a judgement the model made lands as settled, on the category it named');
+  ok(line('Regalo').settled && line('Regalo').target === 'Regali', 'plural or not, that is the model\'s call and it is kept');
+  ok(!line('Scommesse').settled && line('Scommesse').target === null, 'a null from the model is a gap');
+  ok(!line('Bollette').settled && line('Bollette').target === null,
+    'and so is a target that does not exist - the model named a category I do not have');
+  ok(line('Stipendio').settled && line('Stipendio').type === 'income', 'income is checked against the income list');
+  ok(!line('Welfare aziendale').settled && line('Welfare aziendale').type === 'income', 'and an income gap stays income');
 
-  // A word meaning "none of the above" is not a gap: those rows belong in
-  // the catch-all, which is what it is for.
-  ok(categoryGaps(['Other', 'Altro', 'Uncategorized', 'varie', 'N/A'], mine).length === 0,
-    'and "no category" words are never offered as categories to create');
+  // Type is the whole point: the same word can be an expense in one sheet and
+  // income in another, and "Regalo" mapped onto the EXPENSE list is not a
+  // hit for the income row.
+  const typed = resolveCategoryMap([m('Regalo', 'income', 'Regali')], mine);
+  ok(typed.length === 1 && !typed[0].settled, 'an income word pointed at an expense category is not settled');
+  const both = resolveCategoryMap([m('Regalo', 'expense', 'Regali'), m('Regalo', 'income', 'Altre entrate')], mine);
+  ok(both.length === 2, 'the same word on both sides is two lines, not one');
 
-  ok(categoryGaps([], mine).length === 0, 'a file that names no categories asks nothing');
-  ok(categoryGaps(['Sport'], []).length === 1, 'an account with no categories at all is all gap');
-  ok(categoryGaps(['  ', ''], mine).length === 0, 'blanks are not categories');
+  // Case and spaces are not a different category, and the catalogue's own
+  // spelling wins on the way out.
+  const spelled = resolveCategoryMap([m('cibo', 'expense', '  cibo & bevande ')], mine);
+  ok(spelled[0].settled && spelled[0].target === 'Cibo & Bevande', 'a target matched loosely comes back spelled my way');
+
+  // "No category" words are never gaps - the catch-all is what they are for.
+  const none = resolveCategoryMap([m('Altro', 'expense', null), m('Other', 'expense', null), m('N/A', 'income', null)], mine);
+  ok(none.length === 0, '"no category" words with no target are left to the catch-all, not offered as categories to create');
+  const noneKept = resolveCategoryMap([m('Altro', 'expense', 'Altro')], mine);
+  ok(noneKept.length === 1 && noneKept[0].settled, 'but one the model pointed at my own catch-all is kept, settled');
+
+  // When the screen is worth showing at all.
+  ok(!mappingNeedsScreen(resolveCategoryMap([m('Casa', 'expense', 'Casa'), m('Sport', 'expense', 'sport')], mine)),
+    'a mapping of words matched to themselves is not a screen - nobody needs to confirm that Casa is Casa');
+  ok(mappingNeedsScreen(resolveCategoryMap([m('Casa', 'expense', 'Casa'), m('Regalo', 'expense', 'Regali')], mine)),
+    'one judgement call is worth a glance');
+  ok(mappingNeedsScreen(resolveCategoryMap([m('Scommesse', 'expense', null)], mine)), 'and one gap is worth a choice');
+  ok(resolveCategoryMap([m('  ', 'expense', null)], mine).length === 0, 'blanks are not categories');
 }
 
 console.log(fail.length ? `\n${fail.length} FAILED` : '\ntwo halves, every row once, both with their headers');

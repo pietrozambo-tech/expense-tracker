@@ -232,6 +232,42 @@ function scenarioProposalEdges() {
   const ok = committed(ri, allKeys(ri));
   expect('approving it grows the income category', chips(ok.incomeCategories, 'i1'), 'Bonus');
   expect('and leaves the expense side alone', chips(ok.categories, 'c1'), 'Supermarket');
+
+  // An unknown INCOME category on an account with no income catch-all. This
+  // used to skip the row - "46 skipped", no reason - which is data loss
+  // wearing a tidy count. A catch-all of that type is invented instead, the
+  // row lands in it, and the commit adds it to the catalogue.
+  const salaryOnly = [INC[0]]; // an income list with no catch-all on it
+  const rNoBucket = buildImport(
+    { version: 1, transactions: [row({ type: 'income', category: 'Welfare aziendale', subcategory: '' })] } as any,
+    EXP, salaryOnly, 'EUR',
+  );
+  expect('an income row with no income catch-all is NOT skipped', rNoBucket.skipped.length, 0);
+  expect('it lands in a catch-all made for its type',
+    `${rNoBucket.transactions[0]?.category?.type}/${rNoBucket.transactions[0]?.category?.name}`, 'income/Other income');
+  expect('with its original name kept as the handle', rNoBucket.transactions[0]?.subcategory ?? 'none', 'Welfare aziendale');
+  expect('and the new catch-all is reported for the caller to add',
+    (rNoBucket.createdCategories ?? []).map((c) => `${c.type}:${c.name}`).join('|'), 'income:Other income');
+  const landed = applyImportDecision(rNoBucket, EXP, salaryOnly, new Set());
+  expect('committing puts it on the income list', landed.incomeCategories.some((c) => c.name === 'Other income'), true);
+  expect('and not on the expense one', landed.categories.some((c) => c.name === 'Other income'), false);
+  expect('the caller\'s own arrays are still untouched', salaryOnly.some((c) => c.name === 'Other income'), false);
+  // Two such rows share ONE invented catch-all, not one each.
+  const rTwo = buildImport(
+    { version: 1, transactions: [
+      row({ type: 'income', category: 'Welfare aziendale', subcategory: '' }),
+      row({ type: 'income', category: 'Buoni pasto', subcategory: '' }),
+    ] } as any,
+    EXP, salaryOnly, 'EUR',
+  );
+  expect('two homeless income rows share one invented catch-all', (rTwo.createdCategories ?? []).length, 1);
+
+  // A subcategory that repeats its category is dropped, not proposed: "Sport"
+  // under Sport was on a real review sheet, asking approval for a word the
+  // user already had.
+  const rSame = run([row({ category: 'Groceries', subcategory: 'groceries' })]);
+  expect('a subcategory equal to its category is not proposed', props(rSame).length, 0);
+  expect('and the row carries none', String(rSame.transactions[0]?.subcategory), 'undefined');
 }
 
 console.log('\n================================================================');
@@ -421,12 +457,19 @@ function scenarioCatchAllLanguages() {
   expect('so does a ledger whose bucket is called Varie',
     `${varie.transactions.length} ${varie.transactions[0]?.category?.name}`, '1 Varie');
 
-  // With no bucket at all, dropping the row is still the honest answer: there
-  // is nowhere to put it that would not be a lie about what it was.
+  // With no bucket at all, one is INVENTED and the row goes in it. This used
+  // to skip the row on the reasoning that there was nowhere honest to put
+  // it - and "46 skipped" with no reason, on a real import, showed what that
+  // honesty was worth. A row kept in a bucket called Altro with its original
+  // name on it can be sorted next month; a row dropped is gone.
   const none = build({ version: 1, transactions: [wanted] } as any,
     [C('c1', 'Spesa', 'expense')], INC, 'EUR');
-  expect('with no catch-all at all, the row is reported as skipped',
-    `${none.transactions.length} ${none.skipped.length}`, '0 1');
+  expect('with no catch-all at all, the row is kept, not skipped',
+    `${none.transactions.length} ${none.skipped.length}`, '1 0');
+  expect('in a catch-all invented for its type, in the app\'s language',
+    `${none.transactions[0]?.category?.type}/${none.transactions[0]?.category?.name}`, 'expense/Others');
+  expect('and that catch-all is handed back for the commit to add',
+    (none.createdCategories ?? []).map((c) => c.name).join('|'), 'Others');
 }
 
 console.log('================================================================');

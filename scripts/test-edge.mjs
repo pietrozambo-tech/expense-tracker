@@ -168,8 +168,10 @@ eq('sample_of: garbage is zero', edge.readSampleOf({ sample_of: 'lots' }), 0);
   ok(/ask\\s+everything in this one round/.test(triage), 'and asks for every question at once');
   ok(/WHAT IS WORTH A QUESTION/.test(triage) && /are already fairly sure of/.test(triage),
     'and draws the line at the fork rather than at the subject - four of nine real questions were "right?"');
-  ok(/FILL "file_categories" EITHER WAY/.test(triage) && /file's own words/.test(triage),
-    "and asks for the file's own category words, which is what the gap screen is built from");
+  ok(/FILL "category_map" EITHER WAY/.test(triage) && /"Attivita fisica" is my Sport/.test(triage),
+    'and asks the MODEL to do the mapping, typed, with the obvious ones done rather than asked');
+  ok(/Put null\\s+ONLY where nothing of mine fits/.test(triage) && /never as a way\\s+of asking/.test(triage),
+    'reserving null for a real gap - the one thing worth a screen');
   const convert = edge.factsBlock({ ...base, mode: 'convert', sampleOf: 0 });
   ok(/THIS READING MAY NOT ASK/.test(convert) && /Do not set "status": "need_input"/.test(convert),
     'convert forbids need_input outright');

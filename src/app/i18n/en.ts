@@ -711,8 +711,15 @@ export const en = {
   // The gap screen: the file's categories that match none of yours, asked
   // BEFORE the reading, which is the last moment creating one still moves
   // the rows. No free-text field on purpose - see lib/aiImport categoryGaps.
-  'ai.gapsTitle': '{n} categories are new',
-  'ai.gapsSub': 'The file files things under these, and you have nothing like them. Make them yours, or send them somewhere you already have.',
+  // The category screen. Two parts: the mapping the model made (one line
+  // each, glanced at, tappable if wrong) and the file's categories it could
+  // place nowhere (create, or pick one that exists). No free text anywhere.
+  'ai.catTitle': 'Where things go',
+  'ai.catSub': "How I'll file the categories this file uses. Change any line; the rest is decided.",
+  'ai.catSettled': 'Already placed',
+  'ai.catGaps': 'Nothing of yours fits',
+  'ai.catGapsOne': 'Nothing of yours fits this one',
+  'ai.catIncome': 'income',
   'ai.gapCreate': 'Create it',
   'ai.gapMap': 'Use one of mine',
   'ai.gapSaving': 'Adding them…',

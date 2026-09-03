@@ -200,12 +200,18 @@ function factsBlock(args: {
       'date format, the currency, whose file it is) in "notes". Do not ask about anything the',
       'facts above already settle.',
       '',
-      'FILL "file_categories" EITHER WAY. Every distinct category word the file itself uses, spelled',
-      'as the file spells it - the column of its own categories, or what you would read off the',
-      'descriptions if it has no such column. Not my categories, and not your mapping of them: the',
-      'file\'s own words. The app compares them against my catalogue and offers to create the ones',
-      'I am missing before the reading starts, which is the only moment that is still free. Leaving',
-      'this empty means every one of my gaps is found too late to fix.',
+      'FILL "category_map" EITHER WAY, and this is the part that matters most. One entry for every',
+      'distinct category word the file uses - its own category column, or what you read off the',
+      'descriptions if it has none. For each: the word as the file spells it; whether its rows are',
+      'expense or income (the file usually says - a sheet called Entrate, a sign, a column); and',
+      'which of MY categories it belongs in, spelled EXACTLY as listed above for that type. Do the',
+      'obvious ones without hesitation: "Attivita fisica" is my Sport, "Regalo" is my Regali,',
+      '"Alimentari" is my Spesa, "Affitto" is my Casa - those are readings, not questions. Put null',
+      'ONLY where nothing of mine fits at all ("Scommesse" when I have no Leisure), never as a way',
+      'of asking. The app shows me your mapping in one line per category and offers to create',
+      'the null ones before the reading starts - the only moment that is still free - so a null',
+      'you could have resolved costs me a screen, and a wrong target costs me every row under it.',
+      'An income word mapped onto an expense category, or the reverse, is wrong on every row too.',
       '',
       'Each section of the sample says how many rows it really holds. Trust that line: a sheet it',
       'calls empty IS empty, and there is nothing to ask about it.',
@@ -330,22 +336,33 @@ function shapeAnswer(
   const notes = Array.isArray(parsed.notes)
     ? (parsed.notes as unknown[]).filter((n): n is string => typeof n === 'string')
     : [];
-  // The file's own category words, kept on BOTH shapes: the sample read that
-  // finds them may answer either way, and the phone needs them whichever it
-  // was. Trimmed, deduped case-insensitively, and capped - this is a list to
-  // show somebody, not a corpus.
-  const fileCategories = [
-    ...new Map(
-      (Array.isArray(parsed.file_categories) ? (parsed.file_categories as unknown[]) : [])
-        .filter((c): c is string => typeof c === 'string')
-        .map((c) => c.trim())
-        .filter((c) => c.length > 0 && c.length <= 40)
-        .map((c) => [c.toLowerCase(), c] as const),
-    ).values(),
-  ].slice(0, 40);
+  // The model's mapping of the file's category words onto the user's, kept
+  // on BOTH shapes: the sample read that produces it may answer either way
+  // and the phone needs it whichever it was. Each entry is checked for
+  // shape, trimmed, and deduped on (source, type) - the same word can be an
+  // expense in one sheet and income in another, and both are real. Capped:
+  // this is a list to show somebody, not a corpus.
+  const categoryMap = (() => {
+    const seen = new Set<string>();
+    const out: { source: string; type: 'expense' | 'income'; target: string | null }[] = [];
+    for (const raw of Array.isArray(parsed.category_map) ? (parsed.category_map as unknown[]) : []) {
+      const m = raw as Record<string, unknown> | null;
+      if (!m || typeof m !== 'object') continue;
+      const source = typeof m.source === 'string' ? m.source.trim() : '';
+      const type = m.type === 'income' ? 'income' : m.type === 'expense' ? 'expense' : null;
+      if (!source || source.length > 40 || !type) continue;
+      const target = typeof m.target === 'string' && m.target.trim() ? m.target.trim() : null;
+      const key = `${type}:${source.toLowerCase()}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push({ source, type, target });
+      if (out.length >= 40) break;
+    }
+    return out;
+  })();
   const rest = {
     notes, remaining: ctx.remaining, model: ctx.model, usage: ctx.usage,
-    file_categories: fileCategories,
+    category_map: categoryMap,
   };
 
   const questions = Array.isArray(parsed.questions) ? (parsed.questions as Record<string, unknown>[]) : [];
@@ -530,7 +547,7 @@ const RECORD_SCHEMA = {
     },
     t: { type: 'string', enum: ['e', 'i'], description: 'type: e = expense, i = income' },
     c: { type: 'string', description: "category: exactly one of the user's own category names." },
-    s: { type: 'string', description: 'subcategory' },
+    s: { type: 'string', description: 'subcategory. Never the same word as c: "Sport" under Sport says nothing, leave it out.' },
     x: { type: 'string', description: 'description' },
     src: { type: 'string', description: "source: one of the user's source ids, only when the data says so." },
     cur: { type: 'string', description: "currency: ISO code, only when this row is NOT in the file's currency." },
@@ -569,15 +586,33 @@ const ANSWER_SCHEMA = {
         },
       },
     },
-    // Filled on a TRIAGE read only: the category words the FILE uses, as it
-    // spells them. The phone compares them against the user's own catalogue
-    // - which it has and this function's answer does not need to - and asks
-    // about the ones with no home before the reading starts, where creating
-    // one is still free. Left empty on a converting read.
-    file_categories: {
+    // Filled on a TRIAGE read only: the model's own mapping of every
+    // category word the FILE uses onto the user's catalogue - typed, because
+    // "Stipendio" is an income category and "Regalo" can be either, and a
+    // gift created as an expense category is wrong on every row.
+    //
+    // The MODEL does the mapping, because it is good at it: "Attivita
+    // fisica" is Sport, "Regalo" is Regali, "Alimentari" is Spesa. A string
+    // comparison on the phone turned fifteen of those into fifteen questions
+    // on a real file. What the phone does instead is check that each target
+    // EXISTS in the catalogue of that type; a null target, or one that does
+    // not exist, is the only thing worth a screen.
+    category_map: {
       type: 'array',
-      description: "On a sample read: every distinct category word the file itself uses, verbatim. Empty otherwise.",
-      items: { type: 'string' },
+      description: 'On a sample read: one entry per distinct category word the file uses. Empty otherwise.',
+      items: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['source', 'type', 'target'],
+        properties: {
+          source: { type: 'string', description: "The file's own word, verbatim." },
+          type: { type: 'string', enum: ['expense', 'income'], description: 'Whether the rows under it are spending or income.' },
+          target: {
+            type: ['string', 'null'],
+            description: "The user's category it belongs in, spelled EXACTLY as listed under MY CATEGORIES for that type - or null when none of them fits.",
+          },
+        },
+      },
     },
     transactions: { type: 'array', items: RECORD_SCHEMA },
   },

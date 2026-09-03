@@ -265,7 +265,7 @@ interface SettingsProps {
   /** Create these categories and resolve once the CLOUD has them - the
    *  convert function reads the catalogue from there, so an import that
    *  started before the push landed would ignore them. */
-  onCreateCategories?: (names: string[]) => Promise<boolean>;
+  onCreateCategories?: (items: { name: string; type: 'expense' | 'income' }[]) => Promise<boolean>;
   onEraseAllData: () => void;
   /** `stay` keeps the current screen - see the handler in App. */
   onEraseDemoData?: (opts?: { stay?: boolean }) => void;
@@ -274,7 +274,7 @@ interface SettingsProps {
   /** True while any of the sample set is still in the ledger. Pairing is held
    *  until it is gone: invented expenses must not land on a real phone. */
   hasDemoData?: boolean;
-  onImportData?: (payload: ImportPayload) => void;
+  onImportData?: (payload: ImportPayload, approved?: ReadonlySet<string>) => void;
   onExportData?: () => void;
   onExportCsv?: () => void;
   sources: Source[];
@@ -3128,7 +3128,7 @@ export function Settings({
             transactions={transactions}
             userName={userName}
             onCreateCategories={onCreateCategories}
-            onCommit={(payload) => onImportData?.(payload)}
+            onCommit={(payload, approved) => onImportData?.(payload, approved)}
             onClose={() => setAiFiles(null)}
           />
         )}

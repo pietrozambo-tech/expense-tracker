@@ -1,6 +1,7 @@
 import type { Transaction, Category, TransactionType } from '../types';
 import { CATCHALL_RE } from './categoryOps';
 import { convertAmount, BASE_CURRENCY, CURRENCIES } from '../utils/currency';
+import { getLanguage } from '../i18n/store';
 
 // A single transaction in the lightweight import format. Categories are
 // referenced by *name* (not the full object) so the file is easy to generate
@@ -57,6 +58,11 @@ export interface ImportResult {
   // Subcategories the file references that the user does not have. Empty for
   // most files; when not, the caller shows the review sheet before committing.
   proposedSubcategories: ProposedSubcategory[];
+  // Catch-all categories this import had to invent because the user had none
+  // of that type to fall back on. The caller adds them to the catalogue when
+  // it commits. Usually empty; on a first income import it is the one that
+  // keeps 46 salary rows from vanishing.
+  createdCategories: Category[];
 }
 
 // The catch-all bucket comes from categoryOps, not a second list here.
@@ -186,6 +192,12 @@ export function buildImport(
   const skipped: { record: ImportRecord; reason: string }[] = [];
   let defaulted = 0;
   let uncategorized = 0;
+  // Catch-alls invented for a type the catalogue has none of. Kept HERE, not
+  // pushed into the caller's arrays: those are the app's live state, and an
+  // import that quietly appended to them would be committing before the
+  // review screen. The caller adds these when it commits.
+  const created: Category[] = [];
+  const madeCatchAll: Partial<Record<TransactionType, Category>> = {};
   let alreadyImported = 0;
   // What the ledger already holds, indexed by every key a row could be
   // recognised under - and CLAIMED one for one, so an existing row can absorb
@@ -305,10 +317,19 @@ export function buildImport(
     let cat = findCat(rec.category, type);
     let subHint = rec.subcategory;
     if (!cat) {
-      const bucket = findCatchAll(type);
+      // No category of that name: the catch-all takes it, and the original
+      // name rides along as a subcategory so the intent is not lost.
+      //
+      // And if there is no catch-all of that TYPE, one is made. This used
+      // to skip the row instead, which read as tidy and was data loss: a
+      // first income import on an account with expense categories only
+      // dropped every salary row and reported "46 skipped" with no reason.
+      // An import is never the place to lose a row over a name.
+      let bucket = findCatchAll(type) ?? madeCatchAll[type];
       if (!bucket) {
-        skipped.push({ record: rec, reason: `unknown ${type} category "${rec.category}"` });
-        continue;
+        bucket = catchAllFor(type);
+        madeCatchAll[type] = bucket;
+        created.push(bucket);
       }
       cat = bucket;
       if (!subHint || !subHint.trim()) subHint = rec.category; // keep the original name as a subcategory
@@ -324,6 +345,11 @@ export function buildImport(
       const existing = list.find((s) => s.toLowerCase() === sub.toLowerCase());
       if (existing) {
         subcategory = existing; // normalise to the existing spelling
+      } else if (sub.toLowerCase() === cat.name.trim().toLowerCase()) {
+        // "Sport" under Sport. A subcategory that repeats its category says
+        // nothing, and proposing it as a new chip - which a real import did
+        // - asks the user to approve a word they already have.
+        subcategory = undefined;
       } else {
         // Not one of the user's chips: keep the name on the row, and propose it.
         subcategory = sub;
@@ -363,6 +389,25 @@ export function buildImport(
     uncategorized,
     skipped,
     proposedSubcategories: [...proposals.values()],
+    createdCategories: created,
+  };
+}
+
+/** A catch-all for a type the catalogue has none for. The same shape and
+ *  name reassignToOthers makes, so the app has one idea of "Others". */
+function catchAllFor(type: TransactionType): Category {
+  return {
+    id: `others-${type}-${Date.now().toString(36)}`,
+    name: type === 'income'
+      ? (getLanguage() === 'it' ? 'Altre entrate' : 'Other income')
+      : (getLanguage() === 'it' ? 'Altro' : 'Others'),
+    icon: 'MoreHorizontal',
+    color: 'text-neutral-500',
+    bgColor: 'bg-neutral-50',
+    selectedBg: 'bg-neutral-100',
+    subcategories: [],
+    type,
+    updatedAt: new Date().toISOString(),
   };
 }
 
@@ -387,6 +432,12 @@ export function applyImportDecision(
 ): { transactions: Transaction[]; categories: Category[]; incomeCategories: Category[] } {
   const exp = cloneCats(expenseCats);
   const inc = cloneCats(incomeCats);
+  // The catch-alls the import had to invent become real here, on the list
+  // of their type, so the rows filed under them have somewhere to be.
+  for (const c of result.createdCategories ?? []) {
+    const list = c.type === 'income' ? inc : exp;
+    if (!list.some((x) => x.id === c.id)) list.push({ ...c, subcategories: [...(c.subcategories ?? [])] });
+  }
 
   const declined = new Set<string>();
   for (const p of result.proposedSubcategories) {

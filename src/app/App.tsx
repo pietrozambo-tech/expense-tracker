@@ -2492,21 +2492,23 @@ export default function App() {
    * false means the cloud does not have them: the caller must not start a
    * reading that would silently ignore them.
    */
-  const handleCreateCategoriesForImport = async (names: string[]): Promise<boolean> => {
-    const clean = names.map((n) => n.trim()).filter(Boolean);
+  const handleCreateCategoriesForImport = async (
+    items: { name: string; type: 'expense' | 'income' }[],
+  ): Promise<boolean> => {
+    const clean = items.map((it) => ({ ...it, name: it.name.trim() })).filter((it) => it.name);
     if (clean.length === 0) return true;
     const stamp = new Date().toISOString();
     // A colour picked from the name, so the same category is the same colour
     // on every device and after every reinstall - and two people importing
     // "Sport" get the same one. The icon is the neutral default; naming it is
     // the useful half, and Settings can change both afterwards.
-    const made = clean.map((name, i) => {
+    const made = clean.map(({ name, type }, i) => {
       const hash = [...name.toLowerCase()].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7);
       const swatch = colorOptions[(hash + i) % colorOptions.length];
       return {
         id: `category-${Date.now()}-${i}`,
         name,
-        type: 'expense' as const,
+        type,
         icon: 'MoreHorizontal',
         color: swatch.color,
         bgColor: swatch.bgColor,
@@ -2515,12 +2517,16 @@ export default function App() {
         updatedAt: stamp,
       };
     });
-    const next = [...categories, ...made];
-    setCategories(next);
+    // Each on the list of its type. "Stipendio" created as an expense
+    // category is wrong on every row under it - and was, on a real import.
+    const nextExpense = [...categories, ...made.filter((c) => c.type === 'expense')];
+    const nextIncome = [...incomeCategories, ...made.filter((c) => c.type === 'income')];
+    setCategories(nextExpense);
+    setIncomeCategories(nextIncome);
     setRefreshKey((prev) => prev + 1);
     if (!userId) return false; // no cloud to put them in; the door is not open to guests anyway
     try {
-      return await pushPayloadRef.current(buildPayload({ categories: next }));
+      return await pushPayloadRef.current(buildPayload({ categories: nextExpense, incomeCategories: nextIncome }));
     } catch {
       return false;
     }
@@ -3453,7 +3459,10 @@ export default function App() {
   // ONLY place an import can touch the category lists.
   const commitImport = (res: ImportResult, approvedKeys: ReadonlySet<string>) => {
     const applied = applyImportDecision(res, categories, incomeCategories, approvedKeys);
-    if (res.proposedSubcategories.length > 0) {
+    // The lists change when a chip was approved OR when the import had to
+    // invent a catch-all for a type that had none (a first income import on
+    // an expense-only account). Both come back through applyImportDecision.
+    if (res.proposedSubcategories.length > 0 || (res.createdCategories?.length ?? 0) > 0) {
       setCategories(applied.categories);
       saveCategories(applied.categories);
       setIncomeCategories(applied.incomeCategories);
@@ -3497,7 +3506,10 @@ export default function App() {
   // file that wants NEW subcategories stops at a review sheet first: the
   // import proposes, the user decides, and only then does anything commit.
   // A full backup file (from Export) is restored instead.
-  const handleImportData = (payload: ImportPayload) => {
+  // `approved` comes from the AI import's ready screen, where the file's new
+  // subcategories are ticked in place; with it, the review sheet is not
+  // raised a second time. The JSON path passes nothing and gets the sheet.
+  const handleImportData = (payload: ImportPayload, approved?: ReadonlySet<string>) => {
     // Full backup? Restore everything rather than appending.
     const p = payload as any;
     if (isBackupFile(p)) {
@@ -3519,11 +3531,11 @@ export default function App() {
       else toast.error(t('toast.nothingImported'), { description: t('toast.nothingImportedFile'), duration: 2200 });
       return res;
     }
-    if (res.proposedSubcategories.length > 0) {
+    if (res.proposedSubcategories.length > 0 && !approved) {
       setPendingImport(res); // the review sheet takes it from here
       return res;
     }
-    commitImport(res, new Set());
+    commitImport(res, approved ?? new Set());
     return res;
   };
 

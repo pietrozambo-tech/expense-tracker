@@ -5,9 +5,9 @@ import { useBackClose } from '../lib/useBackClose';
 import { getLanguage, monthsShort } from '../i18n/store';
 import {
   AiImportError, convertWithAi, scanFileDates, tripForWindow,
-  type AiDone, type AiFile, type AiQuestion,
+  type AiDone, type AiFile, type AiQuestion, type ResolvedMapping,
 } from '../lib/aiImport';
-import { buildImport, type ImportPayload, type ImportResult } from '../lib/importData';
+import { buildImport, proposalKey, type ImportPayload, type ImportResult } from '../lib/importData';
 import { categoryHex } from './categoryColors';
 import { CATCHALL_RE } from '../lib/categoryOps';
 import { myShareCsv, splitPeople, splitShareTotal } from '../lib/splitFile';
@@ -31,7 +31,7 @@ import { CURRENCIES } from '../utils/currency';
 //   - the end is a result, not a report: what is about to be added and what
 //     it costs, with the bookkeeping demoted to one grey line.
 
-type Step = 'who' | 'trip' | 'gaps' | 'reading' | 'questions' | 'ready' | 'error';
+type Step = 'who' | 'trip' | 'categories' | 'reading' | 'questions' | 'ready' | 'error';
 
 interface AiImportProps {
   files: AiFile[];
@@ -43,10 +43,14 @@ interface AiImportProps {
   /** For finding my own column in a split export - see lib/splitFile. */
   userName?: string;
   /** The same commit the JSON import path uses. */
-  /** Create these categories and resolve once the CLOUD has them. Absent
-   *  (or false) means the gap screen can only offer mapping. */
-  onCreateCategories?: (names: string[]) => Promise<boolean>;
-  onCommit: (payload: ImportPayload) => void;
+  /** Create these categories, each on the list of its type, and resolve
+   *  once the CLOUD has them. Absent means the category screen can only
+   *  offer mapping. */
+  onCreateCategories?: (items: { name: string; type: 'expense' | 'income' }[]) => Promise<boolean>;
+  /** The payload to commit, and which of the file's new subcategories the
+   *  person ticked on the ready screen. Decided here so the commit does
+   *  not raise a second sheet to ask the same thing. */
+  onCommit: (payload: ImportPayload, approvedSubcategories: Set<string>) => void;
   onClose: () => void;
 }
 
@@ -186,14 +190,15 @@ export function AiImport({
   // long before the review screen.
   const [tally, setTally] = useState<Record<string, number>>({});
   const [questions, setQuestions] = useState<AiQuestion[]>([]);
-  // The file's category words that match none of mine, and what I have said
-  // to do about each: create it, or file it under one of mine. Decided here,
-  // before a row is read, because that is the last moment a new category can
-  // still change where those rows land.
-  const [gaps, setGaps] = useState<string[]>([]);
-  const [gapPlan, setGapPlan] = useState<Record<string, string>>({}); // '' = create it
+  // The model's mapping of the file's categories onto mine, checked, and
+  // what I have said about each: the target to use, or '' to create it.
+  // Decided here, before a row is read, because that is the last moment a
+  // new category can still change where those rows land.
+  const [catMap, setCatMap] = useState<ResolvedMapping[]>([]);
+  const [catPlan, setCatPlan] = useState<Record<string, string>>({});
   const [gapBusy, setGapBusy] = useState(false);
   const [gapFailed, setGapFailed] = useState(false);
+  const planKey = (m: { type: string; source: string }) => `${m.type}:${m.source}`;
   const [answers, setAnswers] = useState<Record<number, string>>({});
   const [done, setDone] = useState<AiDone | null>(null);
   const [preview, setPreview] = useState<ImportResult | null>(null);
@@ -271,9 +276,13 @@ export function AiImport({
     const tripFact = trip ?? (evidence?.notTrip ? { is_trip: false } : null);
     convertWithAi({
       files: sent, trip: tripFact, lang, triaged: opts?.triaged, importId: opts?.importId,
-      // The catalogue the triage's answer is checked against. Names only -
-      // the comparison is a set membership, not a lookup.
-      myCategories: (categories as { name?: string }[]).map((c) => c?.name ?? '').filter(Boolean),
+      // The catalogue the triage's mapping is checked against, by type: an
+      // income word must land on an income category, and the check has to
+      // know which list to look in.
+      myCategories: {
+        expense: (categories as { name?: string }[]).map((c) => c?.name ?? '').filter(Boolean),
+        income: (incomeCategories as { name?: string }[]).map((c) => c?.name ?? '').filter(Boolean),
+      },
       answers: priors.length ? priors : undefined,
       signal: ctrl.signal,
       onPhase: setPhase,
@@ -300,11 +309,12 @@ export function AiImport({
         // Categories the file needs and this account has not got. Handled
         // before the questions, and before any reading: creating one after
         // the rows are filed does not move them.
-        if (d.categoryGaps?.length) {
-          setGaps(d.categoryGaps);
-          setGapPlan(Object.fromEntries(d.categoryGaps.map((g) => [g, ''])));
+        if (d.categoryMap?.length) {
+          setCatMap(d.categoryMap);
+          // Settled lines start on the model's target; gaps start on "create".
+          setCatPlan(Object.fromEntries(d.categoryMap.map((m) => [planKey(m), m.settled ? (m.target ?? '') : ''])));
           setGapFailed(false);
-          setStep('gaps');
+          setStep('categories');
           return;
         }
         if (d.status === 'need_input') {
@@ -377,26 +387,28 @@ export function AiImport({
    * category somewhere else - with this screen having promised otherwise. A
    * push that does not land is therefore a stop, not a warning.
    */
-  const goFromGaps = async () => {
-    const toCreate = gaps.filter((g) => (gapPlan[g] ?? '') === '');
+  const goFromCategories = async () => {
+    const toCreate = catMap.filter((m) => (catPlan[planKey(m)] ?? '') === '');
     setGapBusy(true);
     setGapFailed(false);
     if (toCreate.length > 0) {
-      const landed = await onCreateCategories?.(toCreate);
+      const landed = await onCreateCategories?.(toCreate.map((m) => ({ name: m.source, type: m.type })));
       if (!landed) {
         setGapBusy(false);
         setGapFailed(true);
         return;
       }
     }
-    // What was mapped rather than created travels as an answer, in the shape
-    // the model already reads answers in - so the reading never has to ask.
-    const mapped = gaps.filter((g) => (gapPlan[g] ?? '') !== '');
-    const priors = mapped.length
-      ? [{
-          ask: 'Where do these categories of the file go?',
-          answer: mapped.map((g) => `"${g}" -> ${gapPlan[g]}`).join('; '),
-        }]
+    // The WHOLE mapping travels as one answer - what the model proposed and I
+    // left, what I changed, what I had created - in the shape it already
+    // reads answers in. Every part of the reading then files the same word
+    // the same way, and none of them has to ask.
+    const lines = catMap.map((m) => {
+      const chosen = catPlan[planKey(m)] ?? '';
+      return `"${m.source}" (${m.type}) -> ${chosen || `${m.source} (new, just created)`}`;
+    });
+    const priors = lines.length
+      ? [{ ask: 'Where does each category of the file go?', answer: lines.join('; ') }]
       : undefined;
     setGapBusy(false);
     start(tripAnswer, priors, { triaged: true, importId: done?.importId });
@@ -412,9 +424,14 @@ export function AiImport({
     start(tripAnswer, prior, { triaged: true, importId: done?.importId });
   };
 
+  // Which of the file's NEW subcategories become chips. Nothing starts
+  // ticked - the same rule as the review sheet this replaces, and for the
+  // same reason: a pre-ticked "Hotel" is how a deleted chip kept coming back
+  // on every import. The rows import either way, just without the chip.
+  const [approvedSubs, setApprovedSubs] = useState<Set<string>>(() => new Set());
   const commit = () => {
     if (!done?.payload) return;
-    onCommit(done.payload);
+    onCommit(done.payload, approvedSubs);
     onClose();
   };
 
@@ -702,74 +719,112 @@ export function AiImport({
         </>
       )}
 
-      {/* The categories the file needs and this account has not got.
-          BEFORE the reading, which is the only moment a new one still
-          changes where the rows land - and the reason there is no free-text
-          box here: typing a category that does not exist is exactly the
-          trap this screen closes. Create it, or pick one that does. */}
-      {step === 'gaps' && (
-        <>
-          {header(t('ai.gapsTitle', { n: String(gaps.length) }), t('ai.gapsSub'))}
-          <div className="flex-1 px-6 pt-2 overflow-y-auto min-h-0">
-            {gaps.map((gap) => {
-              const choice = gapPlan[gap] ?? '';
-              return (
-                <div key={gap} data-ai-gap={gap} className="py-3" style={{ borderTop: '1px solid var(--line-2)' }}>
-                  <p style={{ color: 'var(--ink)', fontSize: 15, fontWeight: 600 }}>{gap}</p>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    <button
-                      data-ai-gap-create={gap}
-                      onClick={() => setGapPlan((p) => ({ ...p, [gap]: '' }))}
-                      className="px-3.5 py-2 rounded-full transition-colors"
-                      style={{
-                        border: `1.5px solid ${choice === '' ? '#4F74F3' : 'var(--line)'}`,
-                        backgroundColor: choice === '' ? '#4F74F3' : 'var(--bg-card)',
-                        color: choice === '' ? '#FFFFFF' : 'var(--ink)',
-                        fontSize: 13.5, fontWeight: choice === '' ? 600 : 500,
-                      }}
-                      disabled={!onCreateCategories}
-                    >
-                      {t('ai.gapCreate')}
-                    </button>
-                    {/* Only categories that exist. A select rather than a
-                        field, so there is nothing to mistype. */}
-                    <div
-                      className="relative flex items-center px-3.5 rounded-full"
-                      style={{
-                        border: `1.5px solid ${choice !== '' ? '#4F74F3' : 'var(--line)'}`,
-                        backgroundColor: choice !== '' ? '#4F74F3' : 'var(--bg-card)',
-                      }}
-                    >
-                      <span style={{ color: choice !== '' ? '#FFFFFF' : 'var(--ink-2)', fontSize: 13.5, fontWeight: choice !== '' ? 600 : 500 }}>
-                        {choice !== '' ? choice : t('ai.gapMap')}
-                      </span>
-                      <select
-                        data-ai-gap-map={gap}
-                        aria-label={t('ai.gapMap')}
-                        value={choice}
-                        onChange={(e) => setGapPlan((p) => ({ ...p, [gap]: e.target.value }))}
-                        className="absolute inset-0 w-full h-full opacity-0"
-                        style={{ WebkitAppearance: 'none', appearance: 'none' }}
-                      >
-                        <option value="">{t('ai.gapMap')}</option>
-                        {(categories as { name?: string }[]).map((c) => c?.name).filter(Boolean).map((name) => (
-                          <option key={name} value={name}>{name}</option>
-                        ))}
-                      </select>
+      {/* Where the file's categories go, decided BEFORE the reading - the only
+          moment a new category still changes where the rows land.
+          Two parts. The mapping the model made, one quiet line each, there to
+          be glanced at and tappable if wrong: "Attivita fisica -> Sport" is a
+          reading, not a question, and a real file once turned fifteen of
+          those into fifteen questions. Then the words it could place nowhere:
+          create it, or pick one of mine. Every choice is a category that
+          exists, of the right type; there is no text field on this screen,
+          because a typed category that does not exist is the failure it
+          closes. */}
+      {step === 'categories' && (() => {
+        // A line where the model matched a word to itself is not a decision
+        // and is not shown; it still travels in the answer. What is shown is
+        // what somebody might want to change: a judgement call, or a gap.
+        const same = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
+        const settled = catMap.filter((m) => m.settled && !same(m.source, m.target ?? ''));
+        const gaps = catMap.filter((m) => !m.settled);
+        const listFor = (type: 'expense' | 'income') =>
+          ((type === 'income' ? incomeCategories : categories) as { name?: string }[])
+            .map((c) => c?.name).filter((n): n is string => !!n);
+        const picker = (m: ResolvedMapping, chosen: string, quiet: boolean) => (
+          <div
+            className="relative flex items-center px-3.5 py-2 rounded-full"
+            style={{
+              border: `1.5px solid ${chosen !== '' ? (quiet ? 'var(--line)' : '#4F74F3') : 'var(--line)'}`,
+              backgroundColor: chosen !== '' && !quiet ? '#4F74F3' : 'var(--bg-card)',
+            }}
+          >
+            <span style={{ color: chosen !== '' && !quiet ? '#FFFFFF' : chosen !== '' ? 'var(--ink)' : 'var(--ink-2)', fontSize: 13.5, fontWeight: chosen !== '' ? 600 : 500 }}>
+              {chosen !== '' ? chosen : t('ai.gapMap')}
+            </span>
+            <select
+              data-ai-cat-map={m.source}
+              aria-label={t('ai.gapMap')}
+              value={chosen}
+              onChange={(e) => setCatPlan((p) => ({ ...p, [planKey(m)]: e.target.value }))}
+              className="absolute inset-0 w-full h-full opacity-0"
+              style={{ WebkitAppearance: 'none', appearance: 'none' }}
+            >
+              <option value="">{onCreateCategories ? t('ai.gapCreate') : t('ai.gapMap')}</option>
+              {listFor(m.type).map((name) => <option key={name} value={name}>{name}</option>)}
+            </select>
+          </div>
+        );
+        const typeTag = (m: ResolvedMapping) => m.type === 'income'
+          ? <span className="ml-1.5" style={{ color: 'var(--ink-3)', fontSize: 11, fontWeight: 500 }}>{t('ai.catIncome')}</span>
+          : null;
+        return (
+          <>
+            {header(t('ai.catTitle'), t('ai.catSub'))}
+            <div className="flex-1 px-6 pt-1 overflow-y-auto min-h-0">
+              {gaps.length > 0 && (
+                <p className="mt-2 mb-1" style={{ color: 'var(--ink-3)', fontSize: 11, fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+                  {t(gaps.length === 1 ? 'ai.catGapsOne' : 'ai.catGaps')}
+                </p>
+              )}
+              {gaps.map((m) => {
+                const chosen = catPlan[planKey(m)] ?? '';
+                return (
+                  <div key={planKey(m)} data-ai-cat={m.source} data-ai-cat-kind="gap" className="py-3" style={{ borderTop: '1px solid var(--line-2)' }}>
+                    <p style={{ color: 'var(--ink)', fontSize: 15, fontWeight: 600 }}>{m.source}{typeTag(m)}</p>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {onCreateCategories && (
+                        <button
+                          data-ai-cat-create={m.source}
+                          onClick={() => setCatPlan((p) => ({ ...p, [planKey(m)]: '' }))}
+                          className="px-3.5 py-2 rounded-full transition-colors"
+                          style={{
+                            border: `1.5px solid ${chosen === '' ? '#4F74F3' : 'var(--line)'}`,
+                            backgroundColor: chosen === '' ? '#4F74F3' : 'var(--bg-card)',
+                            color: chosen === '' ? '#FFFFFF' : 'var(--ink)',
+                            fontSize: 13.5, fontWeight: chosen === '' ? 600 : 500,
+                          }}
+                        >
+                          {t('ai.gapCreate')}
+                        </button>
+                      )}
+                      {picker(m, chosen, false)}
                     </div>
                   </div>
-                </div>
-              );
-            })}
-            {gapFailed && (
-              <p data-ai-gap-failed className="mt-3" style={{ color: 'var(--tone-warn)', fontSize: 12.5, lineHeight: 1.45 }}>
-                {t('ai.gapSyncFailed')}
-              </p>
-            )}
-          </div>
-          {cta(gapBusy ? t('ai.gapSaving') : t('ai.go'), goFromGaps, gapBusy)}
-        </>
-      )}
+                );
+              })}
+              {settled.length > 0 && (
+                <p className="mt-4 mb-1" style={{ color: 'var(--ink-3)', fontSize: 11, fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+                  {t('ai.catSettled')}
+                </p>
+              )}
+              {settled.map((m) => {
+                const chosen = catPlan[planKey(m)] ?? m.target ?? '';
+                return (
+                  <div key={planKey(m)} data-ai-cat={m.source} data-ai-cat-kind="settled" className="py-2.5 flex items-center justify-between gap-3" style={{ borderTop: '1px solid var(--line-2)' }}>
+                    <p className="min-w-0 truncate" style={{ color: 'var(--ink-2)', fontSize: 14 }}>{m.source}{typeTag(m)}</p>
+                    {picker(m, chosen, true)}
+                  </div>
+                );
+              })}
+              {gapFailed && (
+                <p data-ai-gap-failed className="mt-3" style={{ color: 'var(--tone-warn)', fontSize: 12.5, lineHeight: 1.45 }}>
+                  {t('ai.gapSyncFailed')}
+                </p>
+              )}
+            </div>
+            {cta(gapBusy ? t('ai.gapSaving') : t('ai.go'), goFromCategories, gapBusy)}
+          </>
+        );
+      })()}
 
       {step === 'questions' && (
         <>
@@ -944,6 +999,58 @@ export function AiImport({
                 </p>
               );
             })()}
+            {/* The file's subcategories that are not chips of mine yet, to
+                tick HERE rather than on a second sheet after Add. One
+                decision, one place: a real import ended with this screen,
+                then a dialog asking about two subcategories, and the person
+                had every right to wonder why the app had not asked while
+                they were already looking at the list. */}
+            {preview.proposedSubcategories.length > 0 && (
+              <div data-ai-subs className="mt-4 rounded-2xl px-4 py-3" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--line-2)' }}>
+                <p style={{ color: 'var(--ink)', fontSize: 13.5, fontWeight: 600 }}>
+                  {preview.proposedSubcategories.length === 1
+                    ? t('imp.newSub.one')
+                    : t('imp.newSub.other', { n: String(preview.proposedSubcategories.length) })}
+                </p>
+                <p className="mt-0.5" style={{ color: 'var(--ink-3)', fontSize: 12, lineHeight: 1.45 }}>{t('imp.newSubBody')}</p>
+                <div className="mt-2 flex flex-col">
+                  {preview.proposedSubcategories.map((sp) => {
+                    const k = proposalKey(sp);
+                    const on = approvedSubs.has(k);
+                    return (
+                      <button
+                        key={k}
+                        data-ai-sub={sp.name}
+                        data-ai-sub-on={on ? 'yes' : 'no'}
+                        onClick={() => setApprovedSubs((prev) => {
+                          const next = new Set(prev);
+                          if (next.has(k)) next.delete(k); else next.add(k);
+                          return next;
+                        })}
+                        className="flex items-center gap-2.5 py-2 text-left"
+                      >
+                        <span
+                          className="flex-shrink-0 grid place-items-center rounded-md"
+                          style={{
+                            width: 18, height: 18,
+                            backgroundColor: on ? '#4F74F3' : 'transparent',
+                            border: on ? '1.5px solid #4F74F3' : '1.5px solid var(--ghost)',
+                          }}
+                        >
+                          {on && <Check className="w-3 h-3 text-white" strokeWidth={3.2} />}
+                        </span>
+                        <span className="flex-1 min-w-0">
+                          <span className="block truncate" style={{ color: 'var(--ink)', fontSize: 13.5, fontWeight: 500 }}>{sp.name}</span>
+                          <span className="block" style={{ color: 'var(--ink-3)', fontSize: 11.5 }}>
+                            {t(sp.rows === 1 ? 'imp.proposalMeta.one' : 'imp.proposalMeta.other', { cat: sp.categoryName, n: sp.rows })}
+                          </span>
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
             {done && done.remaining === 0 && (
               <p className="mt-2 px-1" style={{ color: 'var(--ink-3)', fontSize: 12 }}>{t('ai.lastToday')}</p>
             )}

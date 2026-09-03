@@ -196,42 +196,71 @@ export function splitLedgerText(text: string, parts: number): string[] | null {
 /** Names that mean "none of the above" in either language. */
 const CATCHALL_WORDS = /^(other|others|altro|altri|varie|misc|uncategori[sz]ed|senza categoria|n\/a|none)$/;
 
-/**
- * The file's category words that have no home among mine.
- *
- * Run on the phone, against the triage's answer, before a single row is
- * read - the only moment when creating the missing one is still free. After
- * the reading it is too late in the way that matters: the rows are filed,
- * and a category invented afterwards leaves them where they landed.
- *
- * Matching is EXACT but for case and stray spaces, and deliberately goes no
- * further. Plural-folding was tried and taken out: "Trasporti"/"Trasporto"
- * wants a stemmer, a stemmer wants two languages, and every rule loose
- * enough to catch that also quietly swallows a real gap - which is the one
- * failure this exists to prevent. The two errors are not equal. Offering to
- * create a category close to one I have costs a tap; missing one costs every
- * row that needed it, filed somewhere else, found next month.
- */
+/** One line of the model's mapping, as the triage read returns it. */
+export interface CategoryMapping {
+  /** The file's own word, as it spells it. */
+  source: string;
+  type: 'expense' | 'income';
+  /** The user's category it belongs in, or null when the model found none. */
+  target: string | null;
+}
+
+/** The same line, checked against the catalogue. */
+export interface ResolvedMapping extends CategoryMapping {
+  /** target names a category that EXISTS, of that type, spelled its way. */
+  settled: boolean;
+}
+
 const catKey = (s: string) => s.trim().toLowerCase().replace(/\s+/g, ' ');
 
-export function categoryGaps(fileCategories: string[], mine: string[]): string[] {
-  const have = new Set(mine.map(catKey));
-  const out: string[] = [];
+/**
+ * The model's mapping, checked against what this account actually has.
+ *
+ * The division of labour, and why it is this way round: the MODEL maps.
+ * "Attivita fisica" is Sport, "Regalo" is Regali, "Alimentari" is Spesa -
+ * readings it makes in a second and makes well. An earlier version had the
+ * phone do that with a string comparison and turned fifteen of them into
+ * fifteen questions on a real file: the question wall, rebuilt one step
+ * earlier and dumber. The phone's only job now is the one it is actually
+ * good at - checking that each target EXISTS, in the catalogue of the right
+ * type - and only a null, or a target that does not exist, is a gap.
+ *
+ * Typed throughout. "Stipendio" is income and "Regalo" can be either; a gift
+ * created as an expense category is wrong on every row under it.
+ */
+export function resolveCategoryMap(
+  map: CategoryMapping[],
+  mine: { expense: string[]; income: string[] },
+): ResolvedMapping[] {
+  const index = {
+    expense: new Map(mine.expense.map((n) => [catKey(n), n])),
+    income: new Map(mine.income.map((n) => [catKey(n), n])),
+  };
+  const out: ResolvedMapping[] = [];
   const seen = new Set<string>();
-  for (const raw of fileCategories) {
-    const name = raw.trim();
-    if (!name) continue;
-    const key = catKey(name);
-    // A word that means "no category" is not a gap. Rows like that belong in
-    // the catch-all, which is what it is for; offering to CREATE it would be
-    // the app asking for a category it already has.
-    if (!key || CATCHALL_WORDS.test(name.trim().toLowerCase())) continue;
-    if (have.has(key) || seen.has(key)) continue;
+  for (const m of map) {
+    const source = m.source.trim();
+    if (!source) continue;
+    const key = `${m.type}:${catKey(source)}`;
+    if (seen.has(key)) continue;
     seen.add(key);
-    out.push(name);
+    // A word that means "no category" is never a gap: those rows belong in
+    // the catch-all, which is what it is for. Kept where the model pointed
+    // it if that exists; otherwise left out, and the catch-all takes it.
+    const hit = m.target ? index[m.type].get(catKey(m.target)) : undefined;
+    if (hit) out.push({ source, type: m.type, target: hit, settled: true });
+    else if (CATCHALL_WORDS.test(source.toLowerCase())) continue;
+    else out.push({ source, type: m.type, target: null, settled: false });
   }
   return out;
 }
+
+/** Whether the mapping is worth a screen at all. A line where the model
+ *  matched a word to itself is not a decision anybody needs to see; a
+ *  judgement call ("Regalo" -> Regali) is worth one line to glance at, and
+ *  a gap is worth a choice. */
+export const mappingNeedsScreen = (map: ResolvedMapping[]): boolean =>
+  map.some((m) => !m.settled || catKey(m.source) !== catKey(m.target ?? ''));
 
 /**
  * The first and last rows of a file, with every section's preamble - what
@@ -599,13 +628,13 @@ export interface AiQuestion {
 
 export interface AiDone {
   status: 'ok' | 'need_input';
-  /** The file's own category words that match none of mine, worked out on
-   *  the phone from the triage's answer. Present only on the answer that
-   *  stops for the gap screen; empty everywhere else. */
-  categoryGaps?: string[];
-  /** The category words the FILE uses, as the sample read found them. Only
-   *  a triage answer carries any; the gaps above are worked out from it. */
-  fileCategories?: string[];
+  /** The model's mapping of the file's categories onto mine, checked on the
+   *  phone. Present only on the answer that stops for the category screen;
+   *  absent everywhere else. */
+  categoryMap?: ResolvedMapping[];
+  /** The mapping exactly as the sample read returned it, before checking.
+   *  Only a triage answer carries one. */
+  rawCategoryMap?: CategoryMapping[];
   /** The import this answer belongs to. Handed back so a question's re-run
    *  can carry the SAME id: the triage claimed the day's credit under it,
    *  and a re-run under a fresh id would claim a second one for one file. */
@@ -649,9 +678,9 @@ export interface ConvertArgs {
    *  re-run. Skip the triage and go straight to the reading. Set by the
    *  questions screen when it re-starts the import with the answers. */
   triaged?: boolean;
-  /** My own category names, so the triage's answer can be checked against
-   *  them here rather than shipped back out for the screen to check. */
-  myCategories?: string[];
+  /** My own category names, by type, so the triage's mapping can be checked
+   *  here rather than shipped back out for the screen to check. */
+  myCategories?: { expense: string[]; income: string[] };
 }
 
 /** An id for one import, unguessable enough that two people's cannot collide
@@ -798,8 +827,12 @@ async function oneRead(args: ConvertArgs): Promise<AiDone> {
       const status = data.status === 'need_input' ? 'need_input' : 'ok';
       done = {
         status,
-        fileCategories: Array.isArray(data.file_categories)
-          ? (data.file_categories as unknown[]).filter((c): c is string => typeof c === 'string')
+        rawCategoryMap: Array.isArray(data.category_map)
+          ? (data.category_map as unknown[]).flatMap((m) => {
+              const e = m as Record<string, unknown> | null;
+              if (!e || typeof e.source !== 'string' || (e.type !== 'expense' && e.type !== 'income')) return [];
+              return [{ source: e.source, type: e.type, target: typeof e.target === 'string' ? e.target : null }];
+            })
           : [],
         notes: Array.isArray(data.notes) ? (data.notes as unknown[]).filter((n): n is string => typeof n === 'string') : [],
         remaining: typeof data.remaining === 'number' ? data.remaining : 0,
@@ -922,13 +955,13 @@ export async function convertWithAi(args: ConvertArgs): Promise<AiDone> {
         onPhase: undefined, onRow: undefined,
       });
       if (first.status === 'need_input' && first.questions?.length) return { ...first, importId };
-      // No questions, but the file may still name categories this account
-      // does not have. Stopping here costs nothing - not one row has been
-      // read - and it is the last moment when creating one still changes
-      // where those rows land.
-      const gaps = categoryGaps(first.fileCategories ?? [], args.myCategories ?? []);
-      if (gaps.length > 0) {
-        return { ...first, status: 'need_input', questions: [], categoryGaps: gaps, importId };
+      // No questions, but the model's mapping may hold a judgement call worth
+      // a glance, or a category this account has not got. Stopping here
+      // costs nothing - not one row has been read - and it is the last
+      // moment when creating one still changes where those rows land.
+      const resolved = resolveCategoryMap(first.rawCategoryMap ?? [], args.myCategories ?? { expense: [], income: [] });
+      if (mappingNeedsScreen(resolved)) {
+        return { ...first, status: 'need_input', questions: [], categoryMap: resolved, importId };
       }
     }
   }
