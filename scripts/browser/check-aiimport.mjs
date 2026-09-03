@@ -510,28 +510,34 @@ const pickCsv = (p) => p.locator('[data-ai-door] input[type="file"]').setInputFi
   await p.waitForTimeout(500);
   await p.locator('[data-ai-cta="go"]').click();
   await p.waitForTimeout(4500);
-  ok(sent.length === 3, `900 rows is read in three goes, not one that cannot finish (${sent.length} requests)`);
+  // The first request is the triage on a sample (900 rows is well past
+  // AI_TRIAGE_ROWS); it needed nothing, so the three parts followed at once.
+  ok(sent.length === 4 && sent[0].mode === 'triage',
+    `900 rows is a triage and then three reads, not one that cannot finish (${sent.length} requests)`);
+  const parts = sent.slice(1);
   // The wire carries base64, not the text field - so this reads what the
   // server would actually receive, the only copy that matters.
   const part = (c) => Buffer.from(c.files?.[0]?.data ?? '', 'base64').toString('utf8');
-  const sizes = sent.map((c) => part(c).split('\n').filter((l) => /^2026-/.test(l)).length);
+  const sizes = parts.map((c) => part(c).split('\n').filter((l) => /^2026-/.test(l)).length);
   ok(sizes.every((n) => n === 300), `cut into equal parts (${sizes.join(' + ')})`);
-  ok(sent.every((c) => part(c).startsWith('date,description,amount')),
+  ok(parts.every((c) => part(c).startsWith('date,description,amount')),
     'each carrying the column header, not just the first');
-  const seam = sent.flatMap((c) => part(c).split('\n')).filter((l) => /^2026-/.test(l));
+  const seam = parts.flatMap((c) => part(c).split('\n')).filter((l) => /^2026-/.test(l));
   ok(seam.length === 900 && new Set(seam).size === 900,
     'with every row sent exactly once - none dropped at a seam, none read twice');
-  // One import, one credit: the parts share an id and the server charges
-  // against that rather than against the request.
+  // One import, one credit: the triage and the parts share an id and the
+  // server charges against that rather than against the request.
   const ids = new Set(sent.map((c) => c.import_id));
   ok(ids.size === 1 && [...ids][0], `all three name the same import (${[...ids][0]})`);
   const text = await p.locator('body').innerText();
   // The TOTAL, not the visible rows: the review list is a preview and cuts
-  // off, so scanning it for "part 3" would fail on a merge that worked. Each
+  // off, so scanning it for "part 4" would fail on a merge that worked. Each
   // part answers with the same 108.93EUR, so three parts joined is 326.79 and
-  // a dropped or overwritten part shows up in that number immediately.
-  ok(/326[.,]79/.test(text) && /part 1/.test(text) && /part 2/.test(text),
-    `and every answer survives into the result - three joined, not the last one kept (${text.split('\n').find((l) => /€/.test(l)) ?? ''})`);
+  // a dropped or overwritten part shows up in that number immediately. The
+  // parts are calls 2-4 - call 1 was the triage, whose answer is a sample's
+  // and must NOT be in the result.
+  ok(/326[.,]79/.test(text) && /part 2/.test(text) && /part 3/.test(text) && !/part 1 -/.test(text),
+    `and every answer survives into the result - three joined, the triage's sample kept out (${text.split('\n').find((l) => /€/.test(l)) ?? ''})`);
   await ctx.close();
 }
 {
@@ -552,6 +558,115 @@ const pickCsv = (p) => p.locator('[data-ai-door] input[type="file"]').setInputFi
   ok(/[Nn]othing has been used up/.test(text),
     'and that it cost nothing - the whole point of refusing here rather than there');
   ok(sent.length === 0, 'no read was started');
+  await ctx.close();
+}
+
+// ── the questions come first, once, and the reading may not ask ──────────
+//
+// A real 1,206-row bank export went four rounds: fifty seconds of reading,
+// then "is this a trip?"; answered, a read to 80% and "which of these names
+// is you?" - names it had found inside descriptions; answered, a restart from
+// zero and "which column is you?"; answered, a restart and "confirm this
+// category mapping?". Every question was discovered DURING the expensive
+// reading and every answer restarted it. The phone knew two of the answers
+// (two years of dates is not a trip; no per-person columns is not a split
+// file) and was saying nothing.
+//
+// Now: the phone asserts what it knows, negatives included; a big file gets
+// a triage read on a sample first, so the questions come back in seconds;
+// and the parts that read for real are told they may not ask.
+const twoYears = (n) => {
+  const lines = ['date,description,amount'];
+  for (let i = 0; i < n; i += 1) {
+    const d = new Date(2024, 8 + Math.floor((i / n) * 24), 1 + (i % 27));
+    lines.push(`${d.toISOString().slice(0, 10)},${i % 7 === 0 ? 'pranzo con Mirko' : `Riga ${i}`},10`);
+  }
+  return lines.join('\n');
+};
+const decodeFile = (c) => Buffer.from(c.files?.[0]?.data ?? '', 'base64').toString('utf8');
+{
+  const NEED = {
+    status: 'need_input',
+    questions: [{ ask: 'Which currency are these amounts in?', options: ['EUR', 'CHF'] }],
+    notes: [], remaining: 9, model: 'm', usage: { input: 1, output: 1 },
+  };
+  const { ctx, p, sent, calls } = await open({
+    session: true,
+    convert: (n) => n === 1
+      ? { res: { status: 200, contentType: 'text/event-stream', body: sse([['done', NEED]]) } }
+      : { res: { status: 200, contentType: 'text/event-stream', body: sse([...ROWS, ['done', OK_DONE]]) } },
+  });
+  await p.locator('[data-ai-door] input[type="file"]').setInputFiles({
+    name: 'estratto-2-anni.csv', mimeType: 'text/csv', buffer: Buffer.from(twoYears(700)),
+  });
+  await p.waitForSelector('[data-ai-flow][data-ai-step="questions"]', { timeout: 10000 });
+  // The first request is the triage: a sample, marked as one.
+  ok(sent.length === 1 && sent[0].mode === 'triage', `the first request is a triage read (mode=${sent[0]?.mode})`);
+  ok(sent[0].sample_of >= 700 && sent[0].sample_of < 720, `that says how big the file really is (sample_of=${sent[0].sample_of})`);
+  const sample = decodeFile(sent[0]);
+  ok(/rows left out of this sample/.test(sample) && sample.split('\n').filter((l) => /^20\d\d-/.test(l)).length === 80,
+    'and carries eighty rows, not seven hundred - the question costs seconds, not minutes');
+  // The phone's own facts, negatives included, ride on that first request.
+  ok(sent[0].trip && sent[0].trip.is_trip === false,
+    'two years of dates is asserted as NOT a trip, instead of "I have not said"');
+  ok((sent[0].answers ?? []).some((a) => /All mine/.test(a.answer) && /no per-person columns/.test(a.answer)),
+    'and a file with no per-person columns is asserted as all mine - the names in the descriptions are company, not columns');
+  ok(/Which currency/.test(await p.locator('[data-ai-flow]').innerText()),
+    'a question the sample genuinely raises is put on screen - in seconds, before any reading');
+  await p.locator('[data-ai-chip="EUR"]').click();
+  await p.locator('[data-ai-cta="go"]').click();
+  await p.waitForSelector('[data-ai-flow][data-ai-step="ready"]', { timeout: 15000 });
+  // Then the reading, in parts, told not to ask, carrying the answer.
+  const reads = sent.slice(1);
+  ok(reads.length === 3 && calls() === 4,
+    `answering runs the reading once - three parts for 700 rows, no second triage, no restart (${calls()} requests)`);
+  ok(reads.every((c) => c.mode === 'convert'), 'every part is a convert read: it may not ask');
+  ok(reads.every((c) => (c.answers ?? []).some((a) => a.answer === 'EUR')),
+    'and every part carries the answer, so the parts cannot disagree about it');
+  ok(reads.every((c) => c.import_id === sent[0].import_id), 'all four requests are one import, for one credit');
+  await ctx.close();
+}
+{
+  // A part that asks anyway. Putting the question on screen would re-run
+  // every part from zero - the loop this exists to end - so it is a failure
+  // that names what was asked, with the credit back and a retry.
+  const LATE = {
+    status: 'need_input',
+    questions: [{ ask: 'Confirm this category mapping?', options: ['Yes'] }],
+    notes: [], remaining: 9, model: 'm', usage: { input: 1, output: 1 },
+  };
+  const OKQ = { ...OK_DONE, payload: { ...OK_DONE.payload, transactions: [] } };
+  const { ctx, p, sent } = await open({
+    session: true,
+    convert: (n) => n === 1
+      ? { res: { status: 200, contentType: 'text/event-stream', body: sse([['done', OKQ]]) } }
+      : { res: { status: 200, contentType: 'text/event-stream', body: sse([['done', LATE]]) } },
+  });
+  await p.locator('[data-ai-door] input[type="file"]').setInputFiles({
+    name: 'estratto.csv', mimeType: 'text/csv', buffer: Buffer.from(twoYears(700)),
+  });
+  await p.waitForSelector('[data-ai-flow][data-ai-step="error"]', { timeout: 15000 });
+  const text = await p.locator('[data-ai-flow]').innerText();
+  ok(/It stopped to ask/.test(text) && /Confirm this category mapping/.test(text),
+    'a read that was told not to ask, asking, is a named failure that shows the question');
+  ok(await p.locator('[data-ai-step="questions"]').count() === 0,
+    'and NOT a question screen - answering it would restart every part from zero');
+  ok(sent.length === 4 && sent[0].mode === 'triage' && sent[0].sample_of > 0,
+    'a triage that needed nothing went straight into the reading, no question screen in between');
+  await ctx.close();
+}
+{
+  // A small file skips all of it: a question after a ten-second read costs
+  // ten seconds, and the machinery is for the file where it cost minutes.
+  const { ctx, p, sent } = await open({
+    session: true,
+    convert: () => ({ res: { status: 200, contentType: 'text/event-stream', body: sse([...ROWS, ['done', OK_DONE]]) } }),
+  });
+  await pickCsv(p);
+  await p.waitForTimeout(400);
+  await p.locator('[data-ai-cta="go"]').click();
+  await p.waitForSelector('[data-ai-flow][data-ai-step="ready"]', { timeout: 8000 });
+  ok(sent.length === 1 && sent[0].mode === undefined, 'four rows: one read, no triage, no mode - as it always was');
   await ctx.close();
 }
 

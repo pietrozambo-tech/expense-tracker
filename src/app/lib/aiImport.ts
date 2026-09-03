@@ -107,6 +107,37 @@ export const countRows = (text: string): number => {
   return n;
 };
 
+/**
+ * Above this many rows, the model is asked what it needs BEFORE the reading
+ * starts, on a sample, in a call that takes seconds.
+ *
+ * Why this exists is a single afternoon on a real 1,206-row export. The
+ * reading ran for fifty seconds and then asked "is this a trip?". Answered,
+ * it ran again to 80% and asked "which of these names is you?" - names it
+ * had found inside descriptions like "pranzo con Mirko", on a personal bank
+ * statement. Answered, it ran again from zero and asked which COLUMN was me.
+ * Answered, it ran again and asked me to confirm its entire category mapping
+ * as a question. Four restarts, every one from 0%, on a file that needed no
+ * questions at all.
+ *
+ * Two things were structurally wrong, and only one of them was the model.
+ * Questions were discovered DURING the expensive reading and each answer
+ * restarted it; and the phone knew the answers - two years of dates is not a
+ * trip, no per-person columns is not a split file - and was not saying so.
+ * So now: the phone asserts what it knows, negatives included; a big file
+ * gets a triage read on a sample first, and the questions come back in
+ * seconds; and the parts that do the reading are told they may not ask.
+ *
+ * Small files skip the triage. A question after a ten-second read is a
+ * ten-second cost; the machinery is for the file where it was minutes.
+ */
+export const AI_TRIAGE_ROWS = 150;
+
+/** How many rows from each end go into the sample. Enough to show the
+ *  columns, the date format, the currency and the flavour of the
+ *  descriptions; the model is not converting them. */
+const SAMPLE_ROWS = 40;
+
 /** A line carrying a date is a row of data. Everything above the first one -
  *  a title, a column header, a sheet heading - is preamble, and every part
  *  needs its own copy or it arrives as a wall of unlabelled columns. */
@@ -158,6 +189,46 @@ export function splitLedgerText(text: string, parts: number): string[] | null {
       for (const section of sections) if (section.rows.length === 0) pieces.push(section.head.join('\n'));
     }
     out.push(pieces.join('\n\n'));
+  }
+  return out;
+}
+
+/**
+ * The first and last rows of a file, with every section's preamble - what
+ * the triage read looks at. Null when there is nothing dated to sample.
+ */
+export function sampleLedgerText(text: string, each = SAMPLE_ROWS): string | null {
+  const blocks = /^### Sheet: /m.test(text) ? text.split(/\n(?=### Sheet: )/) : [text];
+  const pieces: string[] = [];
+  let any = false;
+  for (const block of blocks) {
+    const lines = block.split('\n');
+    const first = lines.findIndex(hasDate);
+    if (first < 0) { pieces.push(block); continue; }
+    any = true;
+    const rows = lines.slice(first);
+    if (rows.length <= each * 2) { pieces.push(block); continue; }
+    pieces.push([
+      ...lines.slice(0, first),
+      ...rows.slice(0, each),
+      `… ${rows.length - each * 2} rows left out of this sample …`,
+      ...rows.slice(-each),
+    ].join('\n'));
+  }
+  return any ? pieces.join('\n\n') : null;
+}
+
+/** The files with each text file replaced by its sample. Null when any file
+ *  cannot be sampled (a photo, a PDF) - then there is no triage, and the
+ *  reading asks its own questions as it always did. */
+export function sampleForTriage(files: AiFile[]): AiFile[] | null {
+  if (files.some((f) => !f.text)) return null;
+  const out: AiFile[] = [];
+  for (const f of files) {
+    const s = sampleLedgerText(f.text!);
+    if (s === null) return null;
+    const bytes = new TextEncoder().encode(s);
+    out.push({ ...f, text: s, bytes: bytes.byteLength, data: b64(bytes.buffer as ArrayBuffer) });
   }
   return out;
 }
@@ -474,6 +545,10 @@ export interface AiQuestion {
 
 export interface AiDone {
   status: 'ok' | 'need_input';
+  /** The import this answer belongs to. Handed back so a question's re-run
+   *  can carry the SAME id: the triage claimed the day's credit under it,
+   *  and a re-run under a fresh id would claim a second one for one file. */
+  importId?: string;
   payload?: ImportPayload;
   questions?: AiQuestion[];
   notes: string[];
@@ -496,11 +571,23 @@ export interface ConvertArgs {
    *  instant the request leaves (the upload is in flight), 'reading' when
    *  the response headers arrive (the server has the file and the model is
    *  working). Everything else the screen says hangs off rows arriving. */
-  onPhase?: (phase: 'sent' | 'reading') => void;
+  onPhase?: (phase: 'sent' | 'reading' | 'triage') => void;
   /** The import every part of a split belongs to. The server claims the
    *  day's credit against this, not against the request, so one file the
    *  user picked costs one import however many reads answered it. */
   importId?: string;
+  /** What this ONE request is for. 'triage' sends a sample and asks the
+   *  model what it needs to know; 'convert' reads for real and forbids
+   *  questions. Unset is the old single-read behaviour: read, and ask if you
+   *  must. Set by convertWithAi, never by the screen. */
+  mode?: 'triage' | 'convert';
+  /** How many rows the sample stands for, so the triage instruction can say
+   *  so. Only travels with mode 'triage'. */
+  sampleOf?: number;
+  /** The questions have been asked and answered already - this is the
+   *  re-run. Skip the triage and go straight to the reading. Set by the
+   *  questions screen when it re-starts the import with the answers. */
+  triaged?: boolean;
 }
 
 /** An id for one import, unguessable enough that two people's cannot collide
@@ -589,6 +676,8 @@ async function oneRead(args: ConvertArgs): Promise<AiDone> {
     body: JSON.stringify({
       files: args.files.map((f) => ({ media_type: f.media_type, data: f.data })),
       import_id: args.importId,
+      mode: args.mode,
+      sample_of: args.sampleOf,
       trip: args.trip,
       lang: args.lang,
       answers: args.answers ?? [],
@@ -698,6 +787,22 @@ async function oneRead(args: ConvertArgs): Promise<AiDone> {
 }
 
 /**
+ * A question from a read that was told not to ask.
+ *
+ * It should not happen - the facts, the triage and the answers are all in
+ * front of the model by then - but a model is not a contract. When it does,
+ * the honest thing is not to put the question on screen (answering would
+ * re-run every part from zero, which is the loop this whole arrangement
+ * exists to end) but to say what was asked and let the person try again;
+ * the day's credit comes back on failure, so a retry costs nothing.
+ */
+const lateOrDone = (done: AiDone): AiDone => {
+  if (done.status !== 'need_input') return done;
+  const asked = (done.questions ?? []).map((q) => q.ask).join(' · ');
+  throw new AiImportError('asked_late', asked || 'the reading asked a question it could not ask');
+};
+
+/**
  * One conversion, however many reads it takes.
  *
  * A file too long for a single read is cut up and the parts are read AT THE
@@ -730,9 +835,41 @@ async function oneRead(args: ConvertArgs): Promise<AiDone> {
  *                             only way the parts can agree about it.
  */
 export async function convertWithAi(args: ConvertArgs): Promise<AiDone> {
+  // The re-run after a question carries the id the triage claimed the credit
+  // under; only a fresh import mints one.
+  const importId = args.importId ?? newImportId();
+  const rows = args.files.reduce((n, f) => n + (f.text ? countRows(f.text) : 0), 0);
+
+  // ── the questions, first and once ─────────────────────────────────────
+  // A big file's questions are asked on a SAMPLE before the reading starts.
+  // The call takes seconds; the reading it protects takes minutes and
+  // restarts from zero on every answer. Skipped when the questions have
+  // already been asked (this is the re-run with the answers), and when there
+  // is nothing to sample (a photo, a PDF - those ask as they always did).
+  if (rows > AI_TRIAGE_ROWS && !args.triaged) {
+    const sample = sampleForTriage(args.files);
+    if (sample) {
+      args.onPhase?.('triage');
+      const first = await oneRead({
+        ...args, files: sample, importId, mode: 'triage', sampleOf: rows,
+        onPhase: undefined, onRow: undefined,
+      });
+      if (first.status === 'need_input' && first.questions?.length) return { ...first, importId };
+    }
+  }
+
   const parts = splitForReads(args.files);
-  const importId = newImportId();
-  if (!parts) return oneRead({ ...args, importId });
+  // The read that does the work is told it may not ask. Everything it could
+  // need was settled above - by the phone's own facts, by the triage, by the
+  // answers it carries - and a question now would throw away minutes of
+  // reading, across every part at once.
+  const mode = rows > AI_TRIAGE_ROWS ? 'convert' as const : undefined;
+  // A small file is read the old way, and the old way may ask: a question
+  // after a ten-second read is a ten-second cost, and the answer screen is
+  // the right place for it. Only a read that was TOLD not to ask is held to
+  // that.
+  const settle = (done: AiDone) => (mode === 'convert' ? lateOrDone(done) : done);
+  if (!parts) return { ...settle(await oneRead({ ...args, importId, mode })), importId };
 
   // Rows arrive interleaved from every part at once, so the number on screen
   // counts what has ACTUALLY landed rather than any one part's position - the
@@ -746,6 +883,7 @@ export async function convertWithAi(args: ConvertArgs): Promise<AiDone> {
     ...args,
     files,
     importId,
+    mode,
     // The phases narrate the first part only. They run 'sent' then 'reading',
     // and eight parts reporting them would walk the screen backwards
     // repeatedly through one wait.
@@ -753,11 +891,11 @@ export async function convertWithAi(args: ConvertArgs): Promise<AiDone> {
     onRow: bump,
   })));
 
-  const asked = answers.find((a) => a.status === 'need_input');
-  if (asked) return asked;
+  answers.forEach(settle);
   const last = answers[answers.length - 1];
   return {
     ...last, // remaining and status from the last to land: the newer truth
+    importId,
     notes: answers.flatMap((a) => a.notes).filter((n, i, all) => all.indexOf(n) === i),
     payload: {
       ...(answers[0].payload ?? last.payload!),

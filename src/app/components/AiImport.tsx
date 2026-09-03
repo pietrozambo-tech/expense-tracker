@@ -141,7 +141,12 @@ export function AiImport({
       if (scan) {
         const trip = tripForWindow(trips, scan.from, scan.to);
         const spanDays = (Date.parse(scan.to) - Date.parse(scan.from)) / 86_400_000;
-        return { ...scan, trip, askTrip: !trip && spanDays <= 45 };
+        // notTrip is the OTHER half of askTrip, and the half that was
+        // missing: two years of dates is not a trip, and the phone knew it -
+        // then sent "I have not said whether this is a trip" and the model
+        // spent a fifty-second read asking. What the phone can rule out it
+        // now rules out, in words the model reads as settled.
+        return { ...scan, trip, askTrip: !trip && spanDays <= 45, notTrip: !trip && spanDays > 45 };
       }
     }
     return null;
@@ -180,7 +185,7 @@ export function AiImport({
   // Which TRUE moment the request is in, for the pre-first-row narration:
   // 'sent' while the upload is in flight, 'reading' once the headers arrive
   // and the model is at work. Never theatre - each line maps to an event.
-  const [phase, setPhase] = useState<'sent' | 'reading' | null>(null);
+  const [phase, setPhase] = useState<'sent' | 'reading' | 'triage' | null>(null);
   // Ten seconds into 'reading' with no row yet, the model is demonstrably
   // deep in the matching the prompt sets it (its instructions carry the
   // user's own categories) - say that instead of repeating "reading".
@@ -190,7 +195,11 @@ export function AiImport({
 
   const lang = getLanguage() === 'it' ? 'it' : 'en';
 
-  const start = (trip: { is_trip: boolean; name?: string } | null, priorAnswers?: { ask: string; answer: string }[]) => {
+  const start = (
+    trip: { is_trip: boolean; name?: string } | null,
+    priorAnswers?: { ask: string; answer: string }[],
+    opts?: { triaged?: boolean; importId?: string },
+  ) => {
     setStep('reading');
     setRows([]);
     setRunningTotal(0);
@@ -220,8 +229,23 @@ export function AiImport({
         answer: `Mine (column "${fileShare.column}"). The amounts are already my own share - do not divide or adjust them, and they are all expenses.`,
       });
     }
+    // The second negative. A personal statement has people's names all
+    // through its descriptions - "sartoria Ale", "pranzo con Mirko" - and on
+    // a real one the model read them as the members of a split-expense
+    // group and asked, twice, which of them was me. splitPeople() looks for
+    // per-person COLUMNS and found none; that finding now travels, so the
+    // names stay what they are: who I was with, not who paid.
+    if (people === null && !fileShare && sent.some((f) => f.text) && !priors.some((a) => /whose|column/i.test(a.ask))) {
+      priors.push({
+        ask: 'Whose spending is this file?',
+        answer: 'All mine. This is a personal ledger, not a shared-expense export: there are no per-person columns, and any names in the descriptions are people I was with, not payers. Do not ask me which name or column is me.',
+      });
+    }
+    // The first negative: what the date scan ruled out, said as a fact rather
+    // than left as "not said".
+    const tripFact = trip ?? (evidence?.notTrip ? { is_trip: false } : null);
     convertWithAi({
-      files: sent, trip, lang,
+      files: sent, trip: tripFact, lang, triaged: opts?.triaged, importId: opts?.importId,
       answers: priors.length ? priors : undefined,
       signal: ctrl.signal,
       onPhase: setPhase,
@@ -306,7 +330,11 @@ export function AiImport({
   const goFromQuestions = () => {
     const prior = questions.map((q, i) => ({ ask: q.ask, answer: answers[i] ?? '' }))
       .filter((a) => a.answer.trim());
-    start(tripAnswer, prior);
+    // The questions have been asked. The re-run must not ask them again on
+    // the sample, its reading is told it may not ask at all, and it stays
+    // the SAME import - the credit was claimed under that id when the
+    // question was asked, and a fresh id would pay twice for one file.
+    start(tripAnswer, prior, { triaged: true, importId: done?.importId });
   };
 
   const commit = () => {
@@ -483,6 +511,7 @@ export function AiImport({
                 // the model is demonstrably in the middle of.
                 <div className="animate-pulse py-2" data-ai-opening style={{ color: 'rgba(255,255,255,0.75)', fontSize: 14, fontWeight: 500 }}>
                   {openingSlow ? t('ai.openingLong')
+                    : phase === 'triage' ? t('ai.phaseTriage')
                     : phase === 'sent' ? t('ai.phaseSend')
                     : phase === 'reading' ? (matching ? t('ai.phaseMatch') : t('ai.phaseRead'))
                     : t('ai.opening')}
@@ -718,6 +747,12 @@ export function AiImport({
           : error.code === 'busy' ? { icon: Hourglass, title: t('ai.errBusyTitle'), sub: t('ai.errBusySub'), retry: true }
           // Read fine, held nothing. Not a failure of the app and not a
           // duplicate - the file simply was not a list of expenses.
+          // A read that was told not to ask, asking. The question itself is
+          // the detail: it is what the person will want to tell me about.
+          : error.code === 'asked_late' ? {
+              icon: AlertCircle, title: t('ai.errAskedLateTitle'), sub: t('ai.errAskedLateSub'), retry: true,
+              detail: error.message ? error.message.slice(0, 200) : undefined,
+            }
           : error.code === 'no_rows' ? { icon: AlertCircle, title: t('ai.errNoData'), sub: t('ai.errNoRowsSub'), retry: false }
           : {
               icon: AlertCircle, title: t('ai.errTitle'), sub: t('ai.errSub'), retry: true,

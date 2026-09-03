@@ -705,6 +705,13 @@ export const en = {
   'ai.checkOff': 'Careful: the file makes your share {file}, but I read {read}. Check before adding.',
   'ai.phaseSend': 'Uploading the file…',
   'ai.phaseRead': 'Reading the rows…',
+  // The triage read: a sample goes first so the questions come back in
+  // seconds instead of after minutes of reading. See AI_TRIAGE_ROWS.
+  'ai.phaseTriage': 'Checking what it needs to know…',
+  // A read that was told not to ask, asking anyway. Shown with the question
+  // underneath, and a retry - answering it would re-run the whole thing.
+  'ai.errAskedLateTitle': 'It stopped to ask',
+  'ai.errAskedLateSub': 'It should have asked before starting. Nothing has been touched - try again.',
   'ai.phaseMatch': 'Matching against your categories…',
   'ai.doorDone': "Today's imports are used up - more tomorrow.",
   'ai.manualBack': 'Back to the automatic import',

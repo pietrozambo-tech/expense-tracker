@@ -4,7 +4,10 @@
 // arrives without its column header is a wall of unlabelled numbers, and the
 // model's confident reading of it is wrong on every row - after the day's
 // read has been spent on it.
-import { splitLedgerText, splitForReads, countRows, AI_ROWS_PER_READ, AI_MAX_READS, AI_MAX_ROWS, type AiFile } from '../../src/app/lib/aiImport';
+import {
+  splitLedgerText, splitForReads, sampleLedgerText, sampleForTriage, countRows,
+  AI_ROWS_PER_READ, AI_MAX_READS, AI_MAX_ROWS, type AiFile,
+} from '../../src/app/lib/aiImport';
 
 const fail: string[] = [];
 const ok = (c: boolean, m: string) => { console.log(`${c ? 'PASS' : 'FAIL'}  ${m}`); if (!c) fail.push(m); };
@@ -96,6 +99,41 @@ const file = (text: string): AiFile => ({
     'a photo in the set stops the split rather than being halved');
   ok(splitLedgerText('no dates here\njust words\nand more words', 2) === null,
     'and text with no dated line has nothing to cut along');
+}
+
+// ── the sample the triage read looks at ──────────────────────────────────
+// Enough to show the columns, the date format and the flavour of the
+// descriptions; not enough to be worth converting. The middle is replaced
+// by a line that says how much is missing, so the model knows it is a
+// sample and does not report the file as 80 rows long.
+{
+  const text = sheet('elenco spese per il periodo', 3000);
+  const s = sampleLedgerText(text)!;
+  const dated = s.split('\n').filter((l) => /^20\d\d-/.test(l));
+  ok(dated.length === 80, `a 3,000-row file samples to 80 rows (${dated.length})`);
+  ok(dated[0] === row(0) && dated[79] === row(2999), 'the first forty and the last forty, in order');
+  ok(s.includes(HEAD) && s.startsWith('elenco spese'), 'under the same title and column header as the file');
+  ok(/2920 rows left out/.test(s), 'and says how many rows are missing, so it cannot be mistaken for the file');
+  ok(sampleLedgerText(sheet('t', 50)) === sheet('t', 50), 'a file already small is sent whole - nothing to leave out');
+  ok(sampleLedgerText('no dates\nnothing to sample') === null, 'text with no dated rows has no sample');
+}
+{
+  // Per sheet, so every sheet's columns are in the sample and a sheet that is
+  // all preamble comes through untouched.
+  const text = [
+    `### Sheet: Spese\n${sheet('elenco spese', 2000)}`,
+    `### Sheet: Entrate\n${sheet('elenco entrate', 30, 9000)}`,
+    '### Sheet: Bonifici\nelenco bonifici\nData,In uscita,In entrata',
+  ].join('\n');
+  const s = sampleLedgerText(text)!;
+  ok(/### Sheet: Spese[\s\S]*### Sheet: Entrate[\s\S]*### Sheet: Bonifici/.test(s), 'every sheet is named, in order');
+  ok(s.split('\n').filter((l) => /^20\d\d-/.test(l)).length === 80 + 30, 'the long sheet is sampled, the short one sent whole');
+  const files = [file(text)];
+  const t = sampleForTriage(files)!;
+  ok(t[0].bytes === new TextEncoder().encode(t[0].text!).byteLength && t[0].bytes < files[0].bytes,
+    'the triage file carries the sample in both its text and its bytes, and is far smaller than the file');
+  const photo: AiFile = { media_type: 'image/png', data: 'x', name: 'p.png', bytes: 10, text: null };
+  ok(sampleForTriage([file(text), photo]) === null, 'a photo in the set means no triage: nothing to sample it by');
 }
 
 console.log(fail.length ? `\n${fail.length} FAILED` : '\ntwo halves, every row once, both with their headers');

@@ -88,6 +88,7 @@ function region(name) {
 const SURFACE = [
   'buildImportPrompt', 'TRIP_SEP', 'isTripName', 'tripBodyOf', 'travelCategoryOf',
   'Refused', 'readTrip', 'readAnswers', 'readUploads', 'shapeAnswer', 'expandRow', 'RowStream',
+  'readMode', 'readSampleOf', 'factsBlock',
 ];
 
 const SCENARIOS = `
@@ -143,6 +144,37 @@ ok(edge.buildImportPrompt(input('en')) !== edge.buildImportPrompt(input('it')),
 // ── what the caller may assert ────────────────────────────────────────────
 eq('a trip with no name is read as no trip', edge.readTrip({ trip: { is_trip: true } }), { is_trip: false });
 eq('a named trip survives', edge.readTrip({ trip: { is_trip: true, name: ' ' + FLAG + ' ' } }), { is_trip: true, name: FLAG });
+
+// ── what one read is FOR ─────────────────────────────────────────────────
+// A long file is read on a sample first (triage: ask now, in seconds) and
+// then for real (convert: you may not ask). The two texts are the whole
+// mechanism, so they are pinned here word for word where it counts.
+eq('mode: unset is the old single read', edge.readMode({}), null);
+eq('mode: triage', edge.readMode({ mode: 'triage' }), 'triage');
+eq('mode: convert', edge.readMode({ mode: 'convert' }), 'convert');
+eq('mode: anything else is ignored, not trusted', edge.readMode({ mode: 'chat' }), null);
+eq('sample_of: a count', edge.readSampleOf({ sample_of: 1206 }), 1206);
+eq('sample_of: garbage is zero', edge.readSampleOf({ sample_of: 'lots' }), 0);
+{
+  const base = { today: '2026-09-03', trip: { is_trip: false }, answers: [] };
+  const plain = edge.factsBlock({ ...base, mode: null, sampleOf: 0 });
+  ok(!/SAMPLE/.test(plain) && !/MAY NOT ASK/.test(plain), 'unset mode adds neither instruction');
+  const triage = edge.factsBlock({ ...base, mode: 'triage', sampleOf: 1206 });
+  ok(/THIS IS A SAMPLE, NOT THE FILE/.test(triage) && /1206 rows in all/.test(triage),
+    'triage says it is a sample and how big the real file is');
+  ok(/Do NOT convert it/.test(triage), 'and says not to convert it');
+  // This scenario text is a template literal: a bare \\s here would reach the
+  // generated file as a plain "s" and the regex would quietly test nothing.
+  ok(/ask\\s+everything in this one round/.test(triage), 'and asks for every question at once');
+  ok(/do not ask me to confirm a category mapping/.test(triage),
+    'and rules out the one question a real run wasted a round on');
+  const convert = edge.factsBlock({ ...base, mode: 'convert', sampleOf: 0 });
+  ok(/THIS READING MAY NOT ASK/.test(convert) && /Do not set "status": "need_input"/.test(convert),
+    'convert forbids need_input outright');
+  ok(/convert EVERY row/.test(convert) && /"notes"/.test(convert),
+    'and says what to do instead: read everything, note the doubt');
+  ok(/These rows are NOT a trip/.test(convert), 'on top of the facts, not instead of them');
+}
 eq('no trip key at all means the question was never asked', edge.readTrip({}), null);
 eq('an explicit no is not the same as silence', edge.readTrip({ trip: { is_trip: false } }), { is_trip: false });
 

@@ -86,6 +86,7 @@ const DEFAULT_MODEL = 'claude-haiku-4-5';
 // they are generated, so the higher number costs nothing on the imports that
 // never approach it.
 const DEFAULT_MAX_TOKENS = 64000;
+const TRIAGE_MAX_TOKENS = 2000;
 
 // Short month names, for the list of trips the ledger already holds. The app
 // takes these from its i18n catalogue; here they are the two fixed lists,
@@ -141,6 +142,77 @@ function readTrip(body: Record<string, unknown>): TripAnswer | null {
   // "Yes it's a trip" with no name is not a trip anyone can find later, so it
   // is read as a no rather than as a nameless yes.
   return name ? { is_trip: true, name } : { is_trip: false };
+}
+
+/** What one request is FOR - see the client's ConvertArgs.mode. Unset is
+ *  the original single read: convert, and ask if you must. */
+type Mode = 'triage' | 'convert' | null;
+function readMode(body: Record<string, unknown>): Mode {
+  return body.mode === 'triage' || body.mode === 'convert' ? body.mode : null;
+}
+/** How many rows a triage sample stands for. */
+function readSampleOf(body: Record<string, unknown>): number {
+  const n = Number(body.sample_of);
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : 0;
+}
+
+/** The facts the browser is allowed to assert, spelled out for the model -
+ *  and, by mode, what this particular read is for. */
+function factsBlock(args: {
+  today: string;
+  trip: TripAnswer | null;
+  answers: { ask: string; answer: string }[];
+  mode: Mode;
+  sampleOf: number;
+}): string {
+  const lines = ['WHAT I HAVE ALREADY TOLD YOU', '', `Today is ${args.today}.`];
+  if (args.trip?.is_trip && args.trip.name) {
+    lines.push(`These rows are one trip, and its name is exactly: ${args.trip.name}`);
+    lines.push('Do not ask me for a trip name - that question is answered.');
+  } else if (args.trip) {
+    lines.push('These rows are NOT a trip. Do not add a trip prefix and do not ask me about one.');
+  } else {
+    lines.push('I have not said whether this is a trip.');
+  }
+  if (args.answers.length) {
+    lines.push('', 'My answers to what you asked last time:');
+    for (const a of args.answers) lines.push(`- ${a.ask} -> ${a.answer}`);
+  }
+
+  // The two modes a long file is read in. Triage on a sample first, in a
+  // call that takes seconds, so the questions come back before the reading
+  // starts; then the reading itself, told it may not ask, because it runs in
+  // parts at the same time and a question from any part throws away the
+  // work of all of them. A real 1,206-row statement went four rounds - trip?
+  // which name is you? which column? confirm this category map? - each one
+  // discovered after a minute of reading and each one restarting it from
+  // zero. This is what ends that.
+  if (args.mode === 'triage') {
+    lines.push(
+      '',
+      'THIS IS A SAMPLE, NOT THE FILE.',
+      `What follows is the first and last rows of a longer file - ${args.sampleOf || 'many'} rows in all,`,
+      'the middle left out. Do NOT convert it. Your only job in this reading is to tell me what you',
+      'would need to know before converting the WHOLE file: set "status": "need_input" and ask',
+      'everything in this one round, each question answerable in a word or two, the likeliest',
+      'answer first among its options. If you need nothing - which is the usual case for a bank',
+      'export - set "status": "ok", leave "transactions" empty, and put what you worked out (the',
+      'date format, the currency, whose file it is) in "notes". Do not ask about anything the',
+      'facts above already settle, and do not ask me to confirm a category mapping: that is your',
+      'job, not a question.',
+    );
+  } else if (args.mode === 'convert') {
+    lines.push(
+      '',
+      'THIS READING MAY NOT ASK.',
+      'Everything you could need is settled above - the trip, whose file it is, my answers - or is',
+      'yours to decide. Do not set "status": "need_input" in this reading. It is one of several',
+      'parts of the same file being read at the same time, and a question from any part throws',
+      'away the work of all of them. If something is still genuinely unclear, take the most',
+      'reasonable reading, convert EVERY row, and say what you chose in "notes", one line each.',
+    );
+  }
+  return lines.join('\n');
 }
 
 function readAnswers(body: Record<string, unknown>): { ask: string; answer: string }[] {
@@ -494,6 +566,11 @@ function apiAddendum(language: 'en' | 'it'): string {
     '   anything my earlier answers (under WHAT I HAVE ALREADY TOLD YOU) already settle. If you',
     '   need to ask whether these rows are a trip, ask for its name in the SAME round - one',
     '   question, with the likeliest name as the first option.',
+    '   A question is for something the FILE does not contain. Never ask me to confirm your',
+    '   category mapping, a subcategory, a description, or anything else you can decide from',
+    '   what is in front of you - the mapping is your job, and a line in "notes" is how I get to',
+    '   see it. Names inside descriptions ("lunch with Marco") are people I was with, not payers',
+    '   or columns: on a file with no per-person columns, never ask which of them is me.',
     '2. When you do have enough, set "status": "ok" and return EVERY transaction. What you worked',
     `   out on your own - a share column, a balance, a date format - goes in "notes", one short`,
     `   line each, in ${lang}. Never fold an inference into a question. On a SPLIT file the notes`,
@@ -519,27 +596,9 @@ function apiAddendum(language: 'en' | 'it'): string {
   ].join('\n');
 }
 
-/** The facts the browser is allowed to assert, spelled out for the model. */
-function factsBlock(args: {
-  today: string;
-  trip: TripAnswer | null;
-  answers: { ask: string; answer: string }[];
-}): string {
-  const lines = ['WHAT I HAVE ALREADY TOLD YOU', '', `Today is ${args.today}.`];
-  if (args.trip?.is_trip && args.trip.name) {
-    lines.push(`These rows are one trip, and its name is exactly: ${args.trip.name}`);
-    lines.push('Do not ask me for a trip name - that question is answered.');
-  } else if (args.trip) {
-    lines.push('These rows are NOT a trip. Do not add a trip prefix and do not ask me about one.');
-  } else {
-    lines.push('I have not said whether this is a trip.');
-  }
-  if (args.answers.length) {
-    lines.push('', 'My answers to what you asked last time:');
-    for (const a of args.answers) lines.push(`- ${a.ask} -> ${a.answer}`);
-  }
-  return lines.join('\n');
-}
+// factsBlock lives in the "shape" region above, beside the readers whose
+// output it spells out - and inside the fence, so the two mode texts are
+// under test.
 
 // Every path below returns a sentence. An uncaught throw would instead become
 // a platform 500 whose body is not our JSON, and the browser SDK reports all
@@ -628,6 +687,8 @@ async function handle(req: Request): Promise<Response> {
   const blocks = readUploads(body);
   const trip = readTrip(body);
   const answers = readAnswers(body);
+  const mode = readMode(body);
+  const sampleOf = readSampleOf(body);
   if (trip?.is_trip && trip.name && !isTripName(trip.name)) {
     return json(400, {
       code: 'bad_trip_name',
@@ -687,7 +748,7 @@ async function handle(req: Request): Promise<Response> {
     // the volatile ones below are not. ~3,500 tokens of instructions at a
     // tenth of the price on every import after the first.
     { type: 'text', text: apiAddendum(language), cache_control: { type: 'ephemeral' } },
-    { type: 'text', text: factsBlock({ today: new Date().toISOString().slice(0, 10), trip, answers }) },
+    { type: 'text', text: factsBlock({ today: new Date().toISOString().slice(0, 10), trip, answers, mode, sampleOf }) },
     ...blocks,
   ];
 
@@ -701,7 +762,10 @@ async function handle(req: Request): Promise<Response> {
   const maxTokens = Number(Deno.env.get('CONVERT_MAX_TOKENS') ?? DEFAULT_MAX_TOKENS) || DEFAULT_MAX_TOKENS;
   const request = {
     model,
-    max_tokens: maxTokens,
+    // A triage answer is a handful of questions, or a status and three notes.
+    // Capped low so a model that ignores "do not convert" cannot spend a
+    // minute converting the sample anyway.
+    max_tokens: mode === 'triage' ? TRIAGE_MAX_TOKENS : maxTokens,
     messages: [{ role: 'user' as const, content }],
     output_config: { format: { type: 'json_schema' as const, schema: ANSWER_SCHEMA } },
   };
