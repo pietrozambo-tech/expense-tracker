@@ -585,7 +585,7 @@ const pickCsv = (p) => p.locator('[data-ai-door] input[type="file"]').setInputFi
   });
   await p.waitForTimeout(900);
   const text = await p.locator('body').innerText();
-  ok(/4[.,]40\d/.test(text), `the refusal counts them out loud (${text.split('\n').find((l) => /transaction|transazioni/i.test(l)) ?? ''})`);
+  ok(/4[.,]40\d/.test(text), `the refusal counts them out loud (${text.split('\n').find((l) => /transaction|movimenti/i.test(l)) ?? ''})`);
   ok(/2[.,]400/.test(text), 'and says how many would fit, which is the only actionable half');
   ok(/[Nn]othing has been used up/.test(text),
     'and that it cost nothing - the whole point of refusing here rather than there');

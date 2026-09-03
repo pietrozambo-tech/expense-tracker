@@ -4913,8 +4913,8 @@ export default function App() {
             title={getLanguage() === 'it' ? 'Includere anche le precedenti?' : 'Include earlier ones?'}
             message={getLanguage() === 'it'
               ? (pendingBackTag.ids.length === 1
-                  ? `1 transazione passata chiamata "${pendingBackTag.name}" non è segnata come ricorrente. Segnarla come parte di questa serie?`
-                  : `${pendingBackTag.ids.length} transazioni passate chiamate "${pendingBackTag.name}" non sono segnate come ricorrenti. Segnarle come parte di questa serie?`)
+                  ? `1 movimento passato chiamato "${pendingBackTag.name}" non è segnato come ricorrente. Segnarlo come parte di questa serie?`
+                  : `${pendingBackTag.ids.length} movimenti passati chiamati "${pendingBackTag.name}" non sono segnati come ricorrenti. Segnarli come parte di questa serie?`)
               : `${pendingBackTag.ids.length} past transaction${pendingBackTag.ids.length === 1 ? '' : 's'} named "${pendingBackTag.name}" ${pendingBackTag.ids.length === 1 ? 'is' : 'are'} not marked as recurring. Mark ${pendingBackTag.ids.length === 1 ? 'it' : 'them'} as part of this series too?`}
             confirmLabel={getLanguage() === 'it'
               ? (pendingBackTag.ids.length === 1 ? 'Segnala come ricorrente' : `Segna tutte e ${pendingBackTag.ids.length}`)

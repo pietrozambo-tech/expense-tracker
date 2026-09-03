@@ -2981,7 +2981,7 @@ export function Settings({
               {getLanguage() === 'it' ? 'Importa i tuoi dati' : 'Bring in your existing data'}
             </h2>
             <p style={{ color: 'var(--ink-3)', fontSize: 15, lineHeight: 1.5, marginTop: 8 }}>
-              {getLanguage() === 'it' ? 'Un assistente AI trasforma quasi tutto in transazioni TracklyLab - senza reinserire nulla a mano.' : 'An AI assistant turns almost anything into TracklyLab transactions - no manual re-entry.'}
+              {getLanguage() === 'it' ? 'Un assistente AI trasforma quasi tutto in movimenti TracklyLab - senza reinserire nulla a mano.' : 'An AI assistant turns almost anything into TracklyLab transactions - no manual re-entry.'}
             </p>
           </div>
 
@@ -2995,7 +2995,7 @@ export function Settings({
               </div>
               <div style={{ color: 'var(--ink)', fontSize: 14, fontWeight: 700, lineHeight: 1.3 }}>{getLanguage() === 'it' ? 'Banche e fogli di calcolo' : 'Banks & spreadsheets'}</div>
               <p style={{ color: 'var(--ink-3)', fontSize: 12, lineHeight: 1.45, marginTop: 4 }}>
-                {getLanguage() === 'it' ? 'Estratti conto (PDF o CSV), file Excel - persino screenshot di una lista di transazioni.' : 'Statements (PDF or CSV), Excel files - even screenshots of a transaction list.'}
+                {getLanguage() === 'it' ? 'Estratti conto (PDF o CSV), file Excel - persino screenshot di una lista di movimenti.' : 'Statements (PDF or CSV), Excel files - even screenshots of a transaction list.'}
               </p>
             </div>
             <div className="bg-white rounded-2xl shadow-sm p-4">
@@ -3113,7 +3113,7 @@ export function Settings({
           </button>
           <p style={{ color: 'var(--disabled)', fontSize: 12, lineHeight: 1.5, marginTop: 10, textAlign: 'center' }}>
             {getLanguage() === 'it'
-              ? 'Le transazioni importate si aggiungono ai tuoi dati attuali. Se scegli un file di backup TracklyLab (da Esporta), viene invece ripristinato.'
+              ? 'I movimenti importati si aggiungono ai tuoi dati attuali. Se scegli un file di backup TracklyLab (da Esporta), viene invece ripristinato.'
               : 'Imported transactions are added to your current data. Choosing a TracklyLab backup file (from Export) restores it instead.'}
           </p>
           </>)}

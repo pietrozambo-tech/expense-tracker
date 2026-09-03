@@ -570,7 +570,7 @@ export function WelcomeCarousel({ onDone, onSetupCategories, onLoadDemo }: Welco
       illustration: <DemoIllustration />,
       title: getLanguage() === 'it' ? 'Vuoi prima dare un’occhiata?' : 'Want to look around first?',
       desc: getLanguage() === 'it'
-        ? 'Carica un set di transazioni di esempio ed esplora dashboard e trend con dati realistici. Rimuovi tutto con un tocco quando vuoi.'
+        ? 'Carica un set di movimenti di esempio ed esplora dashboard e trend con dati realistici. Rimuovi tutto con un tocco quando vuoi.'
         : 'Load a set of sample transactions and explore the dashboard and trends with real-looking data. Remove it all in one tap whenever you want.',
       cta: 'demo',
     },
