@@ -74,6 +74,101 @@ export const countRows = (text: string): number => {
   return n;
 };
 
+/**
+ * The most reads one import is allowed to become. Two.
+ *
+ * A file just past what one answer can hold is a solvable problem: cut it in
+ * half, read each half, join the two lists. Forty halves is not the same
+ * problem wearing a bigger number - it is most of a day's allowance, minutes
+ * of waiting, and forty chances for one of them to fail with the other
+ * thirty-nine already spent. Past this the app says so instead.
+ */
+export const AI_MAX_READS = 2;
+
+/** A line carrying a date is a row of data. Everything above the first one -
+ *  a title, a column header, a sheet heading - is preamble, and the second
+ *  half needs its own copy or it arrives as a wall of unlabelled columns. */
+const hasDate = (line: string): boolean =>
+  DATE_RES.some((re) => {
+    re.lastIndex = 0;
+    return re.test(line);
+  });
+
+/** One file's text, cut into `parts` pieces of roughly equal row counts, each
+ *  carrying the preamble of every section it draws from. Null when there is
+ *  nothing to cut along - no dated lines at all. */
+export function splitLedgerText(text: string, parts: number): string[] | null {
+  if (parts < 2) return [text];
+  // xlsxToText writes a multi-sheet workbook as "### Sheet: name" blocks, and
+  // each block has its own headers. Split along them so a sheet's columns are
+  // never separated from its rows.
+  const blocks = /^### Sheet: /m.test(text)
+    ? text.split(/\n(?=### Sheet: )/)
+    : [text];
+  const sections = blocks.map((block) => {
+    const lines = block.split('\n');
+    const first = lines.findIndex(hasDate);
+    return first < 0
+      ? { head: lines, rows: [] as string[] }
+      : { head: lines.slice(0, first), rows: lines.slice(first) };
+  });
+  const total = sections.reduce((n, s) => n + s.rows.length, 0);
+  if (total === 0) return null;
+
+  const out: string[] = [];
+  const per = Math.ceil(total / parts);
+  let taken = 0;
+  for (let part = 0; part < parts; part += 1) {
+    const want = part === parts - 1 ? total - taken : Math.min(per, total - taken);
+    const pieces: string[] = [];
+    let left = want;
+    let seen = 0;
+    for (const section of sections) {
+      const from = Math.max(0, taken - seen);
+      seen += section.rows.length;
+      if (left <= 0 || from >= section.rows.length) continue;
+      const rows = section.rows.slice(from, from + left);
+      left -= rows.length;
+      pieces.push([...section.head, ...rows].join('\n'));
+    }
+    taken += want - left;
+    // Sections that are all preamble (an empty sheet, a title page) ride with
+    // the first part only: repeated, they would read as duplicated content.
+    if (part === 0) {
+      for (const section of sections) if (section.rows.length === 0) pieces.push(section.head.join('\n'));
+    }
+    out.push(pieces.join('\n\n'));
+  }
+  return out;
+}
+
+/**
+ * The files for each read, when one read cannot carry them all.
+ *
+ * Null means "send them as they are" - either they fit, or they cannot be
+ * split (a PDF or a photo has no rows to cut along, and half a scanned
+ * statement is not a file).
+ */
+export function splitForReads(files: AiFile[]): AiFile[][] | null {
+  const rows = files.reduce((n, f) => n + (f.text ? countRows(f.text) : 0), 0);
+  if (rows <= AI_MAX_ROWS) return null;
+  const parts = Math.ceil(rows / AI_MAX_ROWS);
+  if (parts > AI_MAX_READS) return null; // refused upstream, in readFiles
+  if (files.some((f) => !f.text)) return null; // nothing to cut a photo along
+
+  const cut = files.map((f) => splitLedgerText(f.text!, parts));
+  if (cut.some((c) => c === null)) return null;
+  return Array.from({ length: parts }, (_, i) =>
+    files.map((f, j) => {
+      // The bytes are rewritten too. The server reads a text file from
+      // `text`, but the base64 is what it falls back to - and a half whose
+      // two copies disagreed would be a bug nobody could see.
+      const bytes = new TextEncoder().encode(cut[j]![i]);
+      return { ...f, text: cut[j]![i], bytes: bytes.byteLength, data: b64(bytes.buffer as ArrayBuffer) };
+    }),
+  );
+}
+
 /** The types that travel as they are. Everything else gets a second look:
  *  an .xlsx is unpacked to CSV on the phone (see lib/xlsx.ts - as zip bytes
  *  it reads as nothing), and any unrecognised file whose bytes decode as
@@ -247,8 +342,14 @@ export async function readFiles(files: File[]): Promise<AiFile[]> {
   // And the tighter one: what has to come BACK. Counted across every text
   // file together, because they are read as one request and answered as one
   // document.
+  //
+  // The ceiling here is what the app can SPLIT to, not what one read holds:
+  // past AI_MAX_ROWS the file is cut in half and read twice (see
+  // convertWithAi). Past two halves it is refused, because forty reads is
+  // most of a day's allowance and forty chances to fail with the rest
+  // already spent.
   const rows = texts.reduce((sum, f) => sum + countRows(f.text ?? ''), 0);
-  if (rows > AI_MAX_ROWS) throw new AiImportError('too_many_rows', String(rows));
+  if (rows > AI_MAX_ROWS * AI_MAX_READS) throw new AiImportError('too_many_rows', String(rows));
   // Only when EVERY text file looks like something else: one unreadable file
   // beside a real export is the model's problem, not a reason to refuse.
   if (texts.length > 0 && texts.length === out.length && !texts.some((f) => looksLikeLedger(f.text!))) {
@@ -381,11 +482,6 @@ export interface ConvertArgs {
   onPhase?: (phase: 'sent' | 'reading') => void;
 }
 
-/**
- * One conversion, streamed. Resolves with the authoritative answer (the
- * parse of the whole document - the rows handed to onRow are a preview and
- * nothing more), or throws AiImportError with the server's code.
- */
 /** How long silence is tolerated before the flow gives up on its own.
  *  A reading screen that sits mute for minutes is the failure the user
  *  reported, verbatim - so silence itself is now an error. First answer:
@@ -403,7 +499,15 @@ const stallMs = (key: string, fallback: number): number => {
   }
 };
 
-export async function convertWithAi(args: ConvertArgs): Promise<AiDone> {
+/**
+ * ONE conversion, streamed. Resolves with the authoritative answer (the parse
+ * of the whole document - the rows handed to onRow are a preview and nothing
+ * more), or throws AiImportError with the server's code.
+ *
+ * convertWithAi below is what callers use; this is the single read it is
+ * built out of.
+ */
+async function oneRead(args: ConvertArgs): Promise<AiDone> {
   const { data: sess } = await supabase.auth.getSession();
   const token = sess?.session?.access_token;
   if (!token) throw new AiImportError('signed_out', 'no session');
@@ -564,4 +668,64 @@ export async function convertWithAi(args: ConvertArgs): Promise<AiDone> {
   if (failed) throw failed;
   if (!done) throw new AiImportError('cut_off', 'the stream ended without an answer');
   return done;
+}
+
+/**
+ * One conversion, however many reads it takes.
+ *
+ * A file past what a single answer can hold is cut in half and read twice,
+ * and the two lists are joined here - so the screen above never learns that
+ * anything unusual happened. Rows keep arriving through the same onRow, the
+ * running total keeps climbing, and what comes back is one payload.
+ *
+ * The alternative was to hand the user "too long - split it", which is not an
+ * answer: splitting a spreadsheet by hand is the work they came here to
+ * avoid, and the app is holding the rows already.
+ *
+ * What it deliberately does NOT do:
+ *
+ *   more than two reads     see AI_MAX_READS. Refused in readFiles, before
+ *                           anything is claimed.
+ *   carry on past a failure Both halves must land. Half a statement imported
+ *                           silently is worse than a failure that says so -
+ *                           and with the day's read now given back on every
+ *                           failure, trying again is cheap.
+ *   answer questions twice  If either half asks something, that answer is
+ *                           returned as it stands and the flow puts the
+ *                           question on screen; replying re-runs both halves
+ *                           with the answer attached, which is the only way
+ *                           the two can agree about it.
+ */
+export async function convertWithAi(args: ConvertArgs): Promise<AiDone> {
+  const parts = splitForReads(args.files);
+  if (!parts) return oneRead(args);
+
+  let seen = 0;
+  let all: AiDone | null = null;
+  for (const files of parts) {
+    const before = seen;
+    const done = await oneRead({
+      ...args,
+      files,
+      // The phases narrate the FIRST read only. They run 'sent' then
+      // 'reading', and a screen that walked back to "sending" halfway
+      // through a list of rows would be describing a retry that is not
+      // happening.
+      onPhase: all ? undefined : args.onPhase,
+      // Row numbers continue across the halves. Restarting at 1 would tell
+      // the screen the count had gone backwards.
+      onRow: args.onRow ? (r) => { seen = before + r.n; args.onRow!({ ...r, n: before + r.n }); } : undefined,
+    });
+    if (done.status === 'need_input') return done;
+    seen = before + (done.payload?.transactions?.length ?? 0);
+    all = all === null ? done : {
+      ...done, // remaining and status come from the LAST read: it is the newer truth
+      notes: [...all.notes, ...done.notes.filter((n) => !all!.notes.includes(n))],
+      payload: {
+        ...(all.payload ?? done.payload!),
+        transactions: [...(all.payload?.transactions ?? []), ...(done.payload?.transactions ?? [])],
+      },
+    };
+  }
+  return all!;
 }

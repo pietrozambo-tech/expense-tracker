@@ -689,7 +689,7 @@ export const en = {
   // JSON document and a document cut off mid-row parses as nothing. See
   // AI_MAX_ROWS in lib/aiImport.ts.
   'ai.errRows': '{n} transactions is more than one read can carry',
-  'ai.errRowsSub': 'Nothing has been used up. Split the file - up to {max} rows at a time.',
+  'ai.errRowsSub': 'Nothing has been used up. Up to {max} fit in one import - split the file by year and bring them in one at a time.',
   'ai.errOff': 'This is switched off right now.',
   'ai.errSpreadsheet': 'That format is the old one - save it as .xlsx or CSV and try again.',
   'ai.opening': 'Opening the file…',

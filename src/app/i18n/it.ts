@@ -661,7 +661,7 @@ export const it: Record<keyof typeof en, string> = {
   'ai.errLimitSubN': 'Ne puoi fare {n} al giorno. Nessuna spesa è stata toccata: riprova domani.',
   'ai.errBig': 'Troppo lungo per leggerlo in una volta - prova a dividerlo.',
   'ai.errRows': '{n} transazioni sono troppe per una lettura sola',
-  'ai.errRowsSub': 'Non hai consumato niente. Dividi il file: fino a {max} righe per volta.',
+  'ai.errRowsSub': 'Non hai consumato niente. In un import ne stanno {max}: dividi il file per anno e caricali uno alla volta.',
   'ai.errOff': 'Al momento è spento.',
   'ai.errSpreadsheet': 'Questo formato è quello vecchio: salvalo come .xlsx o CSV e riprova.',
   'ai.opening': 'Sto aprendo il file…',

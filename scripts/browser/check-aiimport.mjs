@@ -97,6 +97,10 @@ const CSV = [
 const open = async ({ session, convert }) => {
   const ctx = await b.newContext({ viewport: { width: 390, height: 900 }, locale: 'en-GB' });
   let calls = 0;
+  // Every request body, kept: the split reads twice, and "were both halves
+  // whole files with their own headers" is only answerable from what actually
+  // went out.
+  const sent = [];
   // Routes are matched newest-first, so the broad Supabase stub goes in
   // FIRST and the function's own route after it - the other way round, the
   // broad one answers "{}" to the conversion call and the whole flow reads
@@ -104,7 +108,9 @@ const open = async ({ session, convert }) => {
   await ctx.route(/supabase\.co/, (r) => r.fulfill({ status: 200, contentType: 'application/json', body: '{}' }));
   await ctx.route('**/functions/v1/convert-import', async (route) => {
     calls += 1;
-    const reply = convert(calls, JSON.parse(route.request().postData() ?? '{}'));
+    const body = JSON.parse(route.request().postData() ?? '{}');
+    sent.push(body);
+    const reply = convert(calls, body);
     // A beat of latency, so the reading screen is a state the test can see
     // rather than a frame it always misses.
     await new Promise((r) => setTimeout(r, reply.delay ?? 0));
@@ -121,7 +127,7 @@ const open = async ({ session, convert }) => {
   await p.waitForTimeout(600);
   await p.getByText('Import data', { exact: false }).first().click();
   await p.waitForTimeout(700);
-  return { ctx, p, calls: () => calls };
+  return { ctx, p, calls: () => calls, sent };
 };
 
 const pickCsv = (p) => p.locator('[data-ai-door] input[type="file"]').setInputFiles({
@@ -465,26 +471,70 @@ const pickCsv = (p) => p.locator('[data-ai-door] input[type="file"]').setInputFi
 // ── a file longer than one answer can hold ───────────────────────────────
 //
 // The reply is ONE JSON document, so the real ceiling is not what the model
-// can read but what it can write - and a document cut off mid-row parses as
-// nothing at all. The server claims the day's read before the model is
-// called, so this has to be caught on the phone, where it costs nothing.
-//
-// The refusal has to carry the NUMBER. "Too long" leaves somebody staring at
-// a file with no idea whether it is twice over or a hundred times.
+// can read but what it can write, and a document cut off mid-row parses as
+// nothing at all. Past that ceiling the app cuts the file in half and reads
+// it twice; past TWO halves it says so, on the phone, before the day's read
+// is claimed.
 {
-  const { ctx, p } = await open({ session: true });
+  // 2,400 rows: over one read, inside two. Two requests go out and the two
+  // lists come back as one - the screen never learns anything unusual
+  // happened.
+  const { ctx, p, sent } = await open({
+    session: true,
+    convert: (n) => ({
+      res: {
+        status: 200, contentType: 'text/event-stream',
+        body: sse([...ROWS, ['done', {
+          ...OK_DONE,
+          payload: {
+            ...OK_DONE.payload,
+            transactions: OK_DONE.payload.transactions.map((t) => ({ ...t, description: `half ${n} - ${t.description}` })),
+          },
+        }]]),
+      },
+    }),
+  });
   const many = ['date,description,amount'];
-  for (let i = 0; i < 2400; i += 1) many.push(`2026-01-01,Row ${i},10`);
+  for (let i = 0; i < 2400; i += 1) many.push(`2026-01-0${(i % 9) + 1},Row ${i},10`);
   await p.locator('[data-ai-door] input[type="file"]').setInputFiles({
-    name: 'four-years.csv', mimeType: 'text/csv', buffer: Buffer.from(many.join('\n')),
+    name: 'two-years.csv', mimeType: 'text/csv', buffer: Buffer.from(many.join('\n')),
+  });
+  await p.waitForTimeout(500);
+  await p.locator('[data-ai-cta="go"]').click();
+  await p.waitForTimeout(4000);
+  ok(sent.length === 2, `a file past one answer is read in two goes, not refused (${sent.length} requests)`);
+  // The wire carries base64, not the text field - so this reads what the
+  // server would actually receive, which is the only copy that matters.
+  const half = (c) => Buffer.from(c.files?.[0]?.data ?? '', 'base64').toString('utf8');
+  const sizes = sent.map((c) => half(c).split('\n').filter((l) => /^2026-/.test(l)).length);
+  ok(sizes[0] === 1200 && sizes[1] === 1200, `cut down the middle (${sizes.join(' + ')})`);
+  ok(sent.every((c) => half(c).startsWith('date,description,amount')),
+    'and both halves carry the column header, not just the first');
+  const seam = [...half(sent[0]).split('\n'), ...half(sent[1]).split('\n')].filter((l) => /^2026-/.test(l));
+  ok(seam.length === 2400 && new Set(seam).size === 2400,
+    'with every row sent exactly once - none dropped at the seam, none read twice');
+  const text = await p.locator('body').innerText();
+  ok(/half 1/.test(text) && /half 2/.test(text),
+    'both answers survive into the result - the two lists are joined, not the second one kept');
+  await ctx.close();
+}
+{
+  // 4,400 rows: more than two halves. Refused here, where it costs nothing,
+  // and the refusal carries the number - "too long" leaves somebody staring
+  // at a file with no idea whether it is twice over or a hundred times.
+  const { ctx, p, sent } = await open({ session: true });
+  const many = ['date,description,amount'];
+  for (let i = 0; i < 4400; i += 1) many.push(`2026-01-0${(i % 9) + 1},Row ${i},10`);
+  await p.locator('[data-ai-door] input[type="file"]').setInputFiles({
+    name: 'ten-years.csv', mimeType: 'text/csv', buffer: Buffer.from(many.join('\n')),
   });
   await p.waitForTimeout(900);
   const text = await p.locator('body').innerText();
-  ok(/2[.,]40\d/.test(text), `the refusal counts them out loud (${text.split('\n').find((l) => /transaction|transazioni/i.test(l)) ?? ''})`);
-  ok(/2[.,]000/.test(text), 'and says how many would fit, which is the only actionable half');
+  ok(/4[.,]40\d/.test(text), `the refusal counts them out loud (${text.split('\n').find((l) => /transaction|transazioni/i.test(l)) ?? ''})`);
+  ok(/4[.,]000/.test(text), 'and says how many would fit, which is the only actionable half');
   ok(/[Nn]othing has been used up/.test(text),
     'and that it cost nothing - the whole point of refusing here rather than there');
-  ok(await p.locator('[data-ai-flow]').count() === 0, 'and no read was started');
+  ok(sent.length === 0, 'no read was started');
   await ctx.close();
 }
 
