@@ -551,7 +551,7 @@ export function WelcomeCarousel({ onDone, onSetupCategories, onLoadDemo }: Welco
     },
     {
       illustration: <ImportIllustration />,
-      title: getLanguage() === 'it' ? 'Porta qui il tuo storico' : 'Bring your history',
+      title: getLanguage() === 'it' ? 'Importa il tuo storico' : 'Bring your history',
       desc: getLanguage() === 'it'
         ? 'Importa da un foglio di calcolo, estratti conto o un viaggio Splitwise 🏝️ - un assistente AI converte tutto, senza reinserire nulla a mano.'
         : 'Import from a spreadsheet, bank statements, or a Splitwise trip 🏝️ - an AI assistant converts it all, no manual re-entry.',

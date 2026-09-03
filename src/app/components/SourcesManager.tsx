@@ -71,7 +71,7 @@ export function SourcesManager({
         <div className="px-6 pb-5">
           <p style={{ color: 'var(--ink-2)', fontSize: '13px' }}>
             {getLanguage() === 'it'
-              ? 'Da dove entrano ed escono i soldi: contanti o le tue banche. Le nuove transazioni partono dal predefinito.'
+              ? 'Da dove entrano ed escono i soldi: contanti o le tue banche. Le nuove transazioni usano il conto predefinito.'
               : 'Where money flows in and out - cash or your banks. New transactions start on your default.'}
           </p>
         </div>

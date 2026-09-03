@@ -144,6 +144,6 @@ export function dowTakeaway(buckets: DayBucket[]): string | null {
   const r = Math.round(ratio * 10) / 10;
   const rText = Number.isInteger(r) ? String(r) : r.toLocaleString(numberLocale(), { minimumFractionDigits: 1, maximumFractionDigits: 1 });
   return IT
-    ? `Il ${dayIt(max)} costa ${rText}x un tipico ${dayIt(min)}.`
+    ? `Il ${dayIt(max)} costa ${rText}x un ${dayIt(min)} qualunque.`
     : `${plural(max.label)} cost ${rText}x a typical ${min.label}.`;
 }

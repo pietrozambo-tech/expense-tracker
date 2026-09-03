@@ -1303,7 +1303,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
       return {
         line1: IT ? `Il tuo primo ${unitIt} registrato.` : `Your first tracked ${unitName}.`,
         line2: top
-          ? `${IT ? 'Categoria più grande' : 'Biggest category'}: ${top[0]}, ${AMOUNT_MARK}${formatAmountListView(top[1], currency, 0)}${AMOUNT_MARK}.`
+          ? `${IT ? 'Categoria principale' : 'Biggest category'}: ${top[0]}, ${AMOUNT_MARK}${formatAmountListView(top[1], currency, 0)}${AMOUNT_MARK}.`
           : undefined,
       };
     }
@@ -4807,7 +4807,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                         overallSavingRate !== null ? (
                           <StatChip
                             label={getLanguage() === 'it'
-                              ? <>Tasso<span className="max-[359px]:hidden"> di Risparmio</span></>
+                              ? <>Tasso<span className="max-[359px]:hidden"> di risparmio</span></>
                               : <><span className="max-[359px]:hidden">Saving </span>Rate</>}
                             value={formatSavingRate(overallSavingRate)}
                             // Neutral when the value is the placeholder - a
@@ -4834,7 +4834,7 @@ export function Dashboard({ expenses, categories, incomeCategories, sources = []
                             // "Saving ..."; dropping the first word is a better
                             // reading of the same thing.
                             label={getLanguage() === 'it'
-                              ? <>Tasso<span className="max-[359px]:hidden"> di Risparmio</span></>
+                              ? <>Tasso<span className="max-[359px]:hidden"> di risparmio</span></>
                               : <><span className="max-[359px]:hidden">Saving </span>Rate</>}
                             value={formatSavingRate(avgMonthlySavingRate)}
                             tone={Math.round(avgMonthlySavingRate)}

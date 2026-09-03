@@ -2978,7 +2978,7 @@ export function Settings({
           {/* Intro */}
           <div className="pt-2 pb-4">
             <h2 style={{ color: 'var(--ink)', fontSize: 22, fontWeight: 700, letterSpacing: '-0.02em' }}>
-              {getLanguage() === 'it' ? 'Porta qui i tuoi dati esistenti' : 'Bring in your existing data'}
+              {getLanguage() === 'it' ? 'Importa i tuoi dati' : 'Bring in your existing data'}
             </h2>
             <p style={{ color: 'var(--ink-3)', fontSize: 15, lineHeight: 1.5, marginTop: 8 }}>
               {getLanguage() === 'it' ? 'Un assistente AI trasforma quasi tutto in transazioni TracklyLab - senza reinserire nulla a mano.' : 'An AI assistant turns almost anything into TracklyLab transactions - no manual re-entry.'}
@@ -3004,7 +3004,7 @@ export function Settings({
               </div>
               <div style={{ color: 'var(--ink)', fontSize: 14, fontWeight: 700, lineHeight: 1.3 }}>{getLanguage() === 'it' ? 'Viaggi e spese condivise' : 'Trips & split expenses'}</div>
               <p style={{ color: 'var(--ink-3)', fontSize: 12, lineHeight: 1.45, marginTop: 4 }}>
-                {getLanguage() === 'it' ? 'Un export di viaggio da Splitwise o Tricount arriva come sola tua quota - i pareggi vengono saltati.' : 'A Splitwise or Tricount trip export lands as your share only - settlements are skipped.'}
+                {getLanguage() === 'it' ? 'Un export di viaggio da Splitwise o Tricount arriva come sola tua quota - i rimborsi vengono saltati.' : 'A Splitwise or Tricount trip export lands as your share only - settlements are skipped.'}
               </p>
             </div>
           </div>
@@ -3030,7 +3030,7 @@ export function Settings({
                 : getLanguage() === 'it'
                 ? <>Apri un assistente AI qualsiasi (ChatGPT, Claude, Gemini…). Incolla il prompt qui sotto e allega il tuo file - un foglio di calcolo, un estratto conto (PDF o CSV), un export di viaggio Splitwise o{' '}
               <TricountLink />,
-              screenshot o una tabella incollata. Le spese condivise arrivano come sola tua quota - i pareggi tra persone vengono saltati.</>
+              screenshot o una tabella incollata. Le spese condivise arrivano come sola tua quota - i rimborsi tra persone vengono saltati.</>
                 : <>Open any AI assistant (ChatGPT, Claude, Gemini…). Paste the prompt below and attach your file -
               a spreadsheet, a bank/card statement (PDF or CSV), a Splitwise or{' '}
               <TricountLink />{' '}

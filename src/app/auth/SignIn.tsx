@@ -182,8 +182,8 @@ export function SignIn() {
                   </span>{' '}
                   {getLanguage() === 'it'
                     ? returning.email
-                      ? `Rientra con ${returning.email} e torna a sincronizzarsi: non si è perso niente.`
-                      : 'Rientra con lo stesso account e torna a sincronizzarsi: non si è perso niente.'
+                      ? `Rientra con ${returning.email} e la sincronizzazione riprende: non si è perso niente.`
+                      : 'Rientra con lo stesso account e la sincronizzazione riprende: non si è perso niente.'
                     : returning.email
                       ? `Sign back in with ${returning.email} and it picks up syncing again - nothing was lost.`
                       : 'Sign back in with the same account and it picks up syncing again - nothing was lost.'}
@@ -323,8 +323,8 @@ export function SignIn() {
               {getLanguage() === 'it' ? (
                 <>
                   Continuando accetti i nostri{' '}
-                  <span style={LEGAL_EM}>Termini di Servizio</span> e la nostra{' '}
-                  <span style={LEGAL_EM}>Privacy Policy</span>.
+                  <span style={LEGAL_EM}>Termini di servizio</span> e la nostra{' '}
+                  <span style={LEGAL_EM}>Informativa sulla privacy</span>.
                 </>
               ) : (
                 <>

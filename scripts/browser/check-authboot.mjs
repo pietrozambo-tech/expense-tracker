@@ -209,13 +209,13 @@ const waitUsable = async (p, capMs) => {
   await p.waitForSelector('button', { timeout: 15000 });
   await p.waitForTimeout(600);
   const screen = await p.locator('body').innerText();
-  ok(/Continuando accetti i nostri Termini di Servizio e la nostra Privacy Policy/.test(screen),
+  ok(/Continuando accetti i nostri Termini di servizio e la nostra Informativa sulla privacy/.test(screen),
     'the Italian consent line is an Italian sentence, both documents named');
-  ok(!/By continuing|\bOR\b/.test(screen),
+  ok(!/By continuing|\bOR\b|Privacy Policy/.test(screen),
     'with no English left on the screen around it');
   // Settings calls them the same thing; two names for one document is how a
   // person ends up wondering which one they agreed to.
-  ok(/Termini di Servizio/.test(screen), 'and the names match what Settings calls them');
+  ok(/Termini di servizio/.test(screen), 'and the names match what Settings calls them');
   await p.screenshot({ path: `${OUT}/authboot-consent-it.png` });
   await ctx.close();
 }
