@@ -32,7 +32,6 @@ const DESC_IT: Record<string, string> = {
   'Coffee & croissant': 'Caffè e cornetto',
   'Coffee & pastry': 'Caffè e brioche',
   Concert: 'Concerto',
-  'Content royalties': 'Royalties sui contenuti',
   'Court booking': 'Prenotazione campo',
   Dinner: 'Cena',
   'Dinner in Soho': 'Cena a Soho',
@@ -64,6 +63,7 @@ const DESC_IT: Record<string, string> = {
   'Lunch at work': 'Pranzo al lavoro',
   'Lunch out': 'Pranzo fuori',
   Massage: 'Massaggio',
+  'Meal vouchers': 'Buoni pasto',
   Medicine: 'Medicinali',
   'Metro ticket': 'Biglietto metro',
   Misc: 'Varie',
@@ -83,7 +83,6 @@ const DESC_IT: Record<string, string> = {
   'Property tax': 'Tassa sulla casa',
   'Protein snack': 'Snack proteico',
   'Rental income': 'Reddito da affitto',
-  Royalties: 'Royalties',
   Shoes: 'Scarpe',
   'Small repair': 'Piccola riparazione',
   Snack: 'Spuntino',
@@ -102,6 +101,7 @@ const DESC_IT: Record<string, string> = {
   Trip: 'Viaggio',
   'Weekend hotel': 'Hotel per il weekend',
   'Weekly groceries': 'Spesa settimanale',
+  'Welfare credit': 'Credito welfare',
   iCloud: 'iCloud',
 };
 
@@ -110,29 +110,28 @@ const DESC_IT: Record<string, string> = {
 // subcategories the seeded categories carry, or the drilldowns would show
 // near-duplicates ("Rent" next to "Affitto"). The few the demo invents on top
 // of the defaults (Christmas) translate free-standing, exactly as they do in
-// English.
+// English. Where the Italian list names shops instead of the kind of shop,
+// the demo's supermarket rows land on the first of them.
 const SUB_IT: Record<string, string> = {
-  Breakfast: 'Colazione',
-  Lunch: 'Pranzo',
   Snack: 'Spuntino',
   Restaurant: 'Ristorante',
   Drinks: 'Aperitivo',
   Wedding: 'Matrimonio',
   Birthday: 'Compleanno',
   Christmas: 'Natale',
-  Supermarket: 'Supermercato',
+  Supermarket: 'Esselunga',
   Pharmacy: 'Farmacia',
   Cosmetics: 'Cosmetici',
   Wellness: 'Benessere',
   Rent: 'Affitto',
   Utilities: 'Bollette',
   Cleaning: 'Pulizie',
-  Movies: 'Cinema',
+  Cinema: 'Cinema',
   Concerts: 'Concerti',
   Clothing: 'Abbigliamento',
   Electronics: 'Elettronica',
   Tennis: 'Tennis',
-  "Barry's": 'Palestra',
+  Gym: 'Palestra',
   Streaming: 'Streaming',
   Cloud: 'Cloud',
   'Income Tax': 'Tasse sul Reddito',
@@ -140,12 +139,12 @@ const SUB_IT: Record<string, string> = {
   'Bank Fees': 'Commissioni Bancarie',
   'Public Transport': 'Mezzi Pubblici',
   'Uber/Taxi': 'Uber/Taxi',
-  Gasoline: 'Benzina',
+  Fuel: 'Benzina',
   Flights: 'Voli',
   Hotel: 'Hotel',
   Food: 'Cibo',
   Activities: 'Attività',
-  Transportation: 'Trasporti',
+  Transport: 'Trasporti',
   Donations: 'Donazioni',
   Unexpected: 'Imprevisti',
 };
@@ -198,8 +197,11 @@ export function demoTranslationGaps(rows: Pick<Transaction, 'description' | 'sub
  * and demo rows must land inside THAT catalogue or the Dashboard drops them.
  * So: descriptions follow the UI language (pure cosmetics), the category
  * object is the user's own (matched by id, since ids are shared across
- * languages), and a subcategory is translated only when the translated name
- * exists on the user's category - otherwise the original is what matches.
+ * languages), and a subcategory follows the user's chips: translated when the
+ * Italian name is one of them, kept when the English name is (an English-seeded
+ * catalogue under an Italian UI), and translated free-standing when neither is
+ * - the few the demo invents on top of the defaults (Christmas) are pure text
+ * and read in the UI language like the descriptions do.
  */
 export function localiseDemoRow(t: Transaction, userCategories: Category[]): Transaction {
   const own = t.category?.id ? userCategories.find((c) => c.id === t.category.id) : undefined;
@@ -207,7 +209,8 @@ export function localiseDemoRow(t: Transaction, userCategories: Category[]): Tra
   let sub = t.subcategory;
   if (sub) {
     const translated = SUB_IT[sub];
-    if (translated && (cat.subcategories ?? []).includes(translated)) sub = translated;
+    const chips = cat.subcategories ?? [];
+    if (translated && (chips.includes(translated) || !chips.includes(sub))) sub = translated;
   }
   return {
     ...t,

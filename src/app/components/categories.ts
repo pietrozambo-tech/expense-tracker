@@ -4,17 +4,11 @@ import type { Language } from '../i18n/store';
 export type { Category };
 
 // Default expense categories (icon is a lucide icon name, see categoryIcons.ts)
+//
+// This is the UNION across languages: a language's starter set is this list
+// passed through its translation table below, which may rename, reshape the
+// subcategories, or drop an entry altogether. Ids are the stable part.
 export const categories: Category[] = [
-  {
-    id: 'office-food',
-    name: 'Office Food',
-    icon: 'Coffee',
-    color: 'text-amber-600',
-    bgColor: 'bg-amber-50',
-    selectedBg: 'bg-amber-100',
-    subcategories: ['Breakfast', 'Lunch', 'Coffee'],
-    type: 'expense' as const
-  },
   {
     id: 'food-drinks',
     name: 'Food & Drinks',
@@ -62,7 +56,7 @@ export const categories: Category[] = [
     color: 'text-blue-600',
     bgColor: 'bg-blue-50',
     selectedBg: 'bg-blue-100',
-    subcategories: ['Rent', 'Utilities', 'Cleaning'],
+    subcategories: ['Rent', 'Utilities', 'Cleaning', 'Maintenance'],
     type: 'expense' as const
   },
   {
@@ -112,7 +106,7 @@ export const categories: Category[] = [
     color: 'text-slate-600',
     bgColor: 'bg-slate-50',
     selectedBg: 'bg-slate-100',
-    subcategories: ['Income Tax', 'Housing Tax', 'Bank Fees'],
+    subcategories: ['Income Tax', 'Housing Tax'],
     type: 'expense' as const
   },
   {
@@ -147,7 +141,8 @@ export const categories: Category[] = [
   }
 ];
 
-// Default income categories
+// Default income categories. Same rule: the union, with the pay-packet
+// entries together at the top - salary, then what comes alongside it.
 export const incomeCategories: Category[] = [
   {
     id: 'salary',
@@ -156,6 +151,24 @@ export const incomeCategories: Category[] = [
     color: 'text-emerald-600',
     bgColor: 'bg-emerald-50',
     selectedBg: 'bg-emerald-100',
+    type: 'income' as const
+  },
+  {
+    id: 'company-welfare',
+    name: 'Company Welfare',
+    icon: 'Sparkles',
+    color: 'text-violet-500',
+    bgColor: 'bg-violet-50',
+    selectedBg: 'bg-violet-100',
+    type: 'income' as const
+  },
+  {
+    id: 'meal-vouchers',
+    name: 'Meal Vouchers',
+    icon: 'Ticket',
+    color: 'text-amber-600',
+    bgColor: 'bg-amber-50',
+    selectedBg: 'bg-amber-100',
     type: 'income' as const
   },
   {
@@ -175,15 +188,6 @@ export const incomeCategories: Category[] = [
     bgColor: 'bg-indigo-50',
     selectedBg: 'bg-indigo-100',
     type: 'income' as const
-  },
-  {
-    id: 'royalties',
-    name: 'Royalties',
-    icon: 'Sparkles',
-    color: 'text-purple-600',
-    bgColor: 'bg-purple-50',
-    selectedBg: 'bg-purple-100',
-    type: 'income' as const
   }
 ];
 
@@ -201,29 +205,31 @@ export const incomeCategories: Category[] = [
 interface CategoryTranslation {
   name: string;
   // Replaces the English subcategory list wholesale. Usually one-for-one, but
-  // it may be shorter: a subcategory that does not earn its place in a
-  // language is simply left out.
+  // it may be shorter or longer: a subcategory that does not earn its place in
+  // a language is left out, and one that only makes sense there (Barbiere,
+  // Commissioni Bancarie) is added without asking the other language to carry
+  // a translation nobody would pick.
   subcategories?: string[];
 }
 
 // `null` means the category is not part of this language's starter set at all.
-// Not every category survives translation: Office Food has no natural Italian
-// name ("Pausa Pranzo" says lunch BREAK, which is a moment in the day rather
-// than a kind of spending), and a starter category nobody recognises is worse
-// than one less category. The Italian demo data drops the rows filed under a
-// removed category too, so the samples never point at something absent from
-// the catalogue.
+// Not every category makes sense everywhere: Buoni Pasto is an Italian thing
+// (meal vouchers are pay in Italy, an oddity elsewhere), so the English starter
+// set leaves it out rather than seed a category nobody recognises. The demo
+// data drops the rows filed under a removed category in that language too, so
+// the samples never point at something absent from the catalogue.
 const IT_EXPENSE: Record<string, CategoryTranslation | null> = {
-  'office-food': null,
   'food-drinks': { name: 'Cibo & Bevande', subcategories: ['Ristorante', 'Aperitivo', 'Spuntino'] },
   gifts: { name: 'Regali', subcategories: ['Matrimonio', 'Compleanno'] },
-  groceries: { name: 'Spesa', subcategories: ['Supermercato'] },
-  'health-personal-care': { name: 'Salute & Cura', subcategories: ['Farmacia', 'Cosmetici', 'Benessere'] },
-  housing: { name: 'Casa', subcategories: ['Affitto', 'Bollette', 'Pulizie'] },
+  // The Italian list names the shops rather than the kind of shop:
+  // "Supermercato" repeats what the category already says, while the two
+  // chains most people actually walk into, plus the bakery, are chips they
+  // will tap on.
+  groceries: { name: 'Spesa', subcategories: ['Esselunga', 'Carrefour', 'Panificio'] },
+  'health-personal-care': { name: 'Salute & Cura', subcategories: ['Farmacia', 'Cosmetici', 'Benessere', 'Barbiere'] },
+  housing: { name: 'Casa', subcategories: ['Affitto', 'Bollette', 'Pulizie', 'Manutenzione'] },
   leisure: { name: 'Tempo Libero', subcategories: ['Cinema', 'Concerti'] },
   shopping: { name: 'Shopping', subcategories: ['Abbigliamento', 'Elettronica'] },
-  // Barry's is a boutique-gym brand; the Italian starter list wants the
-  // generic word, not the brand.
   sport: { name: 'Sport', subcategories: ['Tennis', 'Palestra'] },
   subscriptions: { name: 'Abbonamenti', subcategories: ['Streaming', 'Cloud'] },
   'tax-fees': { name: 'Tasse & Commissioni', subcategories: ['Tasse sul Reddito', 'Tasse sulla Casa', 'Commissioni Bancarie'] },
@@ -234,10 +240,22 @@ const IT_EXPENSE: Record<string, CategoryTranslation | null> = {
 
 const IT_INCOME: Record<string, CategoryTranslation | null> = {
   salary: { name: 'Stipendio' },
+  'company-welfare': { name: 'Welfare Aziendale' },
+  'meal-vouchers': { name: 'Buoni Pasto' },
   'real-estate': { name: 'Immobili' },
   dividends: { name: 'Dividendi' },
-  royalties: { name: 'Royalties' },
 };
+
+// English is the base language, so its tables only ever say what to leave out.
+const EN_EXPENSE: Record<string, CategoryTranslation | null> = {};
+
+const EN_INCOME: Record<string, CategoryTranslation | null> = {
+  'meal-vouchers': null,
+};
+
+function tablesFor(lang: Language): [Record<string, CategoryTranslation | null>, Record<string, CategoryTranslation | null>] {
+  return lang === 'it' ? [IT_EXPENSE, IT_INCOME] : [EN_EXPENSE, EN_INCOME];
+}
 
 function localise(list: Category[], table: Record<string, CategoryTranslation | null>): Category[] {
   return list.flatMap((cat) => {
@@ -256,23 +274,24 @@ function localise(list: Category[], table: Record<string, CategoryTranslation | 
 
 /**
  * Category ids a language deliberately leaves out of its starter set. The demo
- * dataset filters its rows through this, so an Italian sample never files
- * spending under a category the Italian catalogue does not contain - which
- * would orphan the row and drop it off the Dashboard.
+ * dataset filters its rows through this, so a sample never files spending
+ * under a category the language's catalogue does not contain - which would
+ * orphan the row and drop it off the Dashboard.
  */
 export function droppedCategoryIdsFor(lang: Language): Set<string> {
-  if (lang !== 'it') return new Set();
   const dropped = new Set<string>();
-  for (const [id, tr] of [...Object.entries(IT_EXPENSE), ...Object.entries(IT_INCOME)]) {
-    if (tr === null) dropped.add(id);
+  for (const table of tablesFor(lang)) {
+    for (const [id, tr] of Object.entries(table)) {
+      if (tr === null) dropped.add(id);
+    }
   }
   return dropped;
 }
 
 export function defaultCategoriesFor(lang: Language): Category[] {
-  return lang === 'it' ? localise(categories, IT_EXPENSE) : categories;
+  return localise(categories, tablesFor(lang)[0]);
 }
 
 export function defaultIncomeCategoriesFor(lang: Language): Category[] {
-  return lang === 'it' ? localise(incomeCategories, IT_INCOME) : incomeCategories;
+  return localise(incomeCategories, tablesFor(lang)[1]);
 }

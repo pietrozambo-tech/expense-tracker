@@ -3,7 +3,7 @@ import { convertAmount, BASE_CURRENCY } from '../utils/currency';
 import { getLanguage } from '../i18n/store';
 import { localiseDemoRow, bindDemoRow } from './demoItalian';
 import { tripNameOf } from './trips';
-import { droppedCategoryIdsFor } from '../components/categories';
+import { defaultCategoriesFor, defaultIncomeCategoriesFor, droppedCategoryIdsFor } from '../components/categories';
 import type { Category, Transaction } from '../types';
 
 // The sample dataset has fixed dates. Shift every transaction by whole months
@@ -56,6 +56,24 @@ function hashUnit(seed: string): number {
  * checking something subtly different.
  */
 export const isDemoRow = (t: { id: string }): boolean => t.id.startsWith('demo-');
+
+/**
+ * The user's own category a demo row belongs to, if any: by id first (the
+ * catalogues share ids across languages), else a category of the same type
+ * with the same name as the starter category the row was written for, in
+ * English or in Italian.
+ */
+function ownCategoryFor(userCategories: Category[]): (t: Transaction) => Category | undefined {
+  const key = (type: string, name: string) => `${type}:${name.trim().toLowerCase()}`;
+  const byName = new Map(userCategories.map((c) => [key(c.type, c.name), c]));
+  const italian = new Map(
+    [...defaultCategoriesFor('it'), ...defaultIncomeCategoriesFor('it')].map((c) => [c.id, c.name]),
+  );
+  return (t) =>
+    userCategories.find((c) => c.id === t.category.id) ??
+    byName.get(key(t.type, t.category.name)) ??
+    byName.get(key(t.type, italian.get(t.category.id) ?? ''));
+}
 
 export function getDemoTransactions(currency: string, userCategories: Category[] = []): Transaction[] {
   const now = new Date();
@@ -138,15 +156,28 @@ export function getDemoTransactions(currency: string, userCategories: Category[]
       ? (t) => localiseDemoRow(t, userCategories)
       : (t) => bindDemoRow(t, userCategories);
 
-  // A language may leave a starter category out entirely (Italian drops Office
-  // Food). Its sample rows go with it: kept, they would bind to a category the
+  // A language may leave a starter category out entirely (English has no Buoni
+  // Pasto). Its sample rows go with it: kept, they would bind to a category the
   // user's catalogue does not have, and the Dashboard would silently drop them
   // anyway - but they would still be counted in totals and exports.
+  //
+  // The same goes for any category the USER does not have, whatever the
+  // reason: an account seeded before a starter category existed, or one that
+  // deleted it. The catalogue on the device is the only list a demo row may
+  // point at, so when one is given, nothing outside it gets through. A
+  // category the user made by hand (a deleted default put back, say) has its
+  // own id, so a same-type category by the same name, in either language,
+  // counts as theirs too and the row is re-pointed at it here, before the
+  // id-based localisation below.
   const dropped = droppedCategoryIdsFor(getLanguage());
-  const rows =
-    dropped.size === 0
-      ? [...recent, ...history]
-      : [...recent, ...history].filter((t) => !t.category?.id || !dropped.has(t.category.id));
+  const own = ownCategoryFor(userCategories);
+  const rows = [...recent, ...history].flatMap((t) => {
+    if (!t.category?.id) return [t];
+    if (dropped.has(t.category.id)) return [];
+    if (userCategories.length === 0) return [t];
+    const mine = own(t);
+    return mine ? [{ ...t, category: mine }] : [];
+  });
 
   return rows.map(localise).map((transaction) => {
     // Most sample rows are priced in the user's own currency, so they are

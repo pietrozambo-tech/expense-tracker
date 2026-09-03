@@ -29,12 +29,12 @@ try {
 import { mockExpenses } from '${join(root, 'src/app/components/mockExpenses.ts').replace(/\\/g, '/')}';
 import { demoTranslationGaps, localiseDemoRow } from '${join(root, 'src/app/lib/demoItalian.ts').replace(/\\/g, '/')}';
 import { setLanguage } from '${join(root, 'src/app/i18n/store.ts').replace(/\\/g, '/')}';
-import { defaultCategoriesFor, defaultIncomeCategoriesFor, droppedCategoryIdsFor } from '${join(root, 'src/app/components/categories.ts').replace(/\\/g, '/')}';
+import { categories, incomeCategories, defaultCategoriesFor, defaultIncomeCategoriesFor, droppedCategoryIdsFor } from '${join(root, 'src/app/components/categories.ts').replace(/\\/g, '/')}';
 import { getDemoTransactions } from '${join(root, 'src/app/lib/demoData.ts').replace(/\\/g, '/')}';
 
 // Loanwords and proper nouns: identical in both languages on purpose, so an
 // equality check must not read them as untranslated.
-const SHARED_WORDS = new Set(['Shopping', 'Sport', 'Tennis', 'Hotel', 'Streaming', 'Cloud', 'Royalties', 'Uber/Taxi', 'Cinema', 'Bar']);
+const SHARED_WORDS = new Set(['Shopping', 'Sport', 'Tennis', 'Hotel', 'Streaming', 'Cloud', 'Uber/Taxi', 'Cinema', 'Bar']);
 
 const gaps = demoTranslationGaps(mockExpenses);
 let failed = false;
@@ -135,32 +135,119 @@ if (sample.description !== 'Affitto mensile' || sample.category.name !== 'Casa' 
   console.error('localiseDemoRow spot check failed: ' + JSON.stringify({ d: sample.description, c: sample.category.name, s: sample.subcategory }));
 }
 
-// The generated Italian demo must carry no row from a dropped category, and
-// must still carry those rows in English - the drop is per language, not a
-// deletion from the dataset.
-const itDemo = getDemoTransactions('EUR', itCatalogue);
-const leaked = itDemo.filter((t) => itDropped.has(t.category?.id));
-if (leaked.length) {
-  failed = true;
-  console.error('Italian demo still contains ' + leaked.length + ' row(s) from dropped categories');
-}
-if (itDemo.length === 0) {
-  failed = true;
-  console.error('Italian demo came out empty');
+// Either language may leave a starter category out (English has no Buoni
+// Pasto). The drop is per language, not a deletion from the dataset: the
+// generated demo in THAT language must carry no row from it, every row it does
+// carry must be bound to a category the catalogue has, and the base list must
+// account for every id - present in the language, or dropped by it on purpose.
+//
+// And the subcategories the demo files rows under must be the catalogue's own
+// chips, in the language's own spelling: a demo "Supermercato" next to a chip
+// "Esselunga" is exactly the near-duplicate the drilldowns must never show. The
+// few the demo invents on top of the defaults are listed, so a new one is a
+// decision rather than an accident.
+const INVENTED_SUBS = { en: new Set(['Christmas']), it: new Set(['Natale']) };
+const counts = {};
+for (const lang of ['it', 'en']) {
+  setLanguage(lang);
+  const catalogue = [...defaultCategoriesFor(lang), ...defaultIncomeCategoriesFor(lang)];
+  const ids = new Set(catalogue.map((c) => c.id));
+  const dropped = droppedCategoryIdsFor(lang);
+  for (const base of [...categories, ...incomeCategories]) {
+    if (!ids.has(base.id) && !dropped.has(base.id)) {
+      failed = true;
+      console.error(lang + ': category ' + base.id + ' is neither in the catalogue nor marked dropped');
+    }
+  }
+  for (const id of dropped) {
+    if (ids.has(id)) {
+      failed = true;
+      console.error(lang + ': category ' + id + ' is marked dropped but still in the catalogue');
+    }
+  }
+  const demo = getDemoTransactions('EUR', catalogue);
+  counts[lang] = demo.length;
+  const leaked = demo.filter((t) => dropped.has(t.category?.id));
+  if (leaked.length) {
+    failed = true;
+    console.error(lang + ': demo still contains ' + leaked.length + ' row(s) from dropped categories');
+  }
+  const orphans = demo.filter((t) => !t.category || !ids.has(t.category.id));
+  if (orphans.length) {
+    failed = true;
+    console.error(lang + ': ' + orphans.length + ' demo row(s) are not bound to a catalogue category, e.g. "' + orphans[0]?.description + '"');
+  }
+  if (demo.length === 0) {
+    failed = true;
+    console.error(lang + ': demo came out empty');
+  }
+  const chips = new Map(catalogue.map((c) => [c.id, new Set(c.subcategories ?? [])]));
+  const stray = new Set();
+  for (const t of demo) {
+    if (!t.subcategory || !t.category) continue;
+    if (!chips.get(t.category.id)?.has(t.subcategory) && !INVENTED_SUBS[lang].has(t.subcategory)) {
+      stray.add(t.category.name + ' / ' + t.subcategory);
+    }
+  }
+  if (stray.size) {
+    failed = true;
+    console.error(lang + ': demo subcategories that are not chips of their category: ' + [...stray].sort().join(', '));
+  }
 }
 setLanguage('en');
-const enCatalogue = [...defaultCategoriesFor('en'), ...defaultIncomeCategoriesFor('en')];
-const enDemo = getDemoTransactions('EUR', enCatalogue);
-const enOfficeFood = enDemo.filter((t) => t.category?.id === 'office-food').length;
-if (enOfficeFood === 0) {
-  failed = true;
-  console.error('English demo lost its Office Food rows - the drop must be Italian-only');
+
+// An account seeded before today's starter list existed has no Company Welfare
+// and no Buoni Pasto, and may still carry categories the list has since lost.
+// Loading the demo there must not orphan a single row: whatever the catalogue
+// on the device is, it is the only list a demo row may point at.
+{
+  const legacy = [
+    ...defaultCategoriesFor('en'),
+    ...defaultIncomeCategoriesFor('en').filter((c) => c.id !== 'company-welfare'),
+    { id: 'royalties', name: 'Royalties', icon: 'Sparkles', color: 'text-purple-600', bgColor: 'bg-purple-50', selectedBg: 'bg-purple-100', type: 'income' },
+  ];
+  const legacyIds = new Set(legacy.map((c) => c.id));
+  const demo = getDemoTransactions('EUR', legacy);
+  const orphans = demo.filter((t) => !t.category || !legacyIds.has(t.category.id));
+  if (orphans.length) {
+    failed = true;
+    console.error('legacy catalogue: ' + orphans.length + ' demo row(s) point at a category the account does not have, e.g. "' + orphans[0]?.description + '"');
+  }
+  if (demo.length === 0 || demo.length >= counts.en) {
+    failed = true;
+    console.error('legacy catalogue: expected a smaller, non-empty demo, got ' + demo.length + ' rows against ' + counts.en);
+  }
+  console.log('demo rows: en=' + counts.en + ' it=' + counts.it + ' legacy=' + demo.length);
 }
-if (enDemo.length <= itDemo.length) {
-  failed = true;
-  console.error('Expected the Italian demo to be smaller: en=' + enDemo.length + ' it=' + itDemo.length);
+
+// A category the user made by hand carries its own id. When it has the same
+// name and type as the starter category a demo row was written for - in either
+// language - the row is theirs and lands on it, instead of being thrown away
+// for a mismatched id.
+{
+  const mine = [
+    { id: 'cat-1', name: 'Food & Drinks', type: 'expense', icon: 'Utensils', color: 'text-orange-500', bgColor: 'bg-orange-50', selectedBg: 'bg-orange-100', subcategories: [] },
+    { id: 'cat-2', name: 'casa', type: 'expense', icon: 'Home', color: 'text-blue-600', bgColor: 'bg-blue-50', selectedBg: 'bg-blue-100', subcategories: [] },
+    { id: 'cat-3', name: 'Salary', type: 'income', icon: 'Briefcase', color: 'text-emerald-600', bgColor: 'bg-emerald-50', selectedBg: 'bg-emerald-100' },
+  ];
+  const demo = getDemoTransactions('EUR', mine);
+  const ids = new Set(demo.map((t) => t.category?.id));
+  const stray = demo.filter((t) => !t.category || !['cat-1', 'cat-2', 'cat-3'].includes(t.category.id));
+  if (stray.length || !ids.has('cat-1') || !ids.has('cat-2') || !ids.has('cat-3')) {
+    failed = true;
+    console.error('hand-made catalogue: demo rows should land on cat-1/cat-2/cat-3 by name, got ids ' + [...ids].join(',') + ' with ' + stray.length + ' stray');
+  }
+  const rent = demo.find((t) => t.description === 'Monthly rent');
+  if (!rent || rent.category.id !== 'cat-2') {
+    failed = true;
+    console.error('hand-made catalogue: "Monthly rent" should land on the Italian-named "casa", got ' + (rent?.category?.id ?? 'nothing'));
+  }
+  if (demo.length < 100) {
+    failed = true;
+    console.error('hand-made catalogue: expected a year of food, housing and salary, got ' + demo.length + ' rows');
+  }
+  console.log('demo rows on a hand-made three-category catalogue: ' + demo.length);
 }
-console.log('demo rows: en=' + enDemo.length + ' it=' + itDemo.length + ' (office-food in en: ' + enOfficeFood + ')');
 
 console.log(failed ? 'FAILED' : 'All demo strings covered: ' + mockExpenses.length + ' rows, gaps: none.');
 process.exit(failed ? 1 : 0);

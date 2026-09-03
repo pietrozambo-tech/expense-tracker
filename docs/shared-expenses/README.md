@@ -201,9 +201,10 @@ across accounts, hence step 3.
 
 ### 4.4 Known edge
 
-`IT_EXPENSE['office-food']` is `null` — the Italian starter set deliberately
-drops that category. Share an Office Food item and her app has no home for it, so
-it lands in her "needs you" list. The code already tracks this set in
+`EN_INCOME['meal-vouchers']` is `null` — the English starter set deliberately
+drops that category (Buoni Pasto is an Italian thing). Share a Buoni Pasto item
+with an English-seeded account and it has no home for it, so it lands in the
+"needs you" list. The code already tracks this set, per language, in
 `droppedCategoryIdsFor()`.
 
 ---

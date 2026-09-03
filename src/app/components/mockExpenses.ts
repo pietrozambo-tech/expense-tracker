@@ -19,6 +19,15 @@ const mockExpensesWithoutCurrency = [
     recurrence: 'Every month'
   },
   {
+    id: 'income-2025-07-05-mv',
+    description: 'Meal vouchers',
+    amount: 160,
+    category: getCategoryByName('Meal Vouchers', 'income'),
+    date: '2025-07-05',
+    type: 'income' as const,
+    recurrence: 'Every month'
+  },
+  {
     id: 'income-2025-07-15',
     description: 'Dividend payout',
     amount: 250,
@@ -32,8 +41,8 @@ const mockExpensesWithoutCurrency = [
     id: 'expense-2025-07-02',
     description: 'Coffee',
     amount: 6.00,
-    category: getCategoryByName('Office Food', 'expense'),
-    subcategory: 'Breakfast',
+    category: getCategoryByName('Food & Drinks', 'expense'),
+    subcategory: 'Snack',
     date: '2025-07-02',
     type: 'expense' as const
   },
@@ -59,7 +68,7 @@ const mockExpensesWithoutCurrency = [
     id: 'expense-2025-07-05',
     description: 'Snack',
     amount: 8.00,
-    category: getCategoryByName('Office Food', 'expense'),
+    category: getCategoryByName('Food & Drinks', 'expense'),
     subcategory: 'Snack',
     date: '2025-07-05',
     type: 'expense' as const
@@ -86,8 +95,8 @@ const mockExpensesWithoutCurrency = [
     id: 'expense-2025-07-08',
     description: 'Coffee',
     amount: 6.00,
-    category: getCategoryByName('Office Food', 'expense'),
-    subcategory: 'Breakfast',
+    category: getCategoryByName('Food & Drinks', 'expense'),
+    subcategory: 'Snack',
     date: '2025-07-08',
     type: 'expense' as const
   },
@@ -105,7 +114,7 @@ const mockExpensesWithoutCurrency = [
     description: 'Cinema',
     amount: 18.00,
     category: getCategoryByName('Leisure', 'expense'),
-    subcategory: 'Movies',
+    subcategory: 'Cinema',
     date: '2025-07-10',
     type: 'expense' as const
   },
@@ -123,7 +132,7 @@ const mockExpensesWithoutCurrency = [
     description: 'Fuel',
     amount: 70.00,
     category: getCategoryByName('Transports', 'expense'),
-    subcategory: 'Gasoline',
+    subcategory: 'Fuel',
     date: '2025-07-12',
     type: 'expense' as const
   },
@@ -141,8 +150,8 @@ const mockExpensesWithoutCurrency = [
     id: 'expense-2025-07-14',
     description: 'Coffee',
     amount: 6.00,
-    category: getCategoryByName('Office Food', 'expense'),
-    subcategory: 'Breakfast',
+    category: getCategoryByName('Food & Drinks', 'expense'),
+    subcategory: 'Snack',
     date: '2025-07-14',
     type: 'expense' as const
   },
@@ -186,7 +195,7 @@ const mockExpensesWithoutCurrency = [
     id: 'expense-2025-07-19',
     description: 'Coffee & croissant',
     amount: 12.00,
-    category: getCategoryByName('Office Food', 'expense'),
+    category: getCategoryByName('Food & Drinks', 'expense'),
     subcategory: 'Snack',
     date: '2025-07-19',
     type: 'expense' as const
@@ -257,6 +266,15 @@ const mockExpensesWithoutCurrency = [
     recurrence: 'Every month'
   },
   {
+    id: 'income-2025-08-05-mv',
+    description: 'Meal vouchers',
+    amount: 160,
+    category: getCategoryByName('Meal Vouchers', 'income'),
+    date: '2025-08-05',
+    type: 'income' as const,
+    recurrence: 'Every month'
+  },
+  {
     id: 'income-2025-08-20',
     description: 'Rental income',
     amount: 300,
@@ -270,8 +288,8 @@ const mockExpensesWithoutCurrency = [
     id: 'expense-2025-08-02',
     description: 'Coffee',
     amount: 5.50,
-    category: getCategoryByName('Office Food', 'expense'),
-    subcategory: 'Breakfast',
+    category: getCategoryByName('Food & Drinks', 'expense'),
+    subcategory: 'Snack',
     date: '2025-08-02',
     type: 'expense' as const
   },
@@ -297,7 +315,7 @@ const mockExpensesWithoutCurrency = [
     id: 'expense-2025-08-05',
     description: 'Snack',
     amount: 7.00,
-    category: getCategoryByName('Office Food', 'expense'),
+    category: getCategoryByName('Food & Drinks', 'expense'),
     subcategory: 'Snack',
     date: '2025-08-05',
     type: 'expense' as const
@@ -316,7 +334,7 @@ const mockExpensesWithoutCurrency = [
     description: 'Class',
     amount: 15.00,
     category: getCategoryByName('Sport', 'expense'),
-    subcategory: "Barry's",
+    subcategory: 'Gym',
     date: '2025-08-07',
     type: 'expense' as const
   },
@@ -324,8 +342,8 @@ const mockExpensesWithoutCurrency = [
     id: 'expense-2025-08-08',
     description: 'Coffee',
     amount: 6.00,
-    category: getCategoryByName('Office Food', 'expense'),
-    subcategory: 'Breakfast',
+    category: getCategoryByName('Food & Drinks', 'expense'),
+    subcategory: 'Snack',
     date: '2025-08-08',
     type: 'expense' as const
   },
@@ -343,7 +361,7 @@ const mockExpensesWithoutCurrency = [
     description: 'Cinema',
     amount: 12.00,
     category: getCategoryByName('Leisure', 'expense'),
-    subcategory: 'Movies',
+    subcategory: 'Cinema',
     date: '2025-08-10',
     type: 'expense' as const
   },
@@ -361,7 +379,7 @@ const mockExpensesWithoutCurrency = [
     description: 'Fuel',
     amount: 40.00,
     category: getCategoryByName('Transports', 'expense'),
-    subcategory: 'Gasoline',
+    subcategory: 'Fuel',
     date: '2025-08-12',
     type: 'expense' as const
   },
@@ -379,8 +397,8 @@ const mockExpensesWithoutCurrency = [
     id: 'expense-2025-08-14',
     description: 'Coffee',
     amount: 5.50,
-    category: getCategoryByName('Office Food', 'expense'),
-    subcategory: 'Breakfast',
+    category: getCategoryByName('Food & Drinks', 'expense'),
+    subcategory: 'Snack',
     date: '2025-08-14',
     type: 'expense' as const
   },
@@ -416,7 +434,7 @@ const mockExpensesWithoutCurrency = [
     description: 'Movie',
     amount: 20.00,
     category: getCategoryByName('Leisure', 'expense'),
-    subcategory: 'Movies',
+    subcategory: 'Cinema',
     date: '2025-08-18',
     type: 'expense' as const
   },
@@ -424,7 +442,7 @@ const mockExpensesWithoutCurrency = [
     id: 'expense-2025-08-19',
     description: 'Coffee',
     amount: 6.50,
-    category: getCategoryByName('Office Food', 'expense'),
+    category: getCategoryByName('Food & Drinks', 'expense'),
     subcategory: 'Snack',
     date: '2025-08-19',
     type: 'expense' as const
@@ -495,10 +513,19 @@ const mockExpensesWithoutCurrency = [
     recurrence: 'Every month'
   },
   {
+    id: 'income-2025-09-05-mv',
+    description: 'Meal vouchers',
+    amount: 160,
+    category: getCategoryByName('Meal Vouchers', 'income'),
+    date: '2025-09-05',
+    type: 'income' as const,
+    recurrence: 'Every month'
+  },
+  {
     id: 'income-2025-09-10',
-    description: 'Royalties',
+    description: 'Welfare credit',
     amount: 220,
-    category: getCategoryByName('Royalties', 'income'),
+    category: getCategoryByName('Company Welfare', 'income'),
     date: '2025-09-10',
     type: 'income' as const
   },
@@ -508,8 +535,8 @@ const mockExpensesWithoutCurrency = [
     id: 'expense-2025-09-02',
     description: 'Coffee',
     amount: 5.00,
-    category: getCategoryByName('Office Food', 'expense'),
-    subcategory: 'Breakfast',
+    category: getCategoryByName('Food & Drinks', 'expense'),
+    subcategory: 'Snack',
     date: '2025-09-02',
     type: 'expense' as const
   },
@@ -535,7 +562,7 @@ const mockExpensesWithoutCurrency = [
     id: 'expense-2025-09-05',
     description: 'Snack',
     amount: 7.00,
-    category: getCategoryByName('Office Food', 'expense'),
+    category: getCategoryByName('Food & Drinks', 'expense'),
     subcategory: 'Snack',
     date: '2025-09-05',
     type: 'expense' as const
@@ -562,8 +589,8 @@ const mockExpensesWithoutCurrency = [
     id: 'expense-2025-09-08',
     description: 'Coffee',
     amount: 5.00,
-    category: getCategoryByName('Office Food', 'expense'),
-    subcategory: 'Breakfast',
+    category: getCategoryByName('Food & Drinks', 'expense'),
+    subcategory: 'Snack',
     date: '2025-09-08',
     type: 'expense' as const
   },
@@ -581,7 +608,7 @@ const mockExpensesWithoutCurrency = [
     description: 'Cinema',
     amount: 15.00,
     category: getCategoryByName('Leisure', 'expense'),
-    subcategory: 'Movies',
+    subcategory: 'Cinema',
     date: '2025-09-10',
     type: 'expense' as const
   },
@@ -590,7 +617,7 @@ const mockExpensesWithoutCurrency = [
     description: 'Train',
     amount: 120.00,
     category: getCategoryByName('Travel', 'expense'),
-    subcategory: 'Transportation',
+    subcategory: 'Transport',
     date: '2025-09-11',
     type: 'expense' as const
   },
@@ -599,7 +626,7 @@ const mockExpensesWithoutCurrency = [
     description: 'Fuel',
     amount: 35.00,
     category: getCategoryByName('Transports', 'expense'),
-    subcategory: 'Gasoline',
+    subcategory: 'Fuel',
     date: '2025-09-12',
     type: 'expense' as const
   },
@@ -617,8 +644,8 @@ const mockExpensesWithoutCurrency = [
     id: 'expense-2025-09-14',
     description: 'Coffee',
     amount: 5.00,
-    category: getCategoryByName('Office Food', 'expense'),
-    subcategory: 'Breakfast',
+    category: getCategoryByName('Food & Drinks', 'expense'),
+    subcategory: 'Snack',
     date: '2025-09-14',
     type: 'expense' as const
   },
@@ -654,7 +681,7 @@ const mockExpensesWithoutCurrency = [
     description: 'Movie',
     amount: 20.00,
     category: getCategoryByName('Leisure', 'expense'),
-    subcategory: 'Movies',
+    subcategory: 'Cinema',
     date: '2025-09-18',
     type: 'expense' as const
   },
@@ -662,7 +689,7 @@ const mockExpensesWithoutCurrency = [
     id: 'expense-2025-09-19',
     description: 'Coffee',
     amount: 6.00,
-    category: getCategoryByName('Office Food', 'expense'),
+    category: getCategoryByName('Food & Drinks', 'expense'),
     subcategory: 'Snack',
     date: '2025-09-19',
     type: 'expense' as const
@@ -732,14 +759,23 @@ const mockExpensesWithoutCurrency = [
     type: 'income' as const,
     recurrence: 'Every month'
   },
+  {
+    id: 'income-2025-10-05-mv',
+    description: 'Meal vouchers',
+    amount: 160,
+    category: getCategoryByName('Meal Vouchers', 'income'),
+    date: '2025-10-05',
+    type: 'income' as const,
+    recurrence: 'Every month'
+  },
 
   // October 2025 - Expenses
   {
     id: 'expense-2025-10-02',
     description: 'Coffee',
     amount: 4.50,
-    category: getCategoryByName('Office Food', 'expense'),
-    subcategory: 'Breakfast',
+    category: getCategoryByName('Food & Drinks', 'expense'),
+    subcategory: 'Snack',
     date: '2025-10-02',
     type: 'expense' as const
   },
@@ -765,7 +801,7 @@ const mockExpensesWithoutCurrency = [
     id: 'expense-2025-10-05',
     description: 'Snack',
     amount: 7.50,
-    category: getCategoryByName('Office Food', 'expense'),
+    category: getCategoryByName('Food & Drinks', 'expense'),
     subcategory: 'Snack',
     date: '2025-10-05',
     type: 'expense' as const
@@ -792,8 +828,8 @@ const mockExpensesWithoutCurrency = [
     id: 'expense-2025-10-08',
     description: 'Coffee',
     amount: 5.00,
-    category: getCategoryByName('Office Food', 'expense'),
-    subcategory: 'Breakfast',
+    category: getCategoryByName('Food & Drinks', 'expense'),
+    subcategory: 'Snack',
     date: '2025-10-08',
     type: 'expense' as const
   },
@@ -811,7 +847,7 @@ const mockExpensesWithoutCurrency = [
     description: 'Cinema',
     amount: 12.00,
     category: getCategoryByName('Leisure', 'expense'),
-    subcategory: 'Movies',
+    subcategory: 'Cinema',
     date: '2025-10-10',
     type: 'expense' as const
   },
@@ -829,7 +865,7 @@ const mockExpensesWithoutCurrency = [
     description: 'Fuel',
     amount: 30.00,
     category: getCategoryByName('Transports', 'expense'),
-    subcategory: 'Gasoline',
+    subcategory: 'Fuel',
     date: '2025-10-12',
     type: 'expense' as const
   },
@@ -847,8 +883,8 @@ const mockExpensesWithoutCurrency = [
     id: 'expense-2025-10-14',
     description: 'Coffee',
     amount: 3.50,
-    category: getCategoryByName('Office Food', 'expense'),
-    subcategory: 'Breakfast',
+    category: getCategoryByName('Food & Drinks', 'expense'),
+    subcategory: 'Snack',
     date: '2025-10-14',
     type: 'expense' as const
   },
@@ -892,7 +928,7 @@ const mockExpensesWithoutCurrency = [
     id: 'expense-2025-10-19',
     description: 'Coffee',
     amount: 6.00,
-    category: getCategoryByName('Office Food', 'expense'),
+    category: getCategoryByName('Food & Drinks', 'expense'),
     subcategory: 'Snack',
     date: '2025-10-19',
     type: 'expense' as const
@@ -953,14 +989,23 @@ const mockExpensesWithoutCurrency = [
     type: 'income' as const,
     recurrence: 'Every month'
   },
+  {
+    id: 'income-2025-11-05-mv',
+    description: 'Meal vouchers',
+    amount: 160,
+    category: getCategoryByName('Meal Vouchers', 'income'),
+    date: '2025-11-05',
+    type: 'income' as const,
+    recurrence: 'Every month'
+  },
 
   // November 2025 - Expenses
   {
     id: 'expense-2025-11-02',
     description: 'Coffee',
     amount: 4.50,
-    category: getCategoryByName('Office Food', 'expense'),
-    subcategory: 'Breakfast',
+    category: getCategoryByName('Food & Drinks', 'expense'),
+    subcategory: 'Snack',
     date: '2025-11-02',
     type: 'expense' as const
   },
@@ -986,7 +1031,7 @@ const mockExpensesWithoutCurrency = [
     id: 'expense-2025-11-05',
     description: 'Snack',
     amount: 6.00,
-    category: getCategoryByName('Office Food', 'expense'),
+    category: getCategoryByName('Food & Drinks', 'expense'),
     subcategory: 'Snack',
     date: '2025-11-05',
     type: 'expense' as const
@@ -1005,7 +1050,7 @@ const mockExpensesWithoutCurrency = [
     description: 'Class',
     amount: 15.00,
     category: getCategoryByName('Sport', 'expense'),
-    subcategory: "Barry's",
+    subcategory: 'Gym',
     date: '2025-11-07',
     type: 'expense' as const
   },
@@ -1013,8 +1058,8 @@ const mockExpensesWithoutCurrency = [
     id: 'expense-2025-11-08',
     description: 'Coffee',
     amount: 5.00,
-    category: getCategoryByName('Office Food', 'expense'),
-    subcategory: 'Breakfast',
+    category: getCategoryByName('Food & Drinks', 'expense'),
+    subcategory: 'Snack',
     date: '2025-11-08',
     type: 'expense' as const
   },
@@ -1032,7 +1077,7 @@ const mockExpensesWithoutCurrency = [
     description: 'Cinema',
     amount: 15.00,
     category: getCategoryByName('Leisure', 'expense'),
-    subcategory: 'Movies',
+    subcategory: 'Cinema',
     date: '2025-11-10',
     type: 'expense' as const
   },
@@ -1050,7 +1095,7 @@ const mockExpensesWithoutCurrency = [
     description: 'Fuel',
     amount: 32.00,
     category: getCategoryByName('Transports', 'expense'),
-    subcategory: 'Gasoline',
+    subcategory: 'Fuel',
     date: '2025-11-12',
     type: 'expense' as const
   },
@@ -1068,8 +1113,8 @@ const mockExpensesWithoutCurrency = [
     id: 'expense-2025-11-14',
     description: 'Coffee',
     amount: 4.00,
-    category: getCategoryByName('Office Food', 'expense'),
-    subcategory: 'Breakfast',
+    category: getCategoryByName('Food & Drinks', 'expense'),
+    subcategory: 'Snack',
     date: '2025-11-14',
     type: 'expense' as const
   },
@@ -1113,7 +1158,7 @@ const mockExpensesWithoutCurrency = [
     id: 'expense-2025-11-19',
     description: 'Coffee',
     amount: 6.50,
-    category: getCategoryByName('Office Food', 'expense'),
+    category: getCategoryByName('Food & Drinks', 'expense'),
     subcategory: 'Snack',
     date: '2025-11-19',
     type: 'expense' as const
@@ -1175,6 +1220,15 @@ const mockExpensesWithoutCurrency = [
     recurrence: 'Every month'
   },
   {
+    id: 'income-2025-12-05-mv',
+    description: 'Meal vouchers',
+    amount: 160,
+    category: getCategoryByName('Meal Vouchers', 'income'),
+    date: '2025-12-05',
+    type: 'income' as const,
+    recurrence: 'Every month'
+  },
+  {
     id: 'income-2025-12-15',
     description: 'Dividends',
     amount: 200,
@@ -1188,8 +1242,8 @@ const mockExpensesWithoutCurrency = [
     id: 'expense-2025-12-02',
     description: 'Coffee',
     amount: 6.00,
-    category: getCategoryByName('Office Food', 'expense'),
-    subcategory: 'Breakfast',
+    category: getCategoryByName('Food & Drinks', 'expense'),
+    subcategory: 'Snack',
     date: '2025-12-02',
     type: 'expense' as const
   },
@@ -1215,7 +1269,7 @@ const mockExpensesWithoutCurrency = [
     id: 'expense-2025-12-05',
     description: 'Snack',
     amount: 15.00,
-    category: getCategoryByName('Office Food', 'expense'),
+    category: getCategoryByName('Food & Drinks', 'expense'),
     subcategory: 'Snack',
     date: '2025-12-05',
     type: 'expense' as const
@@ -1242,8 +1296,8 @@ const mockExpensesWithoutCurrency = [
     id: 'expense-2025-12-08',
     description: 'Coffee',
     amount: 8.00,
-    category: getCategoryByName('Office Food', 'expense'),
-    subcategory: 'Breakfast',
+    category: getCategoryByName('Food & Drinks', 'expense'),
+    subcategory: 'Snack',
     date: '2025-12-08',
     type: 'expense' as const
   },
@@ -1261,7 +1315,7 @@ const mockExpensesWithoutCurrency = [
     description: 'Cinema',
     amount: 40.00,
     category: getCategoryByName('Leisure', 'expense'),
-    subcategory: 'Movies',
+    subcategory: 'Cinema',
     date: '2025-12-10',
     type: 'expense' as const
   },
@@ -1279,7 +1333,7 @@ const mockExpensesWithoutCurrency = [
     description: 'Fuel',
     amount: 80.00,
     category: getCategoryByName('Transports', 'expense'),
-    subcategory: 'Gasoline',
+    subcategory: 'Fuel',
     date: '2025-12-12',
     type: 'expense' as const
   },
@@ -1297,8 +1351,8 @@ const mockExpensesWithoutCurrency = [
     id: 'expense-2025-12-14',
     description: 'Coffee',
     amount: 12.00,
-    category: getCategoryByName('Office Food', 'expense'),
-    subcategory: 'Breakfast',
+    category: getCategoryByName('Food & Drinks', 'expense'),
+    subcategory: 'Snack',
     date: '2025-12-14',
     type: 'expense' as const
   },
@@ -1342,7 +1396,7 @@ const mockExpensesWithoutCurrency = [
     id: 'expense-2025-12-19',
     description: 'Coffee',
     amount: 15.00,
-    category: getCategoryByName('Office Food', 'expense'),
+    category: getCategoryByName('Food & Drinks', 'expense'),
     subcategory: 'Snack',
     date: '2025-12-19',
     type: 'expense' as const
@@ -1413,10 +1467,19 @@ const mockExpensesWithoutCurrency = [
     recurrence: 'Every month'
   },
   {
+    id: 'income-2026-01-05-mv',
+    description: 'Meal vouchers',
+    amount: 160,
+    category: getCategoryByName('Meal Vouchers', 'income'),
+    date: '2026-01-05',
+    type: 'income' as const,
+    recurrence: 'Every month'
+  },
+  {
     id: 'income-2026-01-01-2',
-    description: 'Content royalties',
+    description: 'Welfare credit',
     amount: 480,
-    category: getCategoryByName('Royalties', 'income'),
+    category: getCategoryByName('Company Welfare', 'income'),
     date: '2026-01-01',
     type: 'income' as const
   },
@@ -1519,8 +1582,8 @@ const mockExpensesWithoutCurrency = [
     id: 'expense-2026-01-14',
     description: 'Cappuccino & croissant',
     amount: 3.80,
-    category: getCategoryByName('Office Food', 'expense'),
-    subcategory: 'Breakfast',
+    category: getCategoryByName('Food & Drinks', 'expense'),
+    subcategory: 'Snack',
     date: '2026-01-14',
     type: 'expense' as const
   },
@@ -1528,8 +1591,8 @@ const mockExpensesWithoutCurrency = [
     id: 'expense-2026-01-14-2',
     description: 'Lunch at work',
     amount: 12.40,
-    category: getCategoryByName('Office Food', 'expense'),
-    subcategory: 'Lunch',
+    category: getCategoryByName('Food & Drinks', 'expense'),
+    subcategory: 'Restaurant',
     date: '2026-01-14',
     type: 'expense' as const
   },
@@ -1598,7 +1661,7 @@ const mockExpensesWithoutCurrency = [
     amount: 20.00,
     currency: 'GBP',
     category: getCategoryByName('Travel', 'expense'),
-    subcategory: 'Transportation',
+    subcategory: 'Transport',
     date: '2026-01-16',
     type: 'expense' as const
   },
@@ -1635,7 +1698,7 @@ const mockExpensesWithoutCurrency = [
     id: 'expense-2026-01-16-2',
     description: 'Protein snack',
     amount: 2.90,
-    category: getCategoryByName('Office Food', 'expense'),
+    category: getCategoryByName('Food & Drinks', 'expense'),
     subcategory: 'Snack',
     date: '2026-01-16',
     type: 'expense' as const
@@ -1663,7 +1726,7 @@ const mockExpensesWithoutCurrency = [
     description: 'Cinema ticket',
     amount: 11.00,
     category: getCategoryByName('Leisure', 'expense'),
-    subcategory: 'Movies',
+    subcategory: 'Cinema',
     date: '2026-01-18',
     type: 'expense' as const
   },
@@ -1681,7 +1744,7 @@ const mockExpensesWithoutCurrency = [
     description: 'Barry\'s class',
     amount: 25.00,
     category: getCategoryByName('Sport', 'expense'),
-    subcategory: 'Barry\'s',
+    subcategory: 'Gym',
     date: '2026-01-19',
     type: 'expense' as const
   },
@@ -1723,6 +1786,15 @@ const mockExpensesWithoutCurrency = [
     recurrence: 'Every month' as const
   },
   {
+    id: 'income-2026-02-05-mv',
+    description: 'Meal vouchers',
+    amount: 160,
+    category: getCategoryByName('Meal Vouchers', 'income'),
+    date: '2026-02-05',
+    type: 'income' as const,
+    recurrence: 'Every month'
+  },
+  {
     id: 'expense-2026-02-01',
     description: 'Monthly rent',
     amount: 900.00,
@@ -1747,8 +1819,8 @@ const mockExpensesWithoutCurrency = [
     id: 'expense-2026-02-01-2',
     description: 'Breakfast espresso',
     amount: 2.20,
-    category: getCategoryByName('Office Food', 'expense'),
-    subcategory: 'Breakfast',
+    category: getCategoryByName('Food & Drinks', 'expense'),
+    subcategory: 'Snack',
     date: '2026-02-01',
     type: 'expense' as const
   },
@@ -1793,7 +1865,7 @@ const mockExpensesWithoutCurrency = [
     description: 'Movie night',
     amount: 10.50,
     category: getCategoryByName('Leisure', 'expense'),
-    subcategory: 'Movies',
+    subcategory: 'Cinema',
     date: '2026-02-02',
     type: 'expense' as const
   },
@@ -1817,9 +1889,9 @@ const mockExpensesWithoutCurrency = [
   },
   {
     id: 'income-2026-02-03-3',
-    description: 'Content royalties',
+    description: 'Welfare credit',
     amount: 180.00,
-    category: getCategoryByName('Royalties', 'income'),
+    category: getCategoryByName('Company Welfare', 'income'),
     date: '2026-02-03',
     type: 'income' as const
   }

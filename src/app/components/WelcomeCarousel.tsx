@@ -135,8 +135,8 @@ function AddIllustration() {
         <div className="col-span-2 rounded-xl px-3 py-2.5" style={{ background: 'var(--bg-card)', border: '1px solid var(--line-2)', boxShadow: '0 1px 4px rgba(0,0,0,0.05)' }}>
           <div className="text-[10px] font-semibold mb-1.5" style={{ color: 'var(--ink-2)', letterSpacing: '0.06em' }}>{t('add.subcategory')}</div>
           <div className="flex gap-2">
-            <span className="rounded-lg px-2.5 py-1 text-xs border" style={{ background: 'var(--wash-accent2)', color: 'var(--accent-ink)', borderColor: 'var(--wash-accent3)' }}>{getLanguage() === 'it' ? 'Supermercato' : 'Supermarket'}</span>
-            <span className="rounded-lg px-2.5 py-1 text-xs border" style={{ background: 'var(--bg-card)', color: 'var(--ink-2)', borderColor: 'var(--line-2)' }}>{getLanguage() === 'it' ? 'Mercato' : 'Market'}</span>
+            <span className="rounded-lg px-2.5 py-1 text-xs border" style={{ background: 'var(--wash-accent2)', color: 'var(--accent-ink)', borderColor: 'var(--wash-accent3)' }}>{getLanguage() === 'it' ? 'Esselunga' : 'Supermarket'}</span>
+            <span className="rounded-lg px-2.5 py-1 text-xs border" style={{ background: 'var(--bg-card)', color: 'var(--ink-2)', borderColor: 'var(--line-2)' }}>{getLanguage() === 'it' ? 'Carrefour' : 'Market'}</span>
           </div>
         </div>
 
