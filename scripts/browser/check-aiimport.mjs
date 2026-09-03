@@ -192,6 +192,15 @@ const pickCsv = (p) => p.locator('[data-ai-door] input[type="file"]').setInputFi
   ok(await p.locator('[data-ai-flow][data-ai-step="reading"]').count() === 1, 'Go starts the reading screen');
   ok(/No expense has been added yet/.test(await p.locator('[data-ai-flow]').innerText()),
     'which says out loud that nothing has been committed');
+  // And that staying is not optional. The line here read "You can watch",
+  // which invites somebody to wander off during a wait that can run minutes -
+  // and leaving, or backgrounding the app on a phone, aborts the request and
+  // spends the day's import on nothing. The screen has to ask, not offer.
+  const staying = await p.locator('[data-ai-flow]').innerText();
+  ok(/Keep the app open/.test(staying) && /leaving stops it/.test(staying),
+    'and asks them to stay, because leaving really does end it');
+  ok(!/[Yy]ou can watch/.test(staying),
+    'not "you can watch", which made the one required thing sound like a pastime');
   // The route is still sitting on its 900ms delay: headers have not arrived,
   // so the narration must say the TRUE thing - the upload is in flight - over
   // a sweeping bar, since no percent is known before the first row.
@@ -468,17 +477,16 @@ const pickCsv = (p) => p.locator('[data-ai-door] input[type="file"]').setInputFi
   await ctx.close();
 }
 
-// ── a file longer than one answer can hold ───────────────────────────────
+// ── a file longer than one read can finish ───────────────────────────────
 //
-// The reply is ONE JSON document, so the real ceiling is not what the model
-// can read but what it can write, and a document cut off mid-row parses as
-// nothing at all. Past that ceiling the app cuts the file in half and reads
-// it twice; past TWO halves it says so, on the phone, before the day's read
-// is claimed.
+// The ceiling is TIME. A Supabase Edge Function is killed at 150 seconds of
+// wall clock, the model writes about 4 rows a second, and a 1,206-row export
+// needs five minutes - so one read could never answer it, and the log said
+// so: "reason": "WallClockTime", the stream stopped unanswered with 600 rows
+// already on screen. Past that size the file is cut up and the parts are read
+// AT THE SAME TIME, so the import takes as long as one part.
 {
-  // 2,400 rows: over one read, inside two. Two requests go out and the two
-  // lists come back as one - the screen never learns anything unusual
-  // happened.
+  // 900 rows: three parts, fired together, joined into one answer.
   const { ctx, p, sent } = await open({
     session: true,
     convert: (n) => ({
@@ -488,40 +496,49 @@ const pickCsv = (p) => p.locator('[data-ai-door] input[type="file"]').setInputFi
           ...OK_DONE,
           payload: {
             ...OK_DONE.payload,
-            transactions: OK_DONE.payload.transactions.map((t) => ({ ...t, description: `half ${n} - ${t.description}` })),
+            transactions: OK_DONE.payload.transactions.map((t) => ({ ...t, description: `part ${n} - ${t.description}` })),
           },
         }]]),
       },
     }),
   });
   const many = ['date,description,amount'];
-  for (let i = 0; i < 2400; i += 1) many.push(`2026-01-0${(i % 9) + 1},Row ${i},10`);
+  for (let i = 0; i < 900; i += 1) many.push(`2026-01-0${(i % 9) + 1},Row ${i},10`);
   await p.locator('[data-ai-door] input[type="file"]').setInputFiles({
-    name: 'two-years.csv', mimeType: 'text/csv', buffer: Buffer.from(many.join('\n')),
+    name: 'three-parts.csv', mimeType: 'text/csv', buffer: Buffer.from(many.join('\n')),
   });
   await p.waitForTimeout(500);
   await p.locator('[data-ai-cta="go"]').click();
-  await p.waitForTimeout(4000);
-  ok(sent.length === 2, `a file past one answer is read in two goes, not refused (${sent.length} requests)`);
+  await p.waitForTimeout(4500);
+  ok(sent.length === 3, `900 rows is read in three goes, not one that cannot finish (${sent.length} requests)`);
   // The wire carries base64, not the text field - so this reads what the
-  // server would actually receive, which is the only copy that matters.
-  const half = (c) => Buffer.from(c.files?.[0]?.data ?? '', 'base64').toString('utf8');
-  const sizes = sent.map((c) => half(c).split('\n').filter((l) => /^2026-/.test(l)).length);
-  ok(sizes[0] === 1200 && sizes[1] === 1200, `cut down the middle (${sizes.join(' + ')})`);
-  ok(sent.every((c) => half(c).startsWith('date,description,amount')),
-    'and both halves carry the column header, not just the first');
-  const seam = [...half(sent[0]).split('\n'), ...half(sent[1]).split('\n')].filter((l) => /^2026-/.test(l));
-  ok(seam.length === 2400 && new Set(seam).size === 2400,
-    'with every row sent exactly once - none dropped at the seam, none read twice');
+  // server would actually receive, the only copy that matters.
+  const part = (c) => Buffer.from(c.files?.[0]?.data ?? '', 'base64').toString('utf8');
+  const sizes = sent.map((c) => part(c).split('\n').filter((l) => /^2026-/.test(l)).length);
+  ok(sizes.every((n) => n === 300), `cut into equal parts (${sizes.join(' + ')})`);
+  ok(sent.every((c) => part(c).startsWith('date,description,amount')),
+    'each carrying the column header, not just the first');
+  const seam = sent.flatMap((c) => part(c).split('\n')).filter((l) => /^2026-/.test(l));
+  ok(seam.length === 900 && new Set(seam).size === 900,
+    'with every row sent exactly once - none dropped at a seam, none read twice');
+  // One import, one credit: the parts share an id and the server charges
+  // against that rather than against the request.
+  const ids = new Set(sent.map((c) => c.import_id));
+  ok(ids.size === 1 && [...ids][0], `all three name the same import (${[...ids][0]})`);
   const text = await p.locator('body').innerText();
-  ok(/half 1/.test(text) && /half 2/.test(text),
-    'both answers survive into the result - the two lists are joined, not the second one kept');
+  // The TOTAL, not the visible rows: the review list is a preview and cuts
+  // off, so scanning it for "part 3" would fail on a merge that worked. Each
+  // part answers with the same 108.93EUR, so three parts joined is 326.79 and
+  // a dropped or overwritten part shows up in that number immediately.
+  ok(/326[.,]79/.test(text) && /part 1/.test(text) && /part 2/.test(text),
+    `and every answer survives into the result - three joined, not the last one kept (${text.split('\n').find((l) => /€/.test(l)) ?? ''})`);
   await ctx.close();
 }
 {
-  // 4,400 rows: more than two halves. Refused here, where it costs nothing,
-  // and the refusal carries the number - "too long" leaves somebody staring
-  // at a file with no idea whether it is twice over or a hundred times.
+  // Past what even eight parallel reads can carry. Refused here, where it
+  // costs nothing, and the refusal carries the number - "too long" leaves
+  // somebody staring at a file with no idea whether it is twice over or a
+  // hundred times.
   const { ctx, p, sent } = await open({ session: true });
   const many = ['date,description,amount'];
   for (let i = 0; i < 4400; i += 1) many.push(`2026-01-0${(i % 9) + 1},Row ${i},10`);
@@ -531,7 +548,7 @@ const pickCsv = (p) => p.locator('[data-ai-door] input[type="file"]').setInputFi
   await p.waitForTimeout(900);
   const text = await p.locator('body').innerText();
   ok(/4[.,]40\d/.test(text), `the refusal counts them out loud (${text.split('\n').find((l) => /transaction|transazioni/i.test(l)) ?? ''})`);
-  ok(/4[.,]000/.test(text), 'and says how many would fit, which is the only actionable half');
+  ok(/2[.,]400/.test(text), 'and says how many would fit, which is the only actionable half');
   ok(/[Nn]othing has been used up/.test(text),
     'and that it cost nothing - the whole point of refusing here rather than there');
   ok(sent.length === 0, 'no read was started');

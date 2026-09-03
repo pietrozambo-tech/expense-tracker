@@ -33,36 +33,69 @@ export const AI_MAX_BYTES = 12 * 1024 * 1024;
 export const AI_MAX_TEXT = 350_000;
 
 /**
- * How many transactions one read can hand back.
+ * How many rows one read is given, and why the number is what it is.
  *
- * The tightest ceiling of the three, and the one nobody sees coming: the
- * reply is a single JSON document, so the limit is not what the model can
- * READ but what it can WRITE. A document cut off mid-row parses as nothing at
- * all - not "most of your file", nothing.
+ * The binding constraint is TIME, not tokens. Measured on a real two-year
+ * current-account export: the model emits about 4 rows a second, and a
+ * Supabase Edge Function is killed by the platform at 150 seconds of wall
+ * clock - the log says `"reason": "WallClockTime"` and the stream simply
+ * stops, with no answer and no error. A 1,206-row file needs about five
+ * minutes. It never had a chance, and the person watching had 600 rows go by
+ * before the screen told them it had failed.
  *
- * Where the number comes from, rather than a round figure that felt safe: a
- * row in the short-key shape the function's schema asks for is about 22
- * tokens, and 30 with a subcategory, a source and a long description. The
- * server writes at most 64,000 (CONVERT_MAX_TOKENS), so the pessimistic
- * capacity is ~2,100 rows and this sits just under it, leaving the notes and
- * the wrapper their room. Raise the two together or neither.
+ * So a read is sized to finish well inside that ceiling: 300 rows is about 75
+ * seconds of writing plus a lead-in of ten or twenty while the model reads
+ * the file - comfortably under 150 even on a slow day.
  *
- * It is meant to be hard to hit. Two thousand transactions is three years of
- * an active current account; the two-year export that started this was 1,206
- * and is nowhere near. A refusal here is for a file that genuinely cannot be
- * answered in one go - not a tidy round number that turns working imports
- * away.
+ * Smaller is also FASTER overall, because the parts run at the same time: the
+ * import takes as long as one part, so halving a part halves the wait. The
+ * floor on that is the lead-in, which every part pays whether it holds 300
+ * rows or 30 - past a point you are buying requests, not seconds.
+ *
+ * What does NOT buy seconds, since it comes up: the rows streaming onto the
+ * screen. The model generates at its own rate and the server reads a stream
+ * that is already flowing; showing the rows costs nothing, and hiding them
+ * would save nothing while removing the only thing that makes the wait
+ * legible.
+ *
+ * This replaced a token-derived ceiling of 2,000, which was the wrong
+ * quantity entirely - the answer's token count was never what killed it.
+ * Raising CONVERT_MAX_TOKENS does nothing here; only shorter reads do.
  */
-export const AI_MAX_ROWS = 2_000;
+export const AI_ROWS_PER_READ = 300;
+
+/**
+ * The most reads one import may become - and they run at the same time, so
+ * this is a width, not a queue.
+ *
+ * Parallel is the point: eight reads in sequence is eight times the wait and
+ * eight chances to be halfway through when something drops. Fired together
+ * they finish in about the time of the slowest one, so the 1,206-row file
+ * that started this is five reads and ~95 seconds rather than five minutes,
+ * and each read is separately inside its own wall clock.
+ *
+ * Not higher than eight, though the arithmetic would allow it: every part is
+ * a separate call on the same API key, and a wide enough fan-out answers
+ * itself with a rate limit - which fails the WHOLE import, since every part
+ * must land.
+ *
+ * The number is a cost bound too. The daily cap counts IMPORTS now, not
+ * requests (the server claims once per import id), so this is the multiplier
+ * on what one claimed import can spend - a known, bounded one.
+ */
+export const AI_MAX_READS = 8;
+
+/** The refusal ceiling: past this an import cannot be answered at all. */
+export const AI_MAX_ROWS = AI_ROWS_PER_READ * AI_MAX_READS;
 
 /**
  * Roughly how many rows of data a text file holds.
  *
- * Lines, not parsed records: this runs on every import to decide whether to
- * refuse, and it must not become a second CSV parser with its own opinions
+ * Lines, not parsed records: this runs on every import to decide how to cut
+ * it up, and it must not become a second CSV parser with its own opinions
  * about quoting. Blank lines and a header or two are the only things taken
- * off, so the count runs slightly high - which is the safe direction for a
- * ceiling, and only ever matters to a file already near it.
+ * off, so the count runs slightly high - the safe direction when what it
+ * guards is a timeout.
  */
 export const countRows = (text: string): number => {
   let n = 0;
@@ -74,20 +107,9 @@ export const countRows = (text: string): number => {
   return n;
 };
 
-/**
- * The most reads one import is allowed to become. Two.
- *
- * A file just past what one answer can hold is a solvable problem: cut it in
- * half, read each half, join the two lists. Forty halves is not the same
- * problem wearing a bigger number - it is most of a day's allowance, minutes
- * of waiting, and forty chances for one of them to fail with the other
- * thirty-nine already spent. Past this the app says so instead.
- */
-export const AI_MAX_READS = 2;
-
 /** A line carrying a date is a row of data. Everything above the first one -
- *  a title, a column header, a sheet heading - is preamble, and the second
- *  half needs its own copy or it arrives as a wall of unlabelled columns. */
+ *  a title, a column header, a sheet heading - is preamble, and every part
+ *  needs its own copy or it arrives as a wall of unlabelled columns. */
 const hasDate = (line: string): boolean =>
   DATE_RES.some((re) => {
     re.lastIndex = 0;
@@ -102,9 +124,7 @@ export function splitLedgerText(text: string, parts: number): string[] | null {
   // xlsxToText writes a multi-sheet workbook as "### Sheet: name" blocks, and
   // each block has its own headers. Split along them so a sheet's columns are
   // never separated from its rows.
-  const blocks = /^### Sheet: /m.test(text)
-    ? text.split(/\n(?=### Sheet: )/)
-    : [text];
+  const blocks = /^### Sheet: /m.test(text) ? text.split(/\n(?=### Sheet: )/) : [text];
   const sections = blocks.map((block) => {
     const lines = block.split('\n');
     const first = lines.findIndex(hasDate);
@@ -143,17 +163,16 @@ export function splitLedgerText(text: string, parts: number): string[] | null {
 }
 
 /**
- * The files for each read, when one read cannot carry them all.
+ * The files for each read.
  *
- * Null means "send them as they are" - either they fit, or they cannot be
- * split (a PDF or a photo has no rows to cut along, and half a scanned
- * statement is not a file).
+ * Null means "send them as they are" - either they fit in one read, or they
+ * cannot be cut (a PDF or a photo has no rows to cut along, and half a
+ * scanned statement is not a file; those go whole and the server decides).
  */
 export function splitForReads(files: AiFile[]): AiFile[][] | null {
   const rows = files.reduce((n, f) => n + (f.text ? countRows(f.text) : 0), 0);
-  if (rows <= AI_MAX_ROWS) return null;
-  const parts = Math.ceil(rows / AI_MAX_ROWS);
-  if (parts > AI_MAX_READS) return null; // refused upstream, in readFiles
+  if (rows <= AI_ROWS_PER_READ) return null;
+  const parts = Math.min(AI_MAX_READS, Math.ceil(rows / AI_ROWS_PER_READ));
   if (files.some((f) => !f.text)) return null; // nothing to cut a photo along
 
   const cut = files.map((f) => splitLedgerText(f.text!, parts));
@@ -161,7 +180,7 @@ export function splitForReads(files: AiFile[]): AiFile[][] | null {
   return Array.from({ length: parts }, (_, i) =>
     files.map((f, j) => {
       // The bytes are rewritten too. The server reads a text file from
-      // `text`, but the base64 is what it falls back to - and a half whose
+      // `text`, but the base64 is what it falls back to - and a part whose
       // two copies disagreed would be a bug nobody could see.
       const bytes = new TextEncoder().encode(cut[j]![i]);
       return { ...f, text: cut[j]![i], bytes: bytes.byteLength, data: b64(bytes.buffer as ArrayBuffer) };
@@ -344,12 +363,10 @@ export async function readFiles(files: File[]): Promise<AiFile[]> {
   // document.
   //
   // The ceiling here is what the app can SPLIT to, not what one read holds:
-  // past AI_MAX_ROWS the file is cut in half and read twice (see
-  // convertWithAi). Past two halves it is refused, because forty reads is
-  // most of a day's allowance and forty chances to fail with the rest
-  // already spent.
+  // past AI_ROWS_PER_READ the file is cut up and the parts are read at the
+  // same time (see convertWithAi). AI_MAX_ROWS is where even that runs out.
   const rows = texts.reduce((sum, f) => sum + countRows(f.text ?? ''), 0);
-  if (rows > AI_MAX_ROWS * AI_MAX_READS) throw new AiImportError('too_many_rows', String(rows));
+  if (rows > AI_MAX_ROWS) throw new AiImportError('too_many_rows', String(rows));
   // Only when EVERY text file looks like something else: one unreadable file
   // beside a real export is the model's problem, not a reason to refuse.
   if (texts.length > 0 && texts.length === out.length && !texts.some((f) => looksLikeLedger(f.text!))) {
@@ -480,7 +497,16 @@ export interface ConvertArgs {
    *  the response headers arrive (the server has the file and the model is
    *  working). Everything else the screen says hangs off rows arriving. */
   onPhase?: (phase: 'sent' | 'reading') => void;
+  /** The import every part of a split belongs to. The server claims the
+   *  day's credit against this, not against the request, so one file the
+   *  user picked costs one import however many reads answered it. */
+  importId?: string;
 }
+
+/** An id for one import, unguessable enough that two people's cannot collide
+ *  in the same day - which is all the server needs it for. */
+const newImportId = (): string =>
+  (globalThis.crypto?.randomUUID?.() ?? `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`);
 
 /** How long silence is tolerated before the flow gives up on its own.
  *  A reading screen that sits mute for minutes is the failure the user
@@ -562,6 +588,7 @@ async function oneRead(args: ConvertArgs): Promise<AiDone> {
     },
     body: JSON.stringify({
       files: args.files.map((f) => ({ media_type: f.media_type, data: f.data })),
+      import_id: args.importId,
       trip: args.trip,
       lang: args.lang,
       answers: args.answers ?? [],
@@ -673,59 +700,70 @@ async function oneRead(args: ConvertArgs): Promise<AiDone> {
 /**
  * One conversion, however many reads it takes.
  *
- * A file past what a single answer can hold is cut in half and read twice,
- * and the two lists are joined here - so the screen above never learns that
+ * A file too long for a single read is cut up and the parts are read AT THE
+ * SAME TIME, then joined here - so the screen above never learns that
  * anything unusual happened. Rows keep arriving through the same onRow, the
- * running total keeps climbing, and what comes back is one payload.
+ * running count keeps climbing, and what comes back is one payload.
  *
- * The alternative was to hand the user "too long - split it", which is not an
- * answer: splitting a spreadsheet by hand is the work they came here to
- * avoid, and the app is holding the rows already.
+ * Why parallel, and why it is not an optimisation but the fix: a Supabase
+ * Edge Function is killed at 150 seconds of wall clock, and the model writes
+ * about 4 rows a second. A 1,206-row file needs five minutes, so ONE read
+ * could never finish it - the log said `"reason": "WallClockTime"` and the
+ * stream stopped, unanswered, after 600 rows had gone by on screen. Reads
+ * sized to 400 rows each finish in ~100 seconds; fired together, so does the
+ * whole import.
+ *
+ * All the parts share one `importId`, and the server claims the day's credit
+ * against that rather than per request - one file the user picked is one
+ * import, however many reads it took to answer.
  *
  * What it deliberately does NOT do:
  *
- *   more than two reads     see AI_MAX_READS. Refused in readFiles, before
- *                           anything is claimed.
- *   carry on past a failure Both halves must land. Half a statement imported
- *                           silently is worse than a failure that says so -
- *                           and with the day's read now given back on every
- *                           failure, trying again is cheap.
- *   answer questions twice  If either half asks something, that answer is
- *                           returned as it stands and the flow puts the
- *                           question on screen; replying re-runs both halves
- *                           with the answer attached, which is the only way
- *                           the two can agree about it.
+ *   carry on past a failure   Every part must land. Half a statement
+ *                             imported silently is worse than a failure that
+ *                             says so - and the day's credit now comes back
+ *                             on failure, so trying again is cheap.
+ *   answer questions twice    If a part asks something, that answer is
+ *                             returned as it stands and the flow puts the
+ *                             question on screen; replying re-runs the whole
+ *                             import with the answer attached, which is the
+ *                             only way the parts can agree about it.
  */
 export async function convertWithAi(args: ConvertArgs): Promise<AiDone> {
   const parts = splitForReads(args.files);
-  if (!parts) return oneRead(args);
+  const importId = newImportId();
+  if (!parts) return oneRead({ ...args, importId });
 
+  // Rows arrive interleaved from every part at once, so the number on screen
+  // counts what has ACTUALLY landed rather than any one part's position - the
+  // per-part n restarts at 1 and would walk the count backwards.
   let seen = 0;
-  let all: AiDone | null = null;
-  for (const files of parts) {
-    const before = seen;
-    const done = await oneRead({
-      ...args,
-      files,
-      // The phases narrate the FIRST read only. They run 'sent' then
-      // 'reading', and a screen that walked back to "sending" halfway
-      // through a list of rows would be describing a retry that is not
-      // happening.
-      onPhase: all ? undefined : args.onPhase,
-      // Row numbers continue across the halves. Restarting at 1 would tell
-      // the screen the count had gone backwards.
-      onRow: args.onRow ? (r) => { seen = before + r.n; args.onRow!({ ...r, n: before + r.n }); } : undefined,
-    });
-    if (done.status === 'need_input') return done;
-    seen = before + (done.payload?.transactions?.length ?? 0);
-    all = all === null ? done : {
-      ...done, // remaining and status come from the LAST read: it is the newer truth
-      notes: [...all.notes, ...done.notes.filter((n) => !all!.notes.includes(n))],
-      payload: {
-        ...(all.payload ?? done.payload!),
-        transactions: [...(all.payload?.transactions ?? []), ...(done.payload?.transactions ?? [])],
-      },
-    };
-  }
-  return all!;
+  const bump = args.onRow
+    ? (r: AiRow) => { seen += 1; args.onRow!({ ...r, n: seen }); }
+    : undefined;
+
+  const answers = await Promise.all(parts.map((files, i) => oneRead({
+    ...args,
+    files,
+    importId,
+    // The phases narrate the first part only. They run 'sent' then 'reading',
+    // and eight parts reporting them would walk the screen backwards
+    // repeatedly through one wait.
+    onPhase: i === 0 ? args.onPhase : undefined,
+    onRow: bump,
+  })));
+
+  const asked = answers.find((a) => a.status === 'need_input');
+  if (asked) return asked;
+  const last = answers[answers.length - 1];
+  return {
+    ...last, // remaining and status from the last to land: the newer truth
+    notes: answers.flatMap((a) => a.notes).filter((n, i, all) => all.indexOf(n) === i),
+    payload: {
+      ...(answers[0].payload ?? last.payload!),
+      // In part order, not completion order: the file's own order is the one
+      // the user will scroll through on the review screen.
+      transactions: answers.flatMap((a) => a.payload?.transactions ?? []),
+    },
+  };
 }

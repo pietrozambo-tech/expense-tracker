@@ -103,6 +103,10 @@ const MONTHS_IT = ['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set'
 
 // Bounds, all of them cheap to check and all of them checked before a single
 // token is spent.
+// How many reads one import id may spend. The app cuts a long file into at
+// most this many parts; the server bounds it too, because an id reused all
+// day would otherwise be an unlimited allowance.
+const MAX_READS_PER_IMPORT = 8;
 const MAX_FILES = 4;
 // Decoded bytes across every file. The API's own request ceiling is 32MB and
 // base64 inflates by a third, so this leaves room for the instructions and
@@ -636,7 +640,17 @@ async function handle(req: Request): Promise<Response> {
   const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
-  const { data: used, error: claimErr } = await admin.rpc('ai_import_claim', { p_user: userId, p_limit: limit });
+  // One claim per IMPORT, not per request. A long file is cut up and its
+  // parts are read at the same time (the platform kills a function at 150s of
+  // wall clock, so one call cannot answer a big export); they share this id,
+  // the first to arrive pays, and the rest ride on it. See ai_import_claim in
+  // schema-ai-import.sql for the two guards that keep that honest.
+  const importId = typeof body.import_id === 'string' && body.import_id.length <= 64
+    ? body.import_id
+    : null;
+  const { data: used, error: claimErr } = await admin.rpc('ai_import_claim', {
+    p_user: userId, p_limit: limit, p_import: importId, p_max_reads: MAX_READS_PER_IMPORT,
+  });
   if (claimErr) {
     const absent = /does not exist|could not find the function|schema cache/i.test(claimErr.message);
     return json(500, {
@@ -724,7 +738,7 @@ async function once(
     msg = await client.messages.stream(request as never).finalMessage();
   } catch (e) {
     // Nothing was read, so nothing should be charged against today.
-    await admin.rpc('ai_import_release', { p_user: userId });
+    await admin.rpc('ai_import_release', { p_user: userId, p_import: importId });
     throw apiFailure(e);
   }
   await note(admin, userId, msg);
@@ -734,7 +748,7 @@ async function once(
   try {
     return json(200, finish(textOf(msg), usageOf(msg)));
   } catch (e) {
-    await admin.rpc('ai_import_release', { p_user: userId });
+    await admin.rpc('ai_import_release', { p_user: userId, p_import: importId });
     throw e;
   }
 }
@@ -788,7 +802,7 @@ function streamed(
         // being in the wrong place. The first person it happened to spent
         // their whole day's allowance discovering it. The API cost is ours to
         // carry; a read that returns nothing is not a read.
-        await admin.rpc('ai_import_release', { p_user: userId });
+        await admin.rpc('ai_import_release', { p_user: userId, p_import: importId });
         send('failed', { code: failure.code, error: failure.message });
       } finally {
         controller.close();

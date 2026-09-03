@@ -629,7 +629,7 @@ export const it: Record<keyof typeof en, string> = {
   'ai.leaveStay': 'Continua a leggere',
   'ai.leaveGo': 'Interrompi',
   'ai.readingTitle': 'Sto leggendo',
-  'ai.readingSub': 'Riga per riga, man mano che leggo. Puoi restare a guardare.',
+  'ai.readingSub': 'Riga per riga, man mano che leggo. Tieni l’app aperta: se esci, si ferma.',
   'ai.countOf': '{n} di {total}',
   'ai.tick1': 'Date e importi',
   'ai.tick2': 'Categorie, dalle tue',

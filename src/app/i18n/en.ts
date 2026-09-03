@@ -654,7 +654,13 @@ export const en = {
   // No duration promised: a short CSV takes seconds, a long statement can
   // take a couple of minutes, and a number the app cannot keep reads as a
   // hang the moment it passes. Say what happens instead.
-  'ai.readingSub': 'Row by row, as it reads. You can watch.',
+  // NOT "you can watch". Watching is not the option it was written as:
+  // leaving the screen aborts the request, and on a phone so does putting
+  // the app in the background - and the day's import is spent either way.
+  // A line inviting someone to stay if they feel like it, in front of a
+  // wait that can run minutes, is the app being pleasant about the one
+  // thing it needs them to do.
+  'ai.readingSub': 'Row by row, as it reads. Keep the app open - leaving stops it.',
   'ai.countOf': '{n} of {total}',
   'ai.tick1': 'Dates and amounts',
   'ai.tick2': 'Categories - yours',

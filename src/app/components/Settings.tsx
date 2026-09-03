@@ -25,7 +25,7 @@ import { ScheduledManager, type ScheduleDraft } from './ScheduledManager';
 import { upcomingSchedules } from '../lib/recurrence';
 import { buildImportPrompt } from '../lib/importPrompt';
 import { AiImport } from './AiImport';
-import { AI_MAX_READS, AI_MAX_ROWS, AiImportError, aiDayDone, readFiles, readyMadePayload, type AiFile } from '../lib/aiImport';
+import { AI_MAX_ROWS, AiImportError, aiDayDone, readFiles, readyMadePayload, type AiFile } from '../lib/aiImport';
 import type { Trip } from '../lib/trips';
 import type { RecurringRule } from '../types';
 import { SourcesManager } from './SourcesManager';
@@ -454,7 +454,7 @@ export function Settings({
         {
           description:
             code === 'no_data' ? t('ai.errNoDataSub')
-            : code === 'too_many_rows' ? t('ai.errRowsSub', { max: (AI_MAX_ROWS * AI_MAX_READS).toLocaleString(numberLocale()) })
+            : code === 'too_many_rows' ? t('ai.errRowsSub', { max: AI_MAX_ROWS.toLocaleString(numberLocale()) })
             : undefined,
           duration: code === 'no_data' || code === 'too_many_rows' ? 5000 : 2600,
         },

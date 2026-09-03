@@ -4,7 +4,7 @@
 // arrives without its column header is a wall of unlabelled numbers, and the
 // model's confident reading of it is wrong on every row - after the day's
 // read has been spent on it.
-import { splitLedgerText, splitForReads, countRows, AI_MAX_ROWS, AI_MAX_READS, type AiFile } from '../../src/app/lib/aiImport';
+import { splitLedgerText, splitForReads, countRows, AI_ROWS_PER_READ, AI_MAX_READS, AI_MAX_ROWS, type AiFile } from '../../src/app/lib/aiImport';
 
 const fail: string[] = [];
 const ok = (c: boolean, m: string) => { console.log(`${c ? 'PASS' : 'FAIL'}  ${m}`); if (!c) fail.push(m); };
@@ -60,22 +60,39 @@ const file = (text: string): AiFile => ({
   ok(rows.length === 3000 && new Set(rows).size === 3000, 'still every row, exactly once');
 }
 
-// ── when to split at all ─────────────────────────────────────────────────
+// ── how many reads, and when to refuse ───────────────────────────────────
+// The number is time, not tokens: a Supabase Edge Function is killed at 150
+// seconds of wall clock and the model writes ~4 rows a second, so a read is
+// sized to finish well inside that and the parts run at the same time.
 {
-  ok(splitForReads([file(sheet('t', 500))]) === null, 'a file that fits is left alone');
-  ok(splitForReads([file(sheet('t', AI_MAX_ROWS - 5))]) === null, 'and so is one just under the line');
-  const two = splitForReads([file(sheet('t', AI_MAX_ROWS + 100))]);
-  ok(two !== null && two.length === 2, 'one just over it becomes two reads');
-  ok(two !== null && countRows(two[0][0].text!) <= AI_MAX_ROWS && countRows(two[1][0].text!) <= AI_MAX_ROWS,
-    'each of which is under the ceiling it was split for');
-  ok(two !== null && two[0][0].bytes === new TextEncoder().encode(two[0][0].text!).byteLength,
-    'and carries its own byte count, not the whole file\'s');
-  ok(splitForReads([file(sheet('t', AI_MAX_ROWS * AI_MAX_READS + 500))]) === null,
-    'past two reads it is not split - that is a refusal, made in readFiles before anything is claimed');
+  ok(splitForReads([file(sheet('t', 50))]) === null, 'a file that fits one read is left alone');
+  ok(splitForReads([file(sheet('t', AI_ROWS_PER_READ - 5))]) === null, 'and so is one just under the line');
+
+  const over = splitForReads([file(sheet('t', AI_ROWS_PER_READ + 10))]);
+  ok(over !== null && over.length === 2, 'one row over becomes two reads, not one long one');
+
+  // The file that started all this: 1,206 rows, five minutes in one go,
+  // killed by the platform at 150 seconds with 600 rows on screen.
+  const real = splitForReads([file(sheet('t', 1206))]);
+  ok(real !== null && real.length === Math.ceil(1206 / AI_ROWS_PER_READ),
+    `the 1,206-row export becomes ${real?.length} reads that run together, not one that cannot finish`);
+  ok(real !== null && real.every((part) => countRows(part[0].text!) <= AI_ROWS_PER_READ),
+    'each of them inside the size a read can answer in time');
+  const every = real!.flatMap((part) => part[0].text!.split('\n')).filter((l) => /^20\d\d-/.test(l));
+  ok(every.length === 1206 && new Set(every).size === 1206,
+    'and between them they carry every row, exactly once');
+  ok(real !== null && real.every((part) => part[0].text!.includes(HEAD)),
+    'each with the column header, because a part without it is unlabelled numbers');
+  ok(real !== null && real[0][0].bytes === new TextEncoder().encode(real[0][0].text!).byteLength,
+    'and its own byte count, not the whole file\'s');
+
+  ok(splitForReads([file(sheet('t', AI_MAX_ROWS + 500))])!.length === AI_MAX_READS,
+    'past the ceiling the split stops widening - the refusal is readFiles\' job, before anything is claimed');
+
   // A photo or a PDF has no rows to cut along; half a scanned statement is
-  // not a file. Those go as they are and the server decides.
+  // not a file. Those go whole and the server decides.
   const photo: AiFile = { media_type: 'image/png', data: 'x', name: 'p.png', bytes: 10, text: null };
-  ok(splitForReads([file(sheet('t', AI_MAX_ROWS + 100)), photo]) === null,
+  ok(splitForReads([file(sheet('t', AI_ROWS_PER_READ + 100)), photo]) === null,
     'a photo in the set stops the split rather than being halved');
   ok(splitLedgerText('no dates here\njust words\nand more words', 2) === null,
     'and text with no dated line has nothing to cut along');
