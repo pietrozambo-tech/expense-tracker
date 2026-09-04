@@ -108,6 +108,23 @@ const twoYears = (n) => {
 };
 const decodeFile = (c) => Buffer.from(c.files?.[0]?.data ?? '', 'base64').toString('utf8');
 
+// A stub that reads the file it was actually handed: one record per dated
+// line, on that line's own date. Anything less faithful - synthetic dates, a
+// fixed count - and the phone's per-day accounting finds a shortfall that is
+// the STUB's, fires a repair, and the test ends up measuring the repair
+// instead of whatever it meant to measure. `rows_in` alone is not enough:
+// the check is per day, so the dates have to be the file's too.
+const readsBack = (n, body) => {
+  const rows = decodeFile(body).split('\n')
+    .map((l) => [l, /^(\d{4}-\d{2}-\d{2})/.exec(l)])
+    .filter(([, m]) => m)
+    .map(([line, m], i) => ({
+      date: m[1], amount: 1, type: 'expense', category: 'Travel',
+      description: `part ${n} - ${(line.split(',')[1] ?? `row ${i}`).trim()}`,
+    }));
+  return { ...OK_DONE, payload: { ...OK_DONE.payload, transactions: rows } };
+};
+
 const open = async ({ session, convert, breakCloudWrite }) => {
   const ctx = await b.newContext({ viewport: { width: 390, height: 900 }, locale: 'en-GB' });
   let calls = 0;
@@ -519,21 +536,13 @@ const pickCsv = (p) => p.locator('[data-ai-door] input[type="file"]').setInputFi
 // AT THE SAME TIME, so the import takes as long as one part.
 {
   // 900 rows: three parts, fired together, joined into one answer. Each part
-  // answers with exactly as many rows as it was handed - which is what a
-  // reading is supposed to do, and what stops the repair pass from having
-  // anything to repair. A stub that answered four rows to a 300-row part
-  // would be testing the repair, not the split.
-  const full = (n, rowsIn) => {
-    const transactions = Array.from({ length: rowsIn ?? 4 }, (_, i) => ({
-      date: `2026-01-0${(i % 9) + 1}`, amount: 1, type: 'expense',
-      category: 'Travel', description: `part ${n} - row ${i}`,
-    }));
-    return { ...OK_DONE, payload: { ...OK_DONE.payload, transactions } };
-  };
+  // answers every line it was handed, on that line's own day - which is what
+  // a reading is supposed to do, and what leaves the repair pass with nothing
+  // to repair. A thinner stub would be testing the repair, not the split.
   const { ctx, p, sent } = await open({
     session: true,
     convert: (n, body) => {
-      const done = full(n, body.rows_in);
+      const done = readsBack(n, body);
       return {
         res: {
           status: 200, contentType: 'text/event-stream',
@@ -753,6 +762,159 @@ const pickCsv = (p) => p.locator('[data-ai-door] input[type="file"]').setInputFi
     'the repair closed the gap, so there is nothing left to warn about');
   const cta = await p.locator('[data-ai-cta="commit"]').innerText();
   ok(/4/.test(cta), `and all four rows are there to add, not two (${cta})`);
+  await ctx.close();
+}
+
+// And the repair is AIMED, which is the whole quality bar. Every line the
+// phone sent carries a date and every record that comes back carries the same
+// date, so a shortfall can be counted per DAY and the missing rows NAMED -
+// "the two lines of 23 August" - rather than the file read a second time and
+// two whole answers merged. That merge is what shipped and had to be taken
+// back: a description reworded between the passes made a second row out of
+// one, and a real 1,206-row import came out as 1,213 movements.
+{
+  const three = {
+    ...OK_DONE,
+    payload: {
+      version: 1, currency: 'EUR',
+      transactions: [
+        { date: '2026-08-22', amount: 30, type: 'expense', category: 'Travel', description: 'Ferry' },
+        { date: '2026-08-22', amount: 43.34, type: 'expense', category: 'Travel', description: 'Extra night' },
+        { date: '2026-08-23', amount: 9, type: 'expense', category: 'Travel', description: 'Burger' },
+      ],
+    },
+  };
+  // What the repair answers: both lines of the short day - it is handed both,
+  // since which one went missing is the question - one of them reworded, plus
+  // a row of a day that was never short. Exactly one of those three may reach
+  // the ledger.
+  const back = {
+    ...OK_DONE,
+    payload: {
+      version: 1, currency: 'EUR',
+      transactions: [
+        { date: '2026-08-23', amount: 9, type: 'expense', category: 'Travel', description: 'Burger at the port' },
+        { date: '2026-08-23', amount: 26.59, type: 'expense', category: 'Travel', description: 'Pranzo Pico' },
+        { date: '2026-08-22', amount: 30, type: 'expense', category: 'Travel', description: 'Ferry ticket' },
+      ],
+    },
+  };
+  const stream = (d) => sse([...d.payload.transactions.map((r, i) => ['row', { n: i + 1, row: r }]), ['done', d]]);
+  const { ctx, p, calls, sent } = await open({
+    session: true,
+    convert: (n) => ({ delay: 500, res: { status: 200, contentType: 'text/event-stream', body: stream(n === 1 ? three : back) } }),
+  });
+  await pickCsv(p);
+  await p.waitForTimeout(400);
+  await p.locator('[data-ai-cta="go"]').click();
+  await p.waitForSelector('[data-ai-flow][data-ai-step="ready"]', { timeout: 15000 });
+  ok(calls() === 2, `one aimed second pass, not a search (${calls()} calls)`);
+  const asked = Buffer.from(sent[1].files[0].data, 'base64').toString('utf8');
+  ok(sent[1].rows_in === 2, `and it is told it holds two lines, not the file's four (${sent[1].rows_in})`);
+  ok(/2026-08-23,Pranzo Pico/.test(asked) && /2026-08-23,Burger/.test(asked),
+    'the two lines of the day that came back short are the ones sent');
+  ok(!/Extra night/.test(asked),
+    `the days that were whole are not read again - a repair costs the gap, not the file (${asked.split('\n').length} lines)`);
+  ok(/^date,description,amount/m.test(asked), 'with the column header, or it is unlabelled numbers');
+
+  const cta = await p.locator('[data-ai-cta="commit"]').innerText();
+  ok(/4/.test(cta), `four rows to add: the one that went missing, recovered (${cta})`);
+  ok(await p.locator('[data-ai-short]').count() === 0, 'nothing left missing');
+  ok(await p.locator('[data-ai-over]').count() === 0,
+    'and nothing invented - the reworded Burger and the Ferry of a whole day were both refused');
+  const body = await p.locator('[data-ai-flow]').innerText();
+  ok(!/Ferry ticket/.test(body) && !/Burger at the port/.test(body),
+    'a row already in hand is recognised by its day and its amount, never by its wording');
+  await ctx.close();
+}
+
+// A gap too wide for one read. The repair is a read like any other and dies
+// on the same 150-second wall clock, so a 900-line shortfall cannot go out as
+// one request - it is cut into reads the size of a part. Cut along whole DAYS,
+// never mid-day: the shortfall is counted per day, and two chunks holding the
+// same day would each believe they were owed the same row and each add it.
+{
+  const { ctx, p, sent } = await open({
+    session: true,
+    convert: (n, body) => {
+      const rows = readsBack(n, body).payload.transactions;
+      // Calls 2-4 are the parts, and each loses the first row of every day it
+      // holds: 27 rows gone across nine days, which leaves every day short and
+      // so puts all 900 lines in the gap. Calls 5+ are the repair, answering
+      // in full.
+      const seen = new Set();
+      const kept = n >= 5 ? rows : rows.filter((r) => (seen.has(r.date) ? true : (seen.add(r.date), false)));
+      const done = { ...OK_DONE, payload: { ...OK_DONE.payload, transactions: kept } };
+      return {
+        res: {
+          status: 200, contentType: 'text/event-stream',
+          body: sse([...kept.slice(0, 4).map((r, i) => ['row', { n: i + 1, row: r }]), ['done', done]]),
+        },
+      };
+    },
+  });
+  const many = ['date,description,amount'];
+  for (let i = 0; i < 900; i += 1) many.push(`2026-01-0${(i % 9) + 1},Row ${i},10`);
+  await p.locator('[data-ai-door] input[type="file"]').setInputFiles({
+    name: 'wide-gap.csv', mimeType: 'text/csv', buffer: Buffer.from(many.join('\n')),
+  });
+  await p.waitForTimeout(500);
+  await p.locator('[data-ai-cta="go"]').click();
+  await p.waitForSelector('[data-ai-flow][data-ai-step="ready"]', { timeout: 30000 });
+
+  const repairs = sent.slice(4);
+  ok(sent.length === 7, `a triage, three parts and three repairs - not one impossible request (${sent.length})`);
+  const dated = (c) => decodeFile(c).split('\n').filter((l) => /^2026-/.test(l));
+  const sizes = repairs.map((c) => dated(c).length);
+  ok(sizes.every((n) => n <= 300), `each repair fits inside one read (${sizes.join(' + ')})`);
+  ok(sizes.reduce((a, b) => a + b, 0) === 900, 'and between them they carry the whole gap');
+  ok(repairs.every((c, i) => c.rows_in === sizes[i]),
+    `each told exactly what it holds (${repairs.map((c) => c.rows_in).join(', ')})`);
+  ok(repairs.every((c) => decodeFile(c).startsWith('date,description,amount')),
+    'each carrying the column header, or it is unlabelled numbers');
+  const days = repairs.map((c) => new Set(dated(c).map((l) => l.slice(0, 10))));
+  ok(days.every((d, i) => days.every((e, j) => i === j || ![...d].some((x) => e.has(x)))),
+    `no day is split across two repairs - each is owed its rows once (${days.map((d) => d.size).join(' + ')} days)`);
+
+  const commit = await p.locator('[data-ai-cta="commit"]').innerText();
+  ok(/900/.test(commit), `and all 900 rows are recovered, none of them twice (${commit})`);
+  ok(await p.locator('[data-ai-short]').count() === 0 && await p.locator('[data-ai-over]').count() === 0,
+    'nothing missing and nothing invented');
+  await ctx.close();
+}
+
+// And the other end of it: a repair costs a read, so it is spent only where
+// it can work. When the answer and the file disagree about a QUARTER of the
+// rows they are not disagreeing about rows - the dates were read in the other
+// order, a part died mid-stream - and reading it again buys a minute of wait
+// and nothing else. The shortfall is stated instead.
+{
+  const { ctx, p, sent } = await open({
+    session: true,
+    convert: (n, body) => {
+      // Every part answers one row in nine: 100 rows for 900, which no second
+      // pass is going to rescue.
+      const kept = readsBack(n, body).payload.transactions.filter((_, i) => i % 9 === 0);
+      const done = { ...OK_DONE, payload: { ...OK_DONE.payload, transactions: kept } };
+      return {
+        res: {
+          status: 200, contentType: 'text/event-stream',
+          body: sse([...kept.slice(0, 4).map((r, i) => ['row', { n: i + 1, row: r }]), ['done', done]]),
+        },
+      };
+    },
+  });
+  const many = ['date,description,amount'];
+  for (let i = 0; i < 900; i += 1) many.push(`2026-01-0${(i % 9) + 1},Row ${i},10`);
+  await p.locator('[data-ai-door] input[type="file"]').setInputFiles({
+    name: 'hopeless.csv', mimeType: 'text/csv', buffer: Buffer.from(many.join('\n')),
+  });
+  await p.waitForTimeout(500);
+  await p.locator('[data-ai-cta="go"]').click();
+  await p.waitForSelector('[data-ai-flow][data-ai-step="ready"]', { timeout: 30000 });
+  ok(sent.length === 4, `a triage and three parts, and no repair thrown after them (${sent.length} requests)`);
+  ok(await p.locator('[data-ai-short]').count() === 1,
+    'the shortfall is stated rather than chased - a wait nobody asked for is not a fix');
   await ctx.close();
 }
 
@@ -1006,11 +1168,8 @@ const pickCsv = (p) => p.locator('[data-ai-door] input[type="file"]').setInputFi
       if (n === 1) return { res: { status: 200, contentType: 'text/event-stream', body: sse([['done', NEED]]) } };
       // Each part answers in full, so what is counted below is the reading
       // itself and not a repair pass tidying up after a thin stub.
-      const transactions = Array.from({ length: body.rows_in ?? 4 }, (_, i) => ({
-        date: `2026-01-0${(i % 9) + 1}`, amount: 1, type: 'expense',
-        category: 'Travel', description: `part ${n} - row ${i}`,
-      }));
-      const done = { ...OK_DONE, payload: { ...OK_DONE.payload, transactions } };
+      const done = readsBack(n, body);
+      const transactions = done.payload.transactions;
       return {
         res: {
           status: 200, contentType: 'text/event-stream',

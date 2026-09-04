@@ -756,6 +756,10 @@ export const en = {
   // import of the same file costs one read and adds only what is missing.
   'ai.short1': 'The file has {sent} dated rows and {read} came back, so 1 is missing. If it was not a settlement or a balance line, import the same file again: it adds only what is missing.',
   'ai.shortN': 'The file has {sent} dated rows and {read} came back, so {n} are missing. If they were not settlements or balance lines, import the same file again: it adds only what is missing.',
+  // One row of a file is one transaction, never two. More back than went out
+  // means something was read twice, and a total that is too big hides better
+  // than one that is too small.
+  'ai.over': 'The file has {sent} dated rows but {read} came back - {n} too many. Check the list before adding: something has been read twice.',
   // A read that was told not to ask, asking anyway. Shown with the question
   // underneath, and a retry - answering it would re-run the whole thing.
   'ai.errAskedLateTitle': 'It stopped to ask',

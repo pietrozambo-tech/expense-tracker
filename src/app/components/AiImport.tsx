@@ -991,12 +991,21 @@ export function AiImport({
             {(() => {
               const read = done?.payload?.transactions.length ?? 0;
               const short = (done?.rowsSent ?? 0) - read;
-              if (!done?.rowsSent || short <= 0) return null;
-              return (
+              if (!done?.rowsSent || short === 0) return null;
+              // Too MANY is the louder half. One row of a file is one
+              // transaction, never two, so a reading that came back longer
+              // than the file has invented money - and a total that is too
+              // big is harder to notice than one that is too small, because
+              // nothing looks missing.
+              return short > 0 ? (
                 <p data-ai-short={short} className="mt-2 px-1" style={{ color: 'var(--tone-warn)', fontSize: 12, lineHeight: 1.5 }}>
                   {t(short === 1 ? 'ai.short1' : 'ai.shortN', {
                     n: String(short), sent: String(done.rowsSent), read: String(read),
                   })}
+                </p>
+              ) : (
+                <p data-ai-over={-short} className="mt-2 px-1" style={{ color: 'var(--tone-warn)', fontSize: 12, lineHeight: 1.5 }}>
+                  {t('ai.over', { n: String(-short), sent: String(done.rowsSent), read: String(read) })}
                 </p>
               );
             })()}

@@ -188,41 +188,132 @@ export const countDataRows = (text: string): number =>
   text.split('\n').reduce((n, line) => (hasDate(line) ? n + 1 : n), 0);
 
 /**
- * Two readings of the SAME rows, merged so that nothing either of them found
- * is lost and nothing both of them found is counted twice.
- *
- * The identity of a row is what an import already treats as its identity -
- * date, direction, amount, currency, description - and the multiplicity is
- * the point: two identical coffees on the same day are two transactions, not
- * one, so the merge keeps the LARGER count of each identity rather than the
- * union of distinct ones. Getting that backwards would silently halve a
- * repeated charge; getting it the other way would double a whole reading.
- *
- * The longer reading is the base, in its own order, because it is the one
- * more likely to be complete; the extra copies the other found are appended.
- * The handful of appended rows are out of file order - they are the rows a
- * reading missed, and being at the end of their part is a small price for
- * being there at all.
+ * The dates a line carries, in ISO - the same reading scanFileDates does,
+ * lifted out so the accounting below and the date scan cannot disagree about
+ * what a date is.
  */
-export function mergeReadings(a: ImportRecord[], b: ImportRecord[]): ImportRecord[] {
-  const key = (r: ImportRecord) =>
-    [r.date, r.type, r.amount, (r.currency ?? '').toUpperCase(),
-      (r.description ?? '').trim().toLowerCase().replace(/\s+/g, ' ')].join('|');
-  const index = (rows: ImportRecord[]) => {
-    const m = new Map<string, ImportRecord[]>();
-    for (const r of rows) {
-      const k = key(r);
-      const at = m.get(k);
-      if (at) at.push(r); else m.set(k, [r]);
+function isoDatesOf(line: string): string[] {
+  const out: string[] = [];
+  for (const re of DATE_RES) {
+    re.lastIndex = 0;
+    for (const m of line.matchAll(re)) {
+      let iso: string;
+      if (m[1].length === 4) iso = `${m[1]}-${m[2]}-${m[3]}`;
+      else {
+        const [d, mo] = [Number(m[1]), Number(m[2])];
+        if (d < 1 || d > 31 || mo < 1 || mo > 12) continue;
+        const y = m[3].length === 2 ? `20${m[3]}` : m[3];
+        iso = `${y}-${String(mo).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+      }
+      const year = Number(iso.slice(0, 4));
+      if (year >= 2000 && year <= 2100) out.push(iso);
     }
-    return m;
-  };
-  const [base, other] = b.length >= a.length ? [b, a] : [a, b];
-  const inBase = index(base);
+    if (out.length) break; // one format per file, as scanFileDates assumes
+  }
+  return out;
+}
+
+/** What a reading failed to account for, and the lines that say so. */
+export interface Unaccounted {
+  /** The preamble every part needs - title, column header. */
+  head: string[];
+  /** The source lines whose date came back short. */
+  lines: string[];
+  /** date -> how many rows that date is short by. */
+  shortBy: Map<string, number>;
+}
+
+/**
+ * Which lines of a file the reading did not account for - by arithmetic on the
+ * file itself, not by trusting the answer.
+ *
+ * This is the whole quality bar. "A long generation occasionally skips an
+ * item" is an excuse, not a design: the phone knows exactly which lines it
+ * sent, every one of them carries a date, and every record that comes back
+ * carries the same date in ISO. So it counts per DATE - 3 lines dated
+ * 2026-01-04 must come back as 3 records dated 2026-01-04 - and any shortfall
+ * names the exact lines responsible. Nothing is inferred and nothing is
+ * sampled; a row cannot go missing without this saying which one.
+ *
+ * Per date rather than per file, because a total can hide a loss: one row
+ * dropped and one row read twice comes to the same number and looks perfect.
+ *
+ * A date may legitimately come back short - a settlement row a split export is
+ * told to skip - so this reports, it does not accuse. What it enables is a
+ * repair aimed at a handful of lines instead of a re-read of everything.
+ */
+export function unaccountedLines(text: string, got: ImportRecord[]): Unaccounted {
+  const lines = text.split('\n');
+  const first = lines.findIndex(hasDate);
+  const head = first < 0 ? [] : lines.slice(0, first);
+
+  const want = new Map<string, string[]>();
+  for (const line of lines) {
+    const [iso] = isoDatesOf(line);
+    if (!iso) continue;
+    const at = want.get(iso);
+    if (at) at.push(line); else want.set(iso, [line]);
+  }
+  const have = new Map<string, number>();
+  for (const r of got) have.set(r.date, (have.get(r.date) ?? 0) + 1);
+
+  const shortBy = new Map<string, number>();
+  const out: string[] = [];
+  for (const [iso, rows] of want) {
+    const gap = rows.length - (have.get(iso) ?? 0);
+    if (gap <= 0) continue;
+    shortBy.set(iso, gap);
+    out.push(...rows);
+  }
+  return { head, lines: out, shortBy };
+}
+
+/**
+ * Fold a repair reading into the first one, allowing each date at most the
+ * number of rows it was actually short by.
+ *
+ * The cap is what makes invention impossible. An earlier version merged two
+ * whole readings by identity, and a description reworded between them - "Cena
+ * Glovo" one time, a word trimmed the next - made a second row out of one: a
+ * real 1,206-row import came back as 1,213 movements, one row recovered and
+ * seven invented. Money that is not there is worse than money that is
+ * missing, because nothing on the screen looks wrong.
+ *
+ * Here the repair only ever holds lines known to be unaccounted for, and each
+ * date can contribute only its own shortfall. Anything else the reading offers
+ * is dropped rather than added to somebody's ledger.
+ */
+export function fillGaps(
+  base: ImportRecord[],
+  extra: ImportRecord[],
+  shortBy: Map<string, number>,
+): ImportRecord[] {
+  // The repair is handed every line of a short date - it cannot be handed
+  // only the missing one, since knowing which one that is is the whole
+  // question - so most of what comes back is already in hand. Each returned
+  // row is first offered against the rows already held for its date, and only
+  // what nothing matches is a candidate.
+  //
+  // Matched on date, direction and amount to the cent, deliberately NOT on
+  // the description: the description is the one field two readings can
+  // honestly disagree about, and keying on it is exactly the mistake that put
+  // 1,213 movements in a 1,206-row ledger. Two rows of one day for the same
+  // money are indistinguishable anyway - and they are also interchangeable,
+  // so taking either one is right.
+  const key = (r: ImportRecord) => `${r.date}|${r.type}|${Math.round(r.amount * 100)}`;
+  const held = new Map<string, number>();
+  for (const r of base) held.set(key(r), (held.get(key(r)) ?? 0) + 1);
+
+  const left = new Map(shortBy);
   const out = [...base];
-  for (const [k, rows] of index(other)) {
-    const have = inBase.get(k)?.length ?? 0;
-    for (let i = have; i < rows.length; i += 1) out.push(rows[i]);
+  for (const r of extra) {
+    const n = left.get(r.date) ?? 0;
+    if (n <= 0) continue; // a date that was never short, or is short no longer
+    const k = key(r);
+    const already = held.get(k) ?? 0;
+    if (already > 0) { held.set(k, already - 1); continue; } // this one landed the first time
+    left.set(r.date, n - 1);
+    out.push(r);
   }
   return out;
 }
@@ -825,6 +916,117 @@ const stallMs = (key: string, fallback: number): number => {
  * Null for anything unusable: a failure, or an answer that asks a question
  * instead of converting.
  */
+/**
+ * Ask again for the lines a reading did not account for - and only those.
+ *
+ * The repair is aimed rather than repeated: the phone works out which source
+ * lines have no record against them (unaccountedLines), builds a tiny file of
+ * exactly those under the original column header, and reads that. A handful of
+ * lines answers in seconds instead of re-reading two hundred, and because the
+ * merge lets each date contribute only its own shortfall, nothing the second
+ * reading offers beyond the gap can reach the ledger.
+ *
+ * A wide gap is cut into reads of the same size the parts use, since a repair
+ * that overruns the server's 150-second wall clock recovers nothing at all -
+ * and cut along whole DAYS, never mid-day, because the shortfall is counted
+ * per day and two chunks holding the same day would each believe they were
+ * owed the same row. AI_REPAIR_READS of them at most, which is what the
+ * server's per-import budget leaves once the triage and the parts have had
+ * theirs; past that the repair does what it can afford and the ready screen
+ * states the rest.
+ *
+ * Returns the payload as it stands when nothing is missing, or when the repair
+ * cannot be run. A repair is a bonus pass: it must never turn a reading that
+ * landed into a failure.
+ */
+async function repairGaps(
+  args: ConvertArgs,
+  importId: string,
+  mode: 'convert' | undefined,
+  done: AiDone,
+): Promise<AiDone> {
+  const rows = done.payload?.transactions ?? [];
+  if (done.status !== 'ok' || !done.payload) return done;
+
+  // One accounting across every text file the import carries.
+  const gaps = args.files
+    .filter((f) => f.text)
+    .map((f) => unaccountedLines(f.text!, rows))
+    .filter((g) => g.lines.length > 0);
+  if (gaps.length === 0) return done; // the overwhelmingly common case: not a second of extra wait
+
+  // A repair is for rows a long generation dropped - a handful in a thousand.
+  // When the two sides disagree about a QUARTER of the file AND about more
+  // rows than one read holds, they are not disagreeing about rows at all: the
+  // dates were read in the other order, the wrong sheet was answered, a part
+  // died mid-stream. Reading it again costs a minute of somebody's evening and
+  // fixes none of that, so it is not read again - the ready screen states the
+  // shortfall and the person decides.
+  //
+  // Both halves matter. Proportion alone would refuse to repair two rows of
+  // four; size alone would chase a gap the file cannot be short of. A small
+  // file is repaired however wrong it looks, because a small file is one
+  // cheap read.
+  const missing = gaps.reduce((n, g) => n + [...g.shortBy.values()].reduce((a, b) => a + b, 0), 0);
+  const sent = args.files.reduce((n, f) => n + (f.text ? countDataRows(f.text) : 0), 0);
+  if (sent > 0 && missing > sent * 0.25 && missing > AI_ROWS_PER_READ) return done;
+
+  // Cut along whole days into reads no bigger than a part.
+  const jobs: Unaccounted[] = [];
+  for (const gap of gaps) {
+    let lines: string[] = [];
+    let shortBy = new Map<string, number>();
+    let at: string | null = null;
+    for (const line of gap.lines) {
+      const [iso] = isoDatesOf(line);
+      if (iso !== at && lines.length >= AI_ROWS_PER_READ) {
+        jobs.push({ head: gap.head, lines, shortBy });
+        lines = []; shortBy = new Map();
+      }
+      at = iso ?? at;
+      lines.push(line);
+      if (iso && gap.shortBy.has(iso)) shortBy.set(iso, gap.shortBy.get(iso)!);
+    }
+    if (lines.length) jobs.push({ head: gap.head, lines, shortBy });
+  }
+
+  args.onPhase?.('repair');
+  const todo = jobs.slice(0, AI_REPAIR_READS);
+  // At the same time, like the parts: three small reads one after another
+  // would put three waits on the end of an import that has already finished
+  // reading. Fired together, the repair costs the length of ONE of them.
+  const answers = await Promise.all(todo.map((gap) => {
+    const text = [...gap.head, ...gap.lines].join('\n');
+    const bytes = new TextEncoder().encode(text);
+    let binary = '';
+    for (const b of bytes) binary += String.fromCharCode(b);
+    return retryRead({
+      ...args,
+      files: [{ media_type: 'text/csv', data: btoa(binary), name: 'missing.csv', bytes: bytes.length, text }],
+      importId,
+      mode,
+      rowsIn: gap.lines.length,
+      onPhase: undefined,
+      // No onRow: the counter on screen already stands at everything that
+      // landed, and these rows would walk it past its own total.
+      onRow: undefined,
+    });
+  }));
+
+  // Folded one after another, in order, each against everything taken so far -
+  // so two files that share a day cannot both be paid for the same row.
+  const patched = [...rows];
+  let filled = 0;
+  answers.forEach((again, i) => {
+    if (!again?.payload) return;
+    const before = patched.length;
+    patched.splice(0, patched.length, ...fillGaps(patched, again.payload.transactions, todo[i].shortBy));
+    filled += patched.length - before;
+  });
+  if (filled === 0) return done;
+  return { ...done, payload: { ...done.payload, transactions: patched } };
+}
+
 async function retryRead(args: ConvertArgs): Promise<AiDone | null> {
   try {
     const done = await oneRead(args);
@@ -1107,27 +1309,7 @@ export async function convertWithAi(args: ConvertArgs): Promise<AiDone> {
   const settle = (done: AiDone) => (mode === 'convert' ? lateOrDone(done) : done);
   if (!parts) {
     const only = settle(await oneRead({ ...args, importId, mode, rowsIn: rowsSent }));
-    const back = only.payload?.transactions.length ?? 0;
-    // One read, and it came back short: read it again and merge. Same repair
-    // as a split file gets, and the same reason - a second pass at the same
-    // rows is the only thing that turns "the model usually emits them all"
-    // into "they are all here".
-    if (rowsSent && back < rowsSent && only.status === 'ok') {
-      const again = await retryRead({ ...args, importId, mode, rowsIn: rowsSent });
-      if (again) {
-        return {
-          ...again,
-          importId,
-          rowsSent,
-          notes: [...only.notes, ...again.notes].filter((n, i, all) => all.indexOf(n) === i),
-          payload: {
-            ...(only.payload ?? again.payload!),
-            transactions: mergeReadings(only.payload?.transactions ?? [], again.payload?.transactions ?? []),
-          },
-        };
-      }
-    }
-    return { ...only, importId, rowsSent };
+    return { ...(await repairGaps(args, importId, mode, only)), importId, rowsSent };
   }
 
   // Rows arrive interleaved from every part at once, so the number on screen
@@ -1158,51 +1340,9 @@ export async function convertWithAi(args: ConvertArgs): Promise<AiDone> {
 
   answers.forEach(settle);
 
-  // ── the second pass, where the first one came up short ──────────────────
-  //
-  // Every part landed, so nothing failed; but a part that was handed 241 rows
-  // and answered with 236 has lost five, and no error was raised because none
-  // happened - a long structured generation occasionally skips an item. This
-  // is where that stops being the user's problem. Only the short parts are
-  // read again, they run together, and the two readings of each are merged by
-  // identity so a row either found is kept and a row both found is kept once.
-  //
-  // Bounded on purpose: at most AI_REPAIR_READS of them, biggest shortfall
-  // first, because the server's per-import budget also has the triage and the
-  // parts themselves in it. A repair that cannot be run, or that fails, is
-  // not an error - the ready screen still says what is missing.
-  const short = owed
-    .map((want, i) => ({ i, gap: want - (answers[i].payload?.transactions.length ?? 0) }))
-    .filter((s) => s.gap > 0 && owed[s.i] > 0)
-    .sort((a, b) => b.gap - a.gap)
-    .slice(0, AI_REPAIR_READS);
-
-  if (short.length > 0) {
-    // The screen has to say something: the rows have stopped arriving and the
-    // wait is not over. Silence here reads as a hang.
-    args.onPhase?.('repair');
-    const repaired = await Promise.all(short.map(({ i }) => retryRead({
-      // No onRow: the counter on screen already stands at everything that
-      // landed, and a repair's rows would walk it past its own total.
-      ...args, files: parts[i], importId, mode, rowsIn: owed[i], onPhase: undefined, onRow: undefined,
-    })));
-    repaired.forEach((again, n) => {
-      if (!again?.payload) return;
-      const at = short[n].i;
-      const merged = mergeReadings(answers[at].payload?.transactions ?? [], again.payload.transactions);
-      answers[at] = {
-        ...answers[at],
-        notes: [...answers[at].notes, ...again.notes].filter((x, k, all) => all.indexOf(x) === k),
-        payload: { ...(answers[at].payload ?? again.payload), transactions: merged },
-      };
-    });
-  }
-
   const last = answers[answers.length - 1];
-  return {
+  const joined: AiDone = {
     ...last, // remaining and status from the last to land: the newer truth
-    importId,
-    rowsSent,
     notes: answers.flatMap((a) => a.notes).filter((n, i, all) => all.indexOf(n) === i),
     payload: {
       ...(answers[0].payload ?? last.payload!),
@@ -1211,4 +1351,19 @@ export async function convertWithAi(args: ConvertArgs): Promise<AiDone> {
       transactions: answers.flatMap((a) => a.payload?.transactions ?? []),
     },
   };
+
+  // ── the second pass, aimed at the lines that are actually missing ───────
+  //
+  // Every part landed, so nothing failed - and a file can still come back a
+  // row short, because a long structured generation occasionally skips an
+  // item. That is not an excuse to accept it: the phone knows every line it
+  // sent and every line carries a date, so it counts per date, names the
+  // lines nothing came back for, and asks again for those alone. A handful of
+  // lines answers in seconds, and each date can contribute only its own
+  // shortfall, so the repair can close a gap and cannot invent a row.
+  //
+  // The accounting runs over the WHOLE file rather than per part: a part
+  // total can hide a loss, since one row dropped and one row read twice come
+  // to the same number.
+  return { ...(await repairGaps(args, importId, mode, joined)), importId, rowsSent };
 }

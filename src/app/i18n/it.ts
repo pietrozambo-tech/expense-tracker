@@ -688,6 +688,7 @@ export const it: Record<keyof typeof en, string> = {
   'ai.homelessDroppedN': '{n} righe sono state escluse: {names} non è tra le tue categorie',
   'ai.short1': 'Nel file ci sono {sent} righe con una data e ne sono arrivate {read}: ne manca 1. Se non era un rimborso o una riga di saldo, reimporta lo stesso file: aggiunge solo quello che manca.',
   'ai.shortN': 'Nel file ci sono {sent} righe con una data e ne sono arrivate {read}: ne mancano {n}. Se non erano rimborsi o righe di saldo, reimporta lo stesso file: aggiunge solo quello che manca.',
+  'ai.over': 'Nel file ci sono {sent} righe con una data ma ne sono arrivate {read}: {n} di troppo. Controlla la lista prima di aggiungere, qualcosa è stato letto due volte.',
   'ai.errAskedLateTitle': 'Si è fermato a chiedere',
   'ai.errAskedLateSub': 'Doveva chiederlo prima di iniziare. Non è stato toccato niente: riprova.',
   'ai.phaseMatch': 'Confronto con le tue categorie…',

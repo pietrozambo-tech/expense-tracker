@@ -6,7 +6,7 @@
 // read has been spent on it.
 import {
   splitLedgerText, splitForReads, sampleLedgerText, sampleForTriage, resolveCategoryMap, mappingNeedsScreen,
-  countRows, countDataRows, mergeReadings,
+  countRows, countDataRows, unaccountedLines, fillGaps,
   AI_ROWS_PER_READ, AI_MAX_READS, AI_MAX_ROWS, type AiFile,
 } from '../../src/app/lib/aiImport';
 
@@ -235,42 +235,149 @@ const file = (text: string): AiFile => ({
     'the parts between them carry exactly the rows that were counted');
 }
 
-// ── two readings of the same rows, merged ────────────────────────────────
+// ── which lines did NOT come back, by arithmetic on the file ─────────────
 //
-// The repair pass exists because a long generation occasionally skips an
-// item: a part handed 241 rows came back with 236 and nothing failed. It is
-// read again and the two answers are merged - and the merge is the dangerous
-// part, because getting it wrong doubles a reading instead of completing it.
+// "A long generation occasionally skips an item" is an excuse, not a design.
+// The phone knows every line it sent, every one carries a date, and every
+// record that comes back carries the same date - so a missing row can be
+// NAMED rather than merely suspected, and the repair can be aimed at it.
+{
+  const r = (date: string, description: string) =>
+    ({ date, amount: 10, type: 'expense' as const, category: 'Spesa', description, currency: 'EUR' });
+  const file = [
+    'elenco spese',
+    HEAD,
+    '2026-01-04,Alimentari,Principale,10,EUR,Uno',
+    '2026-01-04,Alimentari,Principale,10,EUR,Due',
+    '2026-01-04,Alimentari,Principale,10,EUR,Tre',
+    '2026-01-05,Alimentari,Principale,10,EUR,Quattro',
+  ].join('\n');
+
+  const whole = unaccountedLines(file, [r('2026-01-04', 'Uno'), r('2026-01-04', 'Due'), r('2026-01-04', 'Tre'), r('2026-01-05', 'Quattro')]);
+  ok(whole.lines.length === 0, 'a reading that accounted for every line leaves nothing to chase');
+
+  const shortOne = unaccountedLines(file, [r('2026-01-04', 'Uno'), r('2026-01-04', 'Due'), r('2026-01-05', 'Quattro')]);
+  ok(shortOne.shortBy.get('2026-01-04') === 1, 'one row short on a date is counted as one');
+  ok(shortOne.lines.length === 3 && shortOne.lines.every((l) => l.includes('2026-01-04')),
+    `and the lines of that date are the ones to ask about again (${shortOne.lines.length})`);
+  ok(shortOne.head.includes(HEAD), 'with the column header, or the repair is unlabelled numbers');
+  ok(!shortOne.lines.some((l) => l.includes('2026-01-05')), 'the dates that are whole are left alone');
+
+  // Per DATE, not per file: one row dropped and one row read twice come to
+  // the same total and would look perfect.
+  const masked = unaccountedLines(file, [r('2026-01-04', 'Uno'), r('2026-01-04', 'Due'), r('2026-01-05', 'A'), r('2026-01-05', 'B')]);
+  ok(masked.shortBy.get('2026-01-04') === 1,
+    'a loss hidden behind a duplicate elsewhere is still found - the total was right, the file was not');
+}
+
+// ── and the repair can close a gap without inventing a row ───────────────
 {
   const r = (date: string, amount: number, description: string) =>
     ({ date, amount, type: 'expense' as const, category: 'Spesa', description, currency: 'EUR' });
+  // The shape this always has: three lines on the day, two of them read. The
+  // repair cannot be handed "the missing one" - which one that is is the
+  // question - so it is handed all three and answers all three.
+  const base = [r('2026-01-04', 10, 'Uno'), r('2026-01-04', 20, 'Due')];
+  const shortBy = new Map([['2026-01-04', 1]]);
+  const all = [r('2026-01-04', 10, 'Uno'), r('2026-01-04', 20, 'Due'), r('2026-01-04', 30, 'Tre')];
 
-  const first = [r('2026-01-01', 10, 'A'), r('2026-01-03', 30, 'C')];
-  const second = [r('2026-01-01', 10, 'A'), r('2026-01-02', 20, 'B'), r('2026-01-03', 30, 'C')];
-  const both = mergeReadings(first, second);
-  ok(both.length === 3, `a row only the second reading found is kept (${both.length} of 3)`);
-  ok(both.filter((x) => x.description === 'A').length === 1, 'and a row both found is kept once, not twice');
-  ok(mergeReadings(second, first).length === 3, 'whichever way round the two readings arrive');
+  const closed = fillGaps(base, all, shortBy);
+  ok(closed.length === 3, `the row that is new is taken (${closed.length} of 3)`);
+  ok(closed.filter((x) => x.amount === 10).length === 1,
+    'and the two already in hand are recognised rather than added a second time');
+  ok(fillGaps(base, [r('2026-01-04', 30, 'Tre')], shortBy).length === 3,
+    'a repair that answers only the missing row works just as well');
 
-  // The one that would be silent and wrong: two identical coffees on one day
-  // are two transactions. A merge that deduped on identity alone would eat
-  // the second every time - a real charge, gone, in the name of tidiness.
-  const twice = [r('2026-01-01', 3, 'Caffè'), r('2026-01-01', 3, 'Caffè')];
-  const once = [r('2026-01-01', 3, 'Caffè')];
-  ok(mergeReadings(twice, once).length === 2, 'two identical rows in one file stay two');
-  ok(mergeReadings(once, twice).length === 2, 'and the reading that found both is the one believed');
-  ok(mergeReadings(twice, twice).length === 2, 'while the same pair read twice is still a pair, not four');
+  // The failure that shipped: an earlier merge kept two whole readings side by
+  // side and keyed identity on the description, so a rewording made a second
+  // row out of one. A real 1,206-row import came back as 1,213 movements - one
+  // row recovered and seven invented. Money that is not there is worse than
+  // money that is missing, because nothing on the screen looks wrong. Rows are
+  // matched on the day, the direction and the amount; never on the wording.
+  const reworded = [r('2026-01-04', 10, 'Spesa Esselunga'), r('2026-01-04', 20, 'Cena a casa con Glovo'), r('2026-01-04', 30, 'Tre')];
+  ok(fillGaps(base, reworded, shortBy).length === 3,
+    'a description rewritten between the two passes is the same row, not a new one');
 
-  // Case and spacing in a description are not an identity. The model writes
-  // "Cena  con Kevin" one time and "Cena con Kevin" the next, and two
-  // readings of one row must not become two rows.
-  const spaced = [{ ...r('2026-01-01', 12, 'Cena  con Kevin') }];
-  const tidy = [{ ...r('2026-01-01', 12, 'cena con kevin') }];
-  ok(mergeReadings(spaced, tidy).length === 1, 'a description respaced between readings is still the same row');
+  // And the cap on top of all that: whatever else the repair offers, a date
+  // cannot end with more rows than the file has lines for it.
+  const generous = [...all, r('2026-01-04', 40, 'Quattro'), r('2026-01-04', 50, 'Cinque')];
+  ok(fillGaps(base, generous, shortBy).length === 3,
+    'a repair that offers five rows still gives up only the one that was owed');
+  ok(fillGaps(base, [r('2026-01-09', 10, 'Altrove')], shortBy).length === 2,
+    'a row for a date that was never short is refused outright');
+  ok(fillGaps(base, [], shortBy).length === 2, 'and an empty repair changes nothing');
 
-  // Nothing to merge, either way round.
-  ok(mergeReadings([], second).length === 3 && mergeReadings(second, []).length === 3,
-    'an empty reading contributes nothing and destroys nothing');
+  // The genuinely ambiguous one, decided on purpose. Three identical 3 EUR
+  // coffees on a day, two of them read: a repair that comes back with a single
+  // 3 EUR coffee has named nothing - there is no way to tell it apart from the
+  // ones already in hand. It is left alone and the shortfall stays on screen,
+  // because a row copied is money that is not there.
+  const coffees = [r('2026-01-04', 3, 'Caffè'), r('2026-01-04', 3, 'Caffè')];
+  ok(fillGaps(coffees, [r('2026-01-04', 3, 'Caffè')], shortBy).length === 2,
+    'a repair that cannot tell a new row from an old one adds nothing');
+  ok(fillGaps(coffees, [r('2026-01-04', 3, 'Caffè'), r('2026-01-04', 3, 'Caffè'), r('2026-01-04', 3, 'Caffè')], shortBy).length === 3,
+    'while one that answers all three lines does close the gap');
+}
+
+// ── the whole round trip: name the gap, ask again, fold the answer in ─────
+//
+// The repair pass exists because a long generation occasionally skips an
+// item: a part handed 241 rows came back with 236 and nothing failed. The
+// dangerous half is not the asking, it is the folding - get that wrong and a
+// reading doubles instead of completing.
+{
+  const r = (date: string, amount: number, description: string) =>
+    ({ date, amount, type: 'expense' as const, category: 'Spesa', description, currency: 'EUR' });
+  const file = [
+    'elenco spese',
+    HEAD,
+    '2026-02-01,Ristoranti,Consegne,20,EUR,Cena Glovo',
+    '2026-02-02,Bar,Caffè,5,EUR,Caffè',
+    '2026-02-03,Ristoranti,Pranzo,9,EUR,Pranzo',
+  ].join('\n');
+
+  const read = [r('2026-02-01', 20, 'Cena Glovo'), r('2026-02-02', 5, 'Caffè')];
+  const gap = unaccountedLines(file, read);
+  ok(gap.lines.length === 1 && gap.lines[0].includes('Pranzo'),
+    'the line that never came back is named, not guessed at');
+
+  // The one that shipped and had to be taken back. The description is the one
+  // field two readings can honestly disagree about - the file says "Cena
+  // Glovo" and the second pass writes it back with a word trimmed. The old
+  // merge kept the two readings side by side and keyed identity on that
+  // description, so each rewording became a SECOND row: a real 1,206-row
+  // import came out as 1,213 movements, one row recovered and seven invented.
+  // Now the repair can offer whatever it likes; only the shortfall is taken.
+  const reworded = [
+    r('2026-02-03', 9, 'Pranzo'),
+    r('2026-02-01', 20, 'Cena a casa con Glovo'),
+    r('2026-02-02', 5, 'Un caffè'),
+  ];
+  const done = fillGaps(read, reworded, gap.shortBy);
+  ok(done.length === 3, `a row reworded in the repair is not a second row (${done.length} of 3)`);
+  ok(done.some((x) => x.date === '2026-02-03'), 'and the row that was missing is recovered');
+  ok(done.filter((x) => x.date === '2026-02-01').length === 1, 'the date that was whole gains nothing');
+
+  // The one that would be silent and wrong the other way: two identical
+  // coffees on one day are two charges. Dedupe on identity would eat the
+  // second every time - a real charge, gone, in the name of tidiness.
+  const twins = [
+    'elenco spese',
+    HEAD,
+    '2026-01-01,Bar,Caffè,3,EUR,Caffè',
+    '2026-01-01,Bar,Caffè,3,EUR,Caffè',
+  ].join('\n');
+  const half = unaccountedLines(twins, [r('2026-01-01', 3, 'Caffè')]);
+  ok(half.shortBy.get('2026-01-01') === 1, 'a file with the same row twice is two rows, and one of them is owed');
+  ok(half.lines.length === 2, 'and the repair is handed both lines, since neither can be pointed at');
+  const twinsBack = fillGaps([r('2026-01-01', 3, 'Caffè')], [r('2026-01-01', 3, 'Caffè'), r('2026-01-01', 3, 'Caffè')], half.shortBy);
+  ok(twinsBack.length === 2, 'and when it answers both, the twin is taken back rather than deduped away');
+  ok(unaccountedLines(twins, [r('2026-01-01', 3, 'Caffè'), r('2026-01-01', 3, 'Caffè')]).lines.length === 0,
+    'while a reading that found both is left alone');
+
+  // Nothing to fold, either way round.
+  ok(fillGaps([], [], new Map()).length === 0 && fillGaps(read, [], gap.shortBy).length === 2,
+    'an empty repair contributes nothing and destroys nothing');
 }
 
 console.log(fail.length ? `\n${fail.length} FAILED` : '\ntwo halves, every row once, both with their headers');
