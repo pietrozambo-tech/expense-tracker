@@ -5,6 +5,8 @@ import { fileURLToPath } from 'node:url';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const img = (f) => `data:image/png;base64,${readFileSync(join(here, 'shots', f)).toString('base64')}`;
+const strip = (files) =>
+  `<div class="strip">${files.map((f) => `<img src="${img(f)}" alt="" loading="lazy">`).join('')}</div>`;
 const shot = (f, cap, tone = '') =>
   `<figure class="shot ${tone}"><img src="${img(f)}" alt="${cap.replace(/<[^>]+>/g, '')}" loading="lazy"><figcaption>${cap}</figcaption></figure>`;
 
@@ -51,6 +53,9 @@ section{background:var(--surface);border:1px solid var(--line);border-radius:18p
 .shot.pick img{border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 22%,transparent)}
 .shot.pick figcaption b{color:var(--accent)}
 
+.strip{display:flex;flex-direction:column;gap:14px;margin-top:20px;max-width:520px}
+.strip img{width:100%;height:auto;display:block;border-radius:12px;border:1px solid var(--line)}
+
 .args{display:grid;gap:22px;margin-top:22px;grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}
 .arg{border-top:2px solid var(--line);padding-top:13px}
 .arg.pick{border-top-color:var(--accent)}
@@ -59,6 +64,11 @@ section{background:var(--surface);border:1px solid var(--line);border-radius:18p
 .pro,.con{display:flex;gap:9px;font-size:14.5px;color:var(--ink-2);margin:0 0 8px;line-height:1.5;max-width:none}
 .pro::before{content:"+";color:var(--good);font-weight:800;flex:0 0 auto;font-family:var(--mono)}
 .con::before{content:"\\2212";color:var(--flag);font-weight:800;flex:0 0 auto;font-family:var(--mono)}
+
+.steps{list-style:none;counter-reset:s;padding:0;margin:22px 0 0;display:flex;flex-direction:column;gap:11px;max-width:66ch}
+.steps li{display:grid;grid-template-columns:22px 1fr;gap:12px;font-size:15px;color:var(--ink-2);line-height:1.55}
+.steps li::before{counter-increment:s;content:counter(s);font-family:var(--mono);font-size:11px;font-weight:700;color:var(--ink-3);border:1px solid var(--line);border-radius:6px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;margin-top:3px}
+.steps b{color:var(--ink);font-weight:650}
 
 .rules{list-style:none;padding:0;margin:18px 0 0}
 .rules li{display:grid;grid-template-columns:minmax(150px,auto) 1fr;gap:6px 22px;padding:13px 0;border-top:1px solid var(--line);align-items:baseline}
@@ -99,22 +109,24 @@ code{font-family:var(--mono);font-size:.88em;background:var(--sunk);padding:1px 
 
 <section>
   <p class="eyebrow">Prima decisione</p>
-  <h2>Dove sta il &ldquo;+&rdquo;</h2>
-  <p>Due posti possibili, e la scelta non &egrave; estetica: cambia quanto &egrave; probabile che uno lo
-  trovi nel momento in cui gli serve, e quanto &egrave; probabile che lo prema per sbaglio.</p>
+  <h2>Dove sta il &ldquo;+&rdquo; &mdash; deciso: A</h2>
+  <p>Due posti possibili, e la scelta non era estetica: cambia quanto &egrave; probabile che uno lo trovi
+  nel momento in cui gli serve, e quanto &egrave; probabile che lo prema per sbaglio. Va nella griglia.
+  B resta qui perch&eacute; il suo argomento &mdash; non toccare l&rsquo;area di tocco delle categorie &mdash;
+  &egrave; quello che dovremo guardare se qualcuno si lamenta di tocchi sbagliati.</p>
   <div class="rail">
     ${shot('02-plus-tile.png', '<b>A</b> &mdash; ultima casella della griglia, tratteggiata e senza colore.', 'pick')}
     ${shot('06-label-variant.png', '<b>B</b> &mdash; una pill accanto all&rsquo;etichetta, come quella dell&rsquo;ordinamento.')}
   </div>
   <div class="args">
     <div class="arg pick">
-      <span class="tag">A &middot; nella griglia &mdash; consigliata</span>
+      <span class="tag">A &middot; nella griglia &mdash; scelta</span>
       <p class="pro">&Egrave; esattamente dove guardi quando ti accorgi che manca: hai finito di scorrere, e la lista continua con il modo di allungarla.</p>
       <p class="pro">Si legge come parte dell&rsquo;elenco, non come un&rsquo;impostazione.</p>
       <p class="con">Sta dentro l&rsquo;area di tocco della griglia: chi allunga il pollice verso l&rsquo;ultima categoria vera pu&ograve; prenderla. Mitigato dall&rsquo;essere sempre ultima e visivamente diversa &mdash; tratteggio, nessun colore.</p>
     </div>
     <div class="arg">
-      <span class="tag">B &middot; accanto all&rsquo;etichetta</span>
+      <span class="tag">B &middot; accanto all&rsquo;etichetta &mdash; scartata</span>
       <p class="pro">Non tocca la griglia: zero rischio di tocco sbagliato fra le categorie.</p>
       <p class="pro">Eredita una posizione gi&agrave; stabilita, quella della pill A-Z.</p>
       <p class="con">Sta in cima, ma la mancanza si sente in fondo: con quattordici categorie ci sei passato sopra prima di accorgerti del buco.</p>
@@ -125,13 +137,16 @@ code{font-family:var(--mono);font-size:.88em;background:var(--sunk);padding:1px 
 
 <section>
   <p class="eyebrow">Seconda decisione</p>
-  <h2>Cosa chiede il foglio</h2>
+  <h2>Cosa chiede il foglio &mdash; nome, icona, colore</h2>
   <p>Una riga per <em>cosa &egrave;</em> &mdash; icona e nome insieme, non un&rsquo;anteprima che ripete il
   campo sotto &mdash; poi le due sole cose che vale la pena cambiare, poi un bottone. Il tipo non viene
   chiesto: lo decide lo switch Spesa/Entrata che hai gi&agrave; davanti, e il foglio lo dichiara in alto a
   destra cos&igrave; non finisce nella lista sbagliata in silenzio.</p>
   <p>Il nome &egrave; l&rsquo;unico campo obbligatorio. Icona e colore hanno gi&agrave; un valore: chi ha
   fretta scrive e conferma, chi ci tiene tocca due volte in pi&ugrave;.</p>
+  <p>Se il nome esiste gi&agrave;, una riga sotto il campo lo dice prima di creare niente &mdash;
+  <em>&ldquo;Ce l&rsquo;hai gi&agrave;: la scelgo io&rdquo;</em> &mdash; e il bottone diventa
+  &ldquo;Usa quella&rdquo;. In silenzio sembrerebbe che il bottone non abbia funzionato.</p>
   <div class="rail one">
     ${shot('03-sheet.png', 'Nome, icona, colore, un bottone. Il tag SPESA dice dove andr&agrave; a finire.')}
   </div>
@@ -141,13 +156,16 @@ code{font-family:var(--mono);font-size:.88em;background:var(--sunk);padding:1px 
   <p class="eyebrow">Terza decisione &mdash; la parte pi&ugrave; delicata</p>
   <h2>La sottocategoria non merita un foglio</h2>
   <p>Una sottocategoria &egrave; una parola. Aprire un overlay per farsi dare una parola &egrave; il churn
-  che stiamo cercando di togliere, non di spostare.</p>
-  <p>Quindi: nel pannello delle sottocategorie c&rsquo;&egrave; una chip tratteggiata. Toccandola diventa un
-  campo <em>al suo posto</em>, scrivi, Invio. La chip si crea, resta selezionata, e il pannello non ha mai
-  lasciato lo schermo. Niente overlay, niente navigazione, niente da chiudere.</p>
-  <div class="rail one">
-    ${shot('05-sub-inline.png', 'La chip &egrave; diventata un campo. Invio la crea e la seleziona.')}
-  </div>
+  che stiamo cercando di togliere, non di spostare. Quindi non si apre niente: la chip stessa diventa il
+  campo, dov&rsquo;&egrave;.</p>
+  ${strip(['sub-01.png', 'sub-02.png', 'sub-03.png'])}
+  <ol class="steps">
+    <li><b>A riposo</b> una chip tratteggiata in fondo alle altre, pi&ugrave; leggera perch&eacute; non &egrave; una scelta ma un modo di farne una.</li>
+    <li><b>La tocchi</b> e diventa un campo <em>in quel punto</em>: la tastiera sale, il cursore &egrave; dentro, le altre chip non si spostano. Nessun pannello copre il movimento che stai scrivendo.</li>
+    <li><b>Scrivi</b> e dentro il campo compare un &#10003;.</li>
+    <li><b>Confermi</b> in due modi che valgono uguale: tocchi il &#10003;, oppure premi il tasto invio della tastiera &mdash; su iOS dice &ldquo;a capo&rdquo;, su Android &egrave; la freccia. Il &#10003; c&rsquo;&egrave; proprio perch&eacute; &ldquo;premi invio&rdquo; non si vede: &egrave; l&rsquo;affordance visibile, il tasto &egrave; la scorciatoia per chi scrive veloce.</li>
+    <li><b>Fatto</b> la chip esiste, &egrave; gi&agrave; selezionata, e &ldquo;Aggiungi&rdquo; ricompare dopo di lei per farne subito un&rsquo;altra.</li>
+  </ol>
 </section>
 
 <section>
@@ -173,38 +191,37 @@ code{font-family:var(--mono);font-size:.88em;background:var(--sunk);padding:1px 
     <li><b>Tasto indietro</b><span>Chiude il foglio, non la schermata di aggiunta sotto. &Egrave; il punto in cui si perde tutto se sbagliamo l&rsquo;annidamento.</span></li>
     <li><b>Ordinamento &ldquo;Pi&ugrave; usate&rdquo;</b><span>Una categoria nuova ha zero usi e finirebbe in fondo, lontano da dove stavi guardando. Va tenuta a vista finch&eacute; sei su questo movimento.</span></li>
     <li><b>Offline</b><span>Si crea comunque sul telefono e si sincronizza dopo. Nessuna attesa: qui il server non deve vederla, a differenza dell&rsquo;import.</span></li>
-    <li><b>Ricorrenze</b><span>L&rsquo;editor delle ricorrenze usa lo stesso selettore. Riceve il &ldquo;+&rdquo; solo se glielo passiamo &mdash; stesso schema della pill A-Z, che compare solo dove serve.</span></li>
+    <li><b>Ricorrenze</b><span>Ce l&rsquo;ha anche l&rsquo;editor delle ricorrenze: stessa griglia, stesso bisogno. &Egrave; lo stesso componente, quindi &egrave; un parametro in pi&ugrave;, non una seconda schermata da mantenere.</span></li>
+    <li><b>Vale per tutta l&rsquo;app</b><span>Una categoria creata da Aggiungi o da Ricorrenze &egrave; una categoria: compare subito ovunque &mdash; l&rsquo;altra schermata, Impostazioni, i filtri di Attivit&agrave;. Non esiste una categoria &ldquo;locale a questo movimento&rdquo;.</span></li>
   </ul>
 </section>
 
 <section>
-  <p class="eyebrow">Prima di scrivere una riga di codice</p>
-  <h2>Cosa devi decidere tu</h2>
+  <p class="eyebrow">Deciso</p>
+  <h2>Quello che &egrave; gi&agrave; fissato</h2>
+  <ul class="rules">
+    <li><b>Il &ldquo;+&rdquo;</b><span>Ultima casella della griglia (A). Un solo punto d&rsquo;ingresso: due sarebbero churn.</span></li>
+    <li><b>Il foglio</b><span>Nome, icona e colore. Il tipo lo decide lo switch Spesa/Entrata e viene dichiarato, non chiesto.</span></li>
+    <li><b>Nome duplicato</b><span>Detto, non silenzioso: una riga sotto il campo, e il bottone diventa &ldquo;Usa quella&rdquo;.</span></li>
+    <li><b>Dove vive</b><span>Aggiungi <em>e</em> Ricorrenze. Quello che si crea da una delle due esiste in tutta l&rsquo;app.</span></li>
+  </ul>
+</section>
+
+<section>
+  <p class="eyebrow">Le due cose ancora aperte</p>
+  <h2>Cosa succede a quello che hai scritto e non hai confermato</h2>
   <ol class="qs">
     <li><div>
-      <h3>A o B per il &ldquo;+&rdquo;?</h3>
-      <p>Casella in fondo alla griglia, oppure pill accanto all&rsquo;etichetta.</p>
-      <p class="lean">Io farei <b>A</b>. Due punti d&rsquo;ingresso per la stessa azione sarebbero churn, quindi uno solo.</p>
+      <h3>Scrivi &ldquo;Piega&rdquo; e tocchi altrove senza confermare</h3>
+      <p>Per esempio tocchi dritto su &ldquo;Salva Spesa&rdquo;. Due comportamenti possibili, e nessuno dei due &egrave; gratis.</p>
+      <p class="lean"><b>Si crea lo stesso.</b> Niente di scritto va perso. Il rischio &egrave; una chip &ldquo;Pie&rdquo; nata da un tocco distratto &mdash; brutta, ma si cancella in due tocchi da Impostazioni.</p>
+      <p class="lean"><b>Si perde.</b> Nessuna spazzatura. Il rischio &egrave; che scrivi, tocchi Salva, e la sottocategoria sparisce in silenzio proprio nel momento del salvataggio: esattamente il tipo di perdita muta che abbiamo passato la giornata a togliere dall&rsquo;import.</p>
+      <p class="lean">Io farei la <b>prima</b>: una parola persa nel momento del salvataggio non si recupera, una chip di troppo s&igrave;.</p>
     </div></li>
     <li><div>
-      <h3>Il foglio chiede icona e colore, o solo il nome?</h3>
-      <p>La versione qui sopra le mostra con un valore gi&agrave; scelto. L&rsquo;alternativa &egrave; nome e basta, icona e colore assegnati e personalizzabili dopo in Impostazioni.</p>
-      <p class="lean">Io le <b>terrei</b>: sono due tocchi facoltativi, e una categoria senza faccia si nota nella griglia.</p>
-    </div></li>
-    <li><div>
-      <h3>Nome duplicato: in silenzio o detto?</h3>
-      <p>Selezionare quella esistente senza commenti, oppure dirlo con una riga: &ldquo;ce l&rsquo;hai gi&agrave;, te l&rsquo;ho scelta&rdquo;.</p>
-      <p class="lean">Io lo <b>direi</b>, una riga sotto il campo: in silenzio sembra che il bottone non abbia funzionato.</p>
-    </div></li>
-    <li><div>
-      <h3>Il &ldquo;+&rdquo; anche nell&rsquo;editor delle ricorrenze?</h3>
-      <p>Stessa griglia, stesso bisogno &mdash; ma &egrave; una schermata che si apre molto meno spesso.</p>
-      <p class="lean">Io partirei <b>solo da Aggiungi</b> e lo estenderei dopo, se serve.</p>
-    </div></li>
-    <li><div>
-      <h3>La sottocategoria inline: serve un modo esplicito per annullare?</h3>
-      <p>Adesso: Invio crea, toccare fuori abbandona. In alternativa una <code>&times;</code> dentro la chip.</p>
-      <p class="lean">Io lascerei <b>senza</b>: la chip &egrave; piccola, e una X dentro la rende un bottone doppio.</p>
+      <h3>Crei la categoria e poi chiudi la spesa senza salvarla</h3>
+      <p>&ldquo;Barbiere&rdquo; resta, perch&eacute; creare una categoria &egrave; un&rsquo;azione a s&eacute; e non un pezzo del movimento. Coerente con la regola qui sopra, ma vale la pena dirlo ad alta voce: chi tocca la X si aspetta che la schermata non lasci tracce.</p>
+      <p class="lean">Io la <b>terrei</b> e non direi niente: l&rsquo;hai creata apposta, e un annullamento a cascata sorprende di pi&ugrave; di una categoria in pi&ugrave;.</p>
     </div></li>
   </ol>
 </section>
