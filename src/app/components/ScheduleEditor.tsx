@@ -3,6 +3,7 @@ import { X, ChevronDown } from 'lucide-react';
 import { t } from '../i18n';
 import { translateRecurrence, numberLocale, dateLocale } from '../i18n/store';
 import { CategorySelector } from './CategorySelector';
+import { CreateCategorySheet, type CategoryDraft } from './CreateCategorySheet';
 import type { CategoryOrder } from '../lib/categoryOrder';
 import { SourceLogo } from './SourceLogo';
 import { switchGlow } from './categoryColors';
@@ -55,6 +56,8 @@ export function ScheduleEditor({
   household,
   partner,
   userName,
+  onCreateCategory,
+  onCreateSubcategory,
   onSave,
   onCancel,
 }: {
@@ -73,6 +76,10 @@ export function ScheduleEditor({
   household?: Household | null;
   partner?: Person | null;
   userName?: string;
+  /** Make a category from this form, the way the Add screen does. Absent, the
+   *  grid is exactly what it was - same rule as the ordering pill. */
+  onCreateCategory?: (draft: CategoryDraft, type: 'expense' | 'income') => string;
+  onCreateSubcategory?: (categoryId: string, name: string) => void;
   onSave: (draft: ScheduleDraft) => void;
   onCancel: () => void;
 }) {
@@ -126,6 +133,8 @@ export function ScheduleEditor({
   const [means, setMeans] = useState<'change' | 'correction'>('change');
 
   const list = type === 'income' ? incomeCategories : categories;
+  // The create-a-category sheet, over this form rather than instead of it.
+  const [creating, setCreating] = useState(false);
   // No fallback to list[0]. It made the first category look chosen when
   // nothing had been - a new schedule opened with Office Food already lit -
   // and it made `valid` below lie, so Create was live and would have filed the
@@ -482,7 +491,25 @@ export function ScheduleEditor({
             subcategories={category?.subcategories ?? []}
             selectedSubcategory={subcategory}
             onSelectSubcategory={setSubcategory}
+            onCreateCategory={onCreateCategory ? () => setCreating(true) : undefined}
+            onCreateSubcategory={onCreateSubcategory && categoryId
+              ? (name) => onCreateSubcategory(categoryId, name)
+              : undefined}
           />
+
+          {creating && onCreateCategory && (
+            <CreateCategorySheet
+              type={type === 'income' ? 'income' : 'expense'}
+              existing={list}
+              onCreate={(draft) => {
+                const id = onCreateCategory(draft, type === 'income' ? 'income' : 'expense');
+                setCategoryId(id);
+                setSubcategory(null);
+              }}
+              onUseExisting={(id) => { setCategoryId(id); setSubcategory(null); }}
+              onClose={() => setCreating(false)}
+            />
+          )}
 
           {sources.length > 0 && !partnerIsPaying && (
             <div>

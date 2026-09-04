@@ -1,7 +1,7 @@
-import { Fragment, useState } from 'react';
+import { Fragment, useRef, useState } from 'react';
 import { t } from '../i18n';
 import { useBackClose } from '../lib/useBackClose';
-import { ArrowDownAZ, Check, Flame, X } from 'lucide-react';
+import { ArrowDownAZ, Check, Flame, Plus, X } from 'lucide-react';
 import { getCategoryIcon } from './categoryIcons';
 import { orderCategories, type CategoryOrder } from '../lib/categoryOrder';
 
@@ -67,6 +67,29 @@ interface CategorySelectorProps {
     /** Absent when the options ARE all of them. */
     onMore?: () => void;
   };
+  /**
+   * Open the sheet that makes a new category, from the last tile of the grid.
+   *
+   * Given only where somebody is filling a form and can find the grid short -
+   * the Add screen, the schedule editor. Absent, the grid is exactly what it
+   * was. Same rule as the ordering pill above: the control exists where the
+   * caller can answer it.
+   *
+   * It goes IN the grid, last, because that is where the eye is at the moment
+   * the gap is felt: you have finished scanning and the thing is not there.
+   * A control beside the label would sit at the top, which is where you were
+   * before you knew you needed it.
+   */
+  onCreateCategory?: () => void;
+  /**
+   * Add a subcategory to the selected category, by name.
+   *
+   * No sheet for this one. A subcategory IS a word, and opening an overlay to
+   * be given a word is the interruption we are removing, not relocating - so
+   * the dashed chip becomes a field where it stands, and the panel never
+   * leaves the screen.
+   */
+  onCreateSubcategory?: (name: string) => void;
 }
 
 export function CategorySelector({
@@ -80,10 +103,54 @@ export function CategorySelector({
   order = 'alpha',
   onChangeOrder,
   transactions = [],
-  trip
+  trip,
+  onCreateCategory,
+  onCreateSubcategory,
 }: CategorySelectorProps) {
   const [orderOpen, setOrderOpen] = useState(false);
   useBackClose(orderOpen, () => setOrderOpen(false));
+
+  // The inline subcategory field: open, and what has been typed into it.
+  // Local because it is a state of the panel, not of the transaction - and
+  // because it must survive nothing: leaving the category closes it.
+  const [adding, setAdding] = useState(false);
+  const [draft, setDraft] = useState('');
+  // A commit can be asked for twice in one gesture - tapping the tick blurs
+  // the field first - and the second one would add the word again.
+  const done = useRef(false);
+
+  const openAdd = () => {
+    done.current = false;
+    setDraft('');
+    setAdding(true);
+  };
+
+  /**
+   * What was typed becomes a subcategory, and is chosen.
+   *
+   * Called by the tick, by the keyboard's return key, AND by leaving the
+   * field with something in it. That last one is the decision worth naming:
+   * typing "Piega" and tapping Save would otherwise drop the word silently at
+   * the exact moment of saving, which is the failure mode this app has spent
+   * its life removing. A chip too many is two taps to delete in Settings; a
+   * word lost as you save is not recoverable at all.
+   */
+  const commitAdd = () => {
+    if (done.current) return;
+    done.current = true;
+    setAdding(false);
+    const name = draft.trim();
+    setDraft('');
+    if (!name) return;
+    // Already a chip of this category: choose it rather than making a second
+    // one that reads identically in every picker from here on.
+    const already = subcategories.find(
+      (s) => s.trim().toLowerCase().replace(/\s+/g, ' ') === name.toLowerCase().replace(/\s+/g, ' '),
+    );
+    if (already) { onSelectSubcategory?.(already); return; }
+    onCreateSubcategory?.(name);
+    onSelectSubcategory?.(name);
+  };
   // Alphabetical, or by how often each one is actually used - see
   // lib/categoryOrder. Re-sorts live as categories are added or removed.
   const sortedCategories = orderCategories(categories, transactions, order);
@@ -95,7 +162,11 @@ export function CategorySelector({
     selectedIndex === -1
       ? -1
       : Math.min(Math.floor(selectedIndex / 2) * 2 + 1, sortedCategories.length - 1);
-  const showSubcategoryPanel = selectedIndex !== -1 && subcategories.length > 0;
+  // The panel now stands for a category with no chips at all, which is exactly
+  // what a category created a second ago looks like: without this it would be
+  // made and then offer no way to give it its first subcategory.
+  const showSubcategoryPanel =
+    selectedIndex !== -1 && (subcategories.length > 0 || !!onCreateSubcategory);
   // A category with no subcategories can still have a trip row, and a trip
   // with nothing to offer and nothing chosen has nothing to draw.
   const showTripPanel = selectedIndex !== -1 && !!trip && (!!trip.name || trip.options.length > 0);
@@ -273,6 +344,64 @@ export function CategorySelector({
                         </button>
                       );
                     })}
+                    {/* The way to make one more, in the row with the rest of
+                        them: dashed and quiet, because it is not a choice but
+                        the means of making one. */}
+                    {onCreateSubcategory && !adding && (
+                      <button
+                        data-sub-add
+                        onClick={openAdd}
+                        className="px-3 py-1.5 rounded-lg text-sm border border-dashed inline-flex items-center gap-1.5"
+                        style={{ borderColor: 'var(--line)', color: 'var(--ink-2)' }}
+                      >
+                        <Plus className="w-3.5 h-3.5" strokeWidth={2.6} />
+                        {t('add.subAdd')}
+                      </button>
+                    )}
+                    {onCreateSubcategory && adding && (
+                      <span
+                        className="inline-flex items-center gap-2 rounded-lg pl-3 pr-1 py-1"
+                        style={{ border: '1.5px solid var(--accent-ink)', backgroundColor: 'var(--bg-card)' }}
+                      >
+                        <input
+                          data-sub-input
+                          autoFocus
+                          value={draft}
+                          onChange={(e) => setDraft(e.target.value)}
+                          onBlur={commitAdd}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') { e.preventDefault(); commitAdd(); }
+                            // Escape is the one way out that keeps nothing -
+                            // there has to be one, and it is the key that
+                            // means that everywhere else.
+                            if (e.key === 'Escape') { done.current = true; setAdding(false); setDraft(''); }
+                          }}
+                          placeholder={t('add.subPlaceholder')}
+                          // 16px, not the 14px of the chips around it: below
+                          // that iOS zooms the whole page in on focus, and the
+                          // one thing this field promises is that the panel
+                          // stays exactly where it is. A slightly taller chip
+                          // while it is being typed into is a fair price.
+                          className="bg-transparent outline-none"
+                          style={{ color: 'var(--ink)', fontSize: 16, width: Math.max(92, draft.length * 9 + 26) }}
+                        />
+                        {/* The tick is the visible half of "press return":
+                            a soft keyboard's return key cannot be seen, and a
+                            step nobody can see is a step that does not exist.
+                            preventDefault on mousedown so the tap does not
+                            blur-then-commit before this handler runs. */}
+                        <button
+                          data-sub-confirm
+                          aria-label={t('common.save')}
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={commitAdd}
+                          className="grid place-items-center rounded-md"
+                          style={{ width: 24, height: 24, backgroundColor: draft.trim() ? 'var(--accent-ink)' : 'var(--line)' }}
+                        >
+                          <Check className="w-3.5 h-3.5 text-white" strokeWidth={3.2} />
+                        </button>
+                      </span>
+                    )}
                   </div>
                 </div>
               )}
@@ -332,6 +461,28 @@ export function CategorySelector({
             </Fragment>
           );
         })}
+        {/* Last, always - whatever the grid is sorted by. It is where the scan
+            ends, which is the moment somebody knows the category they want is
+            not here. Dashed and colourless so a thumb reaching for the last
+            real tile can see it is not one. */}
+        {onCreateCategory && (
+          <button
+            data-cat-create
+            onClick={onCreateCategory}
+            className="flex items-center gap-3 py-2.5 px-3 rounded-xl min-h-[52px] border border-dashed"
+            style={{ borderColor: 'var(--line)', transition: 'background-color 0.15s ease' }}
+          >
+            <span
+              className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+              style={{ backgroundColor: 'var(--bg-inset)' }}
+            >
+              <Plus className="w-4.5 h-4.5" strokeWidth={2.4} style={{ color: 'var(--ink-2)' }} />
+            </span>
+            <span className="text-[13px] text-left leading-tight" style={{ color: 'var(--ink-2)' }}>
+              {t('add.newCategory')}
+            </span>
+          </button>
+        )}
       </div>
     </div>
   );

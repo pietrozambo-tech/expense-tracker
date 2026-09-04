@@ -21,6 +21,7 @@ import { loadDevUnlocked, saveDevUnlocked } from '../lib/storage';
 import { isNative } from '../lib/platform';
 import { toast } from 'sonner';
 import { Categories } from './Categories';
+import { type CategoryDraft } from './CreateCategorySheet';
 import { ScheduledManager, type ScheduleDraft } from './ScheduledManager';
 import { upcomingSchedules } from '../lib/recurrence';
 import { buildImportPrompt } from '../lib/importPrompt';
@@ -266,6 +267,11 @@ interface SettingsProps {
    *  convert function reads the catalogue from there, so an import that
    *  started before the push landed would ignore them. */
   onCreateCategories?: (items: { name: string; type: 'expense' | 'income' }[]) => Promise<boolean>;
+  /** Making a category from the recurring editor's own grid. Same handlers the
+   *  Add screen uses: there is one catalogue, and it does not care which form
+   *  a category was born on. */
+  onCreateCategory?: (draft: CategoryDraft, type: 'expense' | 'income') => string;
+  onCreateSubcategory?: (categoryId: string, name: string) => void;
   onEraseAllData: () => void;
   /** `stay` keeps the current screen - see the handler in App. */
   onEraseDemoData?: (opts?: { stay?: boolean }) => void;
@@ -353,6 +359,8 @@ export function Settings({
   onUserNameChange,
   onLoadDemoData,
   onCreateCategories,
+  onCreateCategory,
+  onCreateSubcategory,
   onEraseAllData,
   onEraseDemoData,
   onClearTransactions,
@@ -3186,6 +3194,8 @@ export function Settings({
             onCreate={onCreateSchedule}
             onUpdate={onUpdateSchedule}
             onStop={onStopSchedule}
+            onCreateCategory={onCreateCategory}
+            onCreateSubcategory={onCreateSubcategory}
             onModalOpenChange={onModalOpenChange}
           />
         </div>

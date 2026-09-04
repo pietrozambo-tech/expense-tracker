@@ -102,6 +102,7 @@ import { AmountInput } from './components/AmountInput';
 import { BalanceHistory } from './components/BalanceHistory';
 import { DateInput } from './components/DateInput';
 import { CategorySelector } from './components/CategorySelector';
+import { CreateCategorySheet } from './components/CreateCategorySheet';
 import { SaveButton } from './components/SaveButton';
 import { DescriptionInput, type DescriptionTrip } from './components/DescriptionInput';
 import { TripAssignModal } from './components/TripAssignModal';
@@ -1442,6 +1443,9 @@ export default function App() {
     };
   }, [recurrenceReady, runRecurrence, offerSeriesCleanup]);
 
+  // The create-a-category sheet, open over the form it was opened from.
+  const [creatingCategory, setCreatingCategory] = useState(false);
+
   const handleCategorySelect = (categoryId: string) => {
     hapticSelect();
     setSelectedCategory(categoryId);
@@ -2530,6 +2534,37 @@ export default function App() {
     } catch {
       return false;
     }
+  };
+
+  /**
+   * A category made from a form rather than from Settings - the Add screen,
+   * the schedule editor - and filed on the list its type belongs to.
+   *
+   * Returns its id so the caller can select it on the spot: it was made to be
+   * used now, and asking again would be the joke. It is an ordinary category
+   * from the moment it exists - Settings, the other form and the Activity
+   * filters all have it - because a category local to one half-written
+   * transaction is not a thing this app has.
+   */
+  const createCategoryInline = (
+    draft: { name: string; icon: string; color: string; bgColor: string; selectedBg: string },
+    type: 'expense' | 'income',
+  ): string => {
+    const id = `${type === 'income' ? 'income-category' : 'category'}-${Date.now()}`;
+    const made = { ...draft, id, type, subcategories: [] as string[], updatedAt: new Date().toISOString() };
+    if (type === 'income') setIncomeCategories([...incomeCategories, made]);
+    else setCategories([...categories, made]);
+    setRefreshKey((prev) => prev + 1);
+    toast.success(t(type === 'income' ? 'toast.incCatAdded' : 'toast.catAdded'), { duration: 1400 });
+    return id;
+  };
+
+  /** One subcategory, added to whichever list owns that id. Same routing as
+   *  the Settings editor, which is the point: there is one catalogue. */
+  const createSubcategoryInline = (categoryId: string, name: string) => {
+    editSubcategories(categoryId, (subs) => [...subs, name]);
+    setRefreshKey((prev) => prev + 1);
+    toast.success(t('toast.subAdded'), { duration: 1400 });
   };
 
   // Category CRUD handlers
@@ -4008,6 +4043,8 @@ export default function App() {
             {currentTab === 'settings' && (
               <Settings
                 onCreateCategories={handleCreateCategoriesForImport}
+                onCreateCategory={createCategoryInline}
+                onCreateSubcategory={createSubcategoryInline}
                 jumpTo={settingsJump}
                 onJumpDone={() => setSettingsJump(null)}
                 categoryOrder={categoryOrder}
@@ -4661,6 +4698,10 @@ export default function App() {
                 onChangeOrder={setCategoryOrder}
                 transactions={expenses}
                 trip={categoryTrip}
+                onCreateCategory={() => setCreatingCategory(true)}
+                onCreateSubcategory={(name) => {
+                  if (selectedCategory) createSubcategoryInline(selectedCategory, name);
+                }}
               />
               </div>
             </div>
@@ -4690,6 +4731,22 @@ export default function App() {
                 }
               }}
             />
+
+            {/* Making a category from here, over the form rather than instead
+                of it: the screen underneath is never unmounted, so whatever
+                has been typed into it is still there afterwards. */}
+            {creatingCategory && (
+              <CreateCategorySheet
+                type={transactionType}
+                existing={activeCategories}
+                onCreate={(draft) => {
+                  const id = createCategoryInline(draft, transactionType);
+                  handleCategorySelect(id);
+                }}
+                onUseExisting={handleCategorySelect}
+                onClose={() => setCreatingCategory(false)}
+              />
+            )}
 
             {/* Source picker opened from the pill on the amount line */}
             <SourceSelectorModal

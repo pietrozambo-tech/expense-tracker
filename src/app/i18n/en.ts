@@ -408,6 +408,19 @@ export const en = {
   'add.order.alpha': 'A-Z',
   'add.order.used': 'Most used',
   'add.subcategory': 'SUBCATEGORY',
+  // Making one from the form you are already filling in. The grid's last tile
+  // and the chip row's last chip: where the scan ends is where somebody knows
+  // the thing they want is not there.
+  'add.newCategory': 'New category',
+  'add.subAdd': 'Add',
+  'add.subPlaceholder': 'Name it',
+  'cat.create.title': 'New category',
+  'cat.create.placeholder': 'Category name',
+  'cat.create.cta': 'Create and use',
+  // Said out loud rather than resolved in silence: picking the existing one
+  // without a word reads as a button that did nothing.
+  'cat.create.dupe': 'You already have "{name}" - I will use that one.',
+  'cat.create.useExisting': 'Use that one',
   'add.clearSub': 'Clear subcategory',
   'add.recurrence': 'Recurrence',
   'add.selectSource': 'Select source',

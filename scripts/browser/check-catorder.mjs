@@ -57,8 +57,13 @@ const openAdd = async (ctx) => {
   await p.waitForTimeout(800);
   return p;
 };
+// The CATEGORIES, in the order the grid lays them out. The last tile is the
+// one that makes a new category rather than choosing one, and it is always
+// last whatever the sort - so it is excluded here rather than pinned to the
+// end of every expectation, where it would say nothing about ordering.
 const gridNames = (p) =>
   p.evaluate(() => [...document.querySelectorAll('.grid button')]
+    .filter((el) => !el.hasAttribute('data-cat-create'))
     .map((el) => el.textContent.trim())
     .filter((n) => n && !/^\d/.test(n)));
 

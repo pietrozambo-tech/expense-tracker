@@ -8,6 +8,7 @@ import { getCategoryIcon } from './categoryIcons';
 import { AmountText } from './AmountText';
 import { SourceLogo } from './SourceLogo';
 import { ConfirmDialog } from './ConfirmDialog';
+import { type CategoryDraft } from './CreateCategorySheet';
 import { ScheduleEditor } from './ScheduleEditor';
 import { upcomingSchedules, strandedRules } from '../lib/recurrence';
 import { needsAbbreviation } from '../utils/currency';
@@ -42,6 +43,10 @@ export interface ScheduledManagerProps {
   household?: import('../types').Household | null;
   partner?: import('../types').Person | null;
   userName?: string;
+  /** Passed straight through to the editor's category grid. Absent, the grid
+   *  is exactly what it was. */
+  onCreateCategory?: (draft: CategoryDraft, type: 'expense' | 'income') => string;
+  onCreateSubcategory?: (categoryId: string, name: string) => void;
   onCreate: (draft: ScheduleDraft) => void;
   onUpdate: (ruleId: string, draft: ScheduleDraft) => void;
   onStop: (ruleId: string) => void;
@@ -91,6 +96,8 @@ export function ScheduledManager({
   household,
   partner,
   userName,
+  onCreateCategory,
+  onCreateSubcategory,
   onCreate,
   onUpdate,
   onStop,
@@ -253,6 +260,8 @@ export function ScheduledManager({
           household={household}
           partner={partner}
           userName={userName}
+          onCreateCategory={onCreateCategory}
+          onCreateSubcategory={onCreateSubcategory}
           onCancel={() => close(() => { setAdding(false); setEditing(null); })}
           onSave={(draft) => {
             if (editing) onUpdate(editing.id, draft);
