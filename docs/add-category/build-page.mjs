@@ -1,0 +1,215 @@
+// Assembles the review page from the shots taken by shoot.mjs.
+import { readFileSync, writeFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const here = dirname(fileURLToPath(import.meta.url));
+const img = (f) => `data:image/png;base64,${readFileSync(join(here, 'shots', f)).toString('base64')}`;
+const shot = (f, cap, tone = '') =>
+  `<figure class="shot ${tone}"><img src="${img(f)}" alt="${cap.replace(/<[^>]+>/g, '')}" loading="lazy"><figcaption>${cap}</figcaption></figure>`;
+
+const html = `<title>Categoria al volo</title>
+<style>
+:root{
+  --ground:#E9EAEE; --surface:#FFFFFF; --sunk:#DEDFE4;
+  --ink:#15161A; --ink-2:#63666F; --ink-3:#8A8D96; --line:#D0D2D9;
+  --accent:#4F74F3; --flag:#C2352B; --good:#15803D;
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --ground:#121317; --surface:#1C1D22; --sunk:#17181C;
+    --ink:#EFF0F3; --ink-2:#9A9DA7; --ink-3:#797C85; --line:#2C2E34;
+    --accent:#8AA4FF; --flag:#FF7A6E; --good:#4ADE80;
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#121317; --surface:#1C1D22; --sunk:#17181C;
+  --ink:#EFF0F3; --ink-2:#9A9DA7; --ink-3:#797C85; --line:#2C2E34;
+  --accent:#8AA4FF; --flag:#FF7A6E; --good:#4ADE80;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--sans);font-size:16px;line-height:1.62;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1120px;margin:0 auto;padding:52px 22px 90px;display:flex;flex-direction:column;gap:14px}
+.eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.15em;text-transform:uppercase;color:var(--ink-3);margin:0 0 9px}
+h1{font-size:clamp(30px,5vw,42px);line-height:1.08;letter-spacing:-.022em;margin:0 0 14px;text-wrap:balance;font-weight:760}
+h2{font-size:clamp(20px,2.6vw,25px);line-height:1.18;letter-spacing:-.014em;margin:0 0 10px;text-wrap:balance;font-weight:700}
+h3{font-size:16px;margin:0 0 6px;font-weight:680;letter-spacing:-.005em}
+p{margin:0 0 12px;max-width:66ch}
+p:last-child{margin-bottom:0}
+em{font-style:italic}
+section{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:30px 30px 32px}
+.lede{font-size:18px;color:var(--ink-2);max-width:60ch}
+.masthead{background:none;border:0;padding:0 0 12px}
+
+.rail{display:grid;gap:26px;margin-top:20px;grid-template-columns:repeat(auto-fit,minmax(250px,1fr))}
+.rail.one{grid-template-columns:minmax(0,300px)}
+.shot{margin:0;display:flex;flex-direction:column;gap:10px}
+.shot img{width:100%;height:auto;display:block;border-radius:16px;border:1px solid var(--line);background:#fff}
+.shot figcaption{font-size:13.5px;color:var(--ink-2);line-height:1.45}
+.shot.pick img{border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 22%,transparent)}
+.shot.pick figcaption b{color:var(--accent)}
+
+.args{display:grid;gap:22px;margin-top:22px;grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}
+.arg{border-top:2px solid var(--line);padding-top:13px}
+.arg.pick{border-top-color:var(--accent)}
+.arg .tag{font-family:var(--mono);font-size:10.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--ink-3);display:block;margin-bottom:7px}
+.arg.pick .tag{color:var(--accent)}
+.pro,.con{display:flex;gap:9px;font-size:14.5px;color:var(--ink-2);margin:0 0 8px;line-height:1.5;max-width:none}
+.pro::before{content:"+";color:var(--good);font-weight:800;flex:0 0 auto;font-family:var(--mono)}
+.con::before{content:"\\2212";color:var(--flag);font-weight:800;flex:0 0 auto;font-family:var(--mono)}
+
+.rules{list-style:none;padding:0;margin:18px 0 0}
+.rules li{display:grid;grid-template-columns:minmax(150px,auto) 1fr;gap:6px 22px;padding:13px 0;border-top:1px solid var(--line);align-items:baseline}
+.rules li:first-child{border-top:0;padding-top:4px}
+.rules b{font-size:14px;font-weight:650;color:var(--ink)}
+.rules span{font-size:14.5px;color:var(--ink-2);line-height:1.5}
+@media (max-width:620px){.rules li{grid-template-columns:1fr;gap:2px}}
+
+.qs{counter-reset:q;list-style:none;padding:0;margin:18px 0 0;display:flex;flex-direction:column;gap:18px}
+.qs li{display:grid;grid-template-columns:30px 1fr;gap:14px;align-items:start}
+.qs li::before{counter-increment:q;content:counter(q);font-family:var(--mono);font-size:12px;font-weight:700;color:var(--accent);background:color-mix(in srgb,var(--accent) 13%,transparent);border-radius:8px;width:30px;height:30px;display:flex;align-items:center;justify-content:center}
+.qs p{font-size:14.5px;color:var(--ink-2);margin:0}
+.qs .lean{font-size:13.5px;color:var(--ink-3);margin-top:6px}
+.qs .lean b{color:var(--ink-2);font-weight:650}
+code{font-family:var(--mono);font-size:.88em;background:var(--sunk);padding:1px 5px;border-radius:5px}
+</style>
+
+<div class="wrap">
+
+<header class="masthead">
+  <p class="eyebrow">TracklyLab &middot; proposta di design</p>
+  <h1>Creare una categoria senza uscire da &ldquo;Nuova spesa&rdquo;</h1>
+  <p class="lede">Stai scrivendo una spesa, scorri le categorie e quella che ti serve non c&rsquo;&egrave;.
+  Oggi devi chiudere il movimento a met&agrave;, andare in Impostazioni, crearla, tornare indietro e
+  riscrivere tutto. Sotto: dove mettere la via d&rsquo;uscita, cosa deve chiedere, e le regole che la
+  rendono sicura.</p>
+</header>
+
+<section>
+  <p class="eyebrow">Il punto in cui si sente la mancanza</p>
+  <h2>Oggi: la griglia finisce e basta</h2>
+  <p>Hai gi&agrave; scritto importo e descrizione. Hai scorso fino in fondo. &ldquo;Barbiere&rdquo; non
+  esiste, e la schermata non offre nulla: l&rsquo;unica mossa &egrave; buttare via quello che hai scritto.</p>
+  <div class="rail one">
+    ${shot('01-today.png', 'La griglia finisce con Viaggi. Non c&rsquo;&egrave; nessun modo di continuare.')}
+  </div>
+</section>
+
+<section>
+  <p class="eyebrow">Prima decisione</p>
+  <h2>Dove sta il &ldquo;+&rdquo;</h2>
+  <p>Due posti possibili, e la scelta non &egrave; estetica: cambia quanto &egrave; probabile che uno lo
+  trovi nel momento in cui gli serve, e quanto &egrave; probabile che lo prema per sbaglio.</p>
+  <div class="rail">
+    ${shot('02-plus-tile.png', '<b>A</b> &mdash; ultima casella della griglia, tratteggiata e senza colore.', 'pick')}
+    ${shot('06-label-variant.png', '<b>B</b> &mdash; una pill accanto all&rsquo;etichetta, come quella dell&rsquo;ordinamento.')}
+  </div>
+  <div class="args">
+    <div class="arg pick">
+      <span class="tag">A &middot; nella griglia &mdash; consigliata</span>
+      <p class="pro">&Egrave; esattamente dove guardi quando ti accorgi che manca: hai finito di scorrere, e la lista continua con il modo di allungarla.</p>
+      <p class="pro">Si legge come parte dell&rsquo;elenco, non come un&rsquo;impostazione.</p>
+      <p class="con">Sta dentro l&rsquo;area di tocco della griglia: chi allunga il pollice verso l&rsquo;ultima categoria vera pu&ograve; prenderla. Mitigato dall&rsquo;essere sempre ultima e visivamente diversa &mdash; tratteggio, nessun colore.</p>
+    </div>
+    <div class="arg">
+      <span class="tag">B &middot; accanto all&rsquo;etichetta</span>
+      <p class="pro">Non tocca la griglia: zero rischio di tocco sbagliato fra le categorie.</p>
+      <p class="pro">Eredita una posizione gi&agrave; stabilita, quella della pill A-Z.</p>
+      <p class="con">Sta in cima, ma la mancanza si sente in fondo: con quattordici categorie ci sei passato sopra prima di accorgerti del buco.</p>
+      <p class="con">Due pill sulla stessa riga rendono l&rsquo;etichetta un pannello di controllo.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <p class="eyebrow">Seconda decisione</p>
+  <h2>Cosa chiede il foglio</h2>
+  <p>Una riga per <em>cosa &egrave;</em> &mdash; icona e nome insieme, non un&rsquo;anteprima che ripete il
+  campo sotto &mdash; poi le due sole cose che vale la pena cambiare, poi un bottone. Il tipo non viene
+  chiesto: lo decide lo switch Spesa/Entrata che hai gi&agrave; davanti, e il foglio lo dichiara in alto a
+  destra cos&igrave; non finisce nella lista sbagliata in silenzio.</p>
+  <p>Il nome &egrave; l&rsquo;unico campo obbligatorio. Icona e colore hanno gi&agrave; un valore: chi ha
+  fretta scrive e conferma, chi ci tiene tocca due volte in pi&ugrave;.</p>
+  <div class="rail one">
+    ${shot('03-sheet.png', 'Nome, icona, colore, un bottone. Il tag SPESA dice dove andr&agrave; a finire.')}
+  </div>
+</section>
+
+<section>
+  <p class="eyebrow">Terza decisione &mdash; la parte pi&ugrave; delicata</p>
+  <h2>La sottocategoria non merita un foglio</h2>
+  <p>Una sottocategoria &egrave; una parola. Aprire un overlay per farsi dare una parola &egrave; il churn
+  che stiamo cercando di togliere, non di spostare.</p>
+  <p>Quindi: nel pannello delle sottocategorie c&rsquo;&egrave; una chip tratteggiata. Toccandola diventa un
+  campo <em>al suo posto</em>, scrivi, Invio. La chip si crea, resta selezionata, e il pannello non ha mai
+  lasciato lo schermo. Niente overlay, niente navigazione, niente da chiudere.</p>
+  <div class="rail one">
+    ${shot('05-sub-inline.png', 'La chip &egrave; diventata un campo. Invio la crea e la seleziona.')}
+  </div>
+</section>
+
+<section>
+  <p class="eyebrow">Dopo</p>
+  <h2>Torni dove eri, con la categoria gi&agrave; scelta</h2>
+  <p>Il foglio si chiude, la categoria nuova &egrave; nella griglia <em>ed &egrave; selezionata</em> &mdash;
+  l&rsquo;hai creata per usarla adesso, chiedertelo di nuovo sarebbe la beffa. Importo, descrizione, data e
+  conto sono intatti: la schermata non &egrave; mai stata smontata, il foglio le stava sopra.</p>
+  <div class="rail one">
+    ${shot('04-created.png', 'Barbiere esiste, &egrave; scelta, e il suo pannello sottocategorie &egrave; gi&agrave; aperto.')}
+  </div>
+</section>
+
+<section>
+  <p class="eyebrow">Il contorno</p>
+  <h2>Le regole che lo rendono sicuro</h2>
+  <p>Sono queste, non il disegno, la parte che pu&ograve; fare danni. Le scrivo perch&eacute; siano decise
+  adesso e non scoperte dopo.</p>
+  <ul class="rules">
+    <li><b>Nome gi&agrave; esistente</b><span>&ldquo;Barbiere&rdquo; c&rsquo;&egrave; gi&agrave; pi&ugrave; in alto e non l&rsquo;hai vista. Non ne crea una seconda: seleziona quella che c&rsquo;&egrave;. Confronto senza distinzione fra maiuscole e spazi.</span></li>
+    <li><b>Tipo</b><span>Segue lo switch Spesa/Entrata e lo dice. Una categoria di entrata finita nella lista delle spese &egrave; sbagliata su ogni riga futura.</span></li>
+    <li><b>Annulla</b><span>X, tocco fuori o gesto indietro: non crea niente, e il movimento resta esattamente com&rsquo;era.</span></li>
+    <li><b>Tasto indietro</b><span>Chiude il foglio, non la schermata di aggiunta sotto. &Egrave; il punto in cui si perde tutto se sbagliamo l&rsquo;annidamento.</span></li>
+    <li><b>Ordinamento &ldquo;Pi&ugrave; usate&rdquo;</b><span>Una categoria nuova ha zero usi e finirebbe in fondo, lontano da dove stavi guardando. Va tenuta a vista finch&eacute; sei su questo movimento.</span></li>
+    <li><b>Offline</b><span>Si crea comunque sul telefono e si sincronizza dopo. Nessuna attesa: qui il server non deve vederla, a differenza dell&rsquo;import.</span></li>
+    <li><b>Ricorrenze</b><span>L&rsquo;editor delle ricorrenze usa lo stesso selettore. Riceve il &ldquo;+&rdquo; solo se glielo passiamo &mdash; stesso schema della pill A-Z, che compare solo dove serve.</span></li>
+  </ul>
+</section>
+
+<section>
+  <p class="eyebrow">Prima di scrivere una riga di codice</p>
+  <h2>Cosa devi decidere tu</h2>
+  <ol class="qs">
+    <li><div>
+      <h3>A o B per il &ldquo;+&rdquo;?</h3>
+      <p>Casella in fondo alla griglia, oppure pill accanto all&rsquo;etichetta.</p>
+      <p class="lean">Io farei <b>A</b>. Due punti d&rsquo;ingresso per la stessa azione sarebbero churn, quindi uno solo.</p>
+    </div></li>
+    <li><div>
+      <h3>Il foglio chiede icona e colore, o solo il nome?</h3>
+      <p>La versione qui sopra le mostra con un valore gi&agrave; scelto. L&rsquo;alternativa &egrave; nome e basta, icona e colore assegnati e personalizzabili dopo in Impostazioni.</p>
+      <p class="lean">Io le <b>terrei</b>: sono due tocchi facoltativi, e una categoria senza faccia si nota nella griglia.</p>
+    </div></li>
+    <li><div>
+      <h3>Nome duplicato: in silenzio o detto?</h3>
+      <p>Selezionare quella esistente senza commenti, oppure dirlo con una riga: &ldquo;ce l&rsquo;hai gi&agrave;, te l&rsquo;ho scelta&rdquo;.</p>
+      <p class="lean">Io lo <b>direi</b>, una riga sotto il campo: in silenzio sembra che il bottone non abbia funzionato.</p>
+    </div></li>
+    <li><div>
+      <h3>Il &ldquo;+&rdquo; anche nell&rsquo;editor delle ricorrenze?</h3>
+      <p>Stessa griglia, stesso bisogno &mdash; ma &egrave; una schermata che si apre molto meno spesso.</p>
+      <p class="lean">Io partirei <b>solo da Aggiungi</b> e lo estenderei dopo, se serve.</p>
+    </div></li>
+    <li><div>
+      <h3>La sottocategoria inline: serve un modo esplicito per annullare?</h3>
+      <p>Adesso: Invio crea, toccare fuori abbandona. In alternativa una <code>&times;</code> dentro la chip.</p>
+      <p class="lean">Io lascerei <b>senza</b>: la chip &egrave; piccola, e una X dentro la rende un bottone doppio.</p>
+    </div></li>
+  </ol>
+</section>
+
+</div>`;
+
+writeFileSync(join(here, 'review.html'), html);
+console.log('written', (html.length / 1024).toFixed(0), 'KB');
