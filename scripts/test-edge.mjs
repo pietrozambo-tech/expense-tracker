@@ -88,7 +88,7 @@ function region(name) {
 const SURFACE = [
   'buildImportPrompt', 'TRIP_SEP', 'isTripName', 'tripBodyOf', 'travelCategoryOf',
   'Refused', 'readTrip', 'readAnswers', 'readUploads', 'shapeAnswer', 'expandRow', 'RowStream',
-  'readMode', 'readSampleOf', 'factsBlock',
+  'readMode', 'readSampleOf', 'readRowsIn', 'factsBlock',
 ];
 
 const SCENARIOS = `
@@ -178,7 +178,27 @@ eq('sample_of: garbage is zero', edge.readSampleOf({ sample_of: 'lots' }), 0);
   ok(/convert EVERY row/.test(convert) && /"notes"/.test(convert),
     'and says what to do instead: read everything, note the doubt');
   ok(/These rows are NOT a trip/.test(convert), 'on top of the facts, not instead of them');
+  ok(!/DATED ROWS/.test(convert), 'and claims no count when the caller did not send one');
+
+  // The count, and the reason it is in the prompt at all: a 1,206-row export
+  // came back ten rows short, with nothing malformed and nothing to fail on.
+  // A reading told how many rows it holds is being asked a different question
+  // from one merely told to be thorough.
+  const counted = edge.factsBlock({ ...base, mode: 'convert', sampleOf: 0, rowsIn: 241 });
+  ok(/THIS PART HOLDS EXACTLY 241 DATED ROWS/.test(counted),
+    'a counted part is told its own number, not "all of them"');
+  ok(/241 records in "transactions"/.test(counted),
+    'and what the number means for the answer it has to write');
+  ok(/settlement between people/.test(counted) && /say in "notes" how many you left out/.test(counted),
+    'with the one honest way to come back short - named, and made to declare itself');
+  ok(/do not stop early because the pattern/.test(counted),
+    'and the failure named as it actually happens: the middle of a repetitive file');
+  const triageCounted = edge.factsBlock({ ...base, mode: 'triage', sampleOf: 1206, rowsIn: 80 });
+  ok(!/DATED ROWS/.test(triageCounted), 'a triage is never held to a count - it is not converting anything');
 }
+eq('rows_in: a count', edge.readRowsIn({ rows_in: 241 }), 241);
+eq('rows_in: absent is zero, and zero claims nothing', edge.readRowsIn({}), 0);
+eq('rows_in: garbage is zero too', edge.readRowsIn({ rows_in: 'lots' }), 0);
 eq('no trip key at all means the question was never asked', edge.readTrip({}), null);
 eq('an explicit no is not the same as silence', edge.readTrip({ trip: { is_trip: false } }), { is_trip: false });
 

@@ -214,7 +214,7 @@ export function AiImport({
   // Which TRUE moment the request is in, for the pre-first-row narration:
   // 'sent' while the upload is in flight, 'reading' once the headers arrive
   // and the model is at work. Never theatre - each line maps to an event.
-  const [phase, setPhase] = useState<'sent' | 'reading' | 'triage' | null>(null);
+  const [phase, setPhase] = useState<'sent' | 'reading' | 'triage' | 'repair' | null>(null);
   // Ten seconds into 'reading' with no row yet, the model is demonstrably
   // deep in the matching the prompt sets it (its instructions carry the
   // user's own categories) - say that instead of repeating "reading".
@@ -614,6 +614,7 @@ export function AiImport({
                 // the model is demonstrably in the middle of.
                 <div className="animate-pulse py-2" data-ai-opening style={{ color: 'rgba(255,255,255,0.75)', fontSize: 14, fontWeight: 500 }}>
                   {openingSlow ? t('ai.openingLong')
+                    : phase === 'repair' ? t('ai.phaseRepair')
                     : phase === 'triage' ? t('ai.phaseTriage')
                     : phase === 'sent' ? t('ai.phaseSend')
                     : phase === 'reading' ? (matching ? t('ai.phaseMatch') : t('ai.phaseRead'))
@@ -652,6 +653,18 @@ export function AiImport({
                   </div>
                 );
               })()}
+              {/* The last stretch, and the only one that has to explain
+                  itself. The rows have stopped arriving, the bar is not
+                  moving and the wait is not over: a part came back with
+                  fewer rows than went into it and is being read again.
+                  Without this line the screen reads as a hang, which is the
+                  worst possible moment to look broken - it is the moment the
+                  app is busy NOT losing the person's money. */}
+              {phase === 'repair' && (
+                <div data-ai-repair className="mt-3 animate-pulse" style={{ color: 'rgba(255,255,255,0.75)', fontSize: 12.5, fontWeight: 500 }}>
+                  {t('ai.phaseRepair')}
+                </div>
+              )}
             </div>
             <div className="mt-4 flex flex-col gap-2">
               {ticks.map((tick) => (

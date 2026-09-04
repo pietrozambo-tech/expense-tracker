@@ -105,9 +105,16 @@ const MONTHS_IT = ['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set'
 // Bounds, all of them cheap to check and all of them checked before a single
 // token is spent.
 // How many reads one import id may spend. The app cuts a long file into at
-// most this many parts; the server bounds it too, because an id reused all
-// day would otherwise be an unlimited allowance.
-const MAX_READS_PER_IMPORT = 8;
+// most eight parts; the server bounds it too, because an id reused all day
+// would otherwise be an unlimited allowance.
+//
+// Twelve, not eight, because eight was one short of the widest legitimate
+// import and stopped a repair from ever running: the triage that asks the
+// questions is a read, the eight parts are eight more, and a part that comes
+// back with fewer rows than went into it is read again. 1 + 8 + 3 is what one
+// import can now cost at its very worst - still one claim against the daily
+// cap, and still a number, which is the point of having one.
+const MAX_READS_PER_IMPORT = 12;
 const MAX_FILES = 4;
 // Decoded bytes across every file. The API's own request ceiling is 32MB and
 // base64 inflates by a third, so this leaves room for the instructions and
@@ -156,6 +163,14 @@ function readSampleOf(body: Record<string, unknown>): number {
   return Number.isFinite(n) && n > 0 ? Math.floor(n) : 0;
 }
 
+/** How many dated rows the phone counted into THIS read, so the reading can
+ *  be told the number it has to account for. Zero when the caller did not
+ *  count - a photo, a PDF, an older client - and then nothing is claimed. */
+function readRowsIn(body: Record<string, unknown>): number {
+  const n = Number(body.rows_in);
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : 0;
+}
+
 /** The facts the browser is allowed to assert, spelled out for the model -
  *  and, by mode, what this particular read is for. */
 function factsBlock(args: {
@@ -164,6 +179,7 @@ function factsBlock(args: {
   answers: { ask: string; answer: string }[];
   mode: Mode;
   sampleOf: number;
+  rowsIn: number;
 }): string {
   const lines = ['WHAT I HAVE ALREADY TOLD YOU', '', `Today is ${args.today}.`];
   if (args.trip?.is_trip && args.trip.name) {
@@ -236,6 +252,25 @@ function factsBlock(args: {
       'away the work of all of them. If something is still genuinely unclear, take the most',
       'reasonable reading, convert EVERY row, and say what you chose in "notes", one line each.',
     );
+    // The count, and why it is worth the four lines it costs. A 1,206-row
+    // export came back ten rows and 556 EUR short: nothing failed, nothing
+    // was malformed, a long generation had simply skipped ten items. A
+    // reading that knows how many rows it holds - and is asked to account
+    // for every one of them rather than merely to be thorough - is a
+    // different task, and the app now counts the answer too.
+    if (args.rowsIn > 0) {
+      lines.push(
+        '',
+        `THIS PART HOLDS EXACTLY ${args.rowsIn} DATED ROWS, counted before it was sent.`,
+        `Every one of them must be accounted for: ${args.rowsIn} records in "transactions", or fewer only`,
+        'where a row is genuinely not a transaction (a settlement between people, a running balance,',
+        'a subtotal) - and then say in "notes" how many you left out and why. Do not merge two rows',
+        'into one, do not summarise a run of similar rows, and do not stop early because the pattern',
+        'is clear: the rows that go missing are always the ones in the middle, where a file is most',
+        'repetitive and least interesting, and they are somebody\'s actual money. Count what you have',
+        'written before you finish.',
+      );
+    }
   }
   return lines.join('\n');
 }
@@ -772,6 +807,7 @@ async function handle(req: Request): Promise<Response> {
   const answers = readAnswers(body);
   const mode = readMode(body);
   const sampleOf = readSampleOf(body);
+  const rowsIn = readRowsIn(body);
   if (trip?.is_trip && trip.name && !isTripName(trip.name)) {
     return json(400, {
       code: 'bad_trip_name',
@@ -831,7 +867,7 @@ async function handle(req: Request): Promise<Response> {
     // the volatile ones below are not. ~3,500 tokens of instructions at a
     // tenth of the price on every import after the first.
     { type: 'text', text: apiAddendum(language), cache_control: { type: 'ephemeral' } },
-    { type: 'text', text: factsBlock({ today: new Date().toISOString().slice(0, 10), trip, answers, mode, sampleOf }) },
+    { type: 'text', text: factsBlock({ today: new Date().toISOString().slice(0, 10), trip, answers, mode, sampleOf, rowsIn }) },
     ...blocks,
   ];
 

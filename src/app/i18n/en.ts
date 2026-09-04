@@ -708,6 +708,10 @@ export const en = {
   // The triage read: a sample goes first so the questions come back in
   // seconds instead of after minutes of reading. See AI_TRIAGE_ROWS.
   'ai.phaseTriage': 'Checking what it needs to know…',
+  // The second pass at a part that came back with fewer rows than went into
+  // it. It looks like a hang otherwise: the rows have stopped and the bar is
+  // not moving, at the exact moment the app is busy not losing your money.
+  'ai.phaseRepair': 'Some rows did not come back - reading them again…',
   // The gap screen: the file's categories that match none of yours, asked
   // BEFORE the reading, which is the last moment creating one still moves
   // the rows. No free-text field on purpose - see lib/aiImport categoryGaps.

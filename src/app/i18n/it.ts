@@ -663,6 +663,7 @@ export const it: Record<keyof typeof en, string> = {
   'ai.phaseSend': 'Carico il file…',
   'ai.phaseRead': 'Leggo le righe…',
   'ai.phaseTriage': 'Controllo cosa mi serve sapere…',
+  'ai.phaseRepair': 'Alcune righe non sono arrivate - le rileggo…',
   'ai.catTitle': 'Dove vanno',
   'ai.catSub': 'Come sistemo le categorie di questo file. Cambia le righe che vuoi; il resto è deciso.',
   'ai.catSettled': 'Già sistemate',

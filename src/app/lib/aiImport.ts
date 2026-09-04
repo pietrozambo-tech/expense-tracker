@@ -1,6 +1,6 @@
 import { supabase, SUPABASE_ANON, SUPABASE_FUNCTIONS_URL } from './supabase';
 import { tripSpan, type Trip } from './trips';
-import type { ImportPayload } from './importData';
+import type { ImportPayload, ImportRecord } from './importData';
 
 // The client half of the in-app AI import.
 //
@@ -89,6 +89,30 @@ export const AI_MAX_READS = 8;
 export const AI_MAX_ROWS = AI_ROWS_PER_READ * AI_MAX_READS;
 
 /**
+ * How many parts may be read a SECOND time when the first reading of them
+ * came back with fewer rows than went in.
+ *
+ * This is the fix for the failure that made it necessary. A 1,206-row export
+ * came back ten rows and 556 EUR short: the split was exact, buildImport
+ * dropped nothing, the model simply did not emit them. Nothing was broken in
+ * a way a test could catch, because nothing was broken - a long structured
+ * generation occasionally skips an item, and a file read in one pass has no
+ * second chance to notice.
+ *
+ * A part that comes back short is therefore read again and the two readings
+ * are merged by identity: a row either of them found is kept, a row both
+ * found is kept once. Two independent passes at a one-percent miss rate miss
+ * the same row about one time in ten thousand, which is the difference
+ * between "usually right" and "right".
+ *
+ * Three, not more: it is spent only where a shortfall was actually measured,
+ * it must fit inside the server's per-import read budget alongside the
+ * triage and the parts themselves, and a repair that cannot be afforded is
+ * not an error - the ready screen still says what is missing.
+ */
+export const AI_REPAIR_READS = 3;
+
+/**
  * Roughly how many rows of data a text file holds.
  *
  * Lines, not parsed records: this runs on every import to decide how to cut
@@ -162,6 +186,46 @@ const hasDate = (line: string): boolean =>
  */
 export const countDataRows = (text: string): number =>
   text.split('\n').reduce((n, line) => (hasDate(line) ? n + 1 : n), 0);
+
+/**
+ * Two readings of the SAME rows, merged so that nothing either of them found
+ * is lost and nothing both of them found is counted twice.
+ *
+ * The identity of a row is what an import already treats as its identity -
+ * date, direction, amount, currency, description - and the multiplicity is
+ * the point: two identical coffees on the same day are two transactions, not
+ * one, so the merge keeps the LARGER count of each identity rather than the
+ * union of distinct ones. Getting that backwards would silently halve a
+ * repeated charge; getting it the other way would double a whole reading.
+ *
+ * The longer reading is the base, in its own order, because it is the one
+ * more likely to be complete; the extra copies the other found are appended.
+ * The handful of appended rows are out of file order - they are the rows a
+ * reading missed, and being at the end of their part is a small price for
+ * being there at all.
+ */
+export function mergeReadings(a: ImportRecord[], b: ImportRecord[]): ImportRecord[] {
+  const key = (r: ImportRecord) =>
+    [r.date, r.type, r.amount, (r.currency ?? '').toUpperCase(),
+      (r.description ?? '').trim().toLowerCase().replace(/\s+/g, ' ')].join('|');
+  const index = (rows: ImportRecord[]) => {
+    const m = new Map<string, ImportRecord[]>();
+    for (const r of rows) {
+      const k = key(r);
+      const at = m.get(k);
+      if (at) at.push(r); else m.set(k, [r]);
+    }
+    return m;
+  };
+  const [base, other] = b.length >= a.length ? [b, a] : [a, b];
+  const inBase = index(base);
+  const out = [...base];
+  for (const [k, rows] of index(other)) {
+    const have = inBase.get(k)?.length ?? 0;
+    for (let i = have; i < rows.length; i += 1) out.push(rows[i]);
+  }
+  return out;
+}
 
 /** One file's text, cut into `parts` pieces of roughly equal row counts, each
  *  carrying the preamble of every section it draws from. Null when there is
@@ -691,7 +755,7 @@ export interface ConvertArgs {
    *  instant the request leaves (the upload is in flight), 'reading' when
    *  the response headers arrive (the server has the file and the model is
    *  working). Everything else the screen says hangs off rows arriving. */
-  onPhase?: (phase: 'sent' | 'reading' | 'triage') => void;
+  onPhase?: (phase: 'sent' | 'reading' | 'triage' | 'repair') => void;
   /** The import every part of a split belongs to. The server claims the
    *  day's credit against this, not against the request, so one file the
    *  user picked costs one import however many reads answered it. */
@@ -704,6 +768,10 @@ export interface ConvertArgs {
   /** How many rows the sample stands for, so the triage instruction can say
    *  so. Only travels with mode 'triage'. */
   sampleOf?: number;
+  /** How many dated rows this ONE read is being handed, counted on the phone.
+   *  The reading is told the number and has to account for every one of them,
+   *  which is the cheapest thing that stops rows going quietly missing. */
+  rowsIn?: number;
   /** The questions have been asked and answered already - this is the
    *  re-run. Skip the triage and go straight to the reading. Set by the
    *  questions screen when it re-starts the import with the answers. */
@@ -743,6 +811,30 @@ const stallMs = (key: string, fallback: number): number => {
  * convertWithAi below is what callers use; this is the single read it is
  * built out of.
  */
+/**
+ * One more attempt at a read that came back short, whose failure is not the
+ * import's failure.
+ *
+ * A repair is a bonus pass: the rows it would recover are already known to be
+ * missing, and the ready screen says so either way. So a rate limit, a stall,
+ * or the server's per-import read budget running out has to leave the import
+ * exactly as it was, rather than throwing away five parts that landed. The
+ * one thing that still propagates is the user leaving - that is not a failed
+ * repair, it is a cancelled import.
+ *
+ * Null for anything unusable: a failure, or an answer that asks a question
+ * instead of converting.
+ */
+async function retryRead(args: ConvertArgs): Promise<AiDone | null> {
+  try {
+    const done = await oneRead(args);
+    return done.status === 'ok' && done.payload ? done : null;
+  } catch (e) {
+    if (args.signal?.aborted) throw e;
+    return null;
+  }
+}
+
 async function oneRead(args: ConvertArgs): Promise<AiDone> {
   const { data: sess } = await supabase.auth.getSession();
   const token = sess?.session?.access_token;
@@ -801,6 +893,7 @@ async function oneRead(args: ConvertArgs): Promise<AiDone> {
       import_id: args.importId,
       mode: args.mode,
       sample_of: args.sampleOf,
+      rows_in: args.rowsIn,
       trip: args.trip,
       lang: args.lang,
       answers: args.answers ?? [],
@@ -1012,7 +1105,30 @@ export async function convertWithAi(args: ConvertArgs): Promise<AiDone> {
   // the right place for it. Only a read that was TOLD not to ask is held to
   // that.
   const settle = (done: AiDone) => (mode === 'convert' ? lateOrDone(done) : done);
-  if (!parts) return { ...settle(await oneRead({ ...args, importId, mode })), importId, rowsSent };
+  if (!parts) {
+    const only = settle(await oneRead({ ...args, importId, mode, rowsIn: rowsSent }));
+    const back = only.payload?.transactions.length ?? 0;
+    // One read, and it came back short: read it again and merge. Same repair
+    // as a split file gets, and the same reason - a second pass at the same
+    // rows is the only thing that turns "the model usually emits them all"
+    // into "they are all here".
+    if (rowsSent && back < rowsSent && only.status === 'ok') {
+      const again = await retryRead({ ...args, importId, mode, rowsIn: rowsSent });
+      if (again) {
+        return {
+          ...again,
+          importId,
+          rowsSent,
+          notes: [...only.notes, ...again.notes].filter((n, i, all) => all.indexOf(n) === i),
+          payload: {
+            ...(only.payload ?? again.payload!),
+            transactions: mergeReadings(only.payload?.transactions ?? [], again.payload?.transactions ?? []),
+          },
+        };
+      }
+    }
+    return { ...only, importId, rowsSent };
+  }
 
   // Rows arrive interleaved from every part at once, so the number on screen
   // counts what has ACTUALLY landed rather than any one part's position - the
@@ -1022,11 +1138,17 @@ export async function convertWithAi(args: ConvertArgs): Promise<AiDone> {
     ? (r: AiRow) => { seen += 1; args.onRow!({ ...r, n: seen }); }
     : undefined;
 
+  // What each part is owed, counted before it goes out. This is the number
+  // the reading is told to account for, and the number its answer is checked
+  // against when it comes back.
+  const owed = parts.map((files) => files.reduce((n, f) => n + (f.text ? countDataRows(f.text) : 0), 0));
+
   const answers = await Promise.all(parts.map((files, i) => oneRead({
     ...args,
     files,
     importId,
     mode,
+    rowsIn: owed[i] || undefined,
     // The phases narrate the first part only. They run 'sent' then 'reading',
     // and eight parts reporting them would walk the screen backwards
     // repeatedly through one wait.
@@ -1035,6 +1157,47 @@ export async function convertWithAi(args: ConvertArgs): Promise<AiDone> {
   })));
 
   answers.forEach(settle);
+
+  // ── the second pass, where the first one came up short ──────────────────
+  //
+  // Every part landed, so nothing failed; but a part that was handed 241 rows
+  // and answered with 236 has lost five, and no error was raised because none
+  // happened - a long structured generation occasionally skips an item. This
+  // is where that stops being the user's problem. Only the short parts are
+  // read again, they run together, and the two readings of each are merged by
+  // identity so a row either found is kept and a row both found is kept once.
+  //
+  // Bounded on purpose: at most AI_REPAIR_READS of them, biggest shortfall
+  // first, because the server's per-import budget also has the triage and the
+  // parts themselves in it. A repair that cannot be run, or that fails, is
+  // not an error - the ready screen still says what is missing.
+  const short = owed
+    .map((want, i) => ({ i, gap: want - (answers[i].payload?.transactions.length ?? 0) }))
+    .filter((s) => s.gap > 0 && owed[s.i] > 0)
+    .sort((a, b) => b.gap - a.gap)
+    .slice(0, AI_REPAIR_READS);
+
+  if (short.length > 0) {
+    // The screen has to say something: the rows have stopped arriving and the
+    // wait is not over. Silence here reads as a hang.
+    args.onPhase?.('repair');
+    const repaired = await Promise.all(short.map(({ i }) => retryRead({
+      // No onRow: the counter on screen already stands at everything that
+      // landed, and a repair's rows would walk it past its own total.
+      ...args, files: parts[i], importId, mode, rowsIn: owed[i], onPhase: undefined, onRow: undefined,
+    })));
+    repaired.forEach((again, n) => {
+      if (!again?.payload) return;
+      const at = short[n].i;
+      const merged = mergeReadings(answers[at].payload?.transactions ?? [], again.payload.transactions);
+      answers[at] = {
+        ...answers[at],
+        notes: [...answers[at].notes, ...again.notes].filter((x, k, all) => all.indexOf(x) === k),
+        payload: { ...(answers[at].payload ?? again.payload), transactions: merged },
+      };
+    });
+  }
+
   const last = answers[answers.length - 1];
   return {
     ...last, // remaining and status from the last to land: the newer truth

@@ -6,7 +6,7 @@
 // read has been spent on it.
 import {
   splitLedgerText, splitForReads, sampleLedgerText, sampleForTriage, resolveCategoryMap, mappingNeedsScreen,
-  countRows, countDataRows,
+  countRows, countDataRows, mergeReadings,
   AI_ROWS_PER_READ, AI_MAX_READS, AI_MAX_ROWS, type AiFile,
 } from '../../src/app/lib/aiImport';
 
@@ -233,6 +233,44 @@ const file = (text: string): AiFile => ({
   const parts = splitForReads([file(one)])!;
   ok(parts.reduce((n, p) => n + countDataRows(p[0].text!), 0) === 1117,
     'the parts between them carry exactly the rows that were counted');
+}
+
+// ── two readings of the same rows, merged ────────────────────────────────
+//
+// The repair pass exists because a long generation occasionally skips an
+// item: a part handed 241 rows came back with 236 and nothing failed. It is
+// read again and the two answers are merged - and the merge is the dangerous
+// part, because getting it wrong doubles a reading instead of completing it.
+{
+  const r = (date: string, amount: number, description: string) =>
+    ({ date, amount, type: 'expense' as const, category: 'Spesa', description, currency: 'EUR' });
+
+  const first = [r('2026-01-01', 10, 'A'), r('2026-01-03', 30, 'C')];
+  const second = [r('2026-01-01', 10, 'A'), r('2026-01-02', 20, 'B'), r('2026-01-03', 30, 'C')];
+  const both = mergeReadings(first, second);
+  ok(both.length === 3, `a row only the second reading found is kept (${both.length} of 3)`);
+  ok(both.filter((x) => x.description === 'A').length === 1, 'and a row both found is kept once, not twice');
+  ok(mergeReadings(second, first).length === 3, 'whichever way round the two readings arrive');
+
+  // The one that would be silent and wrong: two identical coffees on one day
+  // are two transactions. A merge that deduped on identity alone would eat
+  // the second every time - a real charge, gone, in the name of tidiness.
+  const twice = [r('2026-01-01', 3, 'Caffè'), r('2026-01-01', 3, 'Caffè')];
+  const once = [r('2026-01-01', 3, 'Caffè')];
+  ok(mergeReadings(twice, once).length === 2, 'two identical rows in one file stay two');
+  ok(mergeReadings(once, twice).length === 2, 'and the reading that found both is the one believed');
+  ok(mergeReadings(twice, twice).length === 2, 'while the same pair read twice is still a pair, not four');
+
+  // Case and spacing in a description are not an identity. The model writes
+  // "Cena  con Kevin" one time and "Cena con Kevin" the next, and two
+  // readings of one row must not become two rows.
+  const spaced = [{ ...r('2026-01-01', 12, 'Cena  con Kevin') }];
+  const tidy = [{ ...r('2026-01-01', 12, 'cena con kevin') }];
+  ok(mergeReadings(spaced, tidy).length === 1, 'a description respaced between readings is still the same row');
+
+  // Nothing to merge, either way round.
+  ok(mergeReadings([], second).length === 3 && mergeReadings(second, []).length === 3,
+    'an empty reading contributes nothing and destroys nothing');
 }
 
 console.log(fail.length ? `\n${fail.length} FAILED` : '\ntwo halves, every row once, both with their headers');

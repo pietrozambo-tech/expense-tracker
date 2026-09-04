@@ -518,21 +518,29 @@ const pickCsv = (p) => p.locator('[data-ai-door] input[type="file"]').setInputFi
 // already on screen. Past that size the file is cut up and the parts are read
 // AT THE SAME TIME, so the import takes as long as one part.
 {
-  // 900 rows: three parts, fired together, joined into one answer.
+  // 900 rows: three parts, fired together, joined into one answer. Each part
+  // answers with exactly as many rows as it was handed - which is what a
+  // reading is supposed to do, and what stops the repair pass from having
+  // anything to repair. A stub that answered four rows to a 300-row part
+  // would be testing the repair, not the split.
+  const full = (n, rowsIn) => {
+    const transactions = Array.from({ length: rowsIn ?? 4 }, (_, i) => ({
+      date: `2026-01-0${(i % 9) + 1}`, amount: 1, type: 'expense',
+      category: 'Travel', description: `part ${n} - row ${i}`,
+    }));
+    return { ...OK_DONE, payload: { ...OK_DONE.payload, transactions } };
+  };
   const { ctx, p, sent } = await open({
     session: true,
-    convert: (n) => ({
-      res: {
-        status: 200, contentType: 'text/event-stream',
-        body: sse([...ROWS, ['done', {
-          ...OK_DONE,
-          payload: {
-            ...OK_DONE.payload,
-            transactions: OK_DONE.payload.transactions.map((t) => ({ ...t, description: `part ${n} - ${t.description}` })),
-          },
-        }]]),
-      },
-    }),
+    convert: (n, body) => {
+      const done = full(n, body.rows_in);
+      return {
+        res: {
+          status: 200, contentType: 'text/event-stream',
+          body: sse([...done.payload.transactions.slice(0, 4).map((r, i) => ['row', { n: i + 1, row: r }]), ['done', done]]),
+        },
+      };
+    },
   });
   const many = ['date,description,amount'];
   for (let i = 0; i < 900; i += 1) many.push(`2026-01-0${(i % 9) + 1},Row ${i},10`);
@@ -568,8 +576,16 @@ const pickCsv = (p) => p.locator('[data-ai-door] input[type="file"]').setInputFi
   // a dropped or overwritten part shows up in that number immediately. The
   // parts are calls 2-4 - call 1 was the triage, whose answer is a sample's
   // and must NOT be in the result.
-  ok(/326[.,]79/.test(text) && /part 2/.test(text) && /part 3/.test(text) && !/part 1 -/.test(text),
-    `and every answer survives into the result - three joined, the triage's sample kept out (${text.split('\n').find((l) => /€/.test(l)) ?? ''})`);
+  // The TOTAL and the count, not the visible rows: the review list is a
+  // preview and cuts off long before part 3, so scanning it for a label would
+  // fail on a merge that worked. Three parts of 300 rows at 1 EUR each is
+  // 900 - a dropped or overwritten part shows up in that number immediately.
+  // The triage's own sample answer must NOT be in there, and it would be
+  // first if it were, so its absence from the preview is real evidence.
+  const commit = await p.locator('[data-ai-cta="commit"]').innerText();
+  ok(/900/.test(commit), `every answer survives into the result - three parts joined (${commit})`);
+  ok(!/part 1 -/.test(text), "and the triage's sample is kept out of it");
+  ok(sent.length === 4, 'with no part read twice: each answered with every row it was given');
   await ctx.close();
 }
 {
@@ -688,6 +704,119 @@ const pickCsv = (p) => p.locator('[data-ai-door] input[type="file"]').setInputFi
   await p.waitForSelector('[data-ai-flow][data-ai-step="ready"]', { timeout: 10000 });
   ok(await p.locator('[data-ai-short]').count() === 0,
     'and a complete reading is not warned about - four rows out, four back');
+  await ctx.close();
+}
+
+// ── and the repair itself: a short reading is read again, not reported ────
+//
+// The receipt above is the last line of defence, not the fix. A part handed N
+// rows that answers with fewer has lost rows, and the phone knows both
+// numbers the moment the answer lands - so it reads that part again and
+// merges the two answers by identity. Two independent passes at a one-percent
+// miss rate miss the same row about one time in ten thousand.
+{
+  const thin = {
+    ...OK_DONE,
+    payload: {
+      version: 1, currency: 'EUR',
+      transactions: [
+        { date: '2026-08-22', amount: 30, type: 'expense', category: 'Travel', description: 'Ferry' },
+        { date: '2026-08-23', amount: 9, type: 'expense', category: 'Food & Drinks', description: 'Burger' },
+      ],
+    },
+  };
+  const whole = {
+    ...OK_DONE,
+    payload: {
+      version: 1, currency: 'EUR',
+      transactions: [
+        ...thin.payload.transactions,
+        { date: '2026-08-22', amount: 43.34, type: 'expense', category: 'Travel', description: 'Extra night' },
+        { date: '2026-08-23', amount: 26.59, type: 'expense', category: 'Food & Drinks', description: 'Pranzo Pico' },
+      ],
+    },
+  };
+  const stream = (d) => sse([...d.payload.transactions.map((r, i) => ['row', { n: i + 1, row: r }]), ['done', d]]);
+  const { ctx, p, calls, sent } = await open({
+    session: true,
+    // First reading loses two of the four rows; the second finds them all.
+    convert: (n) => ({ delay: 600, res: { status: 200, contentType: 'text/event-stream', body: stream(n === 1 ? thin : whole) } }),
+  });
+  await pickCsv(p);
+  await p.waitForTimeout(400);
+  await p.locator('[data-ai-cta="go"]').click();
+  await p.waitForSelector('[data-ai-flow][data-ai-step="ready"]', { timeout: 15000 });
+  ok(calls() === 2, `the short reading is read again rather than accepted (${calls()} calls)`);
+  ok(sent[0].rows_in === 4 && sent[1].rows_in === 4,
+    `and both reads are told how many rows they hold (${sent[0].rows_in}, ${sent[1].rows_in})`);
+  ok(await p.locator('[data-ai-short]').count() === 0,
+    'the repair closed the gap, so there is nothing left to warn about');
+  const cta = await p.locator('[data-ai-cta="commit"]').innerText();
+  ok(/4/.test(cta), `and all four rows are there to add, not two (${cta})`);
+  await ctx.close();
+}
+
+// A repair that comes back short as well is not hidden: the second pass is a
+// better chance, not a guarantee, and whatever is still missing after it is
+// the person's to know about before they commit.
+{
+  const two = {
+    ...OK_DONE,
+    payload: {
+      version: 1, currency: 'EUR',
+      transactions: [
+        { date: '2026-08-22', amount: 30, type: 'expense', category: 'Travel', description: 'Ferry' },
+        { date: '2026-08-23', amount: 9, type: 'expense', category: 'Food & Drinks', description: 'Burger' },
+      ],
+    },
+  };
+  const stream2 = sse([...two.payload.transactions.map((r, i) => ['row', { n: i + 1, row: r }]), ['done', two]]);
+  const { ctx, p, calls } = await open({
+    session: true,
+    convert: () => ({ delay: 600, res: { status: 200, contentType: 'text/event-stream', body: stream2 } }),
+  });
+  await pickCsv(p);
+  await p.waitForTimeout(400);
+  await p.locator('[data-ai-cta="go"]').click();
+  await p.waitForSelector('[data-ai-flow][data-ai-step="ready"]', { timeout: 15000 });
+  ok(calls() === 2, 'the repair runs once, not in a loop - a second pass, not a search');
+  const gap = p.locator('[data-ai-short]');
+  ok(await gap.count() === 1 && await gap.getAttribute('data-ai-short') === '2',
+    'and what it could not recover is still said out loud');
+  await ctx.close();
+}
+
+// A repair that FAILS must leave the import exactly as it was. The rows it
+// would have recovered are already known to be missing and the screen already
+// says so; throwing away a reading that landed would turn a shortfall into a
+// total loss.
+{
+  const two = {
+    ...OK_DONE,
+    payload: {
+      version: 1, currency: 'EUR',
+      transactions: [
+        { date: '2026-08-22', amount: 30, type: 'expense', category: 'Travel', description: 'Ferry' },
+        { date: '2026-08-23', amount: 9, type: 'expense', category: 'Food & Drinks', description: 'Burger' },
+      ],
+    },
+  };
+  const stream3 = sse([...two.payload.transactions.map((r, i) => ['row', { n: i + 1, row: r }]), ['done', two]]);
+  const { ctx, p } = await open({
+    session: true,
+    convert: (n) => (n === 1
+      ? { delay: 600, res: { status: 200, contentType: 'text/event-stream', body: stream3 } }
+      : { delay: 200, res: { status: 429, contentType: 'application/json', body: '{"error":"rate_limited"}' } }),
+  });
+  await pickCsv(p);
+  await p.waitForTimeout(400);
+  await p.locator('[data-ai-cta="go"]').click();
+  await p.waitForSelector('[data-ai-flow][data-ai-step="ready"]', { timeout: 15000 });
+  ok(await p.locator('[data-ai-flow][data-ai-step="error"]').count() === 0,
+    'a failed repair is not an error - the two rows that landed are still there to add');
+  const cta = await p.locator('[data-ai-cta="commit"]').innerText();
+  ok(/2/.test(cta), `with what the first reading found (${cta})`);
+  ok(await p.locator('[data-ai-short]').count() === 1, 'and the shortfall still stated');
   await ctx.close();
 }
 {
@@ -873,9 +1002,22 @@ const pickCsv = (p) => p.locator('[data-ai-door] input[type="file"]').setInputFi
   };
   const { ctx, p, sent, calls } = await open({
     session: true,
-    convert: (n) => n === 1
-      ? { res: { status: 200, contentType: 'text/event-stream', body: sse([['done', NEED]]) } }
-      : { res: { status: 200, contentType: 'text/event-stream', body: sse([...ROWS, ['done', OK_DONE]]) } },
+    convert: (n, body) => {
+      if (n === 1) return { res: { status: 200, contentType: 'text/event-stream', body: sse([['done', NEED]]) } };
+      // Each part answers in full, so what is counted below is the reading
+      // itself and not a repair pass tidying up after a thin stub.
+      const transactions = Array.from({ length: body.rows_in ?? 4 }, (_, i) => ({
+        date: `2026-01-0${(i % 9) + 1}`, amount: 1, type: 'expense',
+        category: 'Travel', description: `part ${n} - row ${i}`,
+      }));
+      const done = { ...OK_DONE, payload: { ...OK_DONE.payload, transactions } };
+      return {
+        res: {
+          status: 200, contentType: 'text/event-stream',
+          body: sse([...transactions.slice(0, 4).map((r, i) => ['row', { n: i + 1, row: r }]), ['done', done]]),
+        },
+      };
+    },
   });
   await p.locator('[data-ai-door] input[type="file"]').setInputFiles({
     name: 'estratto-2-anni.csv', mimeType: 'text/csv', buffer: Buffer.from(twoYears(700)),
