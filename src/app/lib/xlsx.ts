@@ -132,7 +132,19 @@ const colIndex = (ref: string): number => {
   return n - 1;
 };
 
-const csvField = (v: string) => (/[",\n\r]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v);
+// A cell can hold a line break - someone pressed alt-enter while typing a
+// comment. CSV allows that, quoted, and a real CSV parser reads it back
+// whole. But nothing downstream of here is a CSV parser: the row counter, the
+// splitter that cuts a long file into parallel reads, the sample the triage
+// is built from and the model itself all read LINE BY LINE, and a row spread
+// over two lines is a row one of them will get wrong. The break carries
+// nothing a ledger needs - "Pranzo\nKevin" says the same as "Pranzo Kevin" -
+// so it becomes a space here, where it is still one cell and cannot be
+// mistaken for the end of a row.
+const csvField = (v: string) => {
+  const flat = v.replace(/[\r\n]+/g, ' ').trimEnd();
+  return /[",]/.test(flat) ? `"${flat.replace(/"/g, '""')}"` : flat;
+};
 
 export interface SheetCsv {
   name: string;

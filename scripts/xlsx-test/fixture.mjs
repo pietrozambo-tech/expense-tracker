@@ -54,13 +54,15 @@ export const serialOf = (y, m, d) => (Date.UTC(y, m - 1, d) - Date.UTC(1899, 11,
  * this straight onto the app's Azores trip.
  */
 export function buildWorkbook() {
-  const sst = `<?xml version="1.0"?><sst count="6" uniqueCount="6">
+  const sst = `<?xml version="1.0"?><sst count="7" uniqueCount="7">
     <si><t>date</t></si>
     <si><t>description</t></si>
     <si><t>amount</t></si>
     <si><r><t>Ferry </t></r><r><t>ride</t></r></si>
     <si><t>Lunch, at the port &amp; bar</t></si>
     <si><t>Hotel night</t></si>
+    <si><t>Pranzo
+con Kevin</t></si>
   </sst>`;
   const styles = `<?xml version="1.0"?><styleSheet>
     <numFmts count="1"><numFmt numFmtId="164" formatCode="dd/mm/yyyy"/></numFmts>
@@ -86,6 +88,7 @@ export function buildWorkbook() {
     <row r="3"><c r="A3" s="2"><v>${serialOf(2026, 8, 22)}</v></c><c r="B3" t="s"><v>4</v></c><c r="C3"><v>26.59</v></c></row>
     <row r="4"><c r="A4" s="1"><v>${serialOf(2026, 8, 23)}</v></c><c r="B4" t="inlineStr"><is><t>Burger</t></is></c><c r="C4"><v>9</v></c></row>
     <row r="5"><c r="A5" s="1"><v>${serialOf(2026, 8, 23) + 0.5}</v></c><c r="B5" t="s"><v>5</v></c><c r="C5"><v>43.34</v></c></row>
+    <row r="6"><c r="A6" s="1"><v>${serialOf(2026, 8, 24)}</v></c><c r="B6" t="s"><v>6</v></c><c r="C6"><v>14</v></c></row>
   </sheetData></worksheet>`;
   const s2 = `<?xml version="1.0"?><worksheet><sheetData>
     <row r="1"><c r="A1" s="1"><v>${serialOf(2026, 8, 27)}</v></c><c r="C1"><v>2400</v></c><c r="D1" t="b"><v>1</v></c></row>

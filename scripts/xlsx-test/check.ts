@@ -30,6 +30,15 @@ ok(rows[2]?.startsWith('2026-08-22,"Lunch, at the port & bar"'),
 ok(rows[3] === '2026-08-23,Burger,9', `inline strings read like any other (${rows[3]})`);
 ok(rows[4]?.startsWith('2026-08-23 12:00'),
   `a serial with a fraction keeps its time of day (${rows[4]})`);
+// A cell someone typed a line break into. It is legal CSV to quote it and
+// keep the break, and that is what this used to do - but every reader
+// downstream works line by line (the row counter, the splitter that cuts a
+// long file into parallel reads, the sample the triage is built from, the
+// model), so the row arrived as two lines and one of them had no date, no
+// amount and no category. It is a description: a space says the same thing.
+ok(rows[5] === '2026-08-24,Pranzo con Kevin,14',
+  `a line break inside a cell does not become a second row (${rows[5]})`);
+ok(rows.length === 6, `so the sheet has one line per row (${rows.length})`);
 // The income sheet: a gap column stays a gap, booleans say their name.
 ok(sheets[1]?.csv === '2026-08-27,,2400,TRUE',
   `gaps hold their place and booleans read as words (${sheets[1]?.csv})`);

@@ -5,7 +5,8 @@
 // model's confident reading of it is wrong on every row - after the day's
 // read has been spent on it.
 import {
-  splitLedgerText, splitForReads, sampleLedgerText, sampleForTriage, resolveCategoryMap, mappingNeedsScreen, countRows,
+  splitLedgerText, splitForReads, sampleLedgerText, sampleForTriage, resolveCategoryMap, mappingNeedsScreen,
+  countRows, countDataRows,
   AI_ROWS_PER_READ, AI_MAX_READS, AI_MAX_ROWS, type AiFile,
 } from '../../src/app/lib/aiImport';
 
@@ -200,6 +201,38 @@ const file = (text: string): AiFile => ({
     'one judgement call is worth a glance');
   ok(mappingNeedsScreen(resolveCategoryMap([m('Scommesse', 'expense', null)], mine)), 'and one gap is worth a choice');
   ok(resolveCategoryMap([m('  ', 'expense', null)], mine).length === 0, 'blanks are not categories');
+}
+
+// ── counting what went out, so the answer can be held up against it ──────
+//
+// The two counters exist for opposite reasons and must not drift into each
+// other. countRows guards a timeout and is allowed to run high; countDataRows
+// is compared against the rows that came BACK, so it has to be exact - an
+// overcount invents missing rows, an undercount hides real ones.
+{
+  const one = sheet('elenco spese per il periodo 9 settembre 2024 - 3 settembre 2026', 1117);
+  const two = sheet('elenco entrate per il periodo 9 settembre 2024 - 3 settembre 2026', 91);
+  const text = `### Sheet: Spese\n${one}\n\n### Sheet: Entrate\n${two}`;
+
+  ok(countDataRows(text) === 1208, `it counts the rows and nothing else (${countDataRows(text)} of 1208)`);
+  // The titles carry "2024" and "2026", which is a digit apiece: countRows
+  // takes them and is meant to.
+  ok(countRows(text) > countDataRows(text),
+    `while countRows still runs high, as its own job needs (${countRows(text)})`);
+
+  // A title, a header, a blank line and a sheet that is all preamble are not
+  // rows, however many digits they carry.
+  ok(countDataRows('elenco spese 2024 - 2026\n' + HEAD + '\n\n') === 0,
+    'a file with no dated line counts zero, not "some"');
+  // A photo or a PDF has no text at all: no opinion, and the caller must not
+  // read that as "nothing was sent".
+  ok(countDataRows('') === 0, 'and so does one with nothing in it');
+
+  // The number survives the split, which is the whole point: it is counted on
+  // the files as picked, so five parts cannot disagree with it.
+  const parts = splitForReads([file(one)])!;
+  ok(parts.reduce((n, p) => n + countDataRows(p[0].text!), 0) === 1117,
+    'the parts between them carry exactly the rows that were counted');
 }
 
 console.log(fail.length ? `\n${fail.length} FAILED` : '\ntwo halves, every row once, both with their headers');

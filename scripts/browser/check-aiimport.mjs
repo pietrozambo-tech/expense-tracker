@@ -637,6 +637,59 @@ const pickCsv = (p) => p.locator('[data-ai-door] input[type="file"]').setInputFi
   ok(!/left out/.test(said), 'and nothing was left out: an import never loses a row over a name');
   await ctx.close();
 }
+
+// ── rows counted on the way out, held up against what came back ──────────
+//
+// A friend's 1,206-row export came back ten rows and 556 EUR short. The split
+// had been exact and buildImport had dropped nothing - the reading simply did
+// not emit them - and this screen said "Ready" over a year that was quietly
+// 1% too cheap. The phone had counted the rows on the way out and never
+// compared, so nothing anywhere said a number was missing.
+{
+  const THIN = {
+    ...OK_DONE,
+    payload: {
+      version: 1, currency: 'EUR',
+      transactions: [
+        { date: '2026-08-22', amount: 30, type: 'expense', category: 'Travel', description: 'Ferry' },
+        { date: '2026-08-23', amount: 9, type: 'expense', category: 'Food & Drinks', description: 'Burger' },
+      ],
+    },
+  };
+  const thinRows = THIN.payload.transactions.map((r, i) => ['row', { n: i + 1, row: r }]);
+  const { ctx, p } = await open({
+    session: true,
+    convert: () => ({ delay: 900, res: { status: 200, contentType: 'text/event-stream', body: sse([...thinRows, ['done', THIN]]) } }),
+  });
+  await pickCsv(p); // four dated rows go out
+  await p.waitForTimeout(400);
+  await p.locator('[data-ai-cta="go"]').click();
+  await p.waitForSelector('[data-ai-flow][data-ai-step="ready"]', { timeout: 10000 });
+  const gap = p.locator('[data-ai-short]');
+  ok(await gap.count() === 1, 'a reading that came back short says so, on the last screen where it is undoable');
+  ok(await gap.getAttribute('data-ai-short') === '2', 'counting the rows that did not come back, not guessing at them');
+  const line = await gap.innerText();
+  ok(/4/.test(line) && /2/.test(line), `with both numbers, so it can be checked against the file (${line})`);
+  ok(/import the same file again/i.test(line),
+    'and the way out: a second import adds only what is missing, because the dedupe knows the rest');
+  await ctx.close();
+}
+
+// The other half of that: a reading that brought everything back must not
+// invent a warning. A file whose rows are all there says nothing at all.
+{
+  const { ctx, p } = await open({
+    session: true,
+    convert: () => ({ delay: 900, res: { status: 200, contentType: 'text/event-stream', body: sse([...ROWS, ['done', OK_DONE]]) } }),
+  });
+  await pickCsv(p);
+  await p.waitForTimeout(400);
+  await p.locator('[data-ai-cta="go"]').click();
+  await p.waitForSelector('[data-ai-flow][data-ai-step="ready"]', { timeout: 10000 });
+  ok(await p.locator('[data-ai-short]').count() === 0,
+    'and a complete reading is not warned about - four rows out, four back');
+  await ctx.close();
+}
 {
   // The tally, on a screen that stays up long enough to be read. The parts
   // run at the same time, so holding two of them back leaves the reading

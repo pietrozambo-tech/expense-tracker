@@ -961,6 +961,32 @@ export function AiImport({
                 ].filter(Boolean).join(' · ')}
               </p>
             )}
+            {/* The receipt: rows counted on the way out against rows that
+                came back.
+                A friend's 1,206-row export came back ten rows and 556 EUR
+                short. The split had been exact, buildImport had dropped
+                nothing - the reading simply did not emit them - and this
+                screen said "Pronte" over a year that was 1% too cheap. The
+                phone had both numbers the whole time and never put them side
+                by side.
+                It is stated as a fact rather than an alarm, because a
+                shortfall is not always a fault: a Splitwise export has
+                settlement rows the model is TOLD to skip. What makes it
+                actionable is the last sentence - importing the same file
+                again adds only what is missing, since the dedupe recognises
+                everything already here. */}
+            {(() => {
+              const read = done?.payload?.transactions.length ?? 0;
+              const short = (done?.rowsSent ?? 0) - read;
+              if (!done?.rowsSent || short <= 0) return null;
+              return (
+                <p data-ai-short={short} className="mt-2 px-1" style={{ color: 'var(--tone-warn)', fontSize: 12, lineHeight: 1.5 }}>
+                  {t(short === 1 ? 'ai.short1' : 'ai.shortN', {
+                    n: String(short), sent: String(done.rowsSent), read: String(read),
+                  })}
+                </p>
+              );
+            })()}
             {/* Rows whose category is none of mine, and what became of them.
                 This is the last screen where it is still undoable, and until
                 now it said nothing at all.

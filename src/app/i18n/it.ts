@@ -677,6 +677,8 @@ export const it: Record<keyof typeof en, string> = {
   'ai.homelessOtherN': '{n} righe non avevano una tua categoria e sono finite in Altro ({names})',
   'ai.homelessDropped1': '1 riga è stata esclusa: {names} non è tra le tue categorie',
   'ai.homelessDroppedN': '{n} righe sono state escluse: {names} non è tra le tue categorie',
+  'ai.short1': 'Nel file ci sono {sent} righe con una data e ne sono arrivate {read}: ne manca 1. Se non era un rimborso o una riga di saldo, reimporta lo stesso file: aggiunge solo quello che manca.',
+  'ai.shortN': 'Nel file ci sono {sent} righe con una data e ne sono arrivate {read}: ne mancano {n}. Se non erano rimborsi o righe di saldo, reimporta lo stesso file: aggiunge solo quello che manca.',
   'ai.errAskedLateTitle': 'Si è fermato a chiedere',
   'ai.errAskedLateSub': 'Doveva chiederlo prima di iniziare. Non è stato toccato niente: riprova.',
   'ai.phaseMatch': 'Confronto con le tue categorie…',

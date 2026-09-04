@@ -733,6 +733,12 @@ export const en = {
   // out altogether. Same cause, and the one the count alone never explained.
   'ai.homelessDropped1': '1 row was left out: {names} is not one of your categories',
   'ai.homelessDroppedN': '{n} rows were left out: {names} is not among your categories',
+  // Rows counted on the way out against rows that came back. Said plainly:
+  // some files legitimately have rows to skip, and the person reading this
+  // is the one who knows which. The last sentence is the point - a second
+  // import of the same file costs one read and adds only what is missing.
+  'ai.short1': 'The file has {sent} dated rows and {read} came back, so 1 is missing. If it was not a settlement or a balance line, import the same file again: it adds only what is missing.',
+  'ai.shortN': 'The file has {sent} dated rows and {read} came back, so {n} are missing. If they were not settlements or balance lines, import the same file again: it adds only what is missing.',
   // A read that was told not to ask, asking anyway. Shown with the question
   // underneath, and a retry - answering it would re-run the whole thing.
   'ai.errAskedLateTitle': 'It stopped to ask',

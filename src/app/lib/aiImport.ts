@@ -147,6 +147,22 @@ const hasDate = (line: string): boolean =>
     return re.test(line);
   });
 
+/**
+ * How many rows of DATA a text holds - the exact number, where countRows
+ * deliberately runs high.
+ *
+ * The two exist for opposite reasons. countRows guards a timeout, so an
+ * overcount is the safe direction. This one is compared against what came
+ * BACK, so an overcount would invent missing rows and an undercount would
+ * hide real ones: it counts exactly the lines the splitter treats as rows,
+ * which is the same set the model is handed.
+ *
+ * Zero for a PDF or a photo, which have no lines to count - and the caller
+ * must read that as "no opinion", never as "nothing was sent".
+ */
+export const countDataRows = (text: string): number =>
+  text.split('\n').reduce((n, line) => (hasDate(line) ? n + 1 : n), 0);
+
 /** One file's text, cut into `parts` pieces of roughly equal row counts, each
  *  carrying the preamble of every section it draws from. Null when there is
  *  nothing to cut along - no dated lines at all. */
@@ -643,6 +659,20 @@ export interface AiDone {
   questions?: AiQuestion[];
   notes: string[];
   remaining: number;
+  /**
+   * How many dated rows the phone handed over to be converted, so the ready
+   * screen can hold the answer up against the question.
+   *
+   * A real 1,206-row export came back 10 rows and 556 EUR short. Every part
+   * of the split was exact, buildImport dropped nothing - the reading simply
+   * did not emit them, and the phone, which had counted the rows on the way
+   * out, never compared. The person saw a clean "ready" screen and a year
+   * that was quietly 1% too cheap.
+   *
+   * Undefined when there is nothing to count (a PDF, a photo): no opinion is
+   * not the same as nothing was sent.
+   */
+  rowsSent?: number;
 }
 
 export interface AiRow {
@@ -939,6 +969,11 @@ export async function convertWithAi(args: ConvertArgs): Promise<AiDone> {
   // under; only a fresh import mints one.
   const importId = args.importId ?? newImportId();
   const rows = args.files.reduce((n, f) => n + (f.text ? countRows(f.text) : 0), 0);
+  // What the ready screen will hold the answer up against. Counted here, from
+  // the files as picked, so a split cannot change it and a part that came
+  // back thin cannot hide behind the ones that did not.
+  const sent = args.files.reduce((n, f) => n + (f.text ? countDataRows(f.text) : 0), 0);
+  const rowsSent = sent > 0 ? sent : undefined;
 
   // ── the questions, first and once ─────────────────────────────────────
   // A big file's questions are asked on a SAMPLE before the reading starts.
@@ -977,7 +1012,7 @@ export async function convertWithAi(args: ConvertArgs): Promise<AiDone> {
   // the right place for it. Only a read that was TOLD not to ask is held to
   // that.
   const settle = (done: AiDone) => (mode === 'convert' ? lateOrDone(done) : done);
-  if (!parts) return { ...settle(await oneRead({ ...args, importId, mode })), importId };
+  if (!parts) return { ...settle(await oneRead({ ...args, importId, mode })), importId, rowsSent };
 
   // Rows arrive interleaved from every part at once, so the number on screen
   // counts what has ACTUALLY landed rather than any one part's position - the
@@ -1004,6 +1039,7 @@ export async function convertWithAi(args: ConvertArgs): Promise<AiDone> {
   return {
     ...last, // remaining and status from the last to land: the newer truth
     importId,
+    rowsSent,
     notes: answers.flatMap((a) => a.notes).filter((n, i, all) => all.indexOf(n) === i),
     payload: {
       ...(answers[0].payload ?? last.payload!),
