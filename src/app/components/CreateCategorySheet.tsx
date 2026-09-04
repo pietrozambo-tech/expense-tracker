@@ -126,10 +126,14 @@ export function CreateCategorySheet({ type, existing, onCreate, onUseExisting, o
           <div className="flex items-center gap-3">
             <span
               className={`flex-shrink-0 grid place-items-center rounded-xl ${swatch.bgColor}`}
-              style={{ width: 48, height: 48 }}
+              style={{ width: 46, height: 46 }}
               aria-hidden="true"
             >
-              <Icon className={`w-5.5 h-5.5 ${swatch.color}`} />
+              {/* Sized by the `size` prop, not by a width utility: a class the
+                  build does not generate leaves the icon at lucide's own 24px,
+                  which on a phone reads as a glyph escaping its tile. A number
+                  cannot be purged. */}
+              <Icon size={19} className={swatch.color} />
             </span>
             <input
               ref={nameRef}
@@ -163,12 +167,12 @@ export function CreateCategorySheet({ type, existing, onCreate, onUseExisting, o
                   aria-pressed={on}
                   className={`flex-shrink-0 grid place-items-center rounded-xl ${on ? swatch.bgColor : ''}`}
                   style={{
-                    width: 46, height: 46,
+                    width: 44, height: 44,
                     backgroundColor: on ? undefined : 'var(--bg-inset)',
                     boxShadow: on ? '0 0 0 2px var(--accent-ink)' : undefined,
                   }}
                 >
-                  <On className={`w-5 h-5 ${on ? swatch.color : ''}`} style={on ? undefined : { color: 'var(--ink-2)' }} />
+                  <On size={18} className={on ? swatch.color : undefined} style={on ? undefined : { color: 'var(--ink-2)' }} />
                 </button>
               );
             })}

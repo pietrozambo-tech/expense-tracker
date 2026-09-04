@@ -358,7 +358,11 @@ export function CategorySelector({
                         {t('add.subAdd')}
                       </button>
                     )}
-                    {onCreateSubcategory && adding && (
+                    {onCreateSubcategory && adding && (() => {
+                      // Room for what has been typed, before the 0.875 scale
+                      // shrinks it: the visual width is this times 0.875.
+                      const fieldWidth = Math.max(88, draft.length * 9.5 + 26);
+                      return (
                       <span
                         className="inline-flex items-center gap-2 rounded-lg pl-3 pr-1 py-1"
                         style={{ border: '1.5px solid var(--accent-ink)', backgroundColor: 'var(--bg-card)' }}
@@ -377,13 +381,25 @@ export function CategorySelector({
                             if (e.key === 'Escape') { done.current = true; setAdding(false); setDraft(''); }
                           }}
                           placeholder={t('add.subPlaceholder')}
-                          // 16px, not the 14px of the chips around it: below
-                          // that iOS zooms the whole page in on focus, and the
-                          // one thing this field promises is that the panel
-                          // stays exactly where it is. A slightly taller chip
-                          // while it is being typed into is a fair price.
+                          // DECLARED at 16px, DRAWN at 14 - and both halves are
+                          // load-bearing. Under 16 iOS zooms the whole page in
+                          // when the field takes focus and never zooms back
+                          // out, which would break the one thing this field
+                          // promises: that the panel stays where it is. But 16
+                          // beside 14px chips reads as a different, larger
+                          // thing dropped into the row. The transform is purely
+                          // visual, so iOS still sees 16; the negative margin
+                          // gives back the width the scale left empty, since a
+                          // transform does not change the space taken.
                           className="bg-transparent outline-none"
-                          style={{ color: 'var(--ink)', fontSize: 16, width: Math.max(92, draft.length * 9 + 26) }}
+                          style={{
+                            color: 'var(--ink)',
+                            fontSize: 16,
+                            transform: 'scale(0.875)',
+                            transformOrigin: 'left center',
+                            width: fieldWidth,
+                            marginRight: -fieldWidth * 0.125,
+                          }}
                         />
                         {/* The tick is the visible half of "press return":
                             a soft keyboard's return key cannot be seen, and a
@@ -401,7 +417,8 @@ export function CategorySelector({
                           <Check className="w-3.5 h-3.5 text-white" strokeWidth={3.2} />
                         </button>
                       </span>
-                    )}
+                      );
+                    })()}
                   </div>
                 </div>
               )}
