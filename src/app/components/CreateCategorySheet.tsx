@@ -155,7 +155,14 @@ export function CreateCategorySheet({ type, existing, onCreate, onUseExisting, o
           )}
 
           <p className={`${label} mt-5 mb-2`} style={{ color: 'var(--ink-2)' }}>{t('mgmt.icon').toUpperCase()}</p>
-          <div className="flex gap-2 overflow-x-auto pb-1 -mx-6 px-6">
+          {/* The selected tile wears its ring as a box-shadow, which is drawn
+              OUTSIDE its box - and a scroll container clips on every side, not
+              just the one it scrolls. With no vertical room the ring came off
+              flat against the top edge. So the row carries the slack the ring
+              needs as padding and takes it straight back as margin: the
+              geometry is unchanged, the shadow simply has somewhere to be.
+              The same trick the horizontal -mx-6/px-6 already plays. */}
+          <div className="flex gap-2 overflow-x-auto -mx-6 px-6 -my-1.5 py-1.5">
             {iconsList.map((n) => {
               const On = getCategoryIcon(n);
               const on = n === icon;
@@ -179,7 +186,9 @@ export function CreateCategorySheet({ type, existing, onCreate, onUseExisting, o
           </div>
 
           <p className={`${label} mt-5 mb-2`} style={{ color: 'var(--ink-2)' }}>{t('mgmt.color').toUpperCase()}</p>
-          <div className="flex gap-2.5 overflow-x-auto pb-1 -mx-6 px-6">
+          {/* Twice the slack: this ring is two shadows deep (a white gap, then
+              the accent) and reaches 4px past the dot. */}
+          <div className="flex gap-2.5 overflow-x-auto -mx-6 px-6 -my-2 py-2">
             {colorOptions.map((c) => {
               const on = c.name === swatch.name;
               return (
