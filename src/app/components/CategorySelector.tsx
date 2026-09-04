@@ -5,6 +5,14 @@ import { ArrowDownAZ, Check, Flame, Plus, X } from 'lucide-react';
 import { getCategoryIcon } from './categoryIcons';
 import { orderCategories, type CategoryOrder } from '../lib/categoryOrder';
 
+/**
+ * What the inline subcategory field is scaled down BY, so it is drawn at the
+ * 12px of the chips beside it while still being declared at the 16px iOS
+ * needs (below 16 it zooms the page in on focus and never zooms back out).
+ * 12/16 - kept here so the two numbers cannot drift apart silently.
+ */
+const SUB_SCALE = 0.75;
+
 interface Category {
   id: string;
   name: string;
@@ -326,7 +334,14 @@ export function CategorySelector({
                           onClick={() =>
                             onSelectSubcategory?.(subSelected ? null : subcategory)
                           }
-                          className={`px-3.5 py-1.5 rounded-lg text-sm border ${
+                          // 12px, a step BELOW the 13px category names above.
+                          // These were text-sm - 14 - so a subcategory was set
+                          // larger than the category it belongs to, and on a
+                          // white chip with its own border it read larger
+                          // still. The hierarchy is now the one the screen
+                          // means: 13 category, 12 subcategory, 11 the label
+                          // over them.
+                          className={`px-3 py-1.5 rounded-lg text-[12px] border ${
                             subSelected
                               ? 'bg-blue-50 text-blue-600 border-blue-200'
                               : 'bg-white text-neutral-600 border-neutral-200 hover:bg-neutral-50'
@@ -351,16 +366,16 @@ export function CategorySelector({
                       <button
                         data-sub-add
                         onClick={openAdd}
-                        className="px-3 py-1.5 rounded-lg text-sm border border-dashed inline-flex items-center gap-1.5"
+                        className="px-2.5 py-1.5 rounded-lg text-[12px] border border-dashed inline-flex items-center gap-1.5"
                         style={{ borderColor: 'var(--line)', color: 'var(--ink-2)' }}
                       >
-                        <Plus className="w-3.5 h-3.5" strokeWidth={2.6} />
+                        <Plus size={13} strokeWidth={2.6} />
                         {t('add.subAdd')}
                       </button>
                     )}
                     {onCreateSubcategory && adding && (() => {
-                      // Room for what has been typed, before the 0.875 scale
-                      // shrinks it: the visual width is this times 0.875.
+                      // Room for what has been typed, before the scale shrinks
+                      // it: the visual width is this times SUB_SCALE.
                       const fieldWidth = Math.max(88, draft.length * 9.5 + 26);
                       return (
                       <span
@@ -381,24 +396,25 @@ export function CategorySelector({
                             if (e.key === 'Escape') { done.current = true; setAdding(false); setDraft(''); }
                           }}
                           placeholder={t('add.subPlaceholder')}
-                          // DECLARED at 16px, DRAWN at 14 - and both halves are
-                          // load-bearing. Under 16 iOS zooms the whole page in
-                          // when the field takes focus and never zooms back
-                          // out, which would break the one thing this field
-                          // promises: that the panel stays where it is. But 16
-                          // beside 14px chips reads as a different, larger
-                          // thing dropped into the row. The transform is purely
-                          // visual, so iOS still sees 16; the negative margin
-                          // gives back the width the scale left empty, since a
-                          // transform does not change the space taken.
+                          // DECLARED at 16px, DRAWN at 12 with the chips - and
+                          // both halves are load-bearing. Under 16 iOS zooms
+                          // the whole page in when the field takes focus and
+                          // never zooms back out, which would break the one
+                          // thing this field promises: that the panel stays
+                          // where it is. But 16 beside 12px chips reads as a
+                          // different, larger thing dropped into the row. The
+                          // transform is purely visual, so iOS still sees 16;
+                          // the negative margin gives back the width the scale
+                          // left empty, since a transform does not change the
+                          // space an element takes.
                           className="bg-transparent outline-none"
                           style={{
                             color: 'var(--ink)',
                             fontSize: 16,
-                            transform: 'scale(0.875)',
+                            transform: `scale(${SUB_SCALE})`,
                             transformOrigin: 'left center',
                             width: fieldWidth,
-                            marginRight: -fieldWidth * 0.125,
+                            marginRight: -fieldWidth * (1 - SUB_SCALE),
                           }}
                         />
                         {/* The tick is the visible half of "press return":
